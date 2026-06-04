@@ -1,0 +1,40 @@
+.reports-page { padding: 26px 28px 32px; }
+.reports-header { margin-bottom: 22px; }
+.reports-header h1 { font-size: 26px; margin-bottom: 6px; }
+.reports-header p, .travel-map-title p { color: #777; font-size: 13px; }
+.report-filters { display: grid; grid-template-columns: 180px 220px 1fr; gap: 14px; align-items: end; padding: 18px; margin-bottom: 22px; border: 1px solid #eeeae2; border-radius: 18px; background: #fff; }
+.report-filter-group { display: flex; flex-direction: column; gap: 7px; }
+.report-filter-group label { font-size: 12px; color: #777; font-weight: 700; }
+.report-filter-group input, .report-filter-group select { width: 100%; height: 42px; border: 1px solid #e4e0d7; border-radius: 11px; padding: 0 12px; background: #faf9f6; color: #252525; }
+.report-filter-group input:disabled { opacity: .55; cursor: not-allowed; }
+.report-filter-summary { min-height: 42px; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 14px; border-right: 3px solid #2563eb; }
+.report-filter-summary span { color: #777; font-size: 11px; }
+.report-filter-summary strong { font-size: 13px; }
+.reports-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.report-link-card { display: block; padding: 22px; background: #fff; border: 1px solid #eeeae2; border-radius: 18px; text-decoration: none; color: #252525; transition: .2s ease; }
+.report-link-card:hover { transform: translateY(-3px); border-color: #2563eb; box-shadow: 0 16px 40px rgba(37,99,235,.1); }
+.report-link-card h3 { margin-bottom: 8px; }
+.report-link-card p { color: #777; font-size: 13px; margin-bottom: 18px; }
+.report-link-card span { color: #2563eb; font-size: 13px; font-weight: 700; }
+.report-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 22px; }
+.report-stats div { padding: 18px; border: 1px solid #eeeae2; border-radius: 16px; background: #faf9f6; }
+.report-stats span, .report-stats p { color: #777; font-size: 12px; }
+.report-stats strong { display: block; font-size: 28px; margin: 8px 0 4px; }
+.travel-map-card, .travel-report-table { background: #fff; border: 1px solid #eeeae2; border-radius: 18px; overflow: hidden; margin-bottom: 22px; }
+.travel-map-title { padding: 18px; border-bottom: 1px solid #eeeae2; }
+.travel-map-title h3 { margin-bottom: 5px; }
+.travel-map-wrap { padding: 18px; overflow-x: auto; }
+.travel-map-wrap svg { width: 100%; min-width: 760px; height: auto; }
+.map-background { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 2; }
+.trip-map-line { fill: none; stroke-width: 3; opacity: .8; }
+.origin-node { fill: #252525; stroke: #fff; stroke-width: 5; }
+.destination-node { fill: #dbeafe; stroke: #2563eb; stroke-width: 3; }
+.map-node-title { fill: #111827; font-size: 13px; font-weight: 800; }
+.origin-node + .map-node-title { fill: #fff; }
+.map-node-subtitle { fill: #475569; font-size: 9px; }
+.destination-node-label { fill: #fff; }
+.travel-report-table table { width: 100%; }
+.destination-color { display: inline-block; width: 18px; height: 18px; border-radius: 6px; box-shadow: 0 0 0 3px rgba(148,163,184,.18); }
+.report-map-empty { min-height: 280px; display: grid; place-items: center; color: #777; font-size: 14px; }
+.report-empty { text-align: center; padding: 28px; color: #777; }
+@media (max-width: 800px) { .reports-grid, .report-stats, .report-filters { grid-template-columns: 1fr; } .report-filter-summary { border-right: 0; border-top: 3px solid #2563eb; padding: 12px 0 0; } }
