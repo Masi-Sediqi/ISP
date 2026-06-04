@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import TablePagination from "../components/TablePagination";
+import { useTablePagination } from "../hooks/useTablePagination";
 import "./RecordDetails.css";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -33,17 +35,6 @@ function TravelDetails() {
   });
 
   const travel = travels[travelIndex];
-
-  if (!travel) {
-    return (
-      <div className="record-details-page">
-        <div className="record-card record-empty">
-          <h3>سفر پیدا نشد</h3>
-          <button className="record-btn" onClick={() => navigate("/travels")}>برگشت</button>
-        </div>
-      </div>
-    );
-  }
 
   const travelCustomerRecords = customerTravels.filter(
     (record) => Number(record.travelIndex) === travelIndex
@@ -85,6 +76,19 @@ function TravelDetails() {
     .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
   const totalPaid = allCustomerRows.reduce((sum, record) => sum + record.paid, 0);
   const totalRemaining = allCustomerRows.reduce((sum, record) => sum + record.remaining, 0);
+  const customerPagination = useTablePagination(customerRows, customerSearch);
+  const expensePagination = useTablePagination(expenses, `${expenseSearch}-${expenseType}`);
+
+  if (!travel) {
+    return (
+      <div className="record-details-page">
+        <div className="record-card record-empty">
+          <h3>سفر پیدا نشد</h3>
+          <button className="record-btn" onClick={() => navigate("/travels")}>برگشت</button>
+        </div>
+      </div>
+    );
+  }
 
   const saveExpense = (event) => {
     event.preventDefault();
@@ -187,7 +191,7 @@ function TravelDetails() {
           <table>
             <thead><tr><th>نام مشتری</th><th>شماره تماس</th><th>نمبر تذکره</th><th>کرایه</th><th>تخفیف</th><th>پرداخت</th><th>باقی‌مانده</th><th>توضیحات</th></tr></thead>
             <tbody>
-              {customerRows.map((record) => (
+              {customerPagination.pageItems.map((record) => (
                 <tr key={record.id}>
                   <td>{record.customerName}</td><td>{record.phone}</td><td>{record.tazkiraNo}</td>
                   <td>{money(record.fare)}</td><td>{money(record.discount)}</td>
@@ -200,6 +204,7 @@ function TravelDetails() {
             </tbody>
           </table>
         </div>
+        <TablePagination page={customerPagination.page} totalPages={customerPagination.totalPages} setPage={customerPagination.setPage} totalItems={customerRows.length} pageSize={customerPagination.pageSize} />
       </div>
 
       <div className="record-card">
@@ -216,7 +221,7 @@ function TravelDetails() {
           <table>
             <thead><tr><th>تاریخ</th><th>حالت</th><th>عنوان</th><th>پرداخت‌کننده</th><th>مقدار</th><th>توضیحات</th></tr></thead>
             <tbody>
-              {expenses.map((expense) => (
+              {expensePagination.pageItems.map((expense) => (
                 <tr key={expense.id}>
                   <td>{expense.date}</td><td><span className={`record-type ${expense.category === "repair" ? "repair" : "expense"}`}>{categoryLabel(expense.category)}</span></td>
                   <td>{expense.title}</td><td>{expense.paidBy || "-"}</td><td className="record-expense">{money(expense.amount)}</td><td>{expense.description || "-"}</td>
@@ -226,6 +231,7 @@ function TravelDetails() {
             </tbody>
           </table>
         </div>
+        <TablePagination page={expensePagination.page} totalPages={expensePagination.totalPages} setPage={expensePagination.setPage} totalItems={expenses.length} pageSize={expensePagination.pageSize} />
       </div>
 
       {showExpenseModal && (

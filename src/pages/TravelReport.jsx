@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
+import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { useTablePagination } from "../hooks/useTablePagination";
 import "./Reports.css";
 
 const money = (value) => Number(value || 0).toLocaleString("en-US");
@@ -59,6 +61,7 @@ function TravelReport() {
   );
   const [period, setPeriod] = useState("all");
   const [selectedDate, setSelectedDate] = useState("");
+  const [search, setSearch] = useState("");
   const activeDate = selectedDate || latestTravelDate;
   const { start, end } = getDateRange(activeDate, period);
 
@@ -67,9 +70,6 @@ function TravelReport() {
   );
 
   const destinationNames = [...new Set(filteredTravels.map((travel) => travel.to))].filter(Boolean);
-  const mapHeight = Math.max(520, 160 + destinationNames.length * 135);
-  const originY = mapHeight / 2;
-  const originX = 95;
 
   const destinationData = destinationNames.map((name) => {
     const destinationTravels = filteredTravels.filter((travel) => travel.to === name);
@@ -88,38 +88,30 @@ function TravelReport() {
       count: destinationTravels.length,
       totalKilometers,
       distanceKilometers,
+      totalFare: destinationTravels.reduce((sum, travel) => sum + Number(travel.fare || 0), 0),
+      completed: destinationTravels.filter((travel) => travel.status === "تکمیل شده").length,
+      active: destinationTravels.filter((travel) => travel.status === "در جریان").length,
+      pending: destinationTravels.filter((travel) => travel.status === "در انتظار").length,
+      latestDate: destinationTravels.map((travel) => travel.date).filter(Boolean).sort().at(-1) || "-",
       description: destination?.description || "",
     };
-  }).sort((a, b) => a.distanceKilometers - b.distanceKilometers || a.name.localeCompare(b.name));
+  }).sort((a, b) => b.count - a.count || b.totalKilometers - a.totalKilometers);
 
-  const maxDistance = Math.max(...destinationData.map((destination) => destination.distanceKilometers), 1);
+  const maxTrips = Math.max(...destinationData.map((destination) => destination.count), 1);
   const destinationStats = destinationData.map((destination, index) => ({
     ...destination,
     color: getDestinationColor(index),
-    x: 285 + (destination.distanceKilometers / maxDistance) * 545,
-    y: destinationData.length === 1 ? originY - 90 : 95 + index * 135,
+    percentage: Math.max((destination.count / maxTrips) * 100, 4),
   }));
-
-  const tripLines = filteredTravels.map((travel, index) => {
-    const point = destinationStats.find((destination) => destination.name === travel.to);
-    const repeatIndex = filteredTravels
-      .slice(0, index)
-      .filter((previousTravel) => previousTravel.to === travel.to).length;
-    const controlX = point ? (originX + point.x) / 2 : 250;
-    const lineOffset = point ? (repeatIndex - (point.count - 1) / 2) * 48 : 0;
-    const controlY = point ? (originY + point.y) / 2 + lineOffset : originY;
-    return {
-      id: `${travel.to}-${index}`,
-      point,
-      repeatIndex,
-      path: point ? `M ${originX} ${originY} Q ${controlX} ${controlY} ${point.x} ${point.y}` : "",
-    };
-  }).filter((line) => line.point);
 
   const totalKilometers = filteredTravels.reduce(
     (sum, travel) => sum + Number(travel.kilometers || 0),
     0
   );
+  const filteredDestinations = destinationStats.filter((destination) =>
+    destination.name.includes(search) || destination.description.includes(search)
+  );
+  const { page, setPage, totalPages, pageItems, pageSize } = useTablePagination(filteredDestinations, search);
 
   return (
     <div className="reports-page">
@@ -154,78 +146,63 @@ function TravelReport() {
         <div><span>مجموع کیلومتر</span><strong>{money(totalKilometers)}</strong><p>کیلومتر پیموده‌شده</p></div>
       </div>
 
-      <div className="travel-map-card">
-        <div className="travel-map-title">
-          <h3>نقشه مسیر سفرها</h3>
-          <p>هر مقصد رنگ مخصوص دارد و هر خط یک سفر مستقل را نشان می‌دهد</p>
-        </div>
-        <div className="travel-map-wrap">
-          {destinationStats.length > 0 ? (
-            <svg viewBox={`0 0 900 ${mapHeight}`} role="img" aria-label="نقشه مسیر سفرها">
-              <defs>
-                {destinationStats.map((destination, index) => (
-                  <marker
-                    key={destination.name}
-                    id={`arrow-${index}`}
-                    markerWidth="8"
-                    markerHeight="8"
-                    refX="7"
-                    refY="4"
-                    orient="auto"
-                  >
-                    <path d="M0,0 L8,4 L0,8 z" fill={destination.color.stroke} />
-                  </marker>
-                ))}
-              </defs>
-              <rect x="15" y="15" width="870" height={mapHeight - 30} rx="28" className="map-background" />
-              {tripLines.map((line) => {
-                const destinationIndex = destinationStats.findIndex(
-                  (destination) => destination.name === line.point.name
-                );
-                return (
-                  <path
-                    key={line.id}
-                    d={line.path}
-                    className="trip-map-line"
-                    style={{
-                      stroke: line.point.color.stroke,
-                      strokeWidth: 3 + Math.min(line.repeatIndex, 3) * 0.45,
-                      strokeDasharray: line.repeatIndex % 2 === 1 ? "9 5" : "none",
-                    }}
-                    markerEnd={`url(#arrow-${destinationIndex})`}
-                  />
-                );
-              })}
-              <circle cx={originX} cy={originY} r="35" className="origin-node" />
-              <text x={originX} y={originY + 5} textAnchor="middle" className="map-node-title">مبدأ</text>
-              {destinationStats.map((destination) => (
-                <g key={destination.name}>
-                  <circle
-                    cx={destination.x}
-                    cy={destination.y}
-                    r="38"
-                    className="destination-node"
-                    style={{ fill: destination.color.fill, stroke: destination.color.stroke }}
-                  />
-                  <text x={destination.x} y={destination.y - 4} textAnchor="middle" className="map-node-title destination-node-label">{destination.name}</text>
-                  <text x={destination.x} y={destination.y + 15} textAnchor="middle" className="map-node-subtitle destination-node-label">
-                    {destination.count} سفر | فاصله {money(destination.distanceKilometers)} km
-                  </text>
-                </g>
-              ))}
-            </svg>
-          ) : (
-            <div className="report-map-empty">در بازه انتخاب‌شده سفری ثبت نشده است.</div>
+      <div className="route-ranking-card">
+        <div className="route-ranking-header">
+          <div>
+            <span className="route-ranking-kicker">تحلیل مسیرها</span>
+            <h3>رتبه‌بندی مقصدهای پرتردد</h3>
+            <p>هر ستون باریک یک سفر است؛ مسیرهای پرتردد به‌صورت واضح رتبه‌بندی شده‌اند.</p>
+          </div>
+          {destinationStats[0] && (
+            <div className="top-route-summary">
+              <span>پرترددترین مقصد</span>
+              <strong>{destinationStats[0].name}</strong>
+              <small>{destinationStats[0].count} سفر ثبت‌شده</small>
+            </div>
           )}
+        </div>
+        <div className="route-ranking-list">
+          {destinationStats.map((destination, index) => (
+            <article className="route-ranking-row" key={destination.name}>
+              <div className="route-rank" style={{ background: destination.color.stroke }}>
+                <span>رتبه</span><strong>{index + 1}</strong>
+              </div>
+              <div className="route-main">
+                <div className="route-main-title">
+                  <div><h4>{destination.name}</h4><p>آخرین سفر: {destination.latestDate}</p></div>
+                  <strong>{destination.count} <small>سفر</small></strong>
+                </div>
+                <div className="route-volume-track">
+                  <div className="route-volume-fill" style={{ width: `${destination.percentage}%`, background: destination.color.stroke }}>
+                    <div className="route-trip-marks">
+                      {Array.from({ length: Math.min(destination.count, 12) }, (_, tripIndex) => <i key={tripIndex} />)}
+                      {destination.count > 12 && <b>+{destination.count - 12}</b>}
+                    </div>
+                  </div>
+                </div>
+                <div className="route-statuses">
+                  <span className="done">تکمیل {destination.completed}</span>
+                  <span className="active">در جریان {destination.active}</span>
+                  <span className="pending">در انتظار {destination.pending}</span>
+                </div>
+              </div>
+              <div className="route-metrics">
+                <div><span>فاصله مقصد</span><strong>{money(destination.distanceKilometers)} km</strong></div>
+                <div><span>مجموع کیلومتر</span><strong>{money(destination.totalKilometers)} km</strong></div>
+                <div><span>مجموع کرایه</span><strong>{money(destination.totalFare)}</strong></div>
+              </div>
+            </article>
+          ))}
+          {destinationStats.length === 0 && <div className="report-map-empty">در بازه انتخاب‌شده سفری ثبت نشده است.</div>}
         </div>
       </div>
 
       <div className="travel-report-table">
-        <div className="travel-map-title"><h3>خلاصه مقصدها</h3><p>فقط مقصدهایی که در بازه انتخاب‌شده سفر دارند</p></div>
+        <div className="travel-map-title report-table-title"><div><h3>خلاصه مقصدها</h3><p>فقط مقصدهایی که در بازه انتخاب‌شده سفر دارند</p></div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجوی مقصد..." /></div>
         <table>
           <thead><tr><th>رنگ</th><th>مقصد</th><th>تعداد سفر</th><th>فاصله مقصد</th><th>مجموع کیلومتر سفرها</th><th>توضیحات</th></tr></thead>
           <tbody>
-            {destinationStats.map((destination) => (
+            {pageItems.map((destination) => (
               <tr key={destination.name}>
                 <td><span className="destination-color" style={{ background: destination.color.stroke }} /></td>
                 <td>{destination.name}</td>
@@ -238,6 +215,7 @@ function TravelReport() {
             {destinationStats.length === 0 && <tr><td colSpan="6" className="report-empty">در بازه انتخاب‌شده سفری ثبت نشده است</td></tr>}
           </tbody>
         </table>
+        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filteredDestinations.length} pageSize={pageSize} />
       </div>
     </div>
   );

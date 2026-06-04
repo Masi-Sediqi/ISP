@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { notify } from "../utils/notify";
+import TablePagination from "../components/TablePagination";
+import { useTablePagination } from "../hooks/useTablePagination";
 import "./Cars.css";
 
 const API_URL = "http://localhost:5000/api/cars";
@@ -114,6 +116,7 @@ function Cars() {
     (car.color || "").includes(search) ||
     (car.chassisNo || car.phone || "").includes(search)
   );
+  const { page, setPage, totalPages, pageItems, pageSize } = useTablePagination(filteredCars, search);
 
   const activeCars = cars.filter((car) => car.status === "فعال").length;
   const repairCars = cars.filter((car) => car.status === "در ترمیم").length;
@@ -187,7 +190,7 @@ function Cars() {
             </thead>
 
             <tbody>
-              {filteredCars.map((car, index) => (
+              {pageItems.map((car, index) => (
                 <tr key={car.id || index}>
                   <td className="plate">{car.plate}</td>
                   <td>{car.type}</td>
@@ -252,6 +255,7 @@ function Cars() {
             </tbody>
           </table>
         </div>
+        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filteredCars.length} pageSize={pageSize} />
       </div>
 
       {showModal && (

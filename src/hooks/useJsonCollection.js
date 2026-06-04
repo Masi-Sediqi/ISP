@@ -6,6 +6,7 @@ const API_ROOT = "http://localhost:5000/api";
 
 export function useJsonCollection(name) {
   const [items, setItemsState] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const itemsRef = useRef(items);
 
   const load = useCallback(async () => {
@@ -13,8 +14,10 @@ export function useJsonCollection(name) {
       const response = await axios.get(`${API_ROOT}/${name}`);
       itemsRef.current = response.data;
       setItemsState(response.data);
+      setLoaded(true);
     } catch (error) {
       console.error(`Unable to load ${name}:`, error);
+      setLoaded(true);
     }
   }, [name]);
 
@@ -35,5 +38,5 @@ export function useJsonCollection(name) {
     }
   }, [load, name]);
 
-  return [items, setItems, load];
+  return [items, setItems, load, loaded];
 }

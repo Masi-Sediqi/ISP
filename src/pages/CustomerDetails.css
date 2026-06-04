@@ -408,3 +408,17 @@
 .payment-modal {
   width: min(620px, 100%);
 }
+.customer-destination-step { margin-bottom: 16px; }
+.customer-destination-step > label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; }
+.customer-destination-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.customer-destination-grid button { min-height: 68px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; padding: 10px 12px; font-family: inherit; cursor: pointer; }
+.customer-destination-grid button span { color: #64748b; font-size: 11px; }
+.customer-destination-grid button.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+.customer-destination-grid button.active span { color: #dbeafe; }
+.modal-table .customer-table { min-width: 700px; }
+.customer-row-actions { display: flex; gap: 5px; overflow: visible; }
+.customer-row-actions button { width: 31px; height: 31px; border: 0; border-radius: 8px; display: grid; place-items: center; background: #eef2f7; color: #334155; cursor: pointer; }
+.customer-row-actions button:hover { background: #dbeafe; color: #1d4ed8; }
+.customer-row-actions button.danger { background: #fee2e2; color: #b91c1c; }
+.customer-table th:last-child, .customer-table td:last-child { width: 120px; overflow: visible; }
+@media (max-width: 700px) { .customer-destination-grid { grid-template-columns: 1fr 1fr; } }

@@ -3,6 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import "./CustomerDetails.css";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import TablePagination from "../components/TablePagination";
+import { useTablePagination } from "../hooks/useTablePagination";
+import { Pencil, Printer, Trash2 } from "lucide-react";
 
 function CustomerDetails() {
   const { id } = useParams();
@@ -12,8 +15,11 @@ function CustomerDetails() {
   const [showTravelModal, setShowTravelModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [travelSearch, setTravelSearch] = useState("");
+  const [selectedDestination, setSelectedDestination] = useState("");
   const [recordSearch, setRecordSearch] = useState("");
   const [recordType, setRecordType] = useState("all");
+  const [editActivity, setEditActivity] = useState(null);
+  const [editForm, setEditForm] = useState({ date: "", fare: "", discount: "", payment: "", description: "" });
 
   const [customers] = useJsonCollection("customers");
   const [travels] = useJsonCollection("travels");
@@ -48,19 +54,6 @@ function CustomerDetails() {
 
   const customer = customers[customerIndex];
 
-  if (!customer) {
-    return (
-      <div className="customer-details-page">
-        <div className="customer-details-card">
-          <h3>مشتری پیدا نشد</h3>
-          <button className="customer-btn" onClick={() => navigate("/customers")}>
-            برگشت
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const records = customerTravels.filter(
     (r) => Number(r.customerIndex) === customerIndex
   );
@@ -80,8 +73,13 @@ function CustomerDetails() {
   const customerDebt = Math.max(totalFare - totalDiscount - totalPaid, 0);
   const ourDebt = Math.max(totalPaid - (totalFare - totalDiscount), 0);
 
+  const waitingDestinationNames = [...new Set(
+    travels.filter((travel) => travel.status === "در انتظار" && travel.to).map((travel) => travel.to)
+  )].sort((a, b) => a.localeCompare(b));
+
   const filteredTravels = travels
     .map((travel, index) => ({ ...travel, originalIndex: index }))
+    .filter((travel) => travel.status === "در انتظار" && travel.to === selectedDestination)
     .filter((travel) =>
       (travel.name || "").includes(travelSearch) ||
       (travel.from || "").includes(travelSearch) ||
@@ -164,8 +162,10 @@ function CustomerDetails() {
 
     setTravelForm(emptyTravelForm);
     setTravelSearch("");
+    setSelectedDestination("");
     setShowTravelModal(false);
     notify("سفر مشتری ثبت شد.");
+    navigate(`/customers/${customerIndex}/print/travel/${recordId}`);
   };
 
   const savePayment = (event) => {
@@ -208,6 +208,7 @@ function CustomerDetails() {
     });
     setShowPaymentModal(false);
     notify("پرداخت مشتری با موفقیت ثبت شد.");
+    navigate(`/customers/${customerIndex}/print/payment/${paymentId}`);
   };
 
   const rawCustomerActivity = [
@@ -228,6 +229,7 @@ function CustomerDetails() {
       )),
       status: travels[record.travelIndex]?.status || "نامعلوم",
       description: record.note,
+      recordId: record.id,
     })),
     ...customerPaymentRecords.map((payment) => ({
       id: `payment-${payment.id}`,
@@ -241,6 +243,7 @@ function CustomerDetails() {
       remaining: null,
       status: "پرداخت",
       description: payment.description || "پرداخت بعدی مشتری",
+      recordId: payment.id,
     })),
   ].sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
 
@@ -253,12 +256,86 @@ function CustomerDetails() {
       (item.date || "").includes(recordSearch)
     )
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const activityPagination = useTablePagination(customerActivity, `${recordSearch}-${recordType}`);
+  const travelPagination = useTablePagination(filteredTravels, `${selectedDestination}-${travelSearch}`);
+
+  if (!customer) {
+    return (
+      <div className="customer-details-page">
+        <div className="customer-details-card">
+          <h3>مشتری پیدا نشد</h3>
+          <button className="customer-btn" onClick={() => navigate("/customers")}>
+            برگشت
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusClass = (status) => {
     if (status === "در انتظار") return "customer-badge pending";
     if (status === "تکمیل شده") return "customer-badge done";
     if (status === "در جریان") return "customer-badge active";
     return "customer-badge inactive";
+  };
+
+  const openEditActivity = (item) => {
+    setEditActivity(item);
+    setEditForm({
+      date: item.date || "",
+      fare: item.fare ?? "",
+      discount: item.discount ?? "",
+      payment: item.payment ?? "",
+      description: item.description || "",
+    });
+  };
+
+  const saveActivityEdit = (event) => {
+    event.preventDefault();
+    const payment = Number(editForm.payment || 0);
+    if (editActivity.type === "travel") {
+      const fare = Number(editForm.fare || 0);
+      const discount = Number(editForm.discount || 0);
+      setCustomerTravels(customerTravels.map((record) => Number(record.id) === Number(editActivity.recordId) ? {
+        ...record, date: editForm.date, fare, discount, paidAmount: payment,
+        remainingAmount: Math.max(fare - discount - payment, 0), note: editForm.description,
+      } : record));
+      const existing = transactions.find((item) => item.source === "customer-travel" && Number(item.referenceId) === Number(editActivity.recordId));
+      if (payment > 0) {
+        const nextTransaction = {
+          id: existing?.id || Date.now(), type: "income", title: `پرداخت سفر ${editActivity.title}`, amount: payment,
+          date: editForm.date, description: `پرداخت اولیه ${customer.firstName} ${customer.lastName}`,
+          source: "customer-travel", referenceId: editActivity.recordId, customerIndex,
+        };
+        setTransactions(existing ? transactions.map((item) => item.id === existing.id ? nextTransaction : item) : [...transactions, nextTransaction]);
+      } else if (existing) {
+        setTransactions(transactions.filter((item) => item.id !== existing.id));
+      }
+    } else {
+      if (payment <= 0) return notify("مقدار پرداخت باید بیشتر از صفر باشد.", "error");
+      setCustomerPayments(customerPayments.map((item) => Number(item.id) === Number(editActivity.recordId) ? { ...item, date: editForm.date, amount: payment, description: editForm.description } : item));
+      const existing = transactions.find((item) => item.source === "customer-payment" && Number(item.referenceId) === Number(editActivity.recordId));
+      const nextTransaction = {
+        id: existing?.id || Date.now(), type: "income", title: `پرداخت بدهی ${customer.firstName} ${customer.lastName}`,
+        amount: payment, date: editForm.date, description: editForm.description, source: "customer-payment",
+        referenceId: editActivity.recordId, customerIndex,
+      };
+      setTransactions(existing ? transactions.map((item) => item.id === existing.id ? nextTransaction : item) : [...transactions, nextTransaction]);
+    }
+    setEditActivity(null);
+    notify("ریکارد ویرایش شد.");
+  };
+
+  const deleteActivity = (item) => {
+    if (!window.confirm(`ریکارد ${item.type === "travel" ? "سفر" : "پرداخت"} حذف شود؟`)) return;
+    if (item.type === "travel") {
+      setCustomerTravels(customerTravels.filter((record) => Number(record.id) !== Number(item.recordId)));
+      setTransactions(transactions.filter((transaction) => !(transaction.source === "customer-travel" && Number(transaction.referenceId) === Number(item.recordId))));
+    } else {
+      setCustomerPayments(customerPayments.filter((payment) => Number(payment.id) !== Number(item.recordId)));
+      setTransactions(transactions.filter((transaction) => !(transaction.source === "customer-payment" && Number(transaction.referenceId) === Number(item.recordId))));
+    }
+    notify("ریکارد حذف شد.");
   };
 
   return (
@@ -279,7 +356,7 @@ function CustomerDetails() {
           >
             پرداخت
           </button>
-          <button className="customer-btn" onClick={() => setShowTravelModal(true)}>
+          <button className="customer-btn" onClick={() => { setSelectedDestination(""); setShowTravelModal(true); }}>
             + ثبت سفر
           </button>
           <button className="customer-btn" onClick={() => navigate("/customers")}>
@@ -348,11 +425,12 @@ function CustomerDetails() {
                 <th>باقی‌مانده</th>
                 <th>وضعیت</th>
                 <th>توضیحات</th>
+                <th>عملیات</th>
               </tr>
             </thead>
 
             <tbody>
-              {customerActivity.map((item) => (
+              {activityPagination.pageItems.map((item) => (
                   <tr key={item.id}>
                     <td>{item.date}</td>
                     <td>
@@ -378,12 +456,19 @@ function CustomerDetails() {
                       </span>
                     </td>
                     <td>{item.description || "-"}</td>
+                    <td>
+                      <div className="customer-row-actions">
+                        <button title="چاپ" onClick={() => navigate(`/customers/${customerIndex}/print/${item.type}/${item.recordId}`)}><Printer size={15} /></button>
+                        <button title="ویرایش" onClick={() => openEditActivity(item)}><Pencil size={15} /></button>
+                        <button title="حذف" className="danger" onClick={() => deleteActivity(item)}><Trash2 size={15} /></button>
+                      </div>
+                    </td>
                   </tr>
               ))}
 
               {customerActivity.length === 0 && (
                 <tr>
-                  <td colSpan="10" style={{ textAlign: "center", padding: "25px" }}>
+                  <td colSpan="11" style={{ textAlign: "center", padding: "25px" }}>
                     ریکاردی مطابق جستجو و فلتر پیدا نشد
                   </td>
                 </tr>
@@ -391,6 +476,7 @@ function CustomerDetails() {
             </tbody>
           </table>
         </div>
+        <TablePagination page={activityPagination.page} totalPages={activityPagination.totalPages} setPage={activityPagination.setPage} totalItems={customerActivity.length} pageSize={activityPagination.pageSize} />
       </div>
 
       {showTravelModal && (
@@ -402,20 +488,38 @@ function CustomerDetails() {
             <div className="customer-modal-header">
               <div>
                 <h3>ثبت سفر برای مشتری</h3>
-                <p>از میان سفرهای ثبت‌شده یک سفر را انتخاب کنید</p>
+                <p>ابتدا مقصد و سپس یک سفر در انتظار را انتخاب کنید</p>
               </div>
 
               <button
                 className="customer-close-btn"
-                onClick={() => setShowTravelModal(false)}
+                onClick={() => { setSelectedDestination(""); setShowTravelModal(false); }}
               >
                 ×
               </button>
             </div>
 
             <form onSubmit={saveCustomerTravel}>
+              <div className="customer-destination-step">
+                <label>قدم اول: انتخاب مقصد</label>
+                <div className="customer-destination-grid">
+                  {waitingDestinationNames.map((destination) => (
+                    <button
+                      type="button"
+                      key={destination}
+                      className={selectedDestination === destination ? "active" : ""}
+                      onClick={() => { setSelectedDestination(destination); setTravelSearch(""); setTravelForm(emptyTravelForm); }}
+                    >
+                      <strong>{destination}</strong>
+                      <span>{travels.filter((travel) => travel.status === "در انتظار" && travel.to === destination).length} سفر در انتظار</span>
+                    </button>
+                  ))}
+                  {waitingDestinationNames.length === 0 && <p>هیچ مقصد دارای سفر در انتظار نیست.</p>}
+                </div>
+              </div>
+
               <div className="customer-form-group customer-form-full">
-                <label>جستجوی سفر</label>
+                <label>قدم دوم: جستجوی سفر در انتظار {selectedDestination && `به ${selectedDestination}`}</label>
                 <input
                   value={travelSearch}
                   onChange={(e) => setTravelSearch(e.target.value)}
@@ -436,7 +540,7 @@ function CustomerDetails() {
                   </thead>
 
                   <tbody>
-                    {filteredTravels.map((travel) => (
+                    {travelPagination.pageItems.map((travel) => (
                       <tr key={travel.originalIndex}>
                         <td>
                           <button
@@ -459,13 +563,14 @@ function CustomerDetails() {
                     {filteredTravels.length === 0 && (
                       <tr>
                         <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
-                          هیچ سفری پیدا نشد
+                          {selectedDestination ? "هیچ سفر در انتظاری برای این مقصد پیدا نشد" : "ابتدا یک مقصد را انتخاب کنید"}
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
+              <TablePagination page={travelPagination.page} totalPages={travelPagination.totalPages} setPage={travelPagination.setPage} totalItems={filteredTravels.length} pageSize={travelPagination.pageSize} />
 
               <div className="customer-form-grid">
                 <div className="customer-form-group">
@@ -542,7 +647,7 @@ function CustomerDetails() {
                 <button
                   type="button"
                   className="customer-cancel-btn"
-                  onClick={() => setShowTravelModal(false)}
+                  onClick={() => { setSelectedDestination(""); setShowTravelModal(false); }}
                 >
                   لغو
                 </button>
@@ -604,6 +709,23 @@ function CustomerDetails() {
                 </button>
                 <button type="submit" className="customer-save-btn">ثبت پرداخت</button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editActivity && (
+        <div className="customer-modal-backdrop" onClick={() => setEditActivity(null)}>
+          <div className="customer-modal payment-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="customer-modal-header"><div><h3>ویرایش {editActivity.type === "travel" ? "سفر مشتری" : "پرداخت"}</h3><p>تغییرات در بخش مالی نیز هماهنگ می‌شود.</p></div><button className="customer-close-btn" onClick={() => setEditActivity(null)}>×</button></div>
+            <form onSubmit={saveActivityEdit}>
+              <div className="customer-form-grid">
+                <div className="customer-form-group"><label>تاریخ</label><input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} required /></div>
+                {editActivity.type === "travel" && <><div className="customer-form-group"><label>کرایه</label><input type="number" min="0" value={editForm.fare} onChange={(e) => setEditForm({ ...editForm, fare: e.target.value })} required /></div><div className="customer-form-group"><label>تخفیف</label><input type="number" min="0" value={editForm.discount} onChange={(e) => setEditForm({ ...editForm, discount: e.target.value })} /></div></>}
+                <div className="customer-form-group"><label>پرداخت</label><input type="number" min="0" value={editForm.payment} onChange={(e) => setEditForm({ ...editForm, payment: e.target.value })} required /></div>
+                <div className="customer-form-group customer-form-full"><label>توضیحات</label><textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} /></div>
+              </div>
+              <div className="customer-modal-actions"><button type="button" className="customer-cancel-btn" onClick={() => setEditActivity(null)}>لغو</button><button type="submit" className="customer-save-btn">ذخیره تغییرات</button></div>
             </form>
           </div>
         </div>

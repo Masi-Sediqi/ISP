@@ -10,7 +10,8 @@ html,
 body,
 #root {
   width: 100%;
-  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -20,7 +21,7 @@ body {
 }
 
 .app {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   gap: 18px;
   padding: 18px;
@@ -35,6 +36,8 @@ body {
   padding: 18px 14px;
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 36px);
+  overflow-y: auto;
 }
 
 .brand {
@@ -55,6 +58,14 @@ body {
   display: grid;
   place-items: center;
   font-weight: 700;
+}
+
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+  background: #fff;
 }
 
 .brand h2 {
@@ -181,6 +192,16 @@ body.dark-mode tbody tr {
   border: 1px solid #ece8df;
   border-radius: 20px;
   overflow: hidden;
+  height: calc(100vh - 36px);
+  display: flex;
+  flex-direction: column;
+}
+
+.page-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .topbar {
@@ -193,7 +214,16 @@ body.dark-mode tbody tr {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
+  flex: 0 0 auto;
+  z-index: 1000;
 }
+
+.header-search { width: 185px; height: 42px; margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 0 13px; border: 1px solid #e4e0d7; border-radius: 13px; background: #faf9f6; color: #94a3b8; transition: width .35s ease, border-color .25s ease, box-shadow .25s ease, background .25s ease; }
+.header-search:focus-within { width: min(440px, 45vw); border-color: #6366f1; background: #fff; box-shadow: 0 12px 32px rgba(79,70,229,.12); color: #4f46e5; }
+.header-search input { width: 100% !important; height: 100% !important; padding: 0 !important; border: 0 !important; outline: 0; background: transparent !important; font-family: inherit; direction: rtl; }
+.header-search svg { flex: 0 0 auto; }
+.header-account-link { height: 40px; padding: 0 13px; border: 1px solid #e4e0d7; border-radius: 12px; display: flex; align-items: center; gap: 6px; color: #252525; text-decoration: none; font-size: 12px; font-weight: 700; background: #fff; }
+.dropdown-logout { width: 100%; height: 38px; margin-top: 7px; border: 0; border-radius: 9px; display: flex; align-items: center; justify-content: center; gap: 6px; background: #fee2e2 !important; color: #b91c1c !important; font-family: inherit; cursor: pointer; }
 
 .topbar h1 {
   font-size: 25px;
@@ -409,6 +439,11 @@ body.dark-mode tbody tr {
   border-bottom: 1px solid #eeeae2;
 }
 
+.table-card .card-title a { height: 36px; padding: 0 13px; border-radius: 10px; display: flex; align-items: center; background: #252525; color: #fff; text-decoration: none; font-size: 11px; }
+.bar-chart small { margin-top: 3px; color: #94a3b8; font-size: 8px; white-space: nowrap; }
+.dashboard-empty { padding: 24px !important; text-align: center !important; color: #777; }
+.dashboard-table-wrap { overflow-x: auto; }
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -481,14 +516,22 @@ td {
 }
 
 @media (max-width: 1100px) {
+  html, body, #root { height: auto; min-height: 100%; overflow: auto; }
   .app {
     flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .sidebar {
     width: 100%;
     min-width: 100%;
+    height: auto;
   }
+
+  .main { height: auto; overflow: visible; }
+  .page-content { overflow: visible; }
 
   .stats,
   .charts-grid,
@@ -581,6 +624,67 @@ textarea {
   place-items: center;
   color: #64748b;
   font-weight: 700;
+}
+
+.table-pagination {
+  min-height: 62px;
+  padding: 12px 18px;
+  border-top: 1px solid #eeeae2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.table-pagination div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.table-pagination button {
+  min-width: 72px;
+  height: 34px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #fff;
+  color: #334155;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.table-pagination button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+body.dark-mode .table-pagination {
+  border-color: #334155;
+}
+
+body.dark-mode .table-pagination button {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+body.dark-mode .header-search {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+body.dark-mode .header-search:focus-within {
+  border-color: #818cf8;
+  box-shadow: 0 12px 32px rgba(99, 102, 241, .2);
+}
+
+@media (max-width: 1100px) {
+  .header-search,
+  .header-search:focus-within {
+    width: 100%;
+  }
 }
 
 .toast-host {

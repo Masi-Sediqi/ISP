@@ -38,7 +38,6 @@ function Travels() {
   const [transactions, setTransactions] = useJsonCollection("transactions");
 
   const [search, setSearch] = useState("");
-  const [expandedDestination, setExpandedDestination] = useState(null);
   const [showTravelModal, setShowTravelModal] = useState(false);
   const [showDestinationModal, setShowDestinationModal] = useState(false);
   const [editTravelIndex, setEditTravelIndex] = useState(null);
@@ -276,17 +275,17 @@ function Travels() {
 
         <div className="destination-hub-list">
           {destinationGroups.map((destination) => {
-            const isExpanded = expandedDestination === destination.key;
+            const isExpanded = false;
             return (
               <section className="destination-hub-card" key={destination.key}>
                 <div className="destination-hub-main">
                   <button
                     type="button"
                     className="destination-expand"
-                    onClick={() => setExpandedDestination(isExpanded ? null : destination.key)}
-                    aria-label={isExpanded ? "بستن سفرها" : "نمایش سفرها"}
+                    onClick={() => navigate(`/destinations/${encodeURIComponent(destination.name)}`)}
+                    aria-label="نمایش جزئیات مقصد"
                   >
-                    {isExpanded ? "−" : "+"}
+                    +
                   </button>
                   <div className="destination-hub-info">
                     <h3>{destination.name}</h3>

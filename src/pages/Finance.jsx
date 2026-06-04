@@ -1,5 +1,17 @@
 import { useState } from "react";
+import {
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { useTablePagination } from "../hooks/useTablePagination";
 import { notify } from "../utils/notify";
 import "./Finance.css";
 
@@ -14,6 +26,7 @@ function Finance() {
   const [search, setSearch] = useState("");
   const [formData, setFormData] = useState({
     type: "income",
+    category: "other",
     title: "",
     amount: "",
     description: "",
@@ -73,6 +86,18 @@ function Finance() {
       (item.date || "").includes(search)
     )
     .sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+  const financeByDate = (() => {
+    const days = new Map();
+    allTransactions.forEach((item) => {
+      const current = days.get(item.date) || { date: item.date || "-", income: 0, expense: 0, net: 0 };
+      current[item.type === "income" ? "income" : "expense"] += Number(item.amount || 0);
+      current.net = current.income - current.expense;
+      days.set(item.date, current);
+    });
+    return [...days.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  })();
+  const maximumAmount = Math.max(totalIncome, totalExpense, Math.abs(net), 1);
+  const { page, setPage, totalPages, pageItems, pageSize } = useTablePagination(filteredTransactions, search);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -89,7 +114,7 @@ function Finance() {
         source: "manual",
       },
     ]);
-    setFormData({ type: "income", title: "", amount: "", description: "" });
+    setFormData({ type: "income", category: "other", title: "", amount: "", description: "" });
     setShowModal(false);
     notify(formData.type === "income" ? "عاید ثبت شد." : "مصرف ثبت شد.");
   };
@@ -124,6 +149,33 @@ function Finance() {
         </div>
       </div>
 
+      <div className="finance-visuals">
+        <div className="finance-overview-card">
+          <div className="finance-chart-title"><h3>نمای کلی وضعیت مالی</h3><p>مقایسه عاید، مصرف و سود خالص</p></div>
+          <div className="finance-progress-list">
+            <div><span><b>عاید</b><strong>{formatAmount(totalIncome)}</strong></span><i><em style={{ width: `${(totalIncome / maximumAmount) * 100}%` }} className="income" /></i></div>
+            <div><span><b>مصارف</b><strong>{formatAmount(totalExpense)}</strong></span><i><em style={{ width: `${(totalExpense / maximumAmount) * 100}%` }} className="expense" /></i></div>
+            <div><span><b>{net >= 0 ? "سود خالص" : "ضرر خالص"}</b><strong>{formatAmount(Math.abs(net))}</strong></span><i><em style={{ width: `${(Math.abs(net) / maximumAmount) * 100}%` }} className={net >= 0 ? "profit" : "loss"} /></i></div>
+          </div>
+        </div>
+        <div className="finance-chart-card">
+          <div className="finance-chart-title"><h3>عواید، مصارف و سود بر اساس تاریخ</h3><p>هر ستون و خط، وضعیت همان روز را نشان می‌دهد</p></div>
+          <div className="finance-chart">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={financeByDate}>
+                <CartesianGrid strokeDasharray="4 4" vertical={false} />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip formatter={(value) => formatAmount(value)} />
+                <Bar dataKey="income" name="عاید" fill="#16a34a" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="expense" name="مصرف" fill="#dc2626" radius={[6, 6, 0, 0]} />
+                <Line type="monotone" dataKey="net" name="سود خالص" stroke="#2563eb" strokeWidth={3} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
       <div className="finance-table-card">
         <div className="finance-table-header">
           <div>
@@ -149,7 +201,7 @@ function Finance() {
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.map((item) => (
+              {pageItems.map((item) => (
                 <tr key={item.id}>
                   <td>{item.date || "-"}</td>
                   <td>
@@ -171,6 +223,7 @@ function Finance() {
             </tbody>
           </table>
         </div>
+        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filteredTransactions.length} pageSize={pageSize} />
       </div>
 
       {showModal && (
@@ -189,10 +242,16 @@ function Finance() {
                   <label>حالت</label>
                   <select
                     value={formData.type}
-                    onChange={(event) => setFormData({ ...formData, type: event.target.value })}
+                    onChange={(event) => setFormData({ ...formData, type: event.target.value, category: "other" })}
                   >
                     <option value="income">عاید</option>
                     <option value="expense">مصرف</option>
+                  </select>
+                </div>
+                <div className="finance-form-group">
+                  <label>دسته‌بندی</label>
+                  <select value={formData.category} onChange={(event) => setFormData({ ...formData, category: event.target.value })}>
+                    {formData.type === "income" ? <><option value="other">سایر عواید</option><option value="travel">عاید سفر</option><option value="customer">پرداخت مشتری</option></> : <><option value="other">سایر مصارف</option><option value="fuel">تیل</option><option value="repair">ترمیم</option><option value="salary">معاش</option><option value="purchase">خریداری</option></>}
                   </select>
                 </div>
                 <div className="finance-form-group">

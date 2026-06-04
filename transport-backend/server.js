@@ -16,10 +16,13 @@ const COLLECTIONS = new Set([
   "carRepairs",
   "travelExpenses",
   "destinations",
+  "settings",
+  "accounts",
+  "financeBudgets",
 ]);
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "3mb" }));
 
 function dataFile(collection) {
   return path.join(DATA_DIR, `${collection}.json`);

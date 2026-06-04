@@ -1,0 +1,19 @@
+.settings-page { padding: 26px 28px 32px; }
+.settings-header { margin-bottom: 22px; }
+.settings-header h1 { font-size: 26px; margin-bottom: 6px; }
+.settings-header p, .settings-preview p { color: #777; font-size: 13px; }
+.settings-card { display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; padding: 24px; background: #fff; border: 1px solid #eeeae2; border-radius: 20px; }
+.settings-preview { min-height: 260px; border-radius: 18px; background: linear-gradient(145deg, #172554, #2563eb); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.settings-preview h2 { color: #fff; }
+.settings-preview p { color: #dbeafe; }
+.settings-logo { width: 110px; height: 110px; border-radius: 28px; background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); display: grid; place-items: center; overflow: hidden; }
+.settings-logo img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.settings-logo span { font-size: 52px; font-weight: 800; }
+.settings-form { display: flex; flex-direction: column; gap: 16px; justify-content: center; }
+.settings-form label { display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 700; }
+.settings-form input { min-height: 46px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px 12px; background: #faf9f6; }
+.settings-save, .settings-remove { min-height: 42px; border: 0; border-radius: 11px; font-family: inherit; cursor: pointer; }
+.settings-save { background: #252525; color: #fff; }
+.settings-remove { background: #fee2e2; color: #b91c1c; }
+body.dark-mode .settings-card { background: #1e293b; border-color: #334155; }
+@media (max-width: 800px) { .settings-card { grid-template-columns: 1fr; } }

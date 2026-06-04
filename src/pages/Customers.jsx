@@ -3,12 +3,16 @@ import "./Drivers.css";
 import { useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import TablePagination from "../components/TablePagination";
+import { useTablePagination } from "../hooks/useTablePagination";
 
 function Customers() {
   const [showModal, setShowModal] = useState(false);
   const [showTravelModal, setShowTravelModal] = useState(false);
   const [search, setSearch] = useState("");
   const [travelSearch, setTravelSearch] = useState("");
+  const [selectedRecordSearch, setSelectedRecordSearch] = useState("");
+  const [selectedDestination, setSelectedDestination] = useState("");
   const [editIndex, setEditIndex] = useState(null);
   const [openAction, setOpenAction] = useState(null);
   const [selectedCustomerIndex, setSelectedCustomerIndex] = useState(null);
@@ -54,6 +58,13 @@ function Customers() {
 
   const selectedCustomerRecords = customerTravels.filter(
     (r) => Number(r.customerIndex) === Number(selectedCustomerIndex)
+  );
+  const filteredSelectedCustomerRecords = selectedCustomerRecords.filter((record) =>
+    (record.travelName || "").includes(selectedRecordSearch) ||
+    (record.date || "").includes(selectedRecordSearch) ||
+    (record.from || "").includes(selectedRecordSearch) ||
+    (record.to || "").includes(selectedRecordSearch) ||
+    (record.note || "").includes(selectedRecordSearch)
   );
 
   const totalFare = selectedCustomerRecords.reduce(
@@ -234,8 +245,10 @@ function Customers() {
 
     setCustomerTravelForm(emptyCustomerTravel);
     setTravelSearch("");
+    setSelectedDestination("");
     setShowTravelModal(false);
     notify("سفر برای مشتری ثبت شد.");
+    navigate(`/customers/${selectedCustomerIndex}/print/travel/${recordId}`);
   };
 
   const getTravelStatus = (travelIndex) => {
@@ -250,13 +263,23 @@ function Customers() {
       (customer.phone || "").includes(search) ||
       (customer.tazkiraNo || "").includes(search)
     );
+  const customerPagination = useTablePagination(filteredCustomers, search);
+  const selectedRecordsPagination = useTablePagination(filteredSelectedCustomerRecords, `${selectedCustomerIndex}-${selectedRecordSearch}`);
 
-  const filteredTravels = travels.filter((travel) =>
-    (travel.name || "").includes(travelSearch) ||
-    (travel.from || "").includes(travelSearch) ||
-    (travel.to || "").includes(travelSearch) ||
-    (travel.driver || "").includes(travelSearch)
-  );
+  const waitingDestinationNames = [...new Set(
+    travels.filter((travel) => travel.status === "در انتظار" && travel.to).map((travel) => travel.to)
+  )].sort((a, b) => a.localeCompare(b));
+
+  const filteredTravels = travels
+    .map((travel, originalIndex) => ({ ...travel, originalIndex }))
+    .filter((travel) => travel.status === "در انتظار" && travel.to === selectedDestination)
+    .filter((travel) =>
+      (travel.name || "").includes(travelSearch) ||
+      (travel.from || "").includes(travelSearch) ||
+      (travel.to || "").includes(travelSearch) ||
+      (travel.driver || "").includes(travelSearch)
+    );
+  const travelPagination = useTablePagination(filteredTravels, `${selectedDestination}-${travelSearch}`);
 
   const getCustomerBalance = (customerIndex) => {
     const customerRecords = customerTravels.filter(
@@ -311,7 +334,7 @@ function Customers() {
 
               <button
                 className="driver-add-btn"
-                onClick={() => setShowTravelModal(true)}
+                onClick={() => { setSelectedDestination(""); setShowTravelModal(true); }}
               >
                 + ثبت سفر
               </button>
@@ -352,6 +375,7 @@ function Customers() {
                 <h3>سفرهای ثبت‌شده مشتری</h3>
                 <p>تمام سفرهایی که برای این مشتری ثبت شده است</p>
               </div>
+              <input value={selectedRecordSearch} onChange={(event) => setSelectedRecordSearch(event.target.value)} placeholder="جستجو در سفرهای مشتری..." />
             </div>
 
             <div className="drivers-table-wrap">
@@ -371,7 +395,7 @@ function Customers() {
                 </thead>
 
                 <tbody>
-                  {selectedCustomerRecords.map((record) => (
+                  {selectedRecordsPagination.pageItems.map((record) => (
                     <tr key={record.id}>
                       <td>{record.travelName}</td>
                       <td>{record.date}</td>
@@ -409,6 +433,7 @@ function Customers() {
                 </tbody>
               </table>
             </div>
+            <TablePagination page={selectedRecordsPagination.page} totalPages={selectedRecordsPagination.totalPages} setPage={selectedRecordsPagination.setPage} totalItems={filteredSelectedCustomerRecords.length} pageSize={selectedRecordsPagination.pageSize} />
           </div>
         </>
       )}
@@ -443,7 +468,7 @@ function Customers() {
             </thead>
 
             <tbody>
-              {filteredCustomers.map((customer) => {
+              {customerPagination.pageItems.map((customer) => {
                 const index = customer.originalIndex;
                 const balance = getCustomerBalance(index);
                 return (
@@ -501,6 +526,7 @@ function Customers() {
             </tbody>
           </table>
         </div>
+        <TablePagination page={customerPagination.page} totalPages={customerPagination.totalPages} setPage={customerPagination.setPage} totalItems={filteredCustomers.length} pageSize={customerPagination.pageSize} />
       </div>
 
       {showTravelModal && (
@@ -509,20 +535,38 @@ function Customers() {
             <div className="driver-modal-header">
               <div>
                 <h3>ثبت سفر برای مشتری</h3>
-                <p>از میان سفرهای ثبت‌شده یک سفر را انتخاب کنید</p>
+                <p>ابتدا مقصد و سپس یک سفر در انتظار را انتخاب کنید</p>
               </div>
 
               <button
                 className="driver-close-btn"
-                onClick={() => setShowTravelModal(false)}
+                onClick={() => { setSelectedDestination(""); setShowTravelModal(false); }}
               >
                 ×
               </button>
             </div>
 
             <form onSubmit={saveCustomerTravel}>
+              <div className="customer-destination-step">
+                <label>قدم اول: انتخاب مقصد</label>
+                <div className="customer-destination-grid">
+                  {waitingDestinationNames.map((destination) => (
+                    <button
+                      type="button"
+                      key={destination}
+                      className={selectedDestination === destination ? "active" : ""}
+                      onClick={() => { setSelectedDestination(destination); setTravelSearch(""); setCustomerTravelForm(emptyCustomerTravel); }}
+                    >
+                      <strong>{destination}</strong>
+                      <span>{travels.filter((travel) => travel.status === "در انتظار" && travel.to === destination).length} سفر در انتظار</span>
+                    </button>
+                  ))}
+                  {waitingDestinationNames.length === 0 && <p>هیچ مقصد دارای سفر در انتظار نیست.</p>}
+                </div>
+              </div>
+
               <div className="form-group form-full">
-                <label>جستجوی سفر</label>
+                <label>قدم دوم: جستجوی سفر در انتظار {selectedDestination && `به ${selectedDestination}`}</label>
                 <input
                   value={travelSearch}
                   onChange={(e) => setTravelSearch(e.target.value)}
@@ -543,13 +587,13 @@ function Customers() {
                   </thead>
 
                   <tbody>
-                    {filteredTravels.map((travel, index) => (
-                      <tr key={index}>
+                    {travelPagination.pageItems.map((travel) => (
+                      <tr key={travel.originalIndex}>
                         <td>
                           <button
                             type="button"
                             className="driver-save-btn"
-                            onClick={() => selectTravel(travel, index)}
+                            onClick={() => selectTravel(travel, travel.originalIndex)}
                           >
                             انتخاب
                           </button>
@@ -566,13 +610,14 @@ function Customers() {
                     {filteredTravels.length === 0 && (
                       <tr>
                         <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
-                          هیچ سفری پیدا نشد
+                          {selectedDestination ? "هیچ سفر در انتظاری برای این مقصد پیدا نشد" : "ابتدا یک مقصد را انتخاب کنید"}
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
+              <TablePagination page={travelPagination.page} totalPages={travelPagination.totalPages} setPage={travelPagination.setPage} totalItems={filteredTravels.length} pageSize={travelPagination.pageSize} />
 
               <div className="driver-form-grid">
                 <div className="form-group">
@@ -651,7 +696,7 @@ function Customers() {
                 <button
                   type="button"
                   className="driver-cancel-btn"
-                  onClick={() => setShowTravelModal(false)}
+                  onClick={() => { setSelectedDestination(""); setShowTravelModal(false); }}
                 >
                   لغو
                 </button>

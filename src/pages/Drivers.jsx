@@ -2,6 +2,8 @@ import { useState } from "react";
 import "./Drivers.css";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import TablePagination from "../components/TablePagination";
+import { useTablePagination } from "../hooks/useTablePagination";
 
 function Drivers() {
   const [showModal, setShowModal] = useState(false);
@@ -74,12 +76,15 @@ function Drivers() {
     }
   };
 
-  const filteredDrivers = drivers.filter((driver) =>
-    driver.firstName.includes(search) ||
-    driver.lastName.includes(search) ||
-    driver.phone.includes(search) ||
-    driver.licenseNo.includes(search)
-  );
+  const filteredDrivers = drivers
+    .map((driver, originalIndex) => ({ ...driver, originalIndex }))
+    .filter((driver) =>
+      (driver.firstName || "").includes(search) ||
+      (driver.lastName || "").includes(search) ||
+      (driver.phone || "").includes(search) ||
+      (driver.licenseNo || "").includes(search)
+    );
+  const { page, setPage, totalPages, pageItems, pageSize } = useTablePagination(filteredDrivers, search);
 
   const activeDrivers = drivers.filter((d) => d.status === "فعال").length;
   const inactiveDrivers = drivers.filter((d) => d.status === "غیرفعال").length;
@@ -154,8 +159,9 @@ function Drivers() {
             </thead>
 
             <tbody>
-              {filteredDrivers.map((driver, index) => (
-                <tr key={index}>
+              {pageItems.map((driver) => {
+                const index = driver.originalIndex;
+                return <tr key={index}>
                   <td className="driver-name" title={driver.firstName}>
                     {driver.firstName}
                   </td>
@@ -207,8 +213,8 @@ function Drivers() {
                       )}
                     </div>
                   </td>
-                </tr>
-              ))}
+                </tr>;
+              })}
 
               {filteredDrivers.length === 0 && (
                 <tr>
@@ -220,6 +226,7 @@ function Drivers() {
             </tbody>
           </table>
         </div>
+        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filteredDrivers.length} pageSize={pageSize} />
       </div>
 
       {showModal && (

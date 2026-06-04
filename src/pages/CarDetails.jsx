@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import TablePagination from "../components/TablePagination";
+import { useTablePagination } from "../hooks/useTablePagination";
 import "./RecordDetails.css";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -29,22 +31,11 @@ function CarDetails() {
 
   const car = cars.find((item) => Number(item.id) === carId);
 
-  if (!car) {
-    return (
-      <div className="record-details-page">
-        <div className="record-card record-empty">
-          <h3>موتر پیدا نشد</h3>
-          <button className="record-btn" onClick={() => navigate("/cars")}>برگشت</button>
-        </div>
-      </div>
-    );
-  }
-
   const carTravels = travels
     .map((travel, index) => ({ ...travel, originalIndex: index }))
-    .filter((travel) => travel.car === car.plate);
+    .filter((travel) => travel.car === car?.plate);
   const carRepairs = repairs.filter(
-    (repair) => Number(repair.carId) === carId || repair.carPlate === car.plate
+    (repair) => Number(repair.carId) === carId || repair.carPlate === car?.plate
   );
   const totalRepairCost = carRepairs.reduce((sum, repair) => sum + Number(repair.amount || 0), 0);
 
@@ -81,6 +72,18 @@ function CarDetails() {
       (record.date || "").includes(search)
     )
     .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const recordsPagination = useTablePagination(records, `${search}-${recordType}`);
+
+  if (!car) {
+    return (
+      <div className="record-details-page">
+        <div className="record-card record-empty">
+          <h3>موتر پیدا نشد</h3>
+          <button className="record-btn" onClick={() => navigate("/cars")}>برگشت</button>
+        </div>
+      </div>
+    );
+  }
 
   const saveRepair = (event) => {
     event.preventDefault();
@@ -161,7 +164,7 @@ function CarDetails() {
           <table>
             <thead><tr><th>تاریخ</th><th>حالت</th><th>عنوان</th><th>مسیر / آدرس ترمیم‌کار</th><th>راننده / انتقال‌دهنده</th><th>مقدار</th><th>وضعیت</th><th>توضیحات</th></tr></thead>
             <tbody>
-              {records.map((record) => (
+              {recordsPagination.pageItems.map((record) => (
                 <tr key={record.id} onDoubleClick={() => record.travelIndex !== undefined && navigate(`/travels/${record.travelIndex}`)}>
                   <td>{record.date || "-"}</td>
                   <td><span className={`record-type ${record.type}`}>{record.type === "travel" ? "سفر" : "ترمیم"}</span></td>
@@ -174,6 +177,7 @@ function CarDetails() {
             </tbody>
           </table>
         </div>
+        <TablePagination page={recordsPagination.page} totalPages={recordsPagination.totalPages} setPage={recordsPagination.setPage} totalItems={records.length} pageSize={recordsPagination.pageSize} />
       </div>
 
       {showRepairModal && (
