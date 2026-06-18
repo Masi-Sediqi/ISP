@@ -29,6 +29,7 @@ function Header({ currentUser, onLogout }) {
         </div>
 
         <button className="icon-btn" onClick={toggleDarkMode} aria-label="تغییر حالت نمایش"><Moon size={18} /></button>
+
         <Link className="icon-btn" to="/settings" aria-label="تنظیمات"><Settings size={18} /></Link>
 
         <div className="header-menu profile-menu">

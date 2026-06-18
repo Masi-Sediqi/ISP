@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>سیستم مدیریت حمل و نقل</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+        font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+        color: #f8fbff;
+        background:
+          radial-gradient(circle at center 18%, rgba(91, 151, 255, 0.2), transparent 32%),
+          linear-gradient(135deg, #050b15 0%, #0b1727 50%, #09111f 100%);
+      }
+
+      .splash {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        padding: 44px 54px;
+        display: grid;
+        align-content: center;
+        text-align: center;
+      }
+
+      .road-glow {
+        position: absolute;
+        right: -12%;
+        bottom: 134px;
+        width: 124%;
+        height: 4px;
+        background: linear-gradient(90deg, transparent, rgba(95, 168, 255, 0.3), #d9ecff, rgba(95, 168, 255, 0.3), transparent);
+        box-shadow: 0 0 26px rgba(95, 168, 255, 0.5);
+      }
+
+      .bus-stage {
+        position: relative;
+        height: 250px;
+        margin-bottom: 28px;
+      }
+
+      .bus-shadow {
+        position: absolute;
+        left: 22%;
+        right: 22%;
+        bottom: 12px;
+        height: 26px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.48);
+        filter: blur(18px);
+        animation: shadowPulse 1.4s ease-in-out infinite alternate;
+      }
+
+      .bus {
+        position: absolute;
+        bottom: 22px;
+        width: 520px;
+        max-width: 72vw;
+        filter: drop-shadow(0 30px 34px rgba(0, 0, 0, 0.42));
+        animation: driveAcross 4.1s cubic-bezier(0.22, 0.72, 0.2, 1) infinite;
+      }
+
+      .speed-line {
+        position: absolute;
+        right: -20%;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, transparent, rgba(222, 242, 255, 0.82), transparent);
+        opacity: 0;
+        animation: speedLine 1.15s linear infinite;
+      }
+
+      .speed-line:nth-child(1) { top: 90px; width: 190px; animation-delay: 0s; }
+      .speed-line:nth-child(2) { top: 128px; width: 260px; animation-delay: 0.24s; }
+      .speed-line:nth-child(3) { top: 172px; width: 150px; animation-delay: 0.48s; }
+
+      h1 {
+        margin: 0;
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+
+      h2 {
+        margin: 10px 0 0;
+        font-size: 24px;
+        font-weight: 700;
+        color: #b9d8ff;
+      }
+
+      .made-by {
+        margin-top: 22px;
+        font-size: 15px;
+        color: rgba(248, 251, 255, 0.7);
+      }
+
+      .loader {
+        width: 210px;
+        height: 5px;
+        margin: 28px auto 0;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+      }
+
+      .loader span {
+        display: block;
+        width: 42%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #62a8ff, #ffffff);
+        animation: loading 1.15s ease-in-out infinite;
+      }
+
+      body.closing {
+        animation: fadeOut 0.36s ease forwards;
+      }
+
+      @keyframes driveAcross {
+        0% {
+          transform: translateX(112%) scale(0.92);
+          opacity: 0;
+        }
+        16% {
+          opacity: 1;
+        }
+        72% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateX(-118%) scale(1.02);
+          opacity: 0;
+        }
+      }
+
+      @keyframes speedLine {
+        0% {
+          transform: translateX(0);
+          opacity: 0;
+        }
+        18% {
+          opacity: 0.72;
+        }
+        100% {
+          transform: translateX(-124vw);
+          opacity: 0;
+        }
+      }
+
+      @keyframes shadowPulse {
+        from {
+          transform: scaleX(0.86);
+          opacity: 0.42;
+        }
+        to {
+          transform: scaleX(1.05);
+          opacity: 0.64;
+        }
+      }
+
+      @keyframes loading {
+        from {
+          transform: translateX(245%);
+        }
+        to {
+          transform: translateX(-245%);
+        }
+      }
+
+      @keyframes fadeOut {
+        to {
+          opacity: 0;
+          transform: scale(0.985);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="splash">
+      <div class="speed-line"></div>
+      <div class="speed-line"></div>
+      <div class="speed-line"></div>
+      <div class="bus-stage" aria-hidden="true">
+        <div class="bus-shadow"></div>
+        <img class="bus" src="./assets/splash-bus.png" alt="" />
+      </div>
+      <div class="road-glow"></div>
+      <h1>سیستم مدیریت حمل و نقل</h1>
+      <h2 id="company-name">شرکت سیاحتی</h2>
+      <div class="loader"><span></span></div>
+      <p class="made-by">ساخته شده توسط KMS</p>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const companyName = params.get("companyName");
+      if (companyName) {
+        document.getElementById("company-name").textContent = companyName;
+      }
+
+      window.require?.("electron")?.ipcRenderer?.on("splash-close", () => {
+        document.body.classList.add("closing");
+      });
+    </script>
+  </body>
+</html>

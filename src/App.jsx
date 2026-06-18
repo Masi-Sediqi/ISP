@@ -24,6 +24,7 @@ const FinancialReport = lazy(() => import("./pages/FinancialReport"));
 const FinancialStatement = lazy(() => import("./pages/FinancialStatement"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Accounts = lazy(() => import("./pages/Accounts"));
+const AdvancedReporting = lazy(() => import("./pages/AdvancedReporting"));
 const Login = lazy(() => import("./pages/Login"));
 
 function App() {
@@ -69,6 +70,8 @@ function App() {
           <NavLink to="/finance">عواید و مصارف</NavLink>
           <NavLink to="/reports">راپورها</NavLink>
           <NavLink to="/settings">تنظیمات</NavLink>
+          {/* <Link className="header-ai-link" to="/"><Bot size={17} /> گزارش‌دهی پیشرفته</Link> */}
+          <NavLink to="/advanced-reporting">گزارش‌دهی پیشرفته</NavLink>
         </nav>
         <button className="logout" onClick={logout}>خروج از سیستم</button>
       </aside>
@@ -98,6 +101,7 @@ function App() {
               <Route path="/reports/finance/statement" element={<FinancialStatement />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/accounts" element={<Accounts accounts={accounts} setAccounts={setAccounts} currentUser={currentUser} />} />
+              <Route path="/advanced-reporting" element={<AdvancedReporting />} />
             </Routes>
           </Suspense>
         </div>

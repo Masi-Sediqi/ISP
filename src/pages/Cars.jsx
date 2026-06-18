@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { notify } from "../utils/notify";
+import { apiUrl } from "../utils/api";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
 import "./Cars.css";
 
-const API_URL = "http://localhost:5000/api/cars";
+const API_URL = apiUrl("cars");
 
 function Cars() {
   const navigate = useNavigate();
