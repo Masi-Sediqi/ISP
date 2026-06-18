@@ -30,10 +30,12 @@ export function useJsonCollection(name) {
     setItemsState(nextItems);
     try {
       await axios.put(apiUrl(name), nextItems);
+      return true;
     } catch (error) {
       console.error(`Unable to save ${name}:`, error);
       await load();
       notify("ذخیره اطلاعات انجام نشد. لطفاً سرور را بررسی کنید.", "error");
+      return false;
     }
   }, [load, name]);
 

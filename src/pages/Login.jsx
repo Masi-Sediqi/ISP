@@ -8,24 +8,30 @@ function Login({ accounts, setAccounts, onLogin, company }) {
   const [mode, setMode] = useState(firstAccount ? "create" : "login");
   const [form, setForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "" });
 
-  const submit = (event) => {
+  const submit = async (event) => {
     event.preventDefault();
+    const email = form.email.trim().toLowerCase();
+
+    if (!email || !form.password) {
+      return notify("لطفاً ایمیل و رمز عبور را وارد کنید.", "error");
+    }
+
     if (mode === "login") {
-      const loginEmail = form.email.trim().toLowerCase();
       const account = accounts.find((item) =>
-        (String(item.email || "").toLowerCase() === loginEmail || String(item.username || "").toLowerCase() === loginEmail) &&
+        (String(item.email || "").toLowerCase() === email || String(item.username || "").toLowerCase() === email) &&
         item.password === form.password
       );
       if (!account) return notify("ایمیل یا رمز عبور نادرست است.", "error");
       onLogin(account);
       return;
     }
+    if (!form.fullName.trim()) return notify("لطفاً نام کامل را وارد کنید.", "error");
     if (form.password.length < 4) return notify("رمز عبور باید حداقل چهار حرف باشد.", "error");
     if (form.password !== form.confirmPassword) return notify("تکرار رمز عبور یکسان نیست.", "error");
-    const email = form.email.trim().toLowerCase();
     if (accounts.some((item) => String(item.email || "").toLowerCase() === email)) return notify("این ایمیل قبلاً استفاده شده است.", "error");
     const account = { id: Date.now(), fullName: form.fullName.trim(), email, password: form.password, role: "مدیر کامل", createdAt: new Date().toISOString().slice(0, 10) };
-    setAccounts([...accounts, account]);
+    const saved = await setAccounts([...accounts, account]);
+    if (!saved) return;
     onLogin(account);
   };
 
@@ -37,7 +43,7 @@ function Login({ accounts, setAccounts, onLogin, company }) {
         <p>مدیریت یک‌پارچه سفرها، مشتری‌ها، موترها و امور مالی</p>
       </div>
       <div className="auth-form-panel">
-        <form className="auth-card" onSubmit={submit}>
+        <form className="auth-card" onSubmit={submit} noValidate>
           <div className="auth-card-icon">{mode === "login" ? <LockKeyhole /> : <UserPlus />}</div>
           <h2>{mode === "login" ? "ورود به سیستم" : "ساخت اکونت مدیر"}</h2>
           <p>{firstAccount ? "برای آغاز استفاده، اولین اکونت مدیر را بسازید." : mode === "login" ? "معلومات اکونت خود را وارد کنید." : "یک اکونت جدید با صلاحیت کامل بسازید."}</p>

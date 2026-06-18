@@ -51,8 +51,8 @@ function App() {
     setSessionId(null);
   };
 
-  if (!accountsLoaded) return <div className="page-loading">در حال آماده‌سازی سیستم...</div>;
-  if (!currentUser) return <Suspense fallback={<div className="page-loading">در حال بارگذاری...</div>}><Login accounts={accounts} setAccounts={setAccounts} onLogin={login} company={company} /></Suspense>;
+  if (!accountsLoaded) return <><div className="page-loading">در حال آماده‌سازی سیستم...</div><ToastHost /></>;
+  if (!currentUser) return <><Suspense fallback={<div className="page-loading">در حال بارگذاری...</div>}><Login accounts={accounts} setAccounts={setAccounts} onLogin={login} company={company} /></Suspense><ToastHost /></>;
 
   return (
     <div className="app" dir="rtl">

@@ -5,8 +5,9 @@
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
-    "dev": "vite",
-    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev": "concurrently -k -n SERVER,WEB -c green,cyan \"node transport-backend/server.js\" \"vite\"",
+    "dev:web": "vite",
+    "electron-dev": "concurrently -k -n SERVER,WEB,ELECTRON -c green,cyan,magenta \"node transport-backend/server.js\" \"vite\" \"wait-on http://localhost:5173 http://127.0.0.1:5000/api/accounts && electron .\"",
     "build": "vite build",
     "dist": "npm run build && electron-builder",
     "lint": "eslint .",
