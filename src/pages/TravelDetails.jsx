@@ -5,6 +5,7 @@ import { notify } from "../utils/notify";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
 import "./RecordDetails.css";
+import { getSeatAssignments, getSeatCount } from "../utils/seatManagement";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const money = (value) => Number(value || 0).toLocaleString("en-US");
@@ -76,6 +77,9 @@ function TravelDetails() {
     .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
   const totalPaid = allCustomerRows.reduce((sum, record) => sum + record.paid, 0);
   const totalRemaining = allCustomerRows.reduce((sum, record) => sum + record.remaining, 0);
+  const travelCar = travel ? cars.find((item) => item.plate === travel.car) : null;
+  const travelSeatCount = getSeatCount(travelCar);
+  const travelSeatAssignments = getSeatAssignments(travelCar, allCustomerRows);
   const customerPagination = useTablePagination(customerRows, customerSearch);
   const expensePagination = useTablePagination(expenses, `${expenseSearch}-${expenseType}`);
 
@@ -180,6 +184,36 @@ function TravelDetails() {
         <div className="record-stat income"><span>پرداخت مشتری‌ها</span><strong>{money(totalPaid)}</strong><p>افغانی دریافت‌شده</p></div>
         <div className="record-stat expense"><span>باقی‌مانده مشتری‌ها</span><strong>{money(totalRemaining)}</strong><p>افغانی طلب</p></div>
         <div className="record-stat expense"><span>مصارف سفر</span><strong>{money(totalExpenses)}</strong><p>افغانی مصرف‌شده</p></div>
+      </div>
+
+      <div className="record-card">
+        <div className="record-card-header">
+          <div>
+            <h3>مدیریت چوکی‌های موتر</h3>
+            <p>
+              {travelCar
+                ? `موتر ${travel.car} دارای ${travelSeatCount} چوکی است و وضعیت رزرف آن در زیر دیده می‌شود.`
+                : "برای این سفر موتر ثبت نشده است."}
+            </p>
+          </div>
+        </div>
+        <div className="seat-management-grid">
+          {travelSeatAssignments.map(({ seatNo, record }) => (
+            <div key={seatNo} className={`seat-card ${record ? "occupied" : "free"}`}>
+              <strong>چوکی {seatNo}</strong>
+              {record ? (
+                <>
+                  <span>{record.customerName}</span>
+                  <small>{record.date || "-"}</small>
+                </>
+              ) : (
+                <span>خالی</span>
+              )}
+            </div>
+          ))}
+          {!travelCar && <div className="seat-management-empty">برای نمایش چوکی‌ها، ابتدا برای این سفر موتر را ثبت کنید.</div>}
+          {travelCar && travelSeatCount === 0 && <div className="seat-management-empty">برای این موتر هنوز مقدار چوکی ثبت نشده است.</div>}
+        </div>
       </div>
 
       <div className="record-card">

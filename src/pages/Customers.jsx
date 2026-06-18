@@ -5,6 +5,7 @@ import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
+import { getAvailableSeatNumbers } from "../utils/seatManagement";
 
 function Customers() {
   const [showModal, setShowModal] = useState(false);
@@ -31,6 +32,10 @@ function Customers() {
     travelIndex: "",
     travelName: "",
     date: "",
+    ticketNo: "",
+    seatNo: "",
+    mode: "شخصی",
+    familyCount: "",
     driver: "",
     car: "",
     from: "",
@@ -46,6 +51,7 @@ function Customers() {
 
   const [customers, setCustomers] = useJsonCollection("customers");
   const [travels] = useJsonCollection("travels");
+  const [cars] = useJsonCollection("cars");
   const [customerTravels, setCustomerTravels] = useJsonCollection("customerTravels");
   const [customerPayments, setCustomerPayments] = useJsonCollection("customerPayments");
   const [transactions, setTransactions] = useJsonCollection("transactions");
@@ -102,7 +108,11 @@ function Customers() {
       [name]: value,
     };
 
-    if (name === "discount" || name === "paidAmount") {
+    if (name === "mode" && value === "شخصی") {
+      updated.familyCount = "";
+    }
+
+    if (name === "discount" || name === "paidAmount" || name === "fare") {
       const fare = Number(updated.fare || 0);
       const discount = Number(updated.discount || 0);
       const paid = Number(updated.paidAmount || 0);
@@ -186,12 +196,17 @@ function Customers() {
 
   const selectTravel = (travel, index) => {
     const fare = Number(travel.fare || 0);
+    const ticketNo = `T-${Date.now()}`;
 
     setCustomerTravelForm({
       customerIndex: selectedCustomerIndex,
       travelIndex: index,
       travelName: travel.name || "",
       date: travel.date || "",
+      ticketNo,
+      seatNo: "",
+      mode: "شخصی",
+      familyCount: "",
       driver: travel.driver || "",
       car: travel.car || "",
       from: travel.from || "",
@@ -213,6 +228,18 @@ function Customers() {
       notify("لطفاً یک سفر را انتخاب کنید.", "error");
       return;
     }
+    if (!customerTravelForm.seatNo) {
+      notify("لطفاً نمبر چوکی را انتخاب کنید.", "error");
+      return;
+    }
+    if (customerTravelForm.mode === "فامیلی" && !customerTravelForm.familyCount) {
+      notify("لطفاً تعداد فامیل را وارد کنید.", "error");
+      return;
+    }
+    if (!availableSeatNumbers.includes(String(customerTravelForm.seatNo))) {
+      notify("این چوکی قبلاً رزرف شده یا برای این موتر موجود نیست.", "error");
+      return;
+    }
 
     const recordId = Date.now();
     setCustomerTravels([
@@ -220,6 +247,7 @@ function Customers() {
       {
         id: recordId,
         ...customerTravelForm,
+        ticketNo: customerTravelForm.ticketNo || `T-${recordId}`,
       },
     ]);
 
@@ -279,6 +307,14 @@ function Customers() {
       (travel.to || "").includes(travelSearch) ||
       (travel.driver || "").includes(travelSearch)
     );
+  const selectedTravelRecord = customerTravelForm.travelIndex === "" ? null : travels[Number(customerTravelForm.travelIndex)];
+  const selectedTravelCar = selectedTravelRecord
+    ? cars.find((car) => car.plate === selectedTravelRecord.car)
+    : null;
+  const travelReservations = customerTravelForm.travelIndex === ""
+    ? []
+    : customerTravels.filter((record) => Number(record.travelIndex) === Number(customerTravelForm.travelIndex));
+  const availableSeatNumbers = getAvailableSeatNumbers(selectedTravelCar, travelReservations);
   const travelPagination = useTablePagination(filteredTravels, `${selectedDestination}-${travelSearch}`);
 
   const getCustomerBalance = (customerIndex) => {
@@ -384,6 +420,7 @@ function Customers() {
                   <tr>
                     <th>نام سفر</th>
                     <th>تاریخ</th>
+                    <th>نمبر چوکی</th>
                     <th>مسیر</th>
                     <th>کرایه</th>
                     <th>تخفیف</th>
@@ -399,6 +436,7 @@ function Customers() {
                     <tr key={record.id}>
                       <td>{record.travelName}</td>
                       <td>{record.date}</td>
+                      <td>{record.seatNo || "-"}</td>
                       <td>
                         {record.from} - {record.to}
                       </td>
@@ -425,7 +463,7 @@ function Customers() {
 
                   {selectedCustomerRecords.length === 0 && (
                     <tr>
-                      <td colSpan="9" style={{ textAlign: "center", padding: "25px" }}>
+                      <td colSpan="10" style={{ textAlign: "center", padding: "25px" }}>
                         هنوز برای این مشتری سفری ثبت نشده است
                       </td>
                     </tr>
@@ -473,8 +511,16 @@ function Customers() {
                 const balance = getCustomerBalance(index);
                 return (
                 <tr key={index}>
-                  <td className="driver-name">{customer.firstName}</td>
-                  <td>{customer.lastName}</td>
+                  <td className="driver-name">
+                    <button type="button" className="driver-name-link" onClick={() => navigate(`/customers/${index}`)}>
+                      {customer.firstName}
+                    </button>
+                  </td>
+                  <td>
+                    <button type="button" className="driver-name-link" onClick={() => navigate(`/customers/${index}`)}>
+                      {customer.lastName}
+                    </button>
+                  </td>
                   <td>{customer.phone}</td>
                   <td>{customer.tazkiraNo || "-"}</td>
                   <td>{balance.customerDebt}</td>
@@ -579,10 +625,11 @@ function Customers() {
                   <thead>
                     <tr>
                       <th>انتخاب</th>
-                      <th>نام سفر</th>
-                      <th>مسیر</th>
-                      <th>کرایه</th>
-                      <th>وضعیت</th>
+                    <th>نام سفر</th>
+                    <th>تاریخ</th>
+                    <th>مسیر</th>
+                    <th>کرایه</th>
+                    <th>وضعیت</th>
                     </tr>
                   </thead>
 
@@ -599,6 +646,7 @@ function Customers() {
                           </button>
                         </td>
                         <td>{travel.name}</td>
+                        <td>{travel.date || "-"}</td>
                         <td>
                           {travel.from} - {travel.to}
                         </td>
@@ -609,7 +657,7 @@ function Customers() {
 
                     {filteredTravels.length === 0 && (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                        <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
                           {selectedDestination ? "هیچ سفر در انتظاری برای این مقصد پیدا نشد" : "ابتدا یک مقصد را انتخاب کنید"}
                         </td>
                       </tr>
@@ -628,6 +676,56 @@ function Customers() {
                 <div className="form-group">
                   <label>تاریخ</label>
                   <input value={customerTravelForm.date} readOnly />
+                </div>
+
+                <div className="form-group">
+                  <label>حالت</label>
+                  <select
+                    name="mode"
+                    value={customerTravelForm.mode}
+                    onChange={handleCustomerTravelChange}
+                  >
+                    <option value="شخصی">شخصی</option>
+                    <option value="فامیلی">فامیلی</option>
+                  </select>
+                </div>
+
+                {customerTravelForm.mode === "فامیلی" && (
+                  <div className="form-group">
+                    <label>تعداد فامیل</label>
+                    <input
+                      type="number"
+                      min="1"
+                      name="familyCount"
+                      value={customerTravelForm.familyCount}
+                      onChange={handleCustomerTravelChange}
+                      placeholder="مثلاً 4"
+                    />
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>نمبر چوکی</label>
+                  <select
+                    name="seatNo"
+                    value={customerTravelForm.seatNo}
+                    onChange={handleCustomerTravelChange}
+                    required
+                    disabled={!selectedTravelRecord || availableSeatNumbers.length === 0}
+                  >
+                    <option value="">
+                      {!selectedTravelRecord
+                        ? "ابتدا سفر را انتخاب کنید"
+                        : availableSeatNumbers.length === 0
+                        ? "همه چوکی‌ها رزرف شده‌اند"
+                        : "انتخاب چوکی"}
+                    </option>
+                    {availableSeatNumbers.map((seatNo) => (
+                      <option key={seatNo} value={seatNo}>
+                        چوکی {seatNo}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="form-group">
@@ -652,7 +750,13 @@ function Customers() {
 
                 <div className="form-group">
                   <label>قیمت سفر</label>
-                  <input value={customerTravelForm.fare} readOnly />
+                  <input
+                    type="number"
+                    name="fare"
+                    value={customerTravelForm.fare}
+                    onChange={handleCustomerTravelChange}
+                    placeholder="مثلاً 300"
+                  />
                 </div>
 
                 <div className="form-group">

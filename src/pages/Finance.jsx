@@ -26,7 +26,6 @@ function Finance() {
   const [search, setSearch] = useState("");
   const [formData, setFormData] = useState({
     type: "income",
-    category: "other",
     title: "",
     amount: "",
     description: "",
@@ -110,11 +109,12 @@ function Finance() {
         id: Date.now(),
         ...formData,
         amount,
+        category: "other",
         date: today(),
         source: "manual",
       },
     ]);
-    setFormData({ type: "income", category: "other", title: "", amount: "", description: "" });
+    setFormData({ type: "income", title: "", amount: "", description: "" });
     setShowModal(false);
     notify(formData.type === "income" ? "عاید ثبت شد." : "مصرف ثبت شد.");
   };
@@ -242,16 +242,10 @@ function Finance() {
                   <label>حالت</label>
                   <select
                     value={formData.type}
-                    onChange={(event) => setFormData({ ...formData, type: event.target.value, category: "other" })}
+                    onChange={(event) => setFormData({ ...formData, type: event.target.value })}
                   >
                     <option value="income">عاید</option>
                     <option value="expense">مصرف</option>
-                  </select>
-                </div>
-                <div className="finance-form-group">
-                  <label>دسته‌بندی</label>
-                  <select value={formData.category} onChange={(event) => setFormData({ ...formData, category: event.target.value })}>
-                    {formData.type === "income" ? <><option value="other">سایر عواید</option><option value="travel">عاید سفر</option><option value="customer">پرداخت مشتری</option></> : <><option value="other">سایر مصارف</option><option value="fuel">تیل</option><option value="repair">ترمیم</option><option value="salary">معاش</option><option value="purchase">خریداری</option></>}
                   </select>
                 </div>
                 <div className="finance-form-group">

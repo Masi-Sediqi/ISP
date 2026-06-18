@@ -34,7 +34,7 @@ function CustomerReceipt() {
           <div className="receipt-company-logo">{company.logo ? <img src={company.logo} alt="لوگو" /> : (company.companyName || "T").slice(0,1)}</div>
           <div><h1>{company.companyName || "شرکت سیاحتی"}</h1><p>سیستم مدیریت سفر و حمل و نقل</p></div>
         </div>
-        <div className="receipt-number"><span>نمبر سند</span><strong>{record.id}</strong><small>تاریخ صدور: {record.date || "-"}</small></div>
+        <div className="receipt-number"><span>نمبر تکت</span><strong>{record.ticketNo || record.id}</strong><small>تاریخ صدور: {record.date || "-"}</small></div>
       </header>
 
       <div className="receipt-title">
@@ -58,6 +58,8 @@ function CustomerReceipt() {
           <tbody>
             <tr><th>نام سفر</th><td>{record.travelName || "-"}</td><th>مسیر</th><td>{record.from || "-"} تا {record.to || "-"}</td></tr>
             <tr><th>راننده</th><td>{record.driver || "-"}</td><th>موتر</th><td>{record.car || "-"}</td></tr>
+            <tr><th>نمبر چوکی</th><td>{record.seatNo || "-"}</td><th>تاریخ سفر</th><td>{record.date || "-"}</td></tr>
+            <tr><th>حالت</th><td>{record.mode || "شخصی"}</td><th>تعداد فامیل</th><td>{record.mode === "فامیلی" ? (record.familyCount || "-") : "-"}</td></tr>
             <tr><th>مدت سفر</th><td>{record.duration || "-"}</td><th>تعداد مسافر</th><td>{record.passengers || "-"}</td></tr>
           </tbody>
         </table>

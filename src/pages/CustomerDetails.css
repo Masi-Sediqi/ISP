@@ -306,6 +306,7 @@
 }
 
 .customer-form-group input,
+.customer-form-group select,
 .customer-form-group textarea {
   min-height: 44px;
   border: 1px solid #e5e7eb;
@@ -323,6 +324,7 @@
 }
 
 .customer-form-group input:focus,
+.customer-form-group select:focus,
 .customer-form-group textarea:focus {
   border-color: #4f46e5;
   background: white;

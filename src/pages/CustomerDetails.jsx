@@ -6,6 +6,7 @@ import { notify } from "../utils/notify";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { Pencil, Printer, Trash2 } from "lucide-react";
+import { getAvailableSeatNumbers } from "../utils/seatManagement";
 
 function CustomerDetails() {
   const { id } = useParams();
@@ -23,6 +24,7 @@ function CustomerDetails() {
 
   const [customers] = useJsonCollection("customers");
   const [travels] = useJsonCollection("travels");
+  const [cars] = useJsonCollection("cars");
   const [customerTravels, setCustomerTravels] = useJsonCollection("customerTravels");
   const [customerPayments, setCustomerPayments] = useJsonCollection("customerPayments");
   const [transactions, setTransactions] = useJsonCollection("transactions");
@@ -37,6 +39,10 @@ function CustomerDetails() {
     travelIndex: "",
     travelName: "",
     date: "",
+    ticketNo: "",
+    seatNo: "",
+    mode: "شخصی",
+    familyCount: "",
     driver: "",
     car: "",
     from: "",
@@ -86,15 +92,28 @@ function CustomerDetails() {
       (travel.to || "").includes(travelSearch) ||
       (travel.driver || "").includes(travelSearch)
     );
+  const selectedTravelRecord = travelForm.travelIndex === "" ? null : travels[Number(travelForm.travelIndex)];
+  const selectedTravelCar = selectedTravelRecord
+    ? cars.find((car) => car.plate === selectedTravelRecord.car)
+    : null;
+  const travelReservations = travelForm.travelIndex === ""
+    ? []
+    : customerTravels.filter((record) => Number(record.travelIndex) === Number(travelForm.travelIndex));
+  const availableSeatNumbers = getAvailableSeatNumbers(selectedTravelCar, travelReservations);
 
   const selectTravel = (travel) => {
     const fare = Number(travel.fare || 0);
+    const ticketNo = `T-${Date.now()}`;
 
     setTravelForm({
       customerIndex,
       travelIndex: travel.originalIndex,
       travelName: travel.name || "",
       date: travel.date || "",
+      ticketNo,
+      seatNo: "",
+      mode: "شخصی",
+      familyCount: "",
       driver: travel.driver || "",
       car: travel.car || "",
       from: travel.from || "",
@@ -117,6 +136,10 @@ function CustomerDetails() {
       [name]: value,
     };
 
+    if (name === "mode" && value === "شخصی") {
+      updated.familyCount = "";
+    }
+
     const fare = Number(updated.fare || 0);
     const discount = Number(updated.discount || 0);
     const paid = Number(updated.paidAmount || 0);
@@ -132,6 +155,18 @@ function CustomerDetails() {
       notify("لطفاً اول یک سفر را انتخاب کنید.", "error");
       return;
     }
+    if (travelForm.mode === "فامیلی" && !travelForm.familyCount) {
+      notify("لطفاً تعداد فامیل را وارد کنید.", "error");
+      return;
+    }
+    if (!travelForm.seatNo) {
+      notify("لطفاً شماره چوکی را انتخاب کنید.", "error");
+      return;
+    }
+    if (!availableSeatNumbers.includes(String(travelForm.seatNo))) {
+      notify("این چوکی قبلاً رزرف شده یا برای این موتر موجود نیست.", "error");
+      return;
+    }
 
     const recordId = Date.now();
     setCustomerTravels([
@@ -139,6 +174,7 @@ function CustomerDetails() {
       {
         id: recordId,
         ...travelForm,
+        ticketNo: travelForm.ticketNo || `T-${recordId}`,
       },
     ]);
 
@@ -416,6 +452,7 @@ function CustomerDetails() {
             <thead>
               <tr>
                 <th>تاریخ</th>
+                <th>نمبر چوکی</th>
                 <th>حالت</th>
                 <th>عنوان</th>
                 <th>مسیر</th>
@@ -433,6 +470,7 @@ function CustomerDetails() {
               {activityPagination.pageItems.map((item) => (
                   <tr key={item.id}>
                     <td>{item.date}</td>
+                    <td>{item.seatNo || "-"}</td>
                     <td>
                       <span className={`customer-type-badge ${item.type}`}>
                         {item.type === "travel" ? "سفر" : "پرداخت"}
@@ -468,7 +506,7 @@ function CustomerDetails() {
 
               {customerActivity.length === 0 && (
                 <tr>
-                  <td colSpan="11" style={{ textAlign: "center", padding: "25px" }}>
+                  <td colSpan="12" style={{ textAlign: "center", padding: "25px" }}>
                     ریکاردی مطابق جستجو و فلتر پیدا نشد
                   </td>
                 </tr>
@@ -530,13 +568,14 @@ function CustomerDetails() {
               <div className="customer-table-wrap modal-table">
                 <table className="customer-table">
                   <thead>
-                    <tr>
-                      <th>انتخاب</th>
-                      <th>نام سفر</th>
-                      <th>مسیر</th>
-                      <th>کرایه</th>
-                      <th>وضعیت</th>
-                    </tr>
+                  <tr>
+                    <th>انتخاب</th>
+                    <th>نام سفر</th>
+                    <th>تاریخ</th>
+                    <th>مسیر</th>
+                    <th>کرایه</th>
+                    <th>وضعیت</th>
+                  </tr>
                   </thead>
 
                   <tbody>
@@ -552,6 +591,7 @@ function CustomerDetails() {
                           </button>
                         </td>
                         <td>{travel.name}</td>
+                        <td>{travel.date || "-"}</td>
                         <td>
                           {travel.from} - {travel.to}
                         </td>
@@ -562,7 +602,7 @@ function CustomerDetails() {
 
                     {filteredTravels.length === 0 && (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: "center", padding: "20px" }}>
+                        <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
                           {selectedDestination ? "هیچ سفر در انتظاری برای این مقصد پیدا نشد" : "ابتدا یک مقصد را انتخاب کنید"}
                         </td>
                       </tr>
@@ -581,6 +621,56 @@ function CustomerDetails() {
                 <div className="customer-form-group">
                   <label>تاریخ</label>
                   <input value={travelForm.date} readOnly />
+                </div>
+
+                <div className="customer-form-group">
+                  <label>حالت</label>
+                  <select
+                    name="mode"
+                    value={travelForm.mode}
+                    onChange={handleTravelFormChange}
+                  >
+                    <option value="شخصی">شخصی</option>
+                    <option value="فامیلی">فامیلی</option>
+                  </select>
+                </div>
+
+                {travelForm.mode === "فامیلی" && (
+                  <div className="customer-form-group">
+                    <label>تعداد فامیل</label>
+                    <input
+                      type="number"
+                      min="1"
+                      name="familyCount"
+                      value={travelForm.familyCount}
+                      onChange={handleTravelFormChange}
+                      placeholder="مثلاً 4"
+                    />
+                  </div>
+                )}
+
+                <div className="customer-form-group">
+                  <label>نمبر چوکی</label>
+                  <select
+                    name="seatNo"
+                    value={travelForm.seatNo}
+                    onChange={handleTravelFormChange}
+                    required
+                    disabled={!selectedTravelRecord || availableSeatNumbers.length === 0}
+                  >
+                    <option value="">
+                      {!selectedTravelRecord
+                        ? "ابتدا سفر را انتخاب کنید"
+                        : availableSeatNumbers.length === 0
+                        ? "همه چوکی‌ها رزرف شده‌اند"
+                        : "انتخاب چوکی"}
+                    </option>
+                    {availableSeatNumbers.map((seatNo) => (
+                      <option key={seatNo} value={seatNo}>
+                        چوکی {seatNo}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="customer-form-group">
@@ -605,7 +695,13 @@ function CustomerDetails() {
 
                 <div className="customer-form-group">
                   <label>قیمت سفر</label>
-                  <input value={travelForm.fare} readOnly />
+                  <input
+                    type="number"
+                    name="fare"
+                    value={travelForm.fare}
+                    onChange={handleTravelFormChange}
+                    placeholder="مثلاً 300"
+                  />
                 </div>
 
                 <div className="customer-form-group">

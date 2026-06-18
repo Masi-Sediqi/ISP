@@ -17,6 +17,7 @@ function Cars() {
     model: "",
     color: "",
     chassisNo: "",
+    seatCount: "",
     status: "",
     note: "",
   };
@@ -67,6 +68,7 @@ function Cars() {
       model: car.model || "",
       color: car.color || "",
       chassisNo: car.chassisNo || car.phone || "",
+      seatCount: car.seatCount || "",
       status: car.status || "",
       note: car.note || "",
     });
@@ -185,6 +187,7 @@ function Cars() {
                 <th>مودل</th>
                 <th>رنگ</th>
                 <th>نمبر شاسی</th>
+                <th>مقدار چوکی</th>
                 <th>وضعیت</th>
                 <th>عملیات</th>
               </tr>
@@ -198,6 +201,7 @@ function Cars() {
                   <td>{car.model || "-"}</td>
                   <td>{car.color || "-"}</td>
                   <td>{car.chassisNo || car.phone || "-"}</td>
+                  <td>{car.seatCount || "-"}</td>
                   <td>
                     <span
                       className={
@@ -248,7 +252,7 @@ function Cars() {
 
               {filteredCars.length === 0 && (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: "center", padding: "25px" }}>
+                  <td colSpan="8" style={{ textAlign: "center", padding: "25px" }}>
                     هیچ موتری ثبت نشده است
                   </td>
                 </tr>
@@ -331,6 +335,18 @@ function Cars() {
                     name="chassisNo"
                     value={formData.chassisNo}
                     onChange={handleChange}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>مقدار چوکی</label>
+                  <input
+                    type="number"
+                    min="1"
+                    name="seatCount"
+                    value={formData.seatCount}
+                    onChange={handleChange}
+                    required
                   />
                 </div>
 

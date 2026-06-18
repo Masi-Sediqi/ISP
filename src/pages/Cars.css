@@ -172,6 +172,11 @@
 
 .cars-table-card th:nth-child(7),
 .cars-table-card td:nth-child(7) {
+  width: 110px;
+}
+
+.cars-table-card th:nth-child(8),
+.cars-table-card td:nth-child(8) {
   width: 100px;
   overflow: visible;
 }
