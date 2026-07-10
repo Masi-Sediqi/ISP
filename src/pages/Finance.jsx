@@ -13,15 +13,19 @@ import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { notify } from "../utils/notify";
+import { formatAfghanDate, todayDateValue } from "../utils/afghanDate";
 import "./Finance.css";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayDateValue;
 const formatAmount = (value) => Number(value || 0).toLocaleString("en-US");
 
 function Finance() {
   const [transactions, setTransactions] = useJsonCollection("transactions");
   const [customerTravels] = useJsonCollection("customerTravels");
   const [customerPayments] = useJsonCollection("customerPayments");
+  const [travelExpenses] = useJsonCollection("travelExpenses");
+  const [carRepairs] = useJsonCollection("carRepairs");
+  const [employeePayments] = useJsonCollection("employeePayments");
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState("");
   const [formData, setFormData] = useState({
@@ -64,10 +68,64 @@ function Finance() {
       description: payment.description,
       source: "customer-payment",
     }));
+  const legacyTravelExpenses = travelExpenses
+    .filter(
+      (expense) =>
+        !transactions.some(
+          (item) => item.source === "travel-expense" && Number(item.referenceId) === Number(expense.id)
+        )
+    )
+    .map((expense) => ({
+      id: `legacy-travel-expense-${expense.id}`,
+      type: "expense",
+      title: `مصرف سفر ${expense.travelName || ""}: ${expense.title || ""}`,
+      amount: Number(expense.amount || 0),
+      date: expense.date,
+      description: expense.description,
+      source: "travel-expense",
+    }));
+  const legacyCarExpenses = carRepairs
+    .filter(
+      (expense) =>
+        expense.source !== "travel-expense" &&
+        !transactions.some(
+          (item) =>
+            ["car-expense", "car-repair"].includes(item.source) &&
+            Number(item.referenceId) === Number(expense.id)
+        )
+    )
+    .map((expense) => ({
+      id: `legacy-car-expense-${expense.id}`,
+      type: "expense",
+      title: `مصرف موتر ${expense.carPlate || ""}: ${expense.title || ""}`,
+      amount: Number(expense.amount || 0),
+      date: expense.date,
+      description: expense.description,
+      source: "car-expense",
+    }));
+  const legacyEmployeePayments = employeePayments
+    .filter(
+      (payment) =>
+        !transactions.some(
+          (item) => item.source === "employee-payment" && Number(item.referenceId) === Number(payment.id)
+        )
+    )
+    .map((payment) => ({
+      id: `legacy-employee-payment-${payment.id}`,
+      type: "expense",
+      title: `پرداخت کارمند ${payment.employeeName || ""}`,
+      amount: Number(payment.amount || 0),
+      date: payment.date,
+      description: payment.description,
+      source: "employee-payment",
+    }));
   const allTransactions = [
     ...transactions,
     ...legacyTravelPayments,
     ...legacyCustomerPayments,
+    ...legacyTravelExpenses,
+    ...legacyCarExpenses,
+    ...legacyEmployeePayments,
   ];
 
   const totalIncome = allTransactions
@@ -88,7 +146,7 @@ function Finance() {
   const financeByDate = (() => {
     const days = new Map();
     allTransactions.forEach((item) => {
-      const current = days.get(item.date) || { date: item.date || "-", income: 0, expense: 0, net: 0 };
+      const current = days.get(item.date) || { date: item.date || "-", dateLabel: formatAfghanDate(item.date, { numeric: true }), income: 0, expense: 0, net: 0 };
       current[item.type === "income" ? "income" : "expense"] += Number(item.amount || 0);
       current.net = current.income - current.expense;
       days.set(item.date, current);
@@ -164,7 +222,7 @@ function Finance() {
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={financeByDate}>
                 <CartesianGrid strokeDasharray="4 4" vertical={false} />
-                <XAxis dataKey="date" />
+                <XAxis dataKey="dateLabel" />
                 <YAxis />
                 <Tooltip formatter={(value) => formatAmount(value)} />
                 <Bar dataKey="income" name="عاید" fill="#16a34a" radius={[6, 6, 0, 0]} />
@@ -203,7 +261,7 @@ function Finance() {
             <tbody>
               {pageItems.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.date || "-"}</td>
+                  <td>{formatAfghanDate(item.date)}</td>
                   <td>
                     <span className={`finance-badge ${item.type}`}>
                       {item.type === "income" ? "عاید" : "مصرف"}

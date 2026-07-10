@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pencil, Trash2, UserPlus } from "lucide-react";
 import { notify } from "../utils/notify";
+import { todayDateValue } from "../utils/afghanDate";
 import "./Accounts.css";
 
 const emptyForm = { fullName: "", email: "", password: "", confirmPassword: "" };
@@ -32,7 +33,7 @@ function Accounts({ accounts, setAccounts, currentUser }) {
       if (!saved) return;
       notify("اکونت ویرایش شد.");
     } else {
-      saved = await setAccounts([...accounts, { id: Date.now(), fullName: form.fullName.trim(), email, password: form.password, role: "مدیر کامل", createdAt: new Date().toISOString().slice(0, 10) }]);
+      saved = await setAccounts([...accounts, { id: Date.now(), fullName: form.fullName.trim(), email, password: form.password, role: "مدیر کامل", createdAt: todayDateValue() }]);
       if (!saved) return;
       notify("اکونت جدید ساخته شد.");
     }

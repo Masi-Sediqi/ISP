@@ -188,6 +188,10 @@ function buildSnapshot(data) {
   const customers = customerAccounts(data);
   const routes = rankRoutes(data);
   const cars = rankCars(data);
+  const employees = data.drivers;
+  const drivers = employees.filter((employee) =>
+    ["دریور", "راننده"].includes(employee.jobType) || (!employee.jobType && employee.licenseNo)
+  );
   const debt = customers.reduce((sum, customer) => sum + customer.debt, 0);
   const totalKilometers = data.travels.reduce(
     (sum, travel) => sum + number(travel.kilometers),
@@ -198,7 +202,8 @@ function buildSnapshot(data) {
     generatedAt: new Date().toISOString(),
     totals: {
       cars: data.cars.length,
-      drivers: data.drivers.length,
+      employees: employees.length,
+      drivers: drivers.length,
       customers: data.customers.length,
       destinations: data.destinations.length,
       travels: data.travels.length,
@@ -218,7 +223,8 @@ function buildSnapshot(data) {
       pendingTravels: statusCount(data.travels, ["انتظار"]),
       activeTravels: statusCount(data.travels, ["جریان"]),
       completedTravels: statusCount(data.travels, ["تکمیل"]),
-      activeDrivers: statusCount(data.drivers, ["فعال"]),
+      activeEmployees: statusCount(employees, ["فعال"]),
+      activeDrivers: statusCount(drivers, ["فعال"]),
     },
     cars,
     customers: customers.sort(
@@ -256,7 +262,8 @@ function sourceList(snapshot) {
     `${snapshot.totals.cars} موتر`,
     `${snapshot.totals.travels} سفر`,
     `${snapshot.totals.customers} مشتری`,
-    `${snapshot.totals.drivers} راننده`,
+    `${snapshot.totals.employees} کارمند`,
+    `${snapshot.totals.drivers} دریور`,
     `${snapshot.totals.income + snapshot.totals.expense > 0 ? "داده مالی موجود" : "بدون داده مالی"}`,
   ];
 }
@@ -298,8 +305,8 @@ function customerAnswer(snapshot) {
   return `در سیستم ${snapshot.totals.customers} مشتری ثبت است. مجموع طلب قابل دریافت ${money(snapshot.totals.debt)} افغانی و مجموع تخفیف‌ها ${money(snapshot.totals.discounts)} افغانی است.\n\n${top || "تمام مشتری‌ها تسویه هستند."}`;
 }
 
-function driverAnswer(snapshot) {
-  return `در حال حاضر ${snapshot.totals.drivers} راننده ثبت شده که ${snapshot.statuses.activeDrivers} تن آنان فعال هستند. اطلاعات سفرهای اخیر نشان می‌دهد رانندگان در ${snapshot.totals.travels} سفر ثبت‌شده فعالیت داشته‌اند.`;
+function employeeAnswer(snapshot) {
+  return `در حال حاضر ${snapshot.totals.employees} کارمند ثبت شده که ${snapshot.statuses.activeEmployees} تن آنان فعال هستند. از میان کارمندان، ${snapshot.totals.drivers} تن وظیفه دریور دارند و ${snapshot.statuses.activeDrivers} دریور فعال است.`;
 }
 
 function routeAnswer(snapshot) {
@@ -329,7 +336,7 @@ function executiveAnswer(snapshot) {
     notes.push(`سیستم فعلاً ${money(snapshot.totals.net)} افغانی سود خالص نشان می‌دهد.`);
   }
 
-  return `گزارش مدیریتی سیستم:\n\n• ${snapshot.totals.cars} موتر، ${snapshot.totals.drivers} راننده و ${snapshot.totals.customers} مشتری ثبت است.\n• ${snapshot.totals.travels} سفر با مجموع ${money(snapshot.totals.kilometers)} کیلومتر انجام یا برنامه‌ریزی شده است.\n• عاید ${money(snapshot.totals.income)}، مصرف ${money(snapshot.totals.expense)} و سود خالص ${money(snapshot.totals.net)} افغانی است.\n• ${topRoute ? `مسیر برتر: ${topRoute.name} با ${topRoute.trips} سفر.` : "مسیر برتری هنوز مشخص نیست."}\n• ${topDebtor ? `بیشترین بدهی: ${topDebtor.name} با ${money(topDebtor.debt)} افغانی.` : "بدهی مشتری وجود ندارد."}\n\nنکات قابل اقدام:\n${notes.map((note) => `• ${note}`).join("\n")}`;
+  return `گزارش مدیریتی سیستم:\n\n• ${snapshot.totals.cars} موتر، ${snapshot.totals.employees} کارمند (${snapshot.totals.drivers} دریور) و ${snapshot.totals.customers} مشتری ثبت است.\n• ${snapshot.totals.travels} سفر با مجموع ${money(snapshot.totals.kilometers)} کیلومتر انجام یا برنامه‌ریزی شده است.\n• عاید ${money(snapshot.totals.income)}، مصرف ${money(snapshot.totals.expense)} و سود خالص ${money(snapshot.totals.net)} افغانی است.\n• ${topRoute ? `مسیر برتر: ${topRoute.name} با ${topRoute.trips} سفر.` : "مسیر برتری هنوز مشخص نیست."}\n• ${topDebtor ? `بیشترین بدهی: ${topDebtor.name} با ${money(topDebtor.debt)} افغانی.` : "بدهی مشتری وجود ندارد."}\n\nنکات قابل اقدام:\n${notes.map((note) => `• ${note}`).join("\n")}`;
 }
 
 function localAnswer(question, snapshot) {
@@ -359,8 +366,8 @@ function localAnswer(question, snapshot) {
   if (includesAny(normalized, ["مشتری", "مسافر"])) {
     return customerAnswer(snapshot);
   }
-  if (includesAny(normalized, ["راننده", "دریور"])) {
-    return driverAnswer(snapshot);
+  if (includesAny(normalized, ["کارمند", "کارمندان", "راننده", "دریور"])) {
+    return employeeAnswer(snapshot);
   }
   if (includesAny(normalized, ["مقصد", "مسیر", "راه"])) {
     return routeAnswer(snapshot);

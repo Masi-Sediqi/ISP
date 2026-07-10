@@ -21,6 +21,11 @@
 .destination-records-wrap { overflow-x: auto; }
 .destination-records-wrap table { min-width: 950px; }
 .destination-detail-link { height: 32px; padding: 0 11px; }
+.destination-row-actions { display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.destination-row-actions button { min-height: 32px; border: 0; border-radius: 8px; padding: 0 10px; font-family: inherit; font-size: 10px; font-weight: 800; cursor: pointer; background: #f1f5f9; color: #1f2937; }
+.destination-row-actions .destination-detail-link { background: #2563eb; color: #fff; }
+.destination-row-actions .danger-action { background: #fee2e2; color: #b91c1c; }
+.destination-row-actions button:disabled { opacity: .55; cursor: not-allowed; }
 .destination-record-empty { text-align: center; padding: 28px; color: #777; }
 .destination-empty-card { margin: 80px auto; max-width: 440px; padding: 30px; text-align: center; }
 .destination-empty-card button { margin-top: 18px; background: #252525; color: #fff; }

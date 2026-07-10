@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 * {
   margin: 0;
@@ -14,10 +14,13 @@ body,
   overflow: hidden;
 }
 
+
 body {
   background: #f7f5f1;
-  font-family: "Vazirmatn", Tahoma, sans-serif;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
   color: #252525;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 .app {
@@ -608,8 +611,38 @@ td {
   }
 }
 
+.icon-btn {
+  position: relative;
+}
+
+.alert-count {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.alert-dropdown ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: #475569;
+  font-size: 12px;
+  line-height: 2;
+}
+
 * {
-  font-family: "Vazirmatn", Tahoma, sans-serif;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
   font-variant-numeric: lining-nums tabular-nums;
 }
 
@@ -617,7 +650,7 @@ button,
 input,
 select,
 textarea {
-  font-family: "Vazirmatn", Tahoma, sans-serif !important;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif !important;
 }
 
 .page-loading {
@@ -1259,4 +1292,228 @@ body.dark-mode .record-type.expense {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+/* ================================
+   LTR / English Layout Override
+================================ */
+
+.app {
+  direction: ltr;
+}
+
+.sidebar {
+  order: 0;
+}
+
+.main {
+  order: 1;
+}
+
+.brand,
+.menu a,
+.topbar,
+.top-actions,
+.header-icons,
+.card-title,
+.summary div,
+.legend span {
+  direction: ltr;
+  text-align: left;
+}
+
+.menu a {
+  justify-content: flex-start;
+}
+
+.logout {
+  text-align: left;
+}
+
+.header-search input,
+.search-input,
+.search-box,
+.top-actions input {
+  direction: ltr !important;
+  text-align: left;
+}
+
+.header-search {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.dropdown {
+  direction: ltr;
+  text-align: left;
+  left: 0;
+  right: auto;
+}
+
+.profile-dropdown {
+  left: auto;
+  right: 0;
+}
+
+th {
+  text-align: left;
+}
+
+td {
+  text-align: left;
+}
+
+.toast-host {
+  right: 22px;
+  left: auto;
+}
+
+.app-toast {
+  border-right: 1px solid #d1fae5;
+  border-left: 5px solid #16a34a;
+}
+
+.app-toast.error {
+  border-left-color: #dc2626;
+  border-right-color: #fecaca;
+}
+
+.alert-count {
+  right: -6px;
+  left: auto;
+}
+
+.red-dot {
+  background: #ef4444;
+}
+
+.module-placeholder {
+  padding: 28px;
+}
+
+.module-placeholder-card {
+  min-height: 420px;
+  background: #ffffff;
+  border: 1px solid #eeeae2;
+  border-radius: 18px;
+  padding: 28px;
+}
+
+.module-kicker {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.module-placeholder-card h1 {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.module-placeholder-card > p {
+  max-width: 760px;
+  color: #64748b;
+  line-height: 1.8;
+  font-size: 14px;
+}
+
+.module-feature-grid {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.module-feature {
+  min-height: 74px;
+  border: 1px solid #eeeae2;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #faf9f6;
+}
+
+.module-feature span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #5b3df5;
+  flex: 0 0 auto;
+}
+
+.module-feature p {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+body.dark-mode .module-placeholder-card,
+body.dark-mode .module-feature {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+body.dark-mode .module-kicker {
+  background: #0f172a;
+  color: #cbd5e1;
+}
+
+body.dark-mode .module-feature p,
+body.dark-mode .module-placeholder-card p {
+  color: #cbd5e1 !important;
+}
+
+@media (max-width: 1100px) {
+  .module-feature-grid {
+    grid-template-columns: 1fr;
+  }
+}/* Softer English Typography */
+body,
+button,
+input,
+select,
+textarea {
+  font-weight: 400;
+}
+
+.brand h2,
+.topbar h1,
+.card-title h3,
+.stat h2,
+.module-placeholder-card h1 {
+  font-weight: 600;
+}
+
+.menu a {
+  font-weight: 400;
+}
+
+.menu a:hover,
+.menu .active {
+  font-weight: 500;
+}
+
+.stat span,
+.stat p,
+.card-title span,
+.summary span,
+td,
+th {
+  font-weight: 400;
+}
+
+th {
+  font-weight: 500;
+}
+
+.badge {
+  font-weight: 500;
 }

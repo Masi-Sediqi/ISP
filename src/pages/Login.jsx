@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LockKeyhole, UserPlus } from "lucide-react";
 import { notify } from "../utils/notify";
+import { todayDateValue } from "../utils/afghanDate";
 import "./Auth.css";
 
 function Login({ accounts, setAccounts, onLogin, company }) {
@@ -29,7 +30,7 @@ function Login({ accounts, setAccounts, onLogin, company }) {
     if (form.password.length < 4) return notify("رمز عبور باید حداقل چهار حرف باشد.", "error");
     if (form.password !== form.confirmPassword) return notify("تکرار رمز عبور یکسان نیست.", "error");
     if (accounts.some((item) => String(item.email || "").toLowerCase() === email)) return notify("این ایمیل قبلاً استفاده شده است.", "error");
-    const account = { id: Date.now(), fullName: form.fullName.trim(), email, password: form.password, role: "مدیر کامل", createdAt: new Date().toISOString().slice(0, 10) };
+    const account = { id: Date.now(), fullName: form.fullName.trim(), email, password: form.password, role: "مدیر کامل", createdAt: todayDateValue() };
     const saved = await setAccounts([...accounts, account]);
     if (!saved) return;
     onLogin(account);

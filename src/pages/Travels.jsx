@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import AfghanDateInput from "../components/AfghanDateInput";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { formatAfghanDate, todayDateValue } from "../utils/afghanDate";
 import { notify } from "../utils/notify";
 import "./Travels.css";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayDateValue;
 
 const emptyTravel = {
   name: "",
@@ -14,8 +16,8 @@ const emptyTravel = {
   from: "",
   to: "",
   kilometers: "",
+  fuelPerKm: "",
   duration: "",
-  passengers: "",
   fare: "",
   status: "در انتظار",
   note: "",
@@ -36,6 +38,10 @@ function Travels() {
   const [travelExpenses, setTravelExpenses] = useJsonCollection("travelExpenses");
   const [carRepairs, setCarRepairs] = useJsonCollection("carRepairs");
   const [transactions, setTransactions] = useJsonCollection("transactions");
+  const availableDrivers = driversList.filter((employee) =>
+    employee.status !== "غیرفعال" &&
+    (["دریور", "راننده"].includes(employee.jobType) || (!employee.jobType && employee.licenseNo))
+  );
 
   const [search, setSearch] = useState("");
   const [showTravelModal, setShowTravelModal] = useState(false);
@@ -303,7 +309,7 @@ function Travels() {
                     <span>تاریخ‌های سفر</span>
                     <div>
                       {destination.travels.slice(0, 4).map((travel) => (
-                        <small key={`${travel.originalIndex}-${travel.date}`}>{travel.date || "-"}</small>
+                        <small key={`${travel.originalIndex}-${travel.date}`}>{formatAfghanDate(travel.date)}</small>
                       ))}
                       {destination.travels.length > 4 && <small>+{destination.travels.length - 4}</small>}
                       {destination.travels.length === 0 && <small>هنوز سفر ندارد</small>}
@@ -325,7 +331,7 @@ function Travels() {
                       <tbody>
                         {destination.travels.map((travel) => (
                           <tr key={travel.originalIndex}>
-                            <td>{travel.date || "-"}</td>
+                            <td>{formatAfghanDate(travel.date)}</td>
                             <td>{travel.name || "-"}</td>
                             <td>{travel.driver || "-"}</td>
                             <td>{travel.car || "-"}</td>
@@ -394,15 +400,15 @@ function Travels() {
             <form onSubmit={saveTravel}>
               <div className="travel-form-grid">
                 <div className="form-group"><label>نام سفر</label><input name="name" value={travelForm.name} onChange={(event) => setTravelForm({ ...travelForm, name: event.target.value })} required /></div>
-                <div className="form-group"><label>تاریخ سفر</label><input type="date" name="date" value={travelForm.date} onChange={(event) => setTravelForm({ ...travelForm, date: event.target.value })} required /></div>
-                <div className="form-group"><label>راننده</label><select value={travelForm.driver} onChange={(event) => setTravelForm({ ...travelForm, driver: event.target.value })} required><option value="">انتخاب راننده</option>{driversList.map((driver, index) => <option key={index} value={`${driver.firstName} ${driver.lastName}`}>{driver.firstName} {driver.lastName} - {driver.phone}</option>)}</select></div>
+                <div className="form-group"><label>تاریخ سفر</label><AfghanDateInput value={travelForm.date} onChange={(date) => setTravelForm({ ...travelForm, date })} required /></div>
+                <div className="form-group"><label>راننده</label><select value={travelForm.driver} onChange={(event) => setTravelForm({ ...travelForm, driver: event.target.value })} required><option value="">انتخاب راننده</option>{availableDrivers.map((driver, index) => <option key={driver.id || index} value={`${driver.firstName} ${driver.lastName}`.trim()}>{driver.firstName} {driver.lastName} - {driver.phone}</option>)}</select></div>
                 <div className="form-group"><label>موتر</label><select value={travelForm.car} onChange={(event) => setTravelForm({ ...travelForm, car: event.target.value })} required><option value="">انتخاب موتر</option>{carsList.map((car, index) => <option key={index} value={car.plate}>{car.plate} - {car.type} - {car.model}</option>)}</select></div>
                 <div className="form-group"><label>مبدأ</label><input value={travelForm.from} onChange={(event) => setTravelForm({ ...travelForm, from: event.target.value })} required /></div>
                 <div className="form-group"><label>مقصد</label><select value={travelForm.to} onChange={(event) => { const destination = destinationGroups.find((item) => item.name === event.target.value); setTravelForm({ ...travelForm, to: event.target.value, kilometers: destination?.kilometers || travelForm.kilometers }); }} required>{destinationGroups.map((destination) => <option key={destination.key} value={destination.name}>{destination.name}</option>)}</select></div>
                 <div className="form-group"><label>مدت سفر</label><input value={travelForm.duration} onChange={(event) => setTravelForm({ ...travelForm, duration: event.target.value })} /></div>
-                <div className="form-group"><label>تعداد مسافر</label><input type="number" min="0" value={travelForm.passengers} onChange={(event) => setTravelForm({ ...travelForm, passengers: event.target.value })} /></div>
+                <div className="form-group"><label>مصرف تیل فی کیلومتر</label><input type="number" min="0" step="0.01" value={travelForm.fuelPerKm} onChange={(event) => setTravelForm({ ...travelForm, fuelPerKm: event.target.value })} placeholder="مثلاً 0.12" /></div>
                 <div className="form-group"><label>کرایه / مبلغ</label><input type="number" min="0" value={travelForm.fare} onChange={(event) => setTravelForm({ ...travelForm, fare: event.target.value })} /></div>
-                <div className="form-group"><label>وضعیت سفر</label><select value={travelForm.status} onChange={(event) => setTravelForm({ ...travelForm, status: event.target.value })} required><option value="در انتظار">در انتظار</option><option value="در جریان">در جریان</option><option value="تکمیل شده">تکمیل شده</option></select></div>
+                <div className="form-group"><label>وضعیت سفر</label><select value={travelForm.status === "تکمیل شده" ? "در جریان" : travelForm.status} onChange={(event) => setTravelForm({ ...travelForm, status: event.target.value })} required><option value="در انتظار">در انتظار</option><option value="در جریان">در حال سفر</option></select></div>
                 <div className="form-group form-full"><label>توضیحات</label><textarea value={travelForm.note} onChange={(event) => setTravelForm({ ...travelForm, note: event.target.value })} /></div>
               </div>
               <div className="travel-modal-actions">

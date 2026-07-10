@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import AfghanDateInput from "../components/AfghanDateInput";
 import {
   Bar,
   BarChart,
@@ -18,6 +19,8 @@ import {
 import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
+import { formatAfghanDate } from "../utils/afghanDate";
+import { getDateRange, parseDate, toDateValue } from "../utils/financialAnalysis";
 import "./Reports.css";
 import "./CustomerReport.css";
 
@@ -28,36 +31,6 @@ const accountColors = {
   تسویه: "#16a34a",
   بستانکار: "#2563eb",
   "بدون فعالیت": "#64748b",
-};
-
-const toDateValue = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const parseDate = (value) => {
-  if (!value) return null;
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-};
-
-const getDateRange = (dateValue, period) => {
-  const selected = parseDate(dateValue) || new Date();
-  const start = new Date(selected);
-  const end = new Date(selected);
-  if (period === "weekly") {
-    const daysFromSaturday = (selected.getDay() + 1) % 7;
-    start.setDate(selected.getDate() - daysFromSaturday);
-    end.setTime(start.getTime());
-    end.setDate(start.getDate() + 6);
-  } else if (period === "monthly") {
-    start.setDate(1);
-    end.setMonth(start.getMonth() + 1, 0);
-  }
-  return { start: toDateValue(start), end: toDateValue(end) };
 };
 
 const periodLabels = { all: "تمام تاریخ‌ها", daily: "روزانه", weekly: "هفته‌وار", monthly: "ماهانه" };
@@ -179,14 +152,14 @@ function CustomerReport() {
   const financeByDate = (() => {
     const days = new Map();
     customerTravels.filter((record) => inRange(record.date)).forEach((record) => {
-      const current = days.get(record.date) || { date: record.date || "-", billed: 0, paid: 0, discount: 0 };
+      const current = days.get(record.date) || { date: record.date || "-", dateLabel: formatAfghanDate(record.date, { numeric: true }), billed: 0, paid: 0, discount: 0 };
       current.billed += Math.max(number(record.fare) - number(record.discount), 0);
       current.paid += number(record.paidAmount);
       current.discount += number(record.discount);
       days.set(record.date, current);
     });
     customerPayments.filter((payment) => inRange(payment.date)).forEach((payment) => {
-      const current = days.get(payment.date) || { date: payment.date || "-", billed: 0, paid: 0, discount: 0 };
+      const current = days.get(payment.date) || { date: payment.date || "-", dateLabel: formatAfghanDate(payment.date, { numeric: true }), billed: 0, paid: 0, discount: 0 };
       current.paid += number(payment.amount);
       days.set(payment.date, current);
     });
@@ -219,9 +192,9 @@ function CustomerReport() {
 
       <div className="report-filters customer-report-filters">
         <div className="report-filter-group"><label>حالت راپور</label><select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="all">تمام تاریخ‌ها</option><option value="daily">روزانه</option><option value="weekly">هفته‌وار</option><option value="monthly">ماهانه</option></select></div>
-        <div className="report-filter-group"><label>انتخاب تاریخ</label><input type="date" value={activeDate} onChange={(event) => setSelectedDate(event.target.value)} disabled={period === "all"} /></div>
+        <div className="report-filter-group"><label>انتخاب تاریخ</label><AfghanDateInput value={activeDate} onChange={setSelectedDate} disabled={period === "all"} /></div>
         <div className="report-filter-group"><label>وضعیت مشتری</label><select value={accountStatus} onChange={(event) => setAccountStatus(event.target.value)}><option value="all">همه مشتری‌ها</option><option value="بدهکار">بدهکار</option><option value="overdue">بدهی سررسیدشده بیشتر از ۳۰ روز</option><option value="تسویه">تسویه‌شده</option><option value="بستانکار">پرداخت اضافه</option><option value="inactive">غیرفعال بیشتر از ۹۰ روز</option></select></div>
-        <div className="report-filter-summary"><span>بازه راپور</span><strong>{period === "all" ? "تمام تاریخ‌های ثبت‌شده" : start === end ? start : `${start} تا ${end}`}</strong></div>
+        <div className="report-filter-summary"><span>بازه راپور</span><strong>{period === "all" ? "تمام تاریخ‌های ثبت‌شده" : start === end ? formatAfghanDate(start) : `${formatAfghanDate(start)} تا ${formatAfghanDate(end)}`}</strong></div>
       </div>
 
       <div className="customer-report-stats">
@@ -240,7 +213,7 @@ function CustomerReport() {
         </section>
         <section className="customer-chart-card customer-finance-chart">
           <div className="customer-chart-title"><div><span>جریان مالی مشتری‌ها</span><h3>کرایه، پرداخت و تخفیف بر اساس تاریخ</h3></div><small>{periodLabels[period]}</small></div>
-          <div className="customer-chart-body"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={financeByDate}><CartesianGrid strokeDasharray="4 4" vertical={false} /><XAxis dataKey="date" tick={{ fontSize: 9 }} /><YAxis tick={{ fontSize: 9 }} /><Tooltip {...tooltipProps} /><Legend /><Bar dataKey="billed" name="کرایه خالص" fill="#4f46e5" radius={[5,5,0,0]} /><Bar dataKey="paid" name="پرداخت" fill="#16a34a" radius={[5,5,0,0]} /><Line dataKey="discount" name="تخفیف" stroke="#f59e0b" strokeWidth={3} /></ComposedChart></ResponsiveContainer></div>
+          <div className="customer-chart-body"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={financeByDate}><CartesianGrid strokeDasharray="4 4" vertical={false} /><XAxis dataKey="dateLabel" tick={{ fontSize: 9 }} /><YAxis tick={{ fontSize: 9 }} /><Tooltip {...tooltipProps} /><Legend /><Bar dataKey="billed" name="کرایه خالص" fill="#4f46e5" radius={[5,5,0,0]} /><Bar dataKey="paid" name="پرداخت" fill="#16a34a" radius={[5,5,0,0]} /><Line dataKey="discount" name="تخفیف" stroke="#f59e0b" strokeWidth={3} /></ComposedChart></ResponsiveContainer></div>
         </section>
         <section className="customer-chart-card destination-chart">
           <div className="customer-chart-title"><div><span>مسیرهای محبوب</span><h3>مقصدهای انتخاب‌شده مشتری‌ها</h3></div><small>۸ مقصد اول</small></div>
@@ -265,7 +238,7 @@ function CustomerReport() {
           <div className="customer-ranking-list">
             {topDebtors.map((customer, index) => (
               <Link to={`/customers/${customer.customerIndex}`} key={customer.customerIndex}>
-                <b>{index + 1}</b><div><strong>{customer.fullName}</strong><span>آخرین فعالیت: {customer.lastActivity}</span></div><em>{money(customer.debt)}</em>
+                <b>{index + 1}</b><div><strong>{customer.fullName}</strong><span>آخرین فعالیت: {formatAfghanDate(customer.lastActivity)}</span></div><em>{money(customer.debt)}</em>
               </Link>
             ))}
             {topDebtors.length === 0 && <p className="customer-report-empty">هیچ مشتری بدهکار نیست.</p>}
@@ -287,7 +260,7 @@ function CustomerReport() {
                   <td><strong>{customer.fullName}</strong><small>{customer.phone || "-"} · {customer.tazkiraNo || "بدون تذکره"}</small></td>
                   <td><span className={`customer-account-status ${customer.status === "بدهکار" ? "debt" : customer.status === "بستانکار" ? "credit" : customer.status === "تسویه" ? "settled" : "inactive"}`}>{customer.status}</span></td>
                   <td>{customer.tripCount}</td><td>{money(customer.billed)}</td><td className="customer-report-income">{money(customer.paid)}</td><td className="customer-report-debt">{money(customer.debt)}</td><td>{money(customer.discount)}</td>
-                  <td className={customer.netValue >= 0 ? "customer-report-income" : "customer-report-debt"}>{money(customer.netValue)}</td><td>{customer.favoriteDestination}</td><td>{customer.firstActivity}</td><td>{customer.lastActivity}</td>
+                  <td className={customer.netValue >= 0 ? "customer-report-income" : "customer-report-debt"}>{money(customer.netValue)}</td><td>{customer.favoriteDestination}</td><td>{formatAfghanDate(customer.firstActivity)}</td><td>{formatAfghanDate(customer.lastActivity)}</td>
                   <td><div className="customer-report-actions"><Link className="customer-report-link" to={`/customers/${customer.customerIndex}`}>مشاهده</Link><Link className="customer-report-link print" to={`/customers/${customer.customerIndex}/statement`}>صورت‌حساب</Link></div></td>
                 </tr>
               ))}

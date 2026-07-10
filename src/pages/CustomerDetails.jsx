@@ -3,10 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import "./CustomerDetails.css";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import { createRecordId } from "../utils/ids";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { Pencil, Printer, Trash2 } from "lucide-react";
-import { getAvailableSeatNumbers } from "../utils/seatManagement";
+import SeatSelector from "../components/SeatSelector";
+import AfghanDateInput from "../components/AfghanDateInput";
+import { formatSeatNumbers, getAvailableSeatNumbers } from "../utils/seatManagement";
+import { formatAfghanDate, todayDateValue } from "../utils/afghanDate";
 
 function CustomerDetails() {
   const { id } = useParams();
@@ -15,6 +19,7 @@ function CustomerDetails() {
 
   const [showTravelModal, setShowTravelModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showBalanceModal, setShowBalanceModal] = useState(false);
   const [travelSearch, setTravelSearch] = useState("");
   const [selectedDestination, setSelectedDestination] = useState("");
   const [recordSearch, setRecordSearch] = useState("");
@@ -23,13 +28,21 @@ function CustomerDetails() {
   const [editForm, setEditForm] = useState({ date: "", fare: "", discount: "", payment: "", description: "" });
 
   const [customers] = useJsonCollection("customers");
+  const [settings] = useJsonCollection("settings");
   const [travels] = useJsonCollection("travels");
   const [cars] = useJsonCollection("cars");
   const [customerTravels, setCustomerTravels] = useJsonCollection("customerTravels");
   const [customerPayments, setCustomerPayments] = useJsonCollection("customerPayments");
+  const [customerBalances, setCustomerBalances] = useJsonCollection("customerBalances");
   const [transactions, setTransactions] = useJsonCollection("transactions");
   const [paymentForm, setPaymentForm] = useState({
-    date: new Date().toISOString().slice(0, 10),
+    date: todayDateValue(),
+    amount: "",
+    description: "",
+  });
+  const [balanceForm, setBalanceForm] = useState({
+    date: todayDateValue(),
+    direction: "customer-owes-us",
     amount: "",
     description: "",
   });
@@ -41,6 +54,7 @@ function CustomerDetails() {
     date: "",
     ticketNo: "",
     seatNo: "",
+    seatNos: [],
     mode: "شخصی",
     familyCount: "",
     driver: "",
@@ -48,7 +62,9 @@ function CustomerDetails() {
     from: "",
     to: "",
     duration: "",
-    passengers: "",
+    baseFare: "",
+    baggageKg: "",
+    baggageCharge: "",
     fare: "",
     discount: "",
     paidAmount: "",
@@ -59,6 +75,13 @@ function CustomerDetails() {
   const [travelForm, setTravelForm] = useState(emptyTravelForm);
 
   const customer = customers[customerIndex];
+  const cargoSettings = settings[0] || {};
+  const calculateBaggageCharge = (weight) => {
+    const kg = Number(weight || 0);
+    const threshold = Number(cargoSettings.cargoThresholdKg || 0);
+    const price = Number(cargoSettings.cargoPricePerKg || 0);
+    return kg > threshold ? Math.max(kg - threshold, 0) * price : 0;
+  };
 
   const records = customerTravels.filter(
     (r) => Number(r.customerIndex) === customerIndex
@@ -69,15 +92,24 @@ function CustomerDetails() {
   const customerPaymentRecords = customerPayments.filter(
     (payment) => Number(payment.customerIndex) === customerIndex
   );
+  const customerBalanceRecords = customerBalances.filter(
+    (balance) => Number(balance.customerIndex) === customerIndex
+  );
+  const openingCustomerDebt = customerBalanceRecords
+    .filter((balance) => balance.direction === "customer-owes-us")
+    .reduce((sum, balance) => sum + Number(balance.amount || 0), 0);
+  const openingOurDebt = customerBalanceRecords
+    .filter((balance) => balance.direction === "we-owe-customer")
+    .reduce((sum, balance) => sum + Number(balance.amount || 0), 0);
   const initialPaid = records.reduce((sum, r) => sum + Number(r.paidAmount || 0), 0);
   const laterPaid = customerPaymentRecords.reduce(
     (sum, payment) => sum + Number(payment.amount || 0),
     0
   );
-  const totalPaid = initialPaid + laterPaid;
+  const totalPaid = initialPaid + laterPaid + openingOurDebt;
 
-  const customerDebt = Math.max(totalFare - totalDiscount - totalPaid, 0);
-  const ourDebt = Math.max(totalPaid - (totalFare - totalDiscount), 0);
+  const customerDebt = Math.max(totalFare + openingCustomerDebt - totalDiscount - totalPaid, 0);
+  const ourDebt = Math.max(totalPaid - (totalFare + openingCustomerDebt - totalDiscount), 0);
 
   const waitingDestinationNames = [...new Set(
     travels.filter((travel) => travel.status === "در انتظار" && travel.to).map((travel) => travel.to)
@@ -103,15 +135,14 @@ function CustomerDetails() {
 
   const selectTravel = (travel) => {
     const fare = Number(travel.fare || 0);
-    const ticketNo = `T-${Date.now()}`;
-
     setTravelForm({
       customerIndex,
       travelIndex: travel.originalIndex,
       travelName: travel.name || "",
       date: travel.date || "",
-      ticketNo,
+      ticketNo: "",
       seatNo: "",
+      seatNos: [],
       mode: "شخصی",
       familyCount: "",
       driver: travel.driver || "",
@@ -119,7 +150,9 @@ function CustomerDetails() {
       from: travel.from || "",
       to: travel.to || "",
       duration: travel.duration || "",
-      passengers: travel.passengers || "",
+      baseFare: fare,
+      baggageKg: "",
+      baggageCharge: "",
       fare: travel.fare || "",
       discount: "",
       paidAmount: "",
@@ -138,6 +171,22 @@ function CustomerDetails() {
 
     if (name === "mode" && value === "شخصی") {
       updated.familyCount = "";
+      updated.seatNos = updated.seatNos.slice(0, 1);
+    }
+
+    if (name === "familyCount") {
+      updated.seatNos = updated.seatNos.slice(0, Math.max(Number(value || 0), 0));
+    }
+
+    if (name === "baggageKg") {
+      const baseFare = Number(updated.baseFare || updated.fare || 0);
+      const baggageCharge = calculateBaggageCharge(value);
+      updated.baggageCharge = baggageCharge;
+      updated.fare = baseFare + baggageCharge;
+    }
+
+    if (name === "fare") {
+      updated.baseFare = value;
     }
 
     const fare = Number(updated.fare || 0);
@@ -155,25 +204,27 @@ function CustomerDetails() {
       notify("لطفاً اول یک سفر را انتخاب کنید.", "error");
       return;
     }
-    if (travelForm.mode === "فامیلی" && !travelForm.familyCount) {
+    if (travelForm.mode === "فامیلی" && Number(travelForm.familyCount) < 1) {
       notify("لطفاً تعداد فامیل را وارد کنید.", "error");
       return;
     }
-    if (!travelForm.seatNo) {
-      notify("لطفاً شماره چوکی را انتخاب کنید.", "error");
+    const requiredSeats = travelForm.mode === "فامیلی" ? Number(travelForm.familyCount) : 1;
+    if (travelForm.seatNos.length !== requiredSeats) {
+      notify(`لطفاً دقیقاً ${requiredSeats} چوکی را انتخاب کنید.`, "error");
       return;
     }
-    if (!availableSeatNumbers.includes(String(travelForm.seatNo))) {
-      notify("این چوکی قبلاً رزرف شده یا برای این موتر موجود نیست.", "error");
+    if (travelForm.seatNos.some((seatNo) => !availableSeatNumbers.includes(String(seatNo)))) {
+      notify("یکی از چوکی‌ها قبلاً رزرف شده یا برای این موتر موجود نیست.", "error");
       return;
     }
 
-    const recordId = Date.now();
+    const recordId = createRecordId();
     setCustomerTravels([
       ...customerTravels,
       {
         id: recordId,
         ...travelForm,
+        seatNo: travelForm.seatNos.join(","),
         ticketNo: travelForm.ticketNo || `T-${recordId}`,
       },
     ]);
@@ -187,7 +238,7 @@ function CustomerDetails() {
           type: "income",
           title: `پرداخت سفر ${travelForm.travelName}`,
           amount: paidAmount,
-          date: travelForm.date || new Date().toISOString().slice(0, 10),
+          date: travelForm.date || todayDateValue(),
           description: `پرداخت اولیه ${customer.firstName} ${customer.lastName}`,
           source: "customer-travel",
           referenceId: recordId,
@@ -238,13 +289,44 @@ function CustomerDetails() {
       },
     ]);
     setPaymentForm({
-      date: new Date().toISOString().slice(0, 10),
+      date: todayDateValue(),
       amount: "",
       description: "",
     });
     setShowPaymentModal(false);
     notify("پرداخت مشتری با موفقیت ثبت شد.");
     navigate(`/customers/${customerIndex}/print/payment/${paymentId}`);
+  };
+
+  const saveBalance = (event) => {
+    event.preventDefault();
+    const amount = Number(balanceForm.amount || 0);
+    if (customerDebt > 0 || ourDebt > 0) {
+      notify("ثبت بیلانس فقط زمانی مجاز است که حساب مشتری صفر در صفر باشد.", "error");
+      return;
+    }
+    if (amount <= 0) {
+      notify("مقدار بیلانس باید بیشتر از صفر باشد.", "error");
+      return;
+    }
+
+    setCustomerBalances([
+      ...customerBalances,
+      {
+        id: Date.now(),
+        customerIndex,
+        ...balanceForm,
+        amount,
+      },
+    ]);
+    setBalanceForm({
+      date: todayDateValue(),
+      direction: "customer-owes-us",
+      amount: "",
+      description: "",
+    });
+    setShowBalanceModal(false);
+    notify("بیلانس مشتری ثبت شد.");
   };
 
   const rawCustomerActivity = [
@@ -280,6 +362,20 @@ function CustomerDetails() {
       status: "پرداخت",
       description: payment.description || "پرداخت بعدی مشتری",
       recordId: payment.id,
+    })),
+    ...customerBalanceRecords.map((balance) => ({
+      id: `balance-${balance.id}`,
+      type: "balance",
+      date: balance.date,
+      title: "ثبت بیلانس",
+      route: "-",
+      fare: balance.direction === "customer-owes-us" ? Number(balance.amount || 0) : null,
+      discount: null,
+      payment: balance.direction === "we-owe-customer" ? Number(balance.amount || 0) : 0,
+      remaining: null,
+      status: balance.direction === "customer-owes-us" ? "مشتری قرضدار ما" : "ما قرضدار مشتری",
+      description: balance.description || "-",
+      recordId: balance.id,
     })),
   ].sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
 
@@ -363,13 +459,15 @@ function CustomerDetails() {
   };
 
   const deleteActivity = (item) => {
-    if (!window.confirm(`ریکارد ${item.type === "travel" ? "سفر" : "پرداخت"} حذف شود؟`)) return;
+    if (!window.confirm(`ریکارد ${item.type === "travel" ? "سفر" : item.type === "payment" ? "پرداخت" : "بیلانس"} حذف شود؟`)) return;
     if (item.type === "travel") {
       setCustomerTravels(customerTravels.filter((record) => Number(record.id) !== Number(item.recordId)));
       setTransactions(transactions.filter((transaction) => !(transaction.source === "customer-travel" && Number(transaction.referenceId) === Number(item.recordId))));
-    } else {
+    } else if (item.type === "payment") {
       setCustomerPayments(customerPayments.filter((payment) => Number(payment.id) !== Number(item.recordId)));
       setTransactions(transactions.filter((transaction) => !(transaction.source === "customer-payment" && Number(transaction.referenceId) === Number(item.recordId))));
+    } else {
+      setCustomerBalances(customerBalances.filter((balance) => Number(balance.id) !== Number(item.recordId)));
     }
     notify("ریکارد حذف شد.");
   };
@@ -380,11 +478,16 @@ function CustomerDetails() {
         <div>
           <h1>جزئیات مشتری</h1>
           <p>
-            {customer.firstName} {customer.lastName} - {customer.phone}
+            {customer.firstName} {customer.lastName} - {customer.phone} - {customer.gender || "جنسیت ثبت نشده"}
           </p>
         </div>
 
         <div className="customer-header-actions">
+          {customerDebt === 0 && ourDebt === 0 && (
+            <button className="customer-btn payment-btn" onClick={() => setShowBalanceModal(true)}>
+              ثبت بیلانس
+            </button>
+          )}
           <button
             className="customer-btn payment-btn"
             onClick={() => setShowPaymentModal(true)}
@@ -443,6 +546,7 @@ function CustomerDetails() {
               <option value="all">همه حالات</option>
               <option value="travel">تنها سفرها</option>
               <option value="payment">تنها پرداخت‌ها</option>
+              <option value="balance">تنها بیلانس</option>
             </select>
           </div>
         </div>
@@ -469,11 +573,11 @@ function CustomerDetails() {
             <tbody>
               {activityPagination.pageItems.map((item) => (
                   <tr key={item.id}>
-                    <td>{item.date}</td>
-                    <td>{item.seatNo || "-"}</td>
+                    <td>{formatAfghanDate(item.date)}</td>
+                    <td>{formatSeatNumbers(item)}</td>
                     <td>
                       <span className={`customer-type-badge ${item.type}`}>
-                        {item.type === "travel" ? "سفر" : "پرداخت"}
+                        {item.type === "travel" ? "سفر" : item.type === "payment" ? "پرداخت" : "بیلانس"}
                       </span>
                     </td>
                     <td>{item.title}</td>
@@ -496,8 +600,8 @@ function CustomerDetails() {
                     <td>{item.description || "-"}</td>
                     <td>
                       <div className="customer-row-actions">
-                        <button title="چاپ" onClick={() => navigate(`/customers/${customerIndex}/print/${item.type}/${item.recordId}`)}><Printer size={15} /></button>
-                        <button title="ویرایش" onClick={() => openEditActivity(item)}><Pencil size={15} /></button>
+                        {item.type !== "balance" && <button title="چاپ" onClick={() => navigate(`/customers/${customerIndex}/print/${item.type}/${item.recordId}`)}><Printer size={15} /></button>}
+                        {item.type !== "balance" && <button title="ویرایش" onClick={() => openEditActivity(item)}><Pencil size={15} /></button>}
                         <button title="حذف" className="danger" onClick={() => deleteActivity(item)}><Trash2 size={15} /></button>
                       </div>
                     </td>
@@ -591,7 +695,7 @@ function CustomerDetails() {
                           </button>
                         </td>
                         <td>{travel.name}</td>
-                        <td>{travel.date || "-"}</td>
+                        <td>{formatAfghanDate(travel.date)}</td>
                         <td>
                           {travel.from} - {travel.to}
                         </td>
@@ -620,7 +724,7 @@ function CustomerDetails() {
 
                 <div className="customer-form-group">
                   <label>تاریخ</label>
-                  <input value={travelForm.date} readOnly />
+                  <input value={formatAfghanDate(travelForm.date)} readOnly />
                 </div>
 
                 <div className="customer-form-group">
@@ -649,28 +753,20 @@ function CustomerDetails() {
                   </div>
                 )}
 
-                <div className="customer-form-group">
-                  <label>نمبر چوکی</label>
-                  <select
-                    name="seatNo"
-                    value={travelForm.seatNo}
-                    onChange={handleTravelFormChange}
-                    required
-                    disabled={!selectedTravelRecord || availableSeatNumbers.length === 0}
-                  >
-                    <option value="">
-                      {!selectedTravelRecord
-                        ? "ابتدا سفر را انتخاب کنید"
-                        : availableSeatNumbers.length === 0
-                        ? "همه چوکی‌ها رزرف شده‌اند"
-                        : "انتخاب چوکی"}
-                    </option>
-                    {availableSeatNumbers.map((seatNo) => (
-                      <option key={seatNo} value={seatNo}>
-                        چوکی {seatNo}
-                      </option>
-                    ))}
-                  </select>
+                <div className="customer-form-group customer-form-full">
+                  <label>انتخاب چوکی</label>
+                  <SeatSelector
+                    availableSeats={availableSeatNumbers}
+                    disabled={!selectedTravelRecord}
+                    familyCount={travelForm.familyCount}
+                    mode={travelForm.mode}
+                    selectedSeats={travelForm.seatNos}
+                    onChange={(seatNos) => setTravelForm({
+                      ...travelForm,
+                      seatNos,
+                      seatNo: seatNos.join(","),
+                    })}
+                  />
                 </div>
 
                 <div className="customer-form-group">
@@ -694,9 +790,28 @@ function CustomerDetails() {
                 </div>
 
                 <div className="customer-form-group">
-                  <label>قیمت سفر</label>
+                  <label>مقدار بار</label>
                   <input
                     type="number"
+                    dir="ltr"
+                    min="0"
+                    name="baggageKg"
+                    value={travelForm.baggageKg}
+                    onChange={handleTravelFormChange}
+                    placeholder="کیلو"
+                  />
+                </div>
+
+                <div className="customer-form-group">
+                  <label>پول بار</label>
+                  <input dir="ltr" value={travelForm.baggageCharge || 0} readOnly />
+                </div>
+
+                <div className="customer-form-group">
+                  <label>مجموع قیمت</label>
+                  <input
+                    type="number"
+                    dir="ltr"
                     name="fare"
                     value={travelForm.fare}
                     onChange={handleTravelFormChange}
@@ -708,6 +823,7 @@ function CustomerDetails() {
                   <label>تخفیف</label>
                   <input
                     type="number"
+                    dir="ltr"
                     name="discount"
                     value={travelForm.discount}
                     onChange={handleTravelFormChange}
@@ -718,6 +834,7 @@ function CustomerDetails() {
                   <label>مقدار پرداخت شده</label>
                   <input
                     type="number"
+                    dir="ltr"
                     name="paidAmount"
                     value={travelForm.paidAmount}
                     onChange={handleTravelFormChange}
@@ -726,7 +843,7 @@ function CustomerDetails() {
 
                 <div className="customer-form-group">
                   <label>باقی مانده</label>
-                  <input value={travelForm.remainingAmount} readOnly />
+                  <input dir="ltr" value={travelForm.remainingAmount} readOnly />
                 </div>
 
                 <div className="customer-form-group customer-form-full">
@@ -773,12 +890,7 @@ function CustomerDetails() {
               <div className="customer-form-grid">
                 <div className="customer-form-group">
                   <label>تاریخ</label>
-                  <input
-                    type="date"
-                    value={paymentForm.date}
-                    onChange={(event) => setPaymentForm({ ...paymentForm, date: event.target.value })}
-                    required
-                  />
+                  <AfghanDateInput value={paymentForm.date} onChange={(date) => setPaymentForm({ ...paymentForm, date })} required />
                 </div>
                 <div className="customer-form-group">
                   <label>مقدار پرداخت</label>
@@ -810,13 +922,67 @@ function CustomerDetails() {
         </div>
       )}
 
+      {showBalanceModal && (
+        <div className="customer-modal-backdrop" onClick={() => setShowBalanceModal(false)}>
+          <div className="customer-modal payment-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="customer-modal-header">
+              <div>
+                <h3>ثبت بیلانس مشتری</h3>
+                <p>این بخش برای زمانی است که حساب مشتری صفر در صفر باشد.</p>
+              </div>
+              <button className="customer-close-btn" onClick={() => setShowBalanceModal(false)}>
+                ×
+              </button>
+            </div>
+            <form onSubmit={saveBalance}>
+              <div className="customer-form-grid">
+                <div className="customer-form-group">
+                  <label>تاریخ</label>
+                  <AfghanDateInput value={balanceForm.date} onChange={(date) => setBalanceForm({ ...balanceForm, date })} required />
+                </div>
+                <div className="customer-form-group">
+                  <label>حالت بیلانس</label>
+                  <select value={balanceForm.direction} onChange={(event) => setBalanceForm({ ...balanceForm, direction: event.target.value })}>
+                    <option value="customer-owes-us">او قرضدار ما است</option>
+                    <option value="we-owe-customer">ما قرضدار او استیم</option>
+                  </select>
+                </div>
+                <div className="customer-form-group">
+                  <label>مقدار</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={balanceForm.amount}
+                    onChange={(event) => setBalanceForm({ ...balanceForm, amount: event.target.value })}
+                    required
+                  />
+                </div>
+                <div className="customer-form-group customer-form-full">
+                  <label>توضیحات</label>
+                  <textarea
+                    value={balanceForm.description}
+                    onChange={(event) => setBalanceForm({ ...balanceForm, description: event.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="customer-modal-actions">
+                <button type="button" className="customer-cancel-btn" onClick={() => setShowBalanceModal(false)}>
+                  لغو
+                </button>
+                <button type="submit" className="customer-save-btn">ثبت بیلانس</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {editActivity && (
         <div className="customer-modal-backdrop" onClick={() => setEditActivity(null)}>
           <div className="customer-modal payment-modal" onClick={(event) => event.stopPropagation()}>
             <div className="customer-modal-header"><div><h3>ویرایش {editActivity.type === "travel" ? "سفر مشتری" : "پرداخت"}</h3><p>تغییرات در بخش مالی نیز هماهنگ می‌شود.</p></div><button className="customer-close-btn" onClick={() => setEditActivity(null)}>×</button></div>
             <form onSubmit={saveActivityEdit}>
               <div className="customer-form-grid">
-                <div className="customer-form-group"><label>تاریخ</label><input type="date" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} required /></div>
+                <div className="customer-form-group"><label>تاریخ</label><AfghanDateInput value={editForm.date} onChange={(date) => setEditForm({ ...editForm, date })} required /></div>
                 {editActivity.type === "travel" && <><div className="customer-form-group"><label>کرایه</label><input type="number" min="0" value={editForm.fare} onChange={(e) => setEditForm({ ...editForm, fare: e.target.value })} required /></div><div className="customer-form-group"><label>تخفیف</label><input type="number" min="0" value={editForm.discount} onChange={(e) => setEditForm({ ...editForm, discount: e.target.value })} /></div></>}
                 <div className="customer-form-group"><label>پرداخت</label><input type="number" min="0" value={editForm.payment} onChange={(e) => setEditForm({ ...editForm, payment: e.target.value })} required /></div>
                 <div className="customer-form-group customer-form-full"><label>توضیحات</label><textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} /></div>

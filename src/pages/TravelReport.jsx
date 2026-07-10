@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
+import AfghanDateInput from "../components/AfghanDateInput";
 import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
+import { formatAfghanDate } from "../utils/afghanDate";
+import { getDateRange, toDateValue } from "../utils/financialAnalysis";
 import "./Reports.css";
 
 const money = (value) => Number(value || 0).toLocaleString("en-US");
@@ -11,38 +14,6 @@ const getDestinationColor = (index) => {
     stroke: `hsl(${hue} 78% 34%)`,
     fill: `hsl(${hue} 62% 43%)`,
   };
-};
-
-const toDateValue = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const parseDate = (value) => {
-  if (!value) return null;
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-};
-
-const getDateRange = (dateValue, period) => {
-  const selected = parseDate(dateValue) || new Date();
-  const start = new Date(selected);
-  const end = new Date(selected);
-
-  if (period === "weekly") {
-    const daysFromSaturday = (selected.getDay() + 1) % 7;
-    start.setDate(selected.getDate() - daysFromSaturday);
-    end.setTime(start.getTime());
-    end.setDate(start.getDate() + 6);
-  } else if (period === "monthly") {
-    start.setDate(1);
-    end.setMonth(start.getMonth() + 1, 0);
-  }
-
-  return { start: toDateValue(start), end: toDateValue(end) };
 };
 
 const periodLabels = {
@@ -132,11 +103,11 @@ function TravelReport() {
         </div>
         <div className="report-filter-group">
           <label>انتخاب تاریخ</label>
-          <input type="date" value={activeDate} onChange={(event) => setSelectedDate(event.target.value)} disabled={period === "all"} />
+          <AfghanDateInput value={activeDate} onChange={setSelectedDate} disabled={period === "all"} />
         </div>
         <div className="report-filter-summary">
           <span>بازه راپور {periodLabels[period]}</span>
-          <strong>{period === "all" ? "تمام تاریخ‌های ثبت‌شده" : start === end ? start : `${start} تا ${end}`}</strong>
+          <strong>{period === "all" ? "تمام تاریخ‌های ثبت‌شده" : start === end ? formatAfghanDate(start) : `${formatAfghanDate(start)} تا ${formatAfghanDate(end)}`}</strong>
         </div>
       </div>
 
@@ -169,7 +140,7 @@ function TravelReport() {
               </div>
               <div className="route-main">
                 <div className="route-main-title">
-                  <div><h4>{destination.name}</h4><p>آخرین سفر: {destination.latestDate}</p></div>
+                  <div><h4>{destination.name}</h4><p>آخرین سفر: {formatAfghanDate(destination.latestDate)}</p></div>
                   <strong>{destination.count} <small>سفر</small></strong>
                 </div>
                 <div className="route-volume-track">

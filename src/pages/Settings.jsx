@@ -6,59 +6,54 @@ import "./Settings.css";
 function Settings() {
   const [settings, setSettings] = useJsonCollection("settings");
   const current = settings[0] || {};
-  const [companyName, setCompanyName] = useState("");
-  const [logo, setLogo] = useState("");
+  const [cargoPricePerKg, setCargoPricePerKg] = useState("");
+  const [cargoThresholdKg, setCargoThresholdKg] = useState("");
+  const [cargoDescription, setCargoDescription] = useState("");
   useEffect(() => {
-    setCompanyName(current.companyName || "");
-    setLogo(current.logo || "");
-  }, [current.companyName, current.logo]);
-
-  const selectLogo = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      notify("حجم لوگو باید کمتر از ۲ میگابایت باشد.", "error");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => setLogo(String(reader.result || ""));
-    reader.readAsDataURL(file);
-  };
+    setCargoPricePerKg(current.cargoPricePerKg || "");
+    setCargoThresholdKg(current.cargoThresholdKg || "");
+    setCargoDescription(current.cargoDescription || "");
+  }, [current.cargoPricePerKg, current.cargoThresholdKg, current.cargoDescription]);
 
   const save = async (event) => {
     event.preventDefault();
-    const nextSettings = [{ companyName: companyName.trim() || "شرکت سیاحتی", logo }];
+    const nextSettings = [{
+      ...current,
+      cargoPricePerKg: Number(cargoPricePerKg || 0),
+      cargoThresholdKg: Number(cargoThresholdKg || 0),
+      cargoDescription,
+    }];
     await setSettings(nextSettings);
     window.dispatchEvent(new Event("company-settings-updated"));
-    notify("نام و لوگوی شرکت ذخیره شد.");
+    notify("تنظیمات سیستم ذخیره شد.");
   };
 
   return (
     <div className="settings-page">
       <div className="settings-header">
         <h1>تنظیمات سیستم</h1>
-        <p>نام و لوگوی شرکت سیاحتی را برای نمایش در سیستم تنظیم کنید.</p>
+        <p>قیمت بار مشتریان را برای محاسبه خودکار در ثبت سفر تنظیم کنید.</p>
       </div>
-      <form className="settings-card" onSubmit={save}>
-        <div className="settings-preview">
-          <div className="settings-logo">
-            {logo ? <img src={logo} alt="لوگوی شرکت" /> : <span>{(companyName || "T").slice(0, 1)}</span>}
-          </div>
-          <div>
-            <h2>{companyName || "شرکت سیاحتی"}</h2>
-            <p>سیستم مدیریت سفرها</p>
-          </div>
-        </div>
+      <form className="settings-card settings-card-single" onSubmit={save}>
         <div className="settings-form">
-          <label>
-            نام شرکت سیاحتی
-            <input value={companyName} onChange={(event) => setCompanyName(event.target.value)} placeholder="نام شرکت" required />
-          </label>
-          <label>
-            لوگوی شرکت
-            <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={selectLogo} />
-          </label>
-          {logo && <button type="button" className="settings-remove" onClick={() => setLogo("")}>حذف لوگو</button>}
+          <section className="settings-panel">
+            <div className="settings-section-title">
+              <h3>ثبت قیمت فی کیلو بار</h3>
+              <p>اگر مقدار بار مشتری از حد تعیین‌شده بیشتر شود، قیمت فی کیلو در مجموع قیمت سفر اضافه می‌شود.</p>
+            </div>
+            <label>
+              مقدار فی کیلو بار
+              <input type="number" min="0" dir="ltr" value={cargoPricePerKg} onChange={(event) => setCargoPricePerKg(event.target.value)} placeholder="2" />
+            </label>
+            <label>
+              از چه مقدار بیشتر شود
+              <input type="number" min="0" dir="ltr" value={cargoThresholdKg} onChange={(event) => setCargoThresholdKg(event.target.value)} placeholder="20" />
+            </label>
+            <label>
+              توضیحات
+              <textarea value={cargoDescription} onChange={(event) => setCargoDescription(event.target.value)} placeholder="مثلاً از 20 کیلو بالا، هر کیلو 2 افغانی حساب شود." />
+            </label>
+          </section>
           <button type="submit" className="settings-save">ذخیره تنظیمات</button>
         </div>
       </form>

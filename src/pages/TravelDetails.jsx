@@ -4,24 +4,31 @@ import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
+import AfghanDateInput from "../components/AfghanDateInput";
+import { formatAfghanDate, todayDateValue } from "../utils/afghanDate";
+import { calculateTravelCommission, findEmployeeByName } from "../utils/employeeFinance";
 import "./RecordDetails.css";
 import { getSeatAssignments, getSeatCount } from "../utils/seatManagement";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayDateValue;
 const money = (value) => Number(value || 0).toLocaleString("en-US");
 
 function TravelDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const travelIndex = Number(id);
-  const [travels] = useJsonCollection("travels");
+  const [travels, setTravels] = useJsonCollection("travels");
   const [customers] = useJsonCollection("customers");
   const [customerTravels] = useJsonCollection("customerTravels");
   const [travelExpenses, setTravelExpenses] = useJsonCollection("travelExpenses");
   const [repairs, setRepairs] = useJsonCollection("carRepairs");
   const [transactions, setTransactions] = useJsonCollection("transactions");
   const [cars, setCars] = useJsonCollection("cars");
+  const [employees] = useJsonCollection("drivers");
+  const [employeeEarnings, setEmployeeEarnings] = useJsonCollection("employeeEarnings");
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [showFinishModal, setShowFinishModal] = useState(false);
+  const [finishDateTime, setFinishDateTime] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
   const [expenseSearch, setExpenseSearch] = useState("");
   const [expenseType, setExpenseType] = useState("all");
@@ -36,6 +43,11 @@ function TravelDetails() {
   });
 
   const travel = travels[travelIndex];
+  const openFinishModal = () => {
+    const now = new Date();
+    setFinishDateTime(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
+    setShowFinishModal(true);
+  };
 
   const travelCustomerRecords = customerTravels.filter(
     (record) => Number(record.travelIndex) === travelIndex
@@ -157,6 +169,35 @@ function TravelDetails() {
     notify("مصرف سفر ثبت شد.");
   };
 
+  const finishTravel = (event) => {
+    event.preventDefault();
+    setTravels(travels.map((item, index) => index === travelIndex
+      ? { ...item, status: "تکمیل شده", completedAt: finishDateTime }
+      : item
+    ));
+    setCars(cars.map((item) => item.plate === travel.car ? { ...item, status: "فعال" } : item));
+    const employee = findEmployeeByName(employees, travel.driver);
+    const commission = calculateTravelCommission(employee, travelIndex, travels, customerTravels);
+    if (employee && commission > 0 && !employeeEarnings.some((item) => item.source === "travel-commission" && Number(item.referenceId) === Number(travelIndex))) {
+      setEmployeeEarnings([
+        ...employeeEarnings,
+        {
+          id: Date.now(),
+          employeeId: employee.id,
+          employeeName: travel.driver,
+          amount: commission,
+          date: String(finishDateTime).slice(0, 10),
+          source: "travel-commission",
+          referenceId: travelIndex,
+          title: `فیصدی سفر ${travel.name || ""}`,
+          description: employee.percentageBasis === "per_customer" ? "محاسبه به اساس فی مشتری" : "محاسبه به اساس فی سفر",
+        },
+      ]);
+    }
+    setShowFinishModal(false);
+    notify("سفر اتمام شد.");
+  };
+
   const categoryLabel = (category) => ({
     fuel: "تیل",
     repair: "ترمیم موتر",
@@ -171,6 +212,11 @@ function TravelDetails() {
           <p>{travel.name} | {travel.from} - {travel.to}</p>
         </div>
         <div className="record-actions">
+          {travel.status !== "تکمیل شده" && (
+            <button className="record-btn" onClick={openFinishModal}>
+              اتمام سفر
+            </button>
+          )}
           <button className="record-btn expense-action" onClick={() => setShowExpenseModal(true)}>
             + ثبت مصرف سفر
           </button>
@@ -184,6 +230,7 @@ function TravelDetails() {
         <div className="record-stat income"><span>پرداخت مشتری‌ها</span><strong>{money(totalPaid)}</strong><p>افغانی دریافت‌شده</p></div>
         <div className="record-stat expense"><span>باقی‌مانده مشتری‌ها</span><strong>{money(totalRemaining)}</strong><p>افغانی طلب</p></div>
         <div className="record-stat expense"><span>مصارف سفر</span><strong>{money(totalExpenses)}</strong><p>افغانی مصرف‌شده</p></div>
+        <div className="record-stat"><span>مصرف تیل فی کیلومتر</span><strong>{travel.fuelPerKm || 0}</strong><p>برای هر کیلومتر</p></div>
       </div>
 
       <div className="record-card">
@@ -204,7 +251,7 @@ function TravelDetails() {
               {record ? (
                 <>
                   <span>{record.customerName}</span>
-                  <small>{record.date || "-"}</small>
+                  <small>{formatAfghanDate(record.date)}</small>
                 </>
               ) : (
                 <span>خالی</span>
@@ -257,7 +304,7 @@ function TravelDetails() {
             <tbody>
               {expensePagination.pageItems.map((expense) => (
                 <tr key={expense.id}>
-                  <td>{expense.date}</td><td><span className={`record-type ${expense.category === "repair" ? "repair" : "expense"}`}>{categoryLabel(expense.category)}</span></td>
+                  <td>{formatAfghanDate(expense.date)}</td><td><span className={`record-type ${expense.category === "repair" ? "repair" : "expense"}`}>{categoryLabel(expense.category)}</span></td>
                   <td>{expense.title}</td><td>{expense.paidBy || "-"}</td><td className="record-expense">{money(expense.amount)}</td><td>{expense.description || "-"}</td>
                 </tr>
               ))}
@@ -274,15 +321,29 @@ function TravelDetails() {
             <div className="record-modal-header"><div><h3>ثبت مصرف سفر</h3><p>مصرف سفر در عواید و مصارف نیز ثبت می‌شود</p></div><button onClick={() => setShowExpenseModal(false)}>×</button></div>
             <form onSubmit={saveExpense}>
               <div className="record-form-grid">
-                <div className="record-form-group"><label>تاریخ</label><input type="date" value={expenseForm.date} onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })} required /></div>
+                <div className="record-form-group"><label>تاریخ</label><AfghanDateInput value={expenseForm.date} onChange={(date) => setExpenseForm({ ...expenseForm, date })} required /></div>
                 <div className="record-form-group"><label>حالت مصرف</label><select value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}><option value="fuel">تیل موتر</option><option value="repair">ترمیم موتر</option><option value="other">سایر</option></select></div>
                 <div className="record-form-group"><label>عنوان</label><input value={expenseForm.title} onChange={(e) => setExpenseForm({ ...expenseForm, title: e.target.value })} required /></div>
                 <div className="record-form-group"><label>مقدار مصرف</label><input type="number" min="0" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })} required /></div>
-                <div className="record-form-group"><label>کی پرداخت کرده</label><input value={expenseForm.paidBy} onChange={(e) => setExpenseForm({ ...expenseForm, paidBy: e.target.value })} /></div>
+                <div className="record-form-group"><label>کی پرداخت کرده</label><select value={expenseForm.paidBy} onChange={(e) => setExpenseForm({ ...expenseForm, paidBy: e.target.value })}><option value="">انتخاب کارمند</option>{employees.map((employee, index) => { const fullName = `${employee.firstName || ""} ${employee.lastName || ""}`.trim() || employee.phone || `کارمند ${index + 1}`; return <option key={employee.id || index} value={fullName}>{fullName} - {employee.jobType || "کارمند"}</option>; })}</select></div>
                 {expenseForm.category === "repair" && <div className="record-form-group"><label>آدرس ترمیم‌کار</label><input value={expenseForm.repairerAddress} onChange={(e) => setExpenseForm({ ...expenseForm, repairerAddress: e.target.value })} required /></div>}
                 <div className="record-form-group record-form-full"><label>توضیحات</label><textarea value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })} /></div>
               </div>
               <div className="record-modal-actions"><button type="button" className="record-cancel" onClick={() => setShowExpenseModal(false)}>لغو</button><button type="submit" className="record-save">ثبت مصرف</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showFinishModal && (
+        <div className="record-modal-backdrop" onClick={() => setShowFinishModal(false)}>
+          <div className="record-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="record-modal-header"><div><h3>اتمام سفر</h3><p>تاریخ و ساعت اتمام را بررسی و ثبت کنید</p></div><button onClick={() => setShowFinishModal(false)}>×</button></div>
+            <form onSubmit={finishTravel}>
+              <div className="record-form-grid">
+                <div className="record-form-group record-form-full"><label>تاریخ و ساعت اتمام</label><input type="datetime-local" value={finishDateTime} onChange={(event) => setFinishDateTime(event.target.value)} required /></div>
+              </div>
+              <div className="record-modal-actions"><button type="button" className="record-cancel" onClick={() => setShowFinishModal(false)}>لغو</button><button type="submit" className="record-save">ثبت اتمام سفر</button></div>
             </form>
           </div>
         </div>

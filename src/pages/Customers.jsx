@@ -1,125 +1,227 @@
 import { useState } from "react";
-import "./Drivers.css";
-import { useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
-import TablePagination from "../components/TablePagination";
-import { useTablePagination } from "../hooks/useTablePagination";
-import { getAvailableSeatNumbers } from "../utils/seatManagement";
+import "./Customers.css";
+
+const emptyForm = {
+  customerId: "",
+  customerName: "",
+  fatherName: "",
+  phone: "",
+  email: "",
+  nationalId: "",
+  address: "",
+  registrationDate: "",
+  status: "Active",
+  notes: "",
+};
+
+const emptyPackageForm = {
+  packageName: "",
+  speed: "",
+  packagePrice: "",
+  paidAmount: "",
+  remainAmount: "",
+  startDate: "",
+  endDate: "",
+  status: "Active",
+  notes: "",
+};
+
+function InfoIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 16v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M12 8h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M8 6V4h8v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M6 6l1 15h10l1-15" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function money(value) {
+  return Number(value || 0).toLocaleString("en-US");
+}
 
 function Customers() {
-  const [showModal, setShowModal] = useState(false);
-  const [showTravelModal, setShowTravelModal] = useState(false);
-  const [search, setSearch] = useState("");
-  const [travelSearch, setTravelSearch] = useState("");
-  const [selectedRecordSearch, setSelectedRecordSearch] = useState("");
-  const [selectedDestination, setSelectedDestination] = useState("");
-  const [editIndex, setEditIndex] = useState(null);
-  const [openAction, setOpenAction] = useState(null);
-  const [selectedCustomerIndex, setSelectedCustomerIndex] = useState(null);
-  const navigate = useNavigate();
-
-  const emptyForm = {
-    firstName: "",
-    lastName: "",
-    phone: "",
-    tazkiraNo: "",
-    note: "",
-  };
-
-  const emptyCustomerTravel = {
-    customerIndex: "",
-    travelIndex: "",
-    travelName: "",
-    date: "",
-    ticketNo: "",
-    seatNo: "",
-    mode: "شخصی",
-    familyCount: "",
-    driver: "",
-    car: "",
-    from: "",
-    to: "",
-    duration: "",
-    passengers: "",
-    fare: "",
-    discount: "",
-    paidAmount: "",
-    remainingAmount: "",
-    note: "",
-  };
-
   const [customers, setCustomers] = useJsonCollection("customers");
-  const [travels] = useJsonCollection("travels");
-  const [cars] = useJsonCollection("cars");
-  const [customerTravels, setCustomerTravels] = useJsonCollection("customerTravels");
-  const [customerPayments, setCustomerPayments] = useJsonCollection("customerPayments");
-  const [transactions, setTransactions] = useJsonCollection("transactions");
+  const [customerPackages, setCustomerPackages] = useJsonCollection("customerPackages");
+
+  const [showPackageModal, setShowPackageModal] = useState(false);
+  const [packageForm, setPackageForm] = useState(emptyPackageForm);
+  const [packageCustomer, setPackageCustomer] = useState(null);
 
   const [formData, setFormData] = useState(emptyForm);
-  const [customerTravelForm, setCustomerTravelForm] = useState(emptyCustomerTravel);
+  const [showModal, setShowModal] = useState(false);
+  const [editIndex, setEditIndex] = useState(null);
+  const [search, setSearch] = useState("");
+  const [detailRecord, setDetailRecord] = useState(null);
+  const [deleteIndex, setDeleteIndex] = useState(null);
 
-  const selectedCustomer =
-    selectedCustomerIndex !== null ? customers[selectedCustomerIndex] : null;
+  const [openAction, setOpenAction] = useState(null);
+  const [actionPosition, setActionPosition] = useState({ top: 0, left: 0 });
 
-  const selectedCustomerRecords = customerTravels.filter(
-    (r) => Number(r.customerIndex) === Number(selectedCustomerIndex)
+  const activeCustomers = customers.filter((item) => item.status === "Active").length;
+  const inactiveCustomers = customers.filter((item) => item.status === "Inactive").length;
+  const disconnectedCustomers = customers.filter((item) => item.status === "Disconnected").length;
+  const activePackages = customerPackages.filter((item) => item.status === "Active");
+
+const monthlyRevenue = activePackages.reduce(
+  (sum, item) => sum + Number(item.packagePrice || 0),
+  0
+);
+
+const getCustomerPackages = (customer) => {
+  return customerPackages.filter(
+    (item) =>
+      String(item.customerId) === String(customer.customerId) ||
+      String(item.customerRecordId) === String(customer.id)
   );
-  const filteredSelectedCustomerRecords = selectedCustomerRecords.filter((record) =>
-    (record.travelName || "").includes(selectedRecordSearch) ||
-    (record.date || "").includes(selectedRecordSearch) ||
-    (record.from || "").includes(selectedRecordSearch) ||
-    (record.to || "").includes(selectedRecordSearch) ||
-    (record.note || "").includes(selectedRecordSearch)
-  );
+};
 
-  const totalFare = selectedCustomerRecords.reduce(
-    (sum, r) => sum + Number(r.fare || 0),
-    0
-  );
+const openPackageModal = (customer) => {
+  setPackageCustomer(customer);
+  setPackageForm(emptyPackageForm);
+  setShowPackageModal(true);
+};
 
-  const totalDiscount = selectedCustomerRecords.reduce(
-    (sum, r) => sum + Number(r.discount || 0),
-    0
-  );
+const closePackageModal = () => {
+  setPackageCustomer(null);
+  setPackageForm(emptyPackageForm);
+  setShowPackageModal(false);
+};
 
-  const selectedInitialPaid = selectedCustomerRecords.reduce(
-    (sum, r) => sum + Number(r.paidAmount || 0),
-    0
-  );
-  const selectedLaterPaid = customerPayments
-    .filter((payment) => Number(payment.customerIndex) === Number(selectedCustomerIndex))
-    .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-  const totalPaid = selectedInitialPaid + selectedLaterPaid;
+const handlePackageChange = (event) => {
+  const { name, value } = event.target;
 
-  const customerDebt = Math.max(totalFare - totalDiscount - totalPaid, 0);
-  const ourDebt = Math.max(totalPaid - (totalFare - totalDiscount), 0);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleCustomerTravelChange = (e) => {
-    const { name, value } = e.target;
-
-    const updated = {
-      ...customerTravelForm,
+  setPackageForm((previous) => {
+    const nextData = {
+      ...previous,
       [name]: value,
     };
 
-    if (name === "mode" && value === "شخصی") {
-      updated.familyCount = "";
+    const price =
+      name === "packagePrice"
+        ? Number(value || 0)
+        : Number(nextData.packagePrice || 0);
+
+    const paid =
+      name === "paidAmount"
+        ? Number(value || 0)
+        : Number(nextData.paidAmount || 0);
+
+    return {
+      ...nextData,
+      remainAmount: Math.max(price - paid, 0),
+    };
+  });
+};
+
+const saveCustomerPackage = async (event) => {
+  event.preventDefault();
+
+  if (!packageCustomer) return;
+
+  const cleanPackage = {
+    id: Date.now(),
+    customerRecordId: packageCustomer.id,
+    customerId: packageCustomer.customerId,
+    customerName: packageCustomer.customerName,
+    packageName: packageForm.packageName.trim(),
+    speed: packageForm.speed.trim(),
+    packagePrice: Number(packageForm.packagePrice || 0),
+    paidAmount: Number(packageForm.paidAmount || 0),
+    remainAmount: Number(packageForm.remainAmount || 0),
+    startDate: packageForm.startDate,
+    endDate: packageForm.endDate,
+    status: packageForm.status,
+    notes: packageForm.notes.trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (!cleanPackage.packageName && !cleanPackage.speed) {
+    notify("Please enter package name or speed.", "error");
+    return;
+  }
+
+  if (!cleanPackage.startDate || !cleanPackage.endDate) {
+    notify("Please enter package start date and end date.", "error");
+    return;
+  }
+
+  const updatedPackages = customerPackages.map((item) => {
+    const sameCustomer =
+      String(item.customerId) === String(packageCustomer.customerId) ||
+      String(item.customerRecordId) === String(packageCustomer.id);
+
+    if (sameCustomer && item.status === "Active") {
+      return {
+        ...item,
+        status: "Expired",
+        updatedAt: new Date().toISOString(),
+      };
     }
 
-    if (name === "discount" || name === "paidAmount" || name === "fare") {
-      const fare = Number(updated.fare || 0);
-      const discount = Number(updated.discount || 0);
-      const paid = Number(updated.paidAmount || 0);
-      updated.remainingAmount = Math.max(fare - discount - paid, 0);
-    }
+    return item;
+  });
 
-    setCustomerTravelForm(updated);
+  const saved = await setCustomerPackages([...updatedPackages, cleanPackage]);
+
+  if (saved) {
+    notify("Customer package saved successfully.");
+    closePackageModal();
+  }
+};
+
+  const filteredCustomers = customers
+    .map((customer, originalIndex) => ({ ...customer, originalIndex }))
+    .filter((customer) => {
+      const keyword = search.toLowerCase();
+
+      return (
+        (customer.customerId || "").toLowerCase().includes(keyword) ||
+        (customer.customerName || "").toLowerCase().includes(keyword) ||
+        (customer.fatherName || "").toLowerCase().includes(keyword) ||
+        (customer.phone || "").toLowerCase().includes(keyword) ||
+        (customer.email || "").toLowerCase().includes(keyword) ||
+        (customer.nationalId || "").toLowerCase().includes(keyword) ||
+        (customer.address || "").toLowerCase().includes(keyword) ||
+        (customer.status || "").toLowerCase().includes(keyword)
+      );
+    });
+
+  const generateCustomerId = () => {
+    const numbers = customers
+      .map((item) => String(item.customerId || ""))
+      .map((id) => Number(id.replace("CUS-", "")))
+      .filter((number) => !Number.isNaN(number));
+
+    const nextNumber = numbers.length ? Math.max(...numbers) + 1 : 1;
+
+    setFormData((previous) => ({
+      ...previous,
+      customerId: `CUS-${String(nextNumber).padStart(4, "0")}`,
+    }));
   };
 
   const resetForm = () => {
@@ -127,686 +229,441 @@ function Customers() {
     setEditIndex(null);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const openCreateModal = () => {
+    resetForm();
+    setShowModal(true);
+  };
 
-    if (editIndex !== null) {
-      const updated = [...customers];
-      updated[editIndex] = formData;
-      setCustomers(updated);
-      notify("معلومات مشتری ویرایش شد.");
-    } else {
-      setCustomers([...customers, formData]);
-      notify("مشتری جدید ثبت شد.");
-    }
-
+  const closeModal = () => {
     resetForm();
     setShowModal(false);
   };
 
-  const editCustomer = (index) => {
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  const customerExists = (data) => {
+    return customers.some((customer, index) => {
+      if (editIndex !== null && index === editIndex) return false;
+
+      const sameCustomerId =
+        data.customerId &&
+        customer.customerId &&
+        data.customerId.toLowerCase() === customer.customerId.toLowerCase();
+
+      const samePhone =
+        data.phone &&
+        customer.phone &&
+        data.phone.toLowerCase() === customer.phone.toLowerCase();
+
+      const sameNationalId =
+        data.nationalId &&
+        customer.nationalId &&
+        data.nationalId.toLowerCase() === customer.nationalId.toLowerCase();
+
+      return sameCustomerId || samePhone || sameNationalId;
+    });
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const cleanData = {
+      id: editIndex !== null ? customers[editIndex]?.id || Date.now() : Date.now(),
+      customerId: formData.customerId.trim(),
+      customerName: formData.customerName.trim(),
+      fatherName: formData.fatherName.trim(),
+      phone: formData.phone.trim(),
+      email: formData.email.trim(),
+      nationalId: formData.nationalId.trim(),
+      address: formData.address.trim(),
+      registrationDate: formData.registrationDate,
+      status: formData.status,
+      notes: formData.notes.trim(),
+      createdAt: editIndex !== null ? customers[editIndex]?.createdAt || new Date().toISOString() : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (!cleanData.customerId) {
+      notify("Please enter or generate Customer ID.", "error");
+      return;
+    }
+
+    if (!cleanData.customerName) {
+      notify("Please enter customer name.", "error");
+      return;
+    }
+
+    if (!cleanData.phone) {
+      notify("Please enter customer phone.", "error");
+      return;
+    }
+
+    if (customerExists(cleanData)) {
+      notify("Customer ID, phone, or national ID already exists.", "error");
+      return;
+    }
+
+    if (editIndex !== null) {
+      const updatedCustomers = [...customers];
+      updatedCustomers[editIndex] = cleanData;
+
+      const saved = await setCustomers(updatedCustomers);
+
+      if (saved) {
+        notify("Customer updated successfully.");
+        closeModal();
+      }
+
+      return;
+    }
+
+    const saved = await setCustomers([...customers, cleanData]);
+
+    if (saved) {
+      notify("Customer saved successfully.");
+      closeModal();
+    }
+  };
+
+  const openEditModal = (index) => {
     setEditIndex(index);
-    setFormData(customers[index]);
+    setFormData({
+      ...emptyForm,
+      ...customers[index],
+      monthlyFee: String(customers[index]?.monthlyFee || ""),
+    });
     setShowModal(true);
     setOpenAction(null);
   };
 
-  const deleteCustomer = (index) => {
-    if (window.confirm("آیا مطمئن هستید که این مشتری حذف شود؟")) {
-      setCustomers(customers.filter((_, i) => i !== index));
-      setCustomerTravels(
-        customerTravels
-          .filter((record) => Number(record.customerIndex) !== Number(index))
-          .map((record) =>
-            Number(record.customerIndex) > Number(index)
-              ? { ...record, customerIndex: Number(record.customerIndex) - 1 }
-              : record
-          )
-      );
-      setCustomerPayments(
-        customerPayments
-          .filter((payment) => Number(payment.customerIndex) !== Number(index))
-          .map((payment) =>
-            Number(payment.customerIndex) > Number(index)
-              ? { ...payment, customerIndex: Number(payment.customerIndex) - 1 }
-              : payment
-          )
-      );
-      setTransactions(
-        transactions.map((transaction) => {
-          if (Number(transaction.customerIndex) === Number(index)) {
-            const historicalTransaction = { ...transaction };
-            delete historicalTransaction.customerIndex;
-            return historicalTransaction;
-          }
-          if (Number(transaction.customerIndex) > Number(index)) {
-            return { ...transaction, customerIndex: Number(transaction.customerIndex) - 1 };
-          }
-          return transaction;
-        })
-      );
-      setOpenAction(null);
+  const openDeleteModal = (index) => {
+    setDeleteIndex(index);
+    setOpenAction(null);
+  };
 
-      if (selectedCustomerIndex === index) {
-        setSelectedCustomerIndex(null);
-      }
-      notify("مشتری حذف شد.");
+  const cancelDelete = () => {
+    setDeleteIndex(null);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteIndex === null) return;
+
+    const saved = await setCustomers(customers.filter((_, index) => index !== deleteIndex));
+
+    if (saved) {
+      notify("Customer deleted successfully.");
+      setDeleteIndex(null);
     }
   };
 
-  const selectTravel = (travel, index) => {
-    const fare = Number(travel.fare || 0);
-    const ticketNo = `T-${Date.now()}`;
+  const toggleActionMenu = (event, index) => {
+    const rect = event.currentTarget.getBoundingClientRect();
 
-    setCustomerTravelForm({
-      customerIndex: selectedCustomerIndex,
-      travelIndex: index,
-      travelName: travel.name || "",
-      date: travel.date || "",
-      ticketNo,
-      seatNo: "",
-      mode: "شخصی",
-      familyCount: "",
-      driver: travel.driver || "",
-      car: travel.car || "",
-      from: travel.from || "",
-      to: travel.to || "",
-      duration: travel.duration || "",
-      passengers: travel.passengers || "",
-      fare: travel.fare || "",
-      discount: "",
-      paidAmount: "",
-      remainingAmount: fare,
-      note: "",
+    setActionPosition({
+      top: rect.bottom + 8,
+      left: rect.right - 160,
     });
+
+    setOpenAction(openAction === index ? null : index);
   };
 
-  const saveCustomerTravel = (e) => {
-    e.preventDefault();
-
-    if (customerTravelForm.travelIndex === "") {
-      notify("لطفاً یک سفر را انتخاب کنید.", "error");
-      return;
-    }
-    if (!customerTravelForm.seatNo) {
-      notify("لطفاً نمبر چوکی را انتخاب کنید.", "error");
-      return;
-    }
-    if (customerTravelForm.mode === "فامیلی" && !customerTravelForm.familyCount) {
-      notify("لطفاً تعداد فامیل را وارد کنید.", "error");
-      return;
-    }
-    if (!availableSeatNumbers.includes(String(customerTravelForm.seatNo))) {
-      notify("این چوکی قبلاً رزرف شده یا برای این موتر موجود نیست.", "error");
-      return;
-    }
-
-    const recordId = Date.now();
-    setCustomerTravels([
-      ...customerTravels,
-      {
-        id: recordId,
-        ...customerTravelForm,
-        ticketNo: customerTravelForm.ticketNo || `T-${recordId}`,
-      },
-    ]);
-
-    const paidAmount = Number(customerTravelForm.paidAmount || 0);
-    if (paidAmount > 0) {
-      setTransactions([
-        ...transactions,
-        {
-          id: recordId + 1,
-          type: "income",
-          title: `پرداخت سفر ${customerTravelForm.travelName}`,
-          amount: paidAmount,
-          date: customerTravelForm.date || new Date().toISOString().slice(0, 10),
-          description: selectedCustomer
-            ? `پرداخت اولیه ${selectedCustomer.firstName} ${selectedCustomer.lastName}`
-            : "پرداخت اولیه مشتری",
-          source: "customer-travel",
-          referenceId: recordId,
-          customerIndex: selectedCustomerIndex,
-        },
-      ]);
-    }
-
-    setCustomerTravelForm(emptyCustomerTravel);
-    setTravelSearch("");
-    setSelectedDestination("");
-    setShowTravelModal(false);
-    notify("سفر برای مشتری ثبت شد.");
-    navigate(`/customers/${selectedCustomerIndex}/print/travel/${recordId}`);
-  };
-
-  const getTravelStatus = (travelIndex) => {
-    return travels[travelIndex]?.status || "نامعلوم";
-  };
-
-  const filteredCustomers = customers
-    .map((customer, originalIndex) => ({ ...customer, originalIndex }))
-    .filter((customer) =>
-      (customer.firstName || "").includes(search) ||
-      (customer.lastName || "").includes(search) ||
-      (customer.phone || "").includes(search) ||
-      (customer.tazkiraNo || "").includes(search)
-    );
-  const customerPagination = useTablePagination(filteredCustomers, search);
-  const selectedRecordsPagination = useTablePagination(filteredSelectedCustomerRecords, `${selectedCustomerIndex}-${selectedRecordSearch}`);
-
-  const waitingDestinationNames = [...new Set(
-    travels.filter((travel) => travel.status === "در انتظار" && travel.to).map((travel) => travel.to)
-  )].sort((a, b) => a.localeCompare(b));
-
-  const filteredTravels = travels
-    .map((travel, originalIndex) => ({ ...travel, originalIndex }))
-    .filter((travel) => travel.status === "در انتظار" && travel.to === selectedDestination)
-    .filter((travel) =>
-      (travel.name || "").includes(travelSearch) ||
-      (travel.from || "").includes(travelSearch) ||
-      (travel.to || "").includes(travelSearch) ||
-      (travel.driver || "").includes(travelSearch)
-    );
-  const selectedTravelRecord = customerTravelForm.travelIndex === "" ? null : travels[Number(customerTravelForm.travelIndex)];
-  const selectedTravelCar = selectedTravelRecord
-    ? cars.find((car) => car.plate === selectedTravelRecord.car)
-    : null;
-  const travelReservations = customerTravelForm.travelIndex === ""
-    ? []
-    : customerTravels.filter((record) => Number(record.travelIndex) === Number(customerTravelForm.travelIndex));
-  const availableSeatNumbers = getAvailableSeatNumbers(selectedTravelCar, travelReservations);
-  const travelPagination = useTablePagination(filteredTravels, `${selectedDestination}-${travelSearch}`);
-
-  const getCustomerBalance = (customerIndex) => {
-    const customerRecords = customerTravels.filter(
-      (record) => Number(record.customerIndex) === Number(customerIndex)
-    );
-    const fare = customerRecords.reduce(
-      (sum, record) => sum + Number(record.fare || 0) - Number(record.discount || 0),
-      0
-    );
-    const initialPayments = customerRecords.reduce(
-      (sum, record) => sum + Number(record.paidAmount || 0),
-      0
-    );
-    const laterPayments = customerPayments
-      .filter((payment) => Number(payment.customerIndex) === Number(customerIndex))
-      .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
-    const balance = fare - initialPayments - laterPayments;
-
-    return {
-      customerDebt: Math.max(balance, 0),
-      ourDebt: Math.max(-balance, 0),
-    };
+  const getStatusClass = (status) => {
+    if (status === "Active") return "customer-badge active";
+    if (status === "Inactive") return "customer-badge inactive";
+    if (status === "Disconnected") return "customer-badge disconnected";
+    return "customer-badge";
   };
 
   return (
-    <div className="drivers-page">
-      <div className="drivers-header">
+    <div className="customers-page">
+      <div className="customers-header">
         <div>
-          <h1>مدیریت مشتری‌ها</h1>
-          <p>ثبت، مشاهده، ویرایش و حذف مشتری‌های سیستم حمل و نقل</p>
+          <h1>Customer Management</h1>
+          <p>Register, edit, delete, and manage ISP customer records.</p>
         </div>
 
-        <button className="driver-add-btn" onClick={() => setShowModal(true)}>
-          + ثبت مشتری جدید
+        <button type="button" className="customer-add-btn" onClick={openCreateModal}>
+          + Add Customer
         </button>
       </div>
 
-      {selectedCustomer && (
-        <>
-          <div className="drivers-table-card">
-            <div className="drivers-table-header">
-              <div>
-                <h3>
-                  جزئیات مشتری: {selectedCustomer.firstName}{" "}
-                  {selectedCustomer.lastName}
-                </h3>
-                <p>
-                  تماس: {selectedCustomer.phone} | تذکره:{" "}
-                  {selectedCustomer.tazkiraNo || "ندارد"}
-                </p>
-              </div>
+      <div className="customer-stats">
+        <div className="customer-stat-card">
+          <span>Total Customers</span>
+          <strong>{customers.length}</strong>
+          <p>All registered customers</p>
+        </div>
 
-              <button
-                className="driver-add-btn"
-                onClick={() => { setSelectedDestination(""); setShowTravelModal(true); }}
-              >
-                + ثبت سفر
-              </button>
-            </div>
+        <div className="customer-stat-card">
+          <span>Active Customers</span>
+          <strong>{activeCustomers}</strong>
+          <p>Currently active customers</p>
+        </div>
 
-            <p>{selectedCustomer.note || "توضیحات ثبت نشده است"}</p>
-          </div>
+        <div className="customer-stat-card">
+          <span>Inactive Customers</span>
+          <strong>{inactiveCustomers}</strong>
+          <p>Inactive customer records</p>
+        </div>
 
-          <div className="drivers-stats">
-            <div className="driver-stat-card">
-              <span>قرضدار ما</span>
-              <strong>{customerDebt}</strong>
-              <p>باقی‌مانده مشتری</p>
-            </div>
+        <div className="customer-stat-card">
+          <span>Disconnected</span>
+          <strong>{disconnectedCustomers}</strong>
+          <p>Disconnected customers</p>
+        </div>
 
-            <div className="driver-stat-card">
-              <span>ما قرضدارش هستیم</span>
-              <strong>{ourDebt}</strong>
-              <p>پرداخت اضافه مشتری</p>
-            </div>
+        <div className="customer-stat-card">
+          <span>Monthly Revenue</span>
+          <strong>{money(monthlyRevenue)} AFN</strong>
+          <p>Expected monthly fee</p>
+        </div>
+      </div>
 
-            <div className="driver-stat-card">
-              <span>پرداخت شده</span>
-              <strong>{totalPaid}</strong>
-              <p>کل پول پرداخت‌شده</p>
-            </div>
-
-            <div className="driver-stat-card">
-              <span>تخفیف</span>
-              <strong>{totalDiscount}</strong>
-              <p>کل تخفیف‌ها</p>
-            </div>
-          </div>
-
-          <div className="drivers-table-card">
-            <div className="drivers-table-header">
-              <div>
-                <h3>سفرهای ثبت‌شده مشتری</h3>
-                <p>تمام سفرهایی که برای این مشتری ثبت شده است</p>
-              </div>
-              <input value={selectedRecordSearch} onChange={(event) => setSelectedRecordSearch(event.target.value)} placeholder="جستجو در سفرهای مشتری..." />
-            </div>
-
-            <div className="drivers-table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>نام سفر</th>
-                    <th>تاریخ</th>
-                    <th>نمبر چوکی</th>
-                    <th>مسیر</th>
-                    <th>کرایه</th>
-                    <th>تخفیف</th>
-                    <th>پرداخت</th>
-                    <th>باقی‌مانده</th>
-                    <th>وضعیت</th>
-                    <th>توضیحات</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {selectedRecordsPagination.pageItems.map((record) => (
-                    <tr key={record.id}>
-                      <td>{record.travelName}</td>
-                      <td>{record.date}</td>
-                      <td>{record.seatNo || "-"}</td>
-                      <td>
-                        {record.from} - {record.to}
-                      </td>
-                      <td>{record.fare}</td>
-                      <td>{record.discount || 0}</td>
-                      <td>{record.paidAmount || 0}</td>
-                      <td>{record.remainingAmount || 0}</td>
-                      <td>
-                        <span
-                          className={
-                            getTravelStatus(record.travelIndex) === "تکمیل شده"
-                              ? "driver-badge active"
-                              : getTravelStatus(record.travelIndex) === "در جریان"
-                              ? "driver-badge active"
-                              : "driver-badge inactive"
-                          }
-                        >
-                          {getTravelStatus(record.travelIndex)}
-                        </span>
-                      </td>
-                      <td>{record.note || "-"}</td>
-                    </tr>
-                  ))}
-
-                  {selectedCustomerRecords.length === 0 && (
-                    <tr>
-                      <td colSpan="10" style={{ textAlign: "center", padding: "25px" }}>
-                        هنوز برای این مشتری سفری ثبت نشده است
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <TablePagination page={selectedRecordsPagination.page} totalPages={selectedRecordsPagination.totalPages} setPage={selectedRecordsPagination.setPage} totalItems={filteredSelectedCustomerRecords.length} pageSize={selectedRecordsPagination.pageSize} />
-          </div>
-        </>
-      )}
-
-      <div className="drivers-table-card">
-        <div className="drivers-table-header">
+      <div className="customer-table-card">
+        <div className="customer-table-header">
           <div>
-            <h3>لیست مشتری‌ها</h3>
-            <p>تمام مشتری‌های ثبت‌شده در سیستم</p>
+            <h3>Customer List</h3>
+            <p>All customers saved in the system</p>
           </div>
 
           <input
-            placeholder="جستجوی مشتری..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search customer..."
           />
         </div>
 
-        <div className="drivers-table-wrap">
+        <div className="customer-table-wrap">
           <table>
             <thead>
-              <tr>
-                <th>نام</th>
-                <th>تخلص</th>
-                <th>شماره تماس</th>
-                <th>نمبر تذکره</th>
-                <th>قرضدار ما</th>
-                <th>ما قرضدارش</th>
-                <th>توضیحات</th>
-                <th>عملیات</th>
-              </tr>
+             <tr>
+  <th>Customer ID</th>
+  <th>Customer Name</th>
+  <th>Phone</th>
+  <th>Registration Date</th>
+  <th>Status</th>
+  <th>Actions</th>
+</tr>
             </thead>
 
             <tbody>
-              {customerPagination.pageItems.map((customer) => {
+              {filteredCustomers.map((customer) => {
                 const index = customer.originalIndex;
-                const balance = getCustomerBalance(index);
+
                 return (
-                <tr key={index}>
-                  <td className="driver-name">
-                    <button type="button" className="driver-name-link" onClick={() => navigate(`/customers/${index}`)}>
-                      {customer.firstName}
-                    </button>
-                  </td>
-                  <td>
-                    <button type="button" className="driver-name-link" onClick={() => navigate(`/customers/${index}`)}>
-                      {customer.lastName}
-                    </button>
-                  </td>
-                  <td>{customer.phone}</td>
-                  <td>{customer.tazkiraNo || "-"}</td>
-                  <td>{balance.customerDebt}</td>
-                  <td>{balance.ourDebt}</td>
-                  <td>{customer.note || "-"}</td>
-                  <td>
-                    <div className="action-dropdown">
-                      <button
-                        className="action-btn"
-                        onClick={() =>
-                          setOpenAction(openAction === index ? null : index)
-                        }
-                      >
-                        ⋮
-                      </button>
+                  <tr key={customer.id || index}>
+                    <td className="customer-strong">{customer.customerId || "-"}</td>
+                    <td>{customer.customerName || "-"}</td>
+                    <td>{customer.phone || "-"}</td>
+                    <td>{customer.registrationDate || "-"}</td>
+                    <td>
+                      <span className={getStatusClass(customer.status)}>
+                        {customer.status || "Unknown"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="customer-action-cell">
+                        <button
+                          type="button"
+                          className="customer-action-btn"
+                          onClick={(event) => toggleActionMenu(event, index)}
+                        >
+                          ⋮
+                        </button>
 
-                      {openAction === index && (
-                        <div className="action-menu">
-                          <button type="button" onClick={() => navigate(`/customers/${index}`)}>
-                            جزئیات
-                          </button>
-
-                          <button type="button" onClick={() => editCustomer(index)}>
-                            ویرایش
-                          </button>
-
-                          <button
-                            type="button"
-                            className="danger-action"
-                            onClick={() => deleteCustomer(index)}
+                        {openAction === index && (
+                          <div
+                            className="customer-action-menu"
+                            style={{
+                              top: `${actionPosition.top}px`,
+                              left: `${actionPosition.left}px`,
+                            }}
                           >
-                            حذف
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDetailRecord(customer);
+                                setOpenAction(null);
+                              }}
+                            >
+                              <InfoIcon />
+                              <span>Full Detail</span>
+                            </button>
+
+                            <button type="button" onClick={() => openEditModal(index)}>
+                              <EditIcon />
+                              <span>Edit</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              className="danger-action"
+                              onClick={() => openDeleteModal(index)}
+                            >
+                              <TrashIcon />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
                 );
               })}
 
               {filteredCustomers.length === 0 && (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: "center", padding: "25px" }}>
-                    هیچ مشتری ثبت نشده است
+                  <td colSpan="7" className="customer-empty">
+                    No customer has been registered yet.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-        <TablePagination page={customerPagination.page} totalPages={customerPagination.totalPages} setPage={customerPagination.setPage} totalItems={filteredCustomers.length} pageSize={customerPagination.pageSize} />
       </div>
 
-      {showTravelModal && (
-        <div className="driver-modal-backdrop" onClick={() => setShowTravelModal(false)}>
-          <div className="driver-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="driver-modal-header">
+      {showModal && (
+        <div className="customer-modal-backdrop" onClick={closeModal}>
+          <div className="customer-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="customer-modal-header">
               <div>
-                <h3>ثبت سفر برای مشتری</h3>
-                <p>ابتدا مقصد و سپس یک سفر در انتظار را انتخاب کنید</p>
+                <h3>{editIndex !== null ? "Edit Customer" : "Add Customer"}</h3>
+                <p>Enter customer identity, contact, package, and account information.</p>
               </div>
 
-              <button
-                className="driver-close-btn"
-                onClick={() => { setSelectedDestination(""); setShowTravelModal(false); }}
-              >
+              <button type="button" onClick={closeModal}>
                 ×
               </button>
             </div>
 
-            <form onSubmit={saveCustomerTravel}>
-              <div className="customer-destination-step">
-                <label>قدم اول: انتخاب مقصد</label>
-                <div className="customer-destination-grid">
-                  {waitingDestinationNames.map((destination) => (
-                    <button
-                      type="button"
-                      key={destination}
-                      className={selectedDestination === destination ? "active" : ""}
-                      onClick={() => { setSelectedDestination(destination); setTravelSearch(""); setCustomerTravelForm(emptyCustomerTravel); }}
-                    >
-                      <strong>{destination}</strong>
-                      <span>{travels.filter((travel) => travel.status === "در انتظار" && travel.to === destination).length} سفر در انتظار</span>
-                    </button>
-                  ))}
-                  {waitingDestinationNames.length === 0 && <p>هیچ مقصد دارای سفر در انتظار نیست.</p>}
-                </div>
-              </div>
-
-              <div className="form-group form-full">
-                <label>قدم دوم: جستجوی سفر در انتظار {selectedDestination && `به ${selectedDestination}`}</label>
-                <input
-                  value={travelSearch}
-                  onChange={(e) => setTravelSearch(e.target.value)}
-                  placeholder="نام سفر، مسیر یا راننده..."
-                />
-              </div>
-
-              <div className="drivers-table-wrap" style={{ marginBottom: "15px" }}>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>انتخاب</th>
-                    <th>نام سفر</th>
-                    <th>تاریخ</th>
-                    <th>مسیر</th>
-                    <th>کرایه</th>
-                    <th>وضعیت</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {travelPagination.pageItems.map((travel) => (
-                      <tr key={travel.originalIndex}>
-                        <td>
-                          <button
-                            type="button"
-                            className="driver-save-btn"
-                            onClick={() => selectTravel(travel, travel.originalIndex)}
-                          >
-                            انتخاب
-                          </button>
-                        </td>
-                        <td>{travel.name}</td>
-                        <td>{travel.date || "-"}</td>
-                        <td>
-                          {travel.from} - {travel.to}
-                        </td>
-                        <td>{travel.fare}</td>
-                        <td>{travel.status}</td>
-                      </tr>
-                    ))}
-
-                    {filteredTravels.length === 0 && (
-                      <tr>
-                        <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
-                          {selectedDestination ? "هیچ سفر در انتظاری برای این مقصد پیدا نشد" : "ابتدا یک مقصد را انتخاب کنید"}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <TablePagination page={travelPagination.page} totalPages={travelPagination.totalPages} setPage={travelPagination.setPage} totalItems={filteredTravels.length} pageSize={travelPagination.pageSize} />
-
-              <div className="driver-form-grid">
-                <div className="form-group">
-                  <label>نام سفر</label>
-                  <input value={customerTravelForm.travelName} readOnly />
-                </div>
-
-                <div className="form-group">
-                  <label>تاریخ</label>
-                  <input value={customerTravelForm.date} readOnly />
-                </div>
-
-                <div className="form-group">
-                  <label>حالت</label>
-                  <select
-                    name="mode"
-                    value={customerTravelForm.mode}
-                    onChange={handleCustomerTravelChange}
-                  >
-                    <option value="شخصی">شخصی</option>
-                    <option value="فامیلی">فامیلی</option>
-                  </select>
-                </div>
-
-                {customerTravelForm.mode === "فامیلی" && (
-                  <div className="form-group">
-                    <label>تعداد فامیل</label>
+            <form onSubmit={handleSubmit}>
+              <div className="customer-form-grid">
+                <div className="customer-form-group">
+                  <label>Customer ID</label>
+                  <div className="customer-id-field">
                     <input
-                      type="number"
-                      min="1"
-                      name="familyCount"
-                      value={customerTravelForm.familyCount}
-                      onChange={handleCustomerTravelChange}
-                      placeholder="مثلاً 4"
+                      name="customerId"
+                      value={formData.customerId}
+                      onChange={handleChange}
+                      placeholder="Example: CUS-0001"
+                      required
                     />
-                  </div>
-                )}
 
-                <div className="form-group">
-                  <label>نمبر چوکی</label>
-                  <select
-                    name="seatNo"
-                    value={customerTravelForm.seatNo}
-                    onChange={handleCustomerTravelChange}
+                    <button type="button" onClick={generateCustomerId}>
+                      Generate
+                    </button>
+                  </div>
+                </div>
+
+                <div className="customer-form-group">
+                  <label>Customer Name</label>
+                  <input
+                    name="customerName"
+                    value={formData.customerName}
+                    onChange={handleChange}
+                    placeholder="Example: Rahmatullah"
                     required
-                    disabled={!selectedTravelRecord || availableSeatNumbers.length === 0}
-                  >
-                    <option value="">
-                      {!selectedTravelRecord
-                        ? "ابتدا سفر را انتخاب کنید"
-                        : availableSeatNumbers.length === 0
-                        ? "همه چوکی‌ها رزرف شده‌اند"
-                        : "انتخاب چوکی"}
-                    </option>
-                    {availableSeatNumbers.map((seatNo) => (
-                      <option key={seatNo} value={seatNo}>
-                        چوکی {seatNo}
-                      </option>
-                    ))}
+                  />
+                </div>
+
+                <div className="customer-form-group">
+                  <label>Father Name</label>
+                  <input
+                    name="fatherName"
+                    value={formData.fatherName}
+                    onChange={handleChange}
+                    placeholder="Example: Ahmad"
+                  />
+                </div>
+
+                <div className="customer-form-group">
+                  <label>Phone</label>
+                  <input
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="Example: 0790000000"
+                    required
+                  />
+                </div>
+
+                <div className="customer-form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="Example: customer@email.com"
+                  />
+                </div>
+
+                <div className="customer-form-group">
+                  <label>National ID</label>
+                  <input
+                    name="nationalId"
+                    value={formData.nationalId}
+                    onChange={handleChange}
+                    placeholder="Example: Tazkira / NID"
+                  />
+                </div>
+
+
+                <div className="customer-form-group">
+                  <label>Registration Date</label>
+                  <input
+                    type="date"
+                    name="registrationDate"
+                    value={formData.registrationDate}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="customer-form-group">
+                  <label>Status</label>
+                  <select name="status" value={formData.status} onChange={handleChange}>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Disconnected">Disconnected</option>
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label>راننده</label>
-                  <input value={customerTravelForm.driver} readOnly />
-                </div>
-
-                <div className="form-group">
-                  <label>موتر</label>
-                  <input value={customerTravelForm.car} readOnly />
-                </div>
-
-                <div className="form-group">
-                  <label>مبدأ</label>
-                  <input value={customerTravelForm.from} readOnly />
-                </div>
-
-                <div className="form-group">
-                  <label>مقصد</label>
-                  <input value={customerTravelForm.to} readOnly />
-                </div>
-
-                <div className="form-group">
-                  <label>قیمت سفر</label>
-                  <input
-                    type="number"
-                    name="fare"
-                    value={customerTravelForm.fare}
-                    onChange={handleCustomerTravelChange}
-                    placeholder="مثلاً 300"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>تخفیف</label>
-                  <input
-                    type="number"
-                    name="discount"
-                    value={customerTravelForm.discount}
-                    onChange={handleCustomerTravelChange}
-                    placeholder="مثلاً 500"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>مقدار پرداخت‌شده</label>
-                  <input
-                    type="number"
-                    name="paidAmount"
-                    value={customerTravelForm.paidAmount}
-                    onChange={handleCustomerTravelChange}
-                    placeholder="مثلاً 3000"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>باقی‌مانده</label>
-                  <input value={customerTravelForm.remainingAmount} readOnly />
-                </div>
-
-                <div className="form-group form-full">
-                  <label>توضیحات</label>
+                <div className="customer-form-group customer-form-full">
+                  <label>Address</label>
                   <textarea
-                    name="note"
-                    value={customerTravelForm.note}
-                    onChange={handleCustomerTravelChange}
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    placeholder="Customer address..."
+                  />
+                </div>
+
+                <div className="customer-form-group customer-form-full">
+                  <label>Notes</label>
+                  <textarea
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleChange}
+                    placeholder="Additional customer notes..."
                   />
                 </div>
               </div>
 
-              <div className="driver-modal-actions">
-                <button
-                  type="button"
-                  className="driver-cancel-btn"
-                  onClick={() => { setSelectedDestination(""); setShowTravelModal(false); }}
-                >
-                  لغو
+              <div className="customer-modal-actions">
+                <button type="button" className="customer-cancel-btn" onClick={closeModal}>
+                  Cancel
                 </button>
 
-                <button type="submit" className="driver-save-btn">
-                  ثبت سفر مشتری
+                <button type="submit" className="customer-save-btn">
+                  {editIndex !== null ? "Save Changes" : "Save Customer"}
                 </button>
               </div>
             </form>
@@ -814,89 +671,247 @@ function Customers() {
         </div>
       )}
 
-      {showModal && (
-        <div className="driver-modal-backdrop" onClick={() => setShowModal(false)}>
-          <div className="driver-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="driver-modal-header">
+      {detailRecord && (
+        <div className="customer-detail-backdrop" onClick={() => setDetailRecord(null)}>
+          <div className="customer-detail-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="customer-detail-header">
               <div>
-                <h3>{editIndex !== null ? "ویرایش مشتری" : "ثبت مشتری جدید"}</h3>
-                <p>معلومات مشتری را وارد کنید</p>
+                <h3>Customer Full Detail</h3>
+                <p>Complete customer profile information.</p>
               </div>
 
-              <button className="driver-close-btn" onClick={() => setShowModal(false)}>
+              <button type="button" onClick={() => setDetailRecord(null)}>
                 ×
               </button>
             </div>
 
-            <form onSubmit={handleSubmit}>
-              <div className="driver-form-grid">
-                <div className="form-group">
-                  <label>نام مشتری</label>
-                  <input
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
+            <div className="customer-detail-grid">
+              <div><span>Customer ID</span><strong>{detailRecord.customerId || "-"}</strong></div>
+              <div><span>Customer Name</span><strong>{detailRecord.customerName || "-"}</strong></div>
+              <div><span>Father Name</span><strong>{detailRecord.fatherName || "-"}</strong></div>
+              <div><span>Phone</span><strong>{detailRecord.phone || "-"}</strong></div>
+              <div><span>Email</span><strong>{detailRecord.email || "-"}</strong></div>
+              <div><span>National ID</span><strong>{detailRecord.nationalId || "-"}</strong></div>
+              <div><span>Customer Type</span><strong>{detailRecord.customerType || "-"}</strong></div>
+              <div><span>Package / Speed</span><strong>{detailRecord.packageSpeed || "-"}</strong></div>
+              <div><span>Monthly Fee</span><strong>{money(detailRecord.monthlyFee)} AFN</strong></div>
+              <div><span>Registration Date</span><strong>{detailRecord.registrationDate || "-"}</strong></div>
+              <div><span>Status</span><strong>{detailRecord.status || "-"}</strong></div>
+            </div>
 
-                <div className="form-group">
-                  <label>تخلص</label>
-                  <input
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
+            <div className="customer-detail-notes">
+              <span>Address</span>
+              <p>{detailRecord.address || "No address has been added for this customer."}</p>
+            </div>
 
-                <div className="form-group">
-                  <label>شماره تماس</label>
-                  <input
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
+            <div className="customer-detail-notes">
+              <span>Notes</span>
+              <p>{detailRecord.notes || "No notes have been added for this customer."}</p>
+            </div>
+<div className="customer-package-history">
+  <h4>Package History</h4>
 
-                <div className="form-group">
-                  <label>نمبر تذکره</label>
-                  <input
-                    name="tazkiraNo"
-                    value={formData.tazkiraNo}
-                    onChange={handleChange}
-                    placeholder="اختیاری"
-                  />
-                </div>
+  <div className="customer-package-table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Package</th>
+          <th>Speed</th>
+          <th>Price</th>
+          <th>Paid</th>
+          <th>Remain</th>
+          <th>Start Date</th>
+          <th>End Date</th>
+          <th>Status</th>
+        </tr>
+      </thead>
 
-                <div className="form-group form-full">
-                  <label>توضیحات</label>
-                  <textarea
-                    name="note"
-                    value={formData.note}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
+      <tbody>
+        {getCustomerPackages(detailRecord).map((item) => (
+          <tr key={item.id}>
+            <td>{item.packageName || "-"}</td>
+            <td>{item.speed || "-"}</td>
+            <td>{money(item.packagePrice)} AFN</td>
+            <td>{money(item.paidAmount)} AFN</td>
+            <td>{money(item.remainAmount)} AFN</td>
+            <td>{item.startDate || "-"}</td>
+            <td>{item.endDate || "-"}</td>
+            <td>{item.status || "-"}</td>
+          </tr>
+        ))}
 
-              <div className="driver-modal-actions">
-                <button
-                  type="button"
-                  className="driver-cancel-btn"
-                  onClick={() => {
-                    resetForm();
-                    setShowModal(false);
-                  }}
-                >
-                  لغو
-                </button>
+        {getCustomerPackages(detailRecord).length === 0 && (
+          <tr>
+            <td colSpan="8" className="customer-empty">
+              No package has been added for this customer yet.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
+            <div className="customer-detail-actions">
+  <button
+    type="button"
+    className="customer-package-btn"
+    onClick={() => openPackageModal(detailRecord)}
+  >
+    + Add Package
+  </button>
 
-                <button type="submit" className="driver-save-btn">
-                  {editIndex !== null ? "ذخیره تغییرات" : "ثبت مشتری"}
-                </button>
-              </div>
-            </form>
+  <button type="button" onClick={() => setDetailRecord(null)}>
+    Close
+  </button>
+</div>
+          </div>
+        </div>
+      )}
+      {showPackageModal && packageCustomer && (
+  <div className="customer-modal-backdrop" onClick={closePackageModal}>
+    <div className="customer-modal" onClick={(event) => event.stopPropagation()}>
+      <div className="customer-modal-header">
+        <div>
+          <h3>Add Package</h3>
+          <p>Add a new internet package for {packageCustomer.customerName}.</p>
+        </div>
+
+        <button type="button" onClick={closePackageModal}>
+          ×
+        </button>
+      </div>
+
+      <form onSubmit={saveCustomerPackage}>
+        <div className="customer-form-grid">
+          <div className="customer-form-group">
+            <label>Package Name</label>
+            <input
+              name="packageName"
+              value={packageForm.packageName}
+              onChange={handlePackageChange}
+              placeholder="Example: Home Internet"
+            />
+          </div>
+
+          <div className="customer-form-group">
+            <label>Speed</label>
+            <input
+              name="speed"
+              value={packageForm.speed}
+              onChange={handlePackageChange}
+              placeholder="Example: 10 Mbps"
+            />
+          </div>
+
+          <div className="customer-form-group">
+            <label>Package Price</label>
+            <input
+              type="number"
+              min="0"
+              name="packagePrice"
+              value={packageForm.packagePrice}
+              onChange={handlePackageChange}
+              placeholder="Example: 1500"
+              required
+            />
+          </div>
+
+          <div className="customer-form-group">
+            <label>Paid Amount</label>
+            <input
+              type="number"
+              min="0"
+              name="paidAmount"
+              value={packageForm.paidAmount}
+              onChange={handlePackageChange}
+              placeholder="Example: 1000"
+            />
+          </div>
+
+          <div className="customer-form-group">
+            <label>Remain Amount</label>
+            <input value={`${money(packageForm.remainAmount)} AFN`} readOnly />
+          </div>
+
+          <div className="customer-form-group">
+            <label>Start Date</label>
+            <input
+              type="date"
+              name="startDate"
+              value={packageForm.startDate}
+              onChange={handlePackageChange}
+              required
+            />
+          </div>
+
+          <div className="customer-form-group">
+            <label>End Date</label>
+            <input
+              type="date"
+              name="endDate"
+              value={packageForm.endDate}
+              onChange={handlePackageChange}
+              required
+            />
+          </div>
+
+          <div className="customer-form-group">
+            <label>Status</label>
+            <select
+              name="status"
+              value={packageForm.status}
+              onChange={handlePackageChange}
+            >
+              <option value="Active">Active</option>
+              <option value="Expired">Expired</option>
+              <option value="Paused">Paused</option>
+            </select>
+          </div>
+
+          <div className="customer-form-group customer-form-full">
+            <label>Notes</label>
+            <textarea
+              name="notes"
+              value={packageForm.notes}
+              onChange={handlePackageChange}
+              placeholder="Package notes..."
+            />
+          </div>
+        </div>
+
+        <div className="customer-modal-actions">
+          <button type="button" className="customer-cancel-btn" onClick={closePackageModal}>
+            Cancel
+          </button>
+
+          <button type="submit" className="customer-save-btn">
+            Save Package
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+      {deleteIndex !== null && (
+        <div className="customer-delete-backdrop" onClick={cancelDelete}>
+          <div className="customer-delete-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="customer-delete-icon">
+              <TrashIcon />
+            </div>
+
+            <h3>Delete Customer</h3>
+            <p>Are you sure you want to delete this customer? This action cannot be undone.</p>
+
+            <div className="customer-delete-actions">
+              <button type="button" className="customer-delete-cancel" onClick={cancelDelete}>
+                Cancel
+              </button>
+
+              <button type="button" className="customer-delete-confirm" onClick={confirmDelete}>
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

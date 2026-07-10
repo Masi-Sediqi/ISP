@@ -1,6 +1,9 @@
 import { ArrowRight, Printer } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { formatAfghanDate } from "../utils/afghanDate";
 import { useNavigate, useParams } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { formatSeatNumbers } from "../utils/seatManagement";
 import "./CustomerReceipt.css";
 
 const money = (value) => Number(value || 0).toLocaleString("en-US");
@@ -25,6 +28,7 @@ function CustomerReceipt() {
   const discount = Number(record.discount || 0);
   const paid = Number(type === "travel" ? record.paidAmount : record.amount || 0);
   const remaining = type === "travel" ? Math.max(fare - discount - paid, 0) : null;
+  const receiptUrl = window.location.href;
 
   return <div className="receipt-page">
     <div className="receipt-toolbar"><button onClick={() => navigate(`/customers/${customerIndex}`)}><ArrowRight size={16} /> برگشت</button><button className="receipt-print-btn" onClick={() => window.print()}><Printer size={16} /> چاپ ورق</button></div>
@@ -34,7 +38,19 @@ function CustomerReceipt() {
           <div className="receipt-company-logo">{company.logo ? <img src={company.logo} alt="لوگو" /> : (company.companyName || "T").slice(0,1)}</div>
           <div><h1>{company.companyName || "شرکت سیاحتی"}</h1><p>سیستم مدیریت سفر و حمل و نقل</p></div>
         </div>
-        <div className="receipt-number"><span>نمبر تکت</span><strong>{record.ticketNo || record.id}</strong><small>تاریخ صدور: {record.date || "-"}</small></div>
+        <div className="receipt-reference">
+          <div className="receipt-qr">
+            <QRCodeSVG
+              value={receiptUrl}
+              size={82}
+              level="M"
+              marginSize={1}
+              title="لینک مستقیم سند"
+            />
+            <small>برای بازکردن سند اسکن کنید</small>
+          </div>
+          <div className="receipt-number"><span>نمبر تکت</span><strong>{record.ticketNo || record.id}</strong><small>تاریخ صدور: {formatAfghanDate(record.date)}</small></div>
+        </div>
       </header>
 
       <div className="receipt-title">
@@ -47,7 +63,7 @@ function CustomerReceipt() {
         <table className="receipt-info-table">
           <tbody>
             <tr><th>نام کامل</th><td>{customer.firstName} {customer.lastName}</td><th>شماره تماس</th><td>{customer.phone || "-"}</td></tr>
-            <tr><th>نمبر تذکره</th><td>{customer.tazkiraNo || "-"}</td><th>تاریخ سند</th><td>{record.date || "-"}</td></tr>
+            <tr><th>نمبر تذکره</th><td>{customer.tazkiraNo || "-"}</td><th>جنسیت</th><td>{customer.gender || "-"}</td></tr>
           </tbody>
         </table>
       </section>
@@ -58,9 +74,9 @@ function CustomerReceipt() {
           <tbody>
             <tr><th>نام سفر</th><td>{record.travelName || "-"}</td><th>مسیر</th><td>{record.from || "-"} تا {record.to || "-"}</td></tr>
             <tr><th>راننده</th><td>{record.driver || "-"}</td><th>موتر</th><td>{record.car || "-"}</td></tr>
-            <tr><th>نمبر چوکی</th><td>{record.seatNo || "-"}</td><th>تاریخ سفر</th><td>{record.date || "-"}</td></tr>
+            <tr><th>نمبر چوکی</th><td>{formatSeatNumbers(record)}</td><th>تاریخ سفر</th><td>{formatAfghanDate(record.date)}</td></tr>
             <tr><th>حالت</th><td>{record.mode || "شخصی"}</td><th>تعداد فامیل</th><td>{record.mode === "فامیلی" ? (record.familyCount || "-") : "-"}</td></tr>
-            <tr><th>مدت سفر</th><td>{record.duration || "-"}</td><th>تعداد مسافر</th><td>{record.passengers || "-"}</td></tr>
+            <tr><th>مدت سفر</th><td>{record.duration || "-"}</td><th>تاریخ سند</th><td>{formatAfghanDate(record.date)}</td></tr>
           </tbody>
         </table>
       </section>}
@@ -68,7 +84,7 @@ function CustomerReceipt() {
       <section className="receipt-section">
         <h3>خلاصه مالی</h3>
         <table className="receipt-finance-table">
-          <thead><tr>{type === "travel" && <><th>کرایه</th><th>تخفیف</th></>}<th>پرداخت‌شده</th>{type === "travel" && <th>باقی‌مانده</th>}</tr></thead>
+          <thead><tr>{type === "travel" && <><th>مجموع قیمت</th><th>تخفیف</th></>}<th>پرداخت‌شده</th>{type === "travel" && <th>باقی‌مانده</th>}</tr></thead>
           <tbody><tr>{type === "travel" && <><td>{money(fare)} افغانی</td><td>{money(discount)} افغانی</td></>}<td className="receipt-paid">{money(paid)} افغانی</td>{type === "travel" && <td className="receipt-remaining">{money(remaining)} افغانی</td>}</tr></tbody>
         </table>
       </section>

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import AfghanDateInput from "../components/AfghanDateInput";
 import {
   Bar,
   BarChart,
@@ -19,6 +20,7 @@ import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { notify } from "../utils/notify";
+import { formatAfghanDate } from "../utils/afghanDate";
 import {
   categoryLabel,
   getAllTransactions,
@@ -99,7 +101,7 @@ function FinancialReport() {
   const cashFlowData = (() => {
     const days = new Map();
     periodTransactions.forEach((item) => {
-      const current = days.get(item.date) || { date: item.date || "-", income: 0, expense: 0, net: 0 };
+      const current = days.get(item.date) || { date: item.date || "-", dateLabel: formatAfghanDate(item.date, { numeric: true }), income: 0, expense: 0, net: 0 };
       current[item.type === "income" ? "income" : "expense"] += item.amount;
       current.net = current.income - current.expense;
       days.set(item.date, current);
@@ -183,10 +185,10 @@ function FinancialReport() {
 
       <div className="report-filters financial-report-filters">
         <div className="report-filter-group"><label>حالت راپور</label><select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="all">تمام تاریخ‌ها</option><option value="daily">روزانه</option><option value="weekly">هفته‌وار</option><option value="monthly">ماهانه</option><option value="yearly">سالانه</option></select></div>
-        <div className="report-filter-group"><label>انتخاب تاریخ</label><input type="date" value={activeDate} onChange={(event) => setSelectedDate(event.target.value)} disabled={period === "all"} /></div>
+        <div className="report-filter-group"><label>انتخاب تاریخ</label><AfghanDateInput value={activeDate} onChange={setSelectedDate} disabled={period === "all"} /></div>
         <div className="report-filter-group"><label>حالت تعامل</label><select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}><option value="all">عاید و مصرف</option><option value="income">تنها عواید</option><option value="expense">تنها مصارف</option></select></div>
         <div className="report-filter-group"><label>دسته‌بندی</label><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="all">همه دسته‌ها</option><option value="travel">عاید سفر</option><option value="customer">پرداخت مشتری</option><option value="fuel">تیل</option><option value="repair">ترمیم</option><option value="salary">معاش</option><option value="purchase">خریداری</option><option value="other">سایر</option></select></div>
-        <div className="report-filter-summary"><span>بازه راپور</span><strong>{period === "all" ? "تمام تاریخ‌های ثبت‌شده" : start === end ? start : `${start} تا ${end}`}</strong></div>
+        <div className="report-filter-summary"><span>بازه راپور</span><strong>{period === "all" ? "تمام تاریخ‌های ثبت‌شده" : start === end ? formatAfghanDate(start) : `${formatAfghanDate(start)} تا ${formatAfghanDate(end)}`}</strong></div>
       </div>
 
       <div className="financial-report-stats">
@@ -202,11 +204,11 @@ function FinancialReport() {
         <section className="financial-card budget-card">
           <div className="financial-card-title"><div><span>بودجه در برابر واقعیت</span><h3>کنترول مصرف</h3></div><b className={budgetTotal > 0 && budgetRemaining < 0 ? "negative" : "positive"}>{budgetTotal > 0 ? money(budgetRemaining) : "ثبت نشده"}</b></div>
           <div className="budget-gauge"><div><i style={{ width: `${Math.min(budgetUsage, 100)}%` }} className={budgetUsage > 100 ? "over" : ""} /></div><span><b>مصرف واقعی: {money(totals.expense)}</b><strong>بودجه: {money(budgetTotal)}</strong></span></div>
-          <div className="budget-records">{activeBudgets.slice(0, 4).map((budget) => <div key={budget.id}><span>{budget.title}</span><strong>{money(budget.amount)}</strong><small>{budget.startDate} تا {budget.endDate}</small></div>)}{activeBudgets.length === 0 && <p>هنوز برای این بازه بودجه ثبت نشده است.</p>}</div>
+          <div className="budget-records">{activeBudgets.slice(0, 4).map((budget) => <div key={budget.id}><span>{budget.title}</span><strong>{money(budget.amount)}</strong><small>{formatAfghanDate(budget.startDate)} تا {formatAfghanDate(budget.endDate)}</small></div>)}{activeBudgets.length === 0 && <p>هنوز برای این بازه بودجه ثبت نشده است.</p>}</div>
         </section>
         <section className="financial-card cashflow-card">
           <div className="financial-card-title"><div><span>جریان نقدی</span><h3>عاید، مصرف و سود بر اساس تاریخ</h3></div><small>{periodLabels[period]}</small></div>
-          <div className="financial-chart-body"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={cashFlowData}><CartesianGrid strokeDasharray="4 4" vertical={false} /><XAxis dataKey="date" tick={{ fontSize: 9 }} /><YAxis tick={{ fontSize: 9 }} /><Tooltip {...tooltipProps} /><Legend /><Bar dataKey="income" name="عاید" fill="#16a34a" radius={[5,5,0,0]} /><Bar dataKey="expense" name="مصرف" fill="#dc2626" radius={[5,5,0,0]} /><Line dataKey="net" name="سود خالص" stroke="#4f46e5" strokeWidth={3} /></ComposedChart></ResponsiveContainer></div>
+          <div className="financial-chart-body"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={cashFlowData}><CartesianGrid strokeDasharray="4 4" vertical={false} /><XAxis dataKey="dateLabel" tick={{ fontSize: 9 }} /><YAxis tick={{ fontSize: 9 }} /><Tooltip {...tooltipProps} /><Legend /><Bar dataKey="income" name="عاید" fill="#16a34a" radius={[5,5,0,0]} /><Bar dataKey="expense" name="مصرف" fill="#dc2626" radius={[5,5,0,0]} /><Line dataKey="net" name="سود خالص" stroke="#4f46e5" strokeWidth={3} /></ComposedChart></ResponsiveContainer></div>
         </section>
       </div>
 
@@ -223,17 +225,17 @@ function FinancialReport() {
       </div>
 
       <div className="financial-alert-grid">
-        <section className="financial-ranking-card expense-list"><div className="financial-ranking-title"><span>بزرگ‌ترین مصارف</span><h3>مصارف نیازمند بررسی</h3></div>{largestExpenses.map((item, index) => <div className="financial-ranking-row" key={item.id}><b>{index + 1}</b><div><strong>{item.title}</strong><span>{item.date} · {categoryLabel(item.category)}</span></div><em>{money(item.amount)}</em></div>)}{largestExpenses.length === 0 && <p className="financial-empty">مصرفی ثبت نشده است.</p>}</section>
+        <section className="financial-ranking-card expense-list"><div className="financial-ranking-title"><span>بزرگ‌ترین مصارف</span><h3>مصارف نیازمند بررسی</h3></div>{largestExpenses.map((item, index) => <div className="financial-ranking-row" key={item.id}><b>{index + 1}</b><div><strong>{item.title}</strong><span>{formatAfghanDate(item.date)} · {categoryLabel(item.category)}</span></div><em>{money(item.amount)}</em></div>)}{largestExpenses.length === 0 && <p className="financial-empty">مصرفی ثبت نشده است.</p>}</section>
         <section className="financial-ranking-card debt-list"><div className="financial-ranking-title"><span>بدهی مشتری‌ها</span><h3>طلب‌های قابل دریافت</h3></div>{largestDebtors.map((customer, index) => <Link to={`/customers/${customer.customerIndex}`} key={customer.customerIndex}><b>{index + 1}</b><div><strong>{customer.name}</strong><span>کرایه خالص {money(customer.billed)} · پرداخت {money(customer.paid)}</span></div><em>{money(customer.debt)}</em></Link>)}{largestDebtors.length === 0 && <p className="financial-empty">هیچ بدهی‌ای در این بازه وجود ندارد.</p>}</section>
       </div>
 
       <div className="travel-report-table financial-report-table">
         <div className="travel-map-title report-table-title financial-report-table-title"><div><h3>جدول جامع عواید و مصارف</h3><p>تمام تعاملات مالی دستی و خودکار سیستم</p></div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجوی عنوان، توضیحات، تاریخ یا منبع..." /></div>
-        <div className="financial-report-table-wrap"><table><thead><tr><th>تاریخ</th><th>حالت</th><th>عنوان</th><th>مقدار</th><th>دسته‌بندی</th><th>منبع</th><th>توضیحات</th></tr></thead><tbody>{pageItems.map((item) => <tr key={item.id}><td>{item.date || "-"}</td><td><span className={`financial-type ${item.type}`}>{item.type === "income" ? "عاید" : "مصرف"}</span></td><td>{item.title || "-"}</td><td className={item.type === "income" ? "financial-income" : "financial-expense"}>{money(item.amount)}</td><td>{categoryLabel(item.category)}</td><td>{sourceLabel(item.source)}</td><td>{item.description || "-"}</td></tr>)}{filteredTransactions.length === 0 && <tr><td colSpan="7" className="report-empty">ریکارد مطابق فیلتر یا جستجو پیدا نشد.</td></tr>}</tbody></table></div>
+        <div className="financial-report-table-wrap"><table><thead><tr><th>تاریخ</th><th>حالت</th><th>عنوان</th><th>مقدار</th><th>دسته‌بندی</th><th>منبع</th><th>توضیحات</th></tr></thead><tbody>{pageItems.map((item) => <tr key={item.id}><td>{formatAfghanDate(item.date)}</td><td><span className={`financial-type ${item.type}`}>{item.type === "income" ? "عاید" : "مصرف"}</span></td><td>{item.title || "-"}</td><td className={item.type === "income" ? "financial-income" : "financial-expense"}>{money(item.amount)}</td><td>{categoryLabel(item.category)}</td><td>{sourceLabel(item.source)}</td><td>{item.description || "-"}</td></tr>)}{filteredTransactions.length === 0 && <tr><td colSpan="7" className="report-empty">ریکارد مطابق فیلتر یا جستجو پیدا نشد.</td></tr>}</tbody></table></div>
         <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filteredTransactions.length} pageSize={pageSize} />
       </div>
 
-      {showBudgetModal && <div className="financial-modal-backdrop" onClick={() => setShowBudgetModal(false)}><div className="financial-modal" onClick={(event) => event.stopPropagation()}><div className="financial-modal-title"><div><h3>ثبت بودجه مالی</h3><p>بودجه تعیین‌شده با مصرف واقعی مقایسه می‌شود.</p></div><button onClick={() => setShowBudgetModal(false)}>×</button></div><form onSubmit={saveBudget}><label>عنوان بودجه<input value={budgetForm.title} onChange={(event) => setBudgetForm({ ...budgetForm, title: event.target.value })} required /></label><label>مقدار بودجه<input type="number" min="1" value={budgetForm.amount} onChange={(event) => setBudgetForm({ ...budgetForm, amount: event.target.value })} required /></label><label>تاریخ شروع<input type="date" value={budgetForm.startDate} onChange={(event) => setBudgetForm({ ...budgetForm, startDate: event.target.value })} required /></label><label>تاریخ پایان<input type="date" value={budgetForm.endDate} onChange={(event) => setBudgetForm({ ...budgetForm, endDate: event.target.value })} required /></label><label className="full">توضیحات<textarea value={budgetForm.note} onChange={(event) => setBudgetForm({ ...budgetForm, note: event.target.value })} /></label><div className="financial-modal-actions"><button type="button" onClick={() => setShowBudgetModal(false)}>لغو</button><button type="submit">ثبت بودجه</button></div></form></div></div>}
+      {showBudgetModal && <div className="financial-modal-backdrop" onClick={() => setShowBudgetModal(false)}><div className="financial-modal" onClick={(event) => event.stopPropagation()}><div className="financial-modal-title"><div><h3>ثبت بودجه مالی</h3><p>بودجه تعیین‌شده با مصرف واقعی مقایسه می‌شود.</p></div><button onClick={() => setShowBudgetModal(false)}>×</button></div><form onSubmit={saveBudget}><label>عنوان بودجه<input value={budgetForm.title} onChange={(event) => setBudgetForm({ ...budgetForm, title: event.target.value })} required /></label><label>مقدار بودجه<input type="number" min="1" value={budgetForm.amount} onChange={(event) => setBudgetForm({ ...budgetForm, amount: event.target.value })} required /></label><label>تاریخ شروع<AfghanDateInput value={budgetForm.startDate} onChange={(startDate) => setBudgetForm({ ...budgetForm, startDate })} required /></label><label>تاریخ پایان<AfghanDateInput value={budgetForm.endDate} onChange={(endDate) => setBudgetForm({ ...budgetForm, endDate })} required /></label><label className="full">توضیحات<textarea value={budgetForm.note} onChange={(event) => setBudgetForm({ ...budgetForm, note: event.target.value })} /></label><div className="financial-modal-actions"><button type="button" onClick={() => setShowBudgetModal(false)}>لغو</button><button type="submit">ثبت بودجه</button></div></form></div></div>}
     </div>
   );
 }

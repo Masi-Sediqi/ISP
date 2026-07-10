@@ -58,6 +58,7 @@ export const sourceLabel = (source) => ({
   "customer-payment": "پرداخت بدهی مشتری",
   "travel-expense": "مصرف سفر",
   "car-repair": "ترمیم موتر",
+  "car-expense": "مصرف موتر",
 }[source] || "سیستم");
 
 export const categoryLabel = (category) => ({
@@ -74,7 +75,7 @@ export function getTransactionCategory(transaction, travelExpenses = []) {
   if (transaction.category) return transaction.category;
   if (transaction.source === "customer-travel") return "travel";
   if (transaction.source === "customer-payment") return "customer";
-  if (transaction.source === "car-repair") return "repair";
+  if (transaction.source === "car-repair" || transaction.source === "car-expense") return "repair";
   if (transaction.source === "travel-expense") {
     return travelExpenses.find((item) => Number(item.id) === Number(transaction.referenceId))?.category || "other";
   }
@@ -86,7 +87,7 @@ export function getTransactionCategory(transaction, travelExpenses = []) {
   return "other";
 }
 
-export function getAllTransactions(transactions, customerTravels, customerPayments, travelExpenses = []) {
+export function getAllTransactions(transactions, customerTravels, customerPayments, travelExpenses = [], carRepairs = []) {
   const legacyTravelPayments = customerTravels
     .filter((record) =>
       number(record.paidAmount) > 0 &&
@@ -121,8 +122,44 @@ export function getAllTransactions(transactions, customerTravels, customerPaymen
       referenceId: payment.id,
       customerIndex: payment.customerIndex,
     }));
+  const legacyTravelExpenses = travelExpenses
+    .filter((expense) =>
+      !transactions.some((item) => item.source === "travel-expense" && Number(item.referenceId) === Number(expense.id))
+    )
+    .map((expense) => ({
+      id: `legacy-travel-expense-${expense.id}`,
+      type: "expense",
+      title: `مصرف سفر ${expense.travelName || ""}: ${expense.title || ""}`,
+      amount: number(expense.amount),
+      date: expense.date,
+      description: expense.description,
+      source: "travel-expense",
+      category: expense.category || "other",
+      referenceId: expense.id,
+      travelIndex: expense.travelIndex,
+    }));
+  const legacyCarExpenses = carRepairs
+    .filter((expense) =>
+      expense.source !== "travel-expense" &&
+      !transactions.some((item) =>
+        ["car-expense", "car-repair"].includes(item.source) &&
+        Number(item.referenceId) === Number(expense.id)
+      )
+    )
+    .map((expense) => ({
+      id: `legacy-car-expense-${expense.id}`,
+      type: "expense",
+      title: `مصرف موتر ${expense.carPlate || ""}: ${expense.title || ""}`,
+      amount: number(expense.amount),
+      date: expense.date,
+      description: expense.description,
+      source: "car-expense",
+      category: expense.category === "repair" ? "repair" : "other",
+      referenceId: expense.id,
+      carId: expense.carId,
+    }));
 
-  return [...transactions, ...legacyTravelPayments, ...legacyCustomerPayments].map((transaction) => ({
+  return [...transactions, ...legacyTravelPayments, ...legacyCustomerPayments, ...legacyTravelExpenses, ...legacyCarExpenses].map((transaction) => ({
     ...transaction,
     amount: number(transaction.amount),
     category: getTransactionCategory(transaction, travelExpenses),

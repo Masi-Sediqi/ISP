@@ -12,13 +12,16 @@ import {
   YAxis,
 } from "recharts";
 import TablePagination from "../components/TablePagination";
+import AfghanDateInput from "../components/AfghanDateInput";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { notify } from "../utils/notify";
+import { formatAfghanDate, todayDateValue } from "../utils/afghanDate";
+import { calculateTravelCommission, findEmployeeByName } from "../utils/employeeFinance";
 import "./DestinationDetails.css";
 import "./Travels.css";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = todayDateValue;
 const money = (value) => Number(value || 0).toLocaleString("en-US");
 
 function DestinationDetails() {
@@ -26,11 +29,23 @@ function DestinationDetails() {
   const destinationName = decodeURIComponent(name);
   const navigate = useNavigate();
   const [travels, setTravels] = useJsonCollection("travels");
+  const [customerTravels, setCustomerTravels] = useJsonCollection("customerTravels");
+  const [travelExpenses, setTravelExpenses] = useJsonCollection("travelExpenses");
+  const [carRepairs, setCarRepairs] = useJsonCollection("carRepairs");
+  const [transactions, setTransactions] = useJsonCollection("transactions");
+  const [employeeEarnings, setEmployeeEarnings] = useJsonCollection("employeeEarnings");
+  const [cars, setCars] = useJsonCollection("cars");
   const [destinations] = useJsonCollection("destinations");
-  const [cars] = useJsonCollection("cars");
   const [drivers] = useJsonCollection("drivers");
+  const availableDrivers = drivers.filter((employee) =>
+    employee.status !== "غیرفعال" &&
+    (["دریور", "راننده"].includes(employee.jobType) || (!employee.jobType && employee.licenseNo))
+  );
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [editTravelIndex, setEditTravelIndex] = useState(null);
+  const [finishTravelIndex, setFinishTravelIndex] = useState(null);
+  const [finishDateTime, setFinishDateTime] = useState("");
   const destination = destinations.find((item) => item.name === destinationName);
   const [form, setForm] = useState({
     name: `سفر به ${destinationName}`,
@@ -41,11 +56,26 @@ function DestinationDetails() {
     to: destinationName,
     kilometers: destination?.kilometers || "",
     duration: "",
-    passengers: "",
     fare: "",
     status: "در انتظار",
     note: "",
   });
+  const resetForm = () => {
+    setForm({
+      name: `سفر به ${destinationName}`,
+      date: today(),
+      driver: "",
+      car: "",
+      from: "",
+      to: destinationName,
+      kilometers: destination?.kilometers || "",
+      duration: "",
+      fare: "",
+      status: "در انتظار",
+      note: "",
+    });
+    setEditTravelIndex(null);
+  };
 
   const destinationTravels = travels
     .map((travel, originalIndex) => ({ ...travel, originalIndex }))
@@ -78,9 +108,123 @@ function DestinationDetails() {
 
   const saveTravel = (event) => {
     event.preventDefault();
-    setTravels([...travels, form]);
+    if (editTravelIndex !== null) {
+      setTravels(travels.map((travel, index) => index === editTravelIndex ? form : travel));
+      setCars(cars.map((car) => car.plate === form.car ? { ...car, status: form.status === "در جریان" ? "در سفر" : car.status } : car));
+      notify("سفر ویرایش شد.");
+    } else {
+      setTravels([...travels, form]);
+      setCars(cars.map((car) => car.plate === form.car ? { ...car, status: form.status === "در جریان" ? "در سفر" : car.status } : car));
+      notify("سفر جدید برای این مقصد ثبت شد.");
+    }
     setShowModal(false);
-    notify("سفر جدید برای این مقصد ثبت شد.");
+    resetForm();
+  };
+
+  const openNewTravel = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
+  const openEditTravel = (travel) => {
+    setForm({
+      name: travel.name || "",
+      date: travel.date || today(),
+      driver: travel.driver || "",
+      car: travel.car || "",
+      from: travel.from || "",
+      to: travel.to || destinationName,
+      kilometers: travel.kilometers || "",
+      duration: travel.duration || "",
+      fare: travel.fare || "",
+      status: travel.status === "تکمیل شده" ? "در جریان" : (travel.status || "در انتظار"),
+      note: travel.note || "",
+    });
+    setEditTravelIndex(travel.originalIndex);
+    setShowModal(true);
+  };
+
+  const deleteTravel = (travelIndex) => {
+    if (!window.confirm("آیا این سفر حذف شود؟ ریکاردهای مشتری و مصارف مربوط نیز حذف می‌شوند.")) return;
+    const indexMap = new Map();
+    const remainingTravels = [];
+    travels.forEach((travel, index) => {
+      if (index !== travelIndex) {
+        indexMap.set(index, remainingTravels.length);
+        remainingTravels.push(travel);
+      }
+    });
+    const remap = (items) => items
+      .filter((item) => Number(item.travelIndex) !== travelIndex)
+      .map((item) => item.travelIndex === undefined
+        ? item
+        : { ...item, travelIndex: indexMap.get(Number(item.travelIndex)) });
+    const removedCustomerTravelIds = new Set(
+      customerTravels
+        .filter((item) => Number(item.travelIndex) === travelIndex)
+        .map((item) => Number(item.id))
+    );
+    const removedExpenseIds = new Set(
+      travelExpenses
+        .filter((item) => Number(item.travelIndex) === travelIndex)
+        .map((item) => Number(item.id))
+    );
+
+    setTravels(remainingTravels);
+    setCustomerTravels(remap(customerTravels));
+    setTravelExpenses(remap(travelExpenses));
+    setCarRepairs(remap(carRepairs));
+    setTransactions(transactions
+      .filter((transaction) =>
+        Number(transaction.travelIndex) !== travelIndex &&
+        !(transaction.source === "customer-travel" && removedCustomerTravelIds.has(Number(transaction.referenceId))) &&
+        !(transaction.source === "travel-expense" && removedExpenseIds.has(Number(transaction.referenceId)))
+      )
+      .map((transaction) => transaction.travelIndex === undefined
+        ? transaction
+        : { ...transaction, travelIndex: indexMap.get(Number(transaction.travelIndex)) })
+    );
+    notify("سفر حذف شد.");
+  };
+
+  const openFinishTravel = (travelIndex) => {
+    const now = new Date();
+    const value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    setFinishTravelIndex(travelIndex);
+    setFinishDateTime(value);
+  };
+
+  const finishTravel = (event) => {
+    event.preventDefault();
+    const finishedTravel = travels[finishTravelIndex];
+    setTravels(travels.map((travel, index) => index === finishTravelIndex
+      ? { ...travel, status: "تکمیل شده", completedAt: finishDateTime }
+      : travel
+    ));
+    if (finishedTravel?.car) {
+      setCars(cars.map((car) => car.plate === finishedTravel.car ? { ...car, status: "فعال" } : car));
+    }
+    const employee = findEmployeeByName(drivers, finishedTravel?.driver);
+    const commission = calculateTravelCommission(employee, finishTravelIndex, travels, customerTravels);
+    if (employee && commission > 0 && !employeeEarnings.some((item) => item.source === "travel-commission" && Number(item.referenceId) === Number(finishTravelIndex))) {
+      setEmployeeEarnings([
+        ...employeeEarnings,
+        {
+          id: Date.now(),
+          employeeId: employee.id,
+          employeeName: finishedTravel.driver,
+          amount: commission,
+          date: String(finishDateTime).slice(0, 10),
+          source: "travel-commission",
+          referenceId: finishTravelIndex,
+          title: `فیصدی سفر ${finishedTravel.name || ""}`,
+          description: employee.percentageBasis === "per_customer" ? "محاسبه به اساس فی مشتری" : "محاسبه به اساس فی سفر",
+        },
+      ]);
+    }
+    setFinishTravelIndex(null);
+    setFinishDateTime("");
+    notify("سفر اتمام شد.");
   };
 
   if (!destination && !travels.some((travel) => travel.to === destinationName)) {
@@ -95,7 +239,7 @@ function DestinationDetails() {
           <p>{destination?.description || "تمام سفرها، تاریخ‌ها و تحلیل این مقصد"}</p>
         </div>
         <div>
-          <button className="destination-primary" onClick={() => setShowModal(true)}>+ ثبت سفر</button>
+          <button className="destination-primary" onClick={openNewTravel}>+ ثبت سفر</button>
           <button className="destination-secondary" onClick={() => navigate("/travels")}>برگشت</button>
         </div>
       </div>
@@ -135,7 +279,7 @@ function DestinationDetails() {
           <table>
             <thead><tr><th>تاریخ</th><th>نام سفر</th><th>راننده</th><th>موتر</th><th>مسیر</th><th>کرایه</th><th>وضعیت</th><th>عملیات</th></tr></thead>
             <tbody>
-              {pageItems.map((travel) => <tr key={travel.originalIndex}><td>{travel.date || "-"}</td><td>{travel.name || "-"}</td><td>{travel.driver || "-"}</td><td>{travel.car || "-"}</td><td>{travel.from || "-"} - {travel.to}</td><td>{money(travel.fare)}</td><td>{travel.status}</td><td><button className="destination-detail-link" onClick={() => navigate(`/travels/${travel.originalIndex}`)}>جزئیات</button></td></tr>)}
+              {pageItems.map((travel) => <tr key={travel.originalIndex}><td>{formatAfghanDate(travel.date)}</td><td>{travel.name || "-"}</td><td>{travel.driver || "-"}</td><td>{travel.car || "-"}</td><td>{travel.from || "-"} - {travel.to}</td><td>{money(travel.fare)}</td><td>{travel.status}</td><td><div className="destination-row-actions"><button className="destination-detail-link" onClick={() => navigate(`/travels/${travel.originalIndex}`)}>جزئیات</button><button type="button" onClick={() => openEditTravel(travel)}>ویرایش</button><button type="button" onClick={() => openFinishTravel(travel.originalIndex)} disabled={travel.status === "تکمیل شده"}>اتمام سفر</button><button type="button" className="danger-action" onClick={() => deleteTravel(travel.originalIndex)}>حذف</button></div></td></tr>)}
               {!pageItems.length && <tr><td colSpan="8" className="destination-record-empty">ریکاردی پیدا نشد</td></tr>}
             </tbody>
           </table>
@@ -144,19 +288,29 @@ function DestinationDetails() {
       </div>
 
       {showModal && <div className="travel-modal-backdrop" onClick={() => setShowModal(false)}><div className="travel-modal" onClick={(event) => event.stopPropagation()}>
-        <div className="travel-modal-header"><div><h3>ثبت سفر برای {destinationName}</h3><p>معلومات سفر جدید را وارد کنید</p></div><button className="travel-close-btn" onClick={() => setShowModal(false)}>×</button></div>
+        <div className="travel-modal-header"><div><h3>{editTravelIndex !== null ? "ویرایش سفر" : `ثبت سفر برای ${destinationName}`}</h3><p>معلومات سفر را وارد کنید</p></div><button className="travel-close-btn" onClick={() => { setShowModal(false); resetForm(); }}>×</button></div>
         <form onSubmit={saveTravel}><div className="travel-form-grid">
           <div className="form-group"><label>نام سفر</label><input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></div>
-          <div className="form-group"><label>تاریخ</label><input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} required /></div>
-          <div className="form-group"><label>راننده</label><select value={form.driver} onChange={(event) => setForm({ ...form, driver: event.target.value })} required><option value="">انتخاب راننده</option>{drivers.map((driver, index) => <option key={index} value={`${driver.firstName} ${driver.lastName}`.trim()}>{driver.firstName} {driver.lastName}</option>)}</select></div>
+          <div className="form-group"><label>تاریخ</label><AfghanDateInput value={form.date} onChange={(date) => setForm({ ...form, date })} required /></div>
+          <div className="form-group"><label>راننده</label><select value={form.driver} onChange={(event) => setForm({ ...form, driver: event.target.value })} required><option value="">انتخاب راننده</option>{availableDrivers.map((driver, index) => <option key={driver.id || index} value={`${driver.firstName} ${driver.lastName}`.trim()}>{driver.firstName} {driver.lastName}</option>)}</select></div>
           <div className="form-group"><label>موتر</label><select value={form.car} onChange={(event) => setForm({ ...form, car: event.target.value })} required><option value="">انتخاب موتر</option>{cars.map((car) => <option key={car.id} value={car.plate}>{car.plate} - {car.type}</option>)}</select></div>
           <div className="form-group"><label>مبدأ</label><input value={form.from} onChange={(event) => setForm({ ...form, from: event.target.value })} required /></div>
           <div className="form-group"><label>مقصد</label><input value={form.to} readOnly /></div>
           <div className="form-group"><label>کیلومتر</label><input type="number" min="0" value={form.kilometers} onChange={(event) => setForm({ ...form, kilometers: event.target.value })} /></div>
           <div className="form-group"><label>کرایه</label><input type="number" min="0" value={form.fare} onChange={(event) => setForm({ ...form, fare: event.target.value })} required /></div>
-          <div className="form-group"><label>وضعیت</label><select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}><option>در انتظار</option><option>در جریان</option><option>تکمیل شده</option></select></div>
+          <div className="form-group"><label>وضعیت</label><select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}><option value="در انتظار">در انتظار</option><option value="در جریان">در حال سفر</option></select></div>
           <div className="form-group form-full"><label>توضیحات</label><textarea value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} /></div>
-        </div><div className="travel-modal-actions"><button type="button" className="travel-cancel-btn" onClick={() => setShowModal(false)}>لغو</button><button type="submit" className="travel-save-btn">ثبت سفر</button></div></form>
+        </div><div className="travel-modal-actions"><button type="button" className="travel-cancel-btn" onClick={() => { setShowModal(false); resetForm(); }}>لغو</button><button type="submit" className="travel-save-btn">{editTravelIndex !== null ? "ذخیره تغییرات" : "ثبت سفر"}</button></div></form>
+      </div></div>}
+
+      {finishTravelIndex !== null && <div className="travel-modal-backdrop" onClick={() => setFinishTravelIndex(null)}><div className="travel-modal destination-finish-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="travel-modal-header"><div><h3>اتمام سفر</h3><p>تاریخ و ساعت اتمام سفر را بررسی و ثبت کنید</p></div><button className="travel-close-btn" onClick={() => setFinishTravelIndex(null)}>×</button></div>
+        <form onSubmit={finishTravel}>
+          <div className="travel-form-grid">
+            <div className="form-group form-full"><label>تاریخ و ساعت اتمام</label><input type="datetime-local" value={finishDateTime} onChange={(event) => setFinishDateTime(event.target.value)} required /></div>
+          </div>
+          <div className="travel-modal-actions"><button type="button" className="travel-cancel-btn" onClick={() => setFinishTravelIndex(null)}>لغو</button><button type="submit" className="travel-save-btn">ثبت اتمام سفر</button></div>
+        </form>
       </div></div>}
     </div>
   );

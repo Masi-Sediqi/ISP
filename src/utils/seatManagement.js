@@ -3,18 +3,34 @@ export function getSeatCount(car) {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
+export function getRecordSeatNumbers(record) {
+  if (Array.isArray(record?.seatNos)) {
+    return record.seatNos.map(String).filter(Boolean);
+  }
+
+  return String(record?.seatNo || "")
+    .split(",")
+    .map((seatNo) => seatNo.trim())
+    .filter(Boolean);
+}
+
+export function formatSeatNumbers(record) {
+  const seats = getRecordSeatNumbers(record);
+  return seats.length ? seats.join("، ") : "-";
+}
+
 export function getOccupiedSeats(records) {
-  return new Map(
-    records
-      .filter((record) => String(record.seatNo || "").trim() !== "")
-      .map((record) => [String(record.seatNo), record])
-  );
+  const occupied = new Map();
+  records.forEach((record) => {
+    getRecordSeatNumbers(record).forEach((seatNo) => occupied.set(seatNo, record));
+  });
+  return occupied;
 }
 
 export function getAvailableSeatNumbers(car, records) {
   const seatCount = getSeatCount(car);
   if (!seatCount) return [];
-  const occupied = new Set(records.map((record) => String(record.seatNo)));
+  const occupied = new Set(records.flatMap(getRecordSeatNumbers));
   return Array.from({ length: seatCount }, (_, index) => String(index + 1)).filter(
     (seatNo) => !occupied.has(seatNo)
   );
