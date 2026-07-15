@@ -20,7 +20,7 @@ import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { notify } from "../utils/notify";
-import { formatAfghanDate } from "../utils/afghanDate";
+import { formatAfghanDate, formatDateTime } from "../utils/afghanDate";
 import {
   categoryLabel,
   getAllTransactions,
@@ -225,13 +225,13 @@ function FinancialReport() {
       </div>
 
       <div className="financial-alert-grid">
-        <section className="financial-ranking-card expense-list"><div className="financial-ranking-title"><span>بزرگ‌ترین مصارف</span><h3>مصارف نیازمند بررسی</h3></div>{largestExpenses.map((item, index) => <div className="financial-ranking-row" key={item.id}><b>{index + 1}</b><div><strong>{item.title}</strong><span>{formatAfghanDate(item.date)} · {categoryLabel(item.category)}</span></div><em>{money(item.amount)}</em></div>)}{largestExpenses.length === 0 && <p className="financial-empty">مصرفی ثبت نشده است.</p>}</section>
+        <section className="financial-ranking-card expense-list"><div className="financial-ranking-title"><span>بزرگ‌ترین مصارف</span><h3>مصارف نیازمند بررسی</h3></div>{largestExpenses.map((item, index) => <div className="financial-ranking-row" key={item.id}><b>{index + 1}</b><div><strong>{item.title}</strong><span>{formatDateTime(item.date, item.createdAt || item.updatedAt)} · {categoryLabel(item.category)}</span></div><em>{money(item.amount)}</em></div>)}{largestExpenses.length === 0 && <p className="financial-empty">مصرفی ثبت نشده است.</p>}</section>
         <section className="financial-ranking-card debt-list"><div className="financial-ranking-title"><span>بدهی مشتری‌ها</span><h3>طلب‌های قابل دریافت</h3></div>{largestDebtors.map((customer, index) => <Link to={`/customers/${customer.customerIndex}`} key={customer.customerIndex}><b>{index + 1}</b><div><strong>{customer.name}</strong><span>کرایه خالص {money(customer.billed)} · پرداخت {money(customer.paid)}</span></div><em>{money(customer.debt)}</em></Link>)}{largestDebtors.length === 0 && <p className="financial-empty">هیچ بدهی‌ای در این بازه وجود ندارد.</p>}</section>
       </div>
 
       <div className="travel-report-table financial-report-table">
         <div className="travel-map-title report-table-title financial-report-table-title"><div><h3>جدول جامع عواید و مصارف</h3><p>تمام تعاملات مالی دستی و خودکار سیستم</p></div><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجوی عنوان، توضیحات، تاریخ یا منبع..." /></div>
-        <div className="financial-report-table-wrap"><table><thead><tr><th>تاریخ</th><th>حالت</th><th>عنوان</th><th>مقدار</th><th>دسته‌بندی</th><th>منبع</th><th>توضیحات</th></tr></thead><tbody>{pageItems.map((item) => <tr key={item.id}><td>{formatAfghanDate(item.date)}</td><td><span className={`financial-type ${item.type}`}>{item.type === "income" ? "عاید" : "مصرف"}</span></td><td>{item.title || "-"}</td><td className={item.type === "income" ? "financial-income" : "financial-expense"}>{money(item.amount)}</td><td>{categoryLabel(item.category)}</td><td>{sourceLabel(item.source)}</td><td>{item.description || "-"}</td></tr>)}{filteredTransactions.length === 0 && <tr><td colSpan="7" className="report-empty">ریکارد مطابق فیلتر یا جستجو پیدا نشد.</td></tr>}</tbody></table></div>
+        <div className="financial-report-table-wrap"><table><thead><tr><th>تاریخ</th><th>حالت</th><th>عنوان</th><th>مقدار</th><th>دسته‌بندی</th><th>منبع</th><th>توضیحات</th></tr></thead><tbody>{pageItems.map((item) => <tr key={item.id}><td>{formatDateTime(item.date, item.createdAt || item.updatedAt)}</td><td><span className={`financial-type ${item.type}`}>{item.type === "income" ? "عاید" : "مصرف"}</span></td><td>{item.title || "-"}</td><td className={item.type === "income" ? "financial-income" : "financial-expense"}>{money(item.amount)}</td><td>{categoryLabel(item.category)}</td><td>{sourceLabel(item.source)}</td><td>{item.description || "-"}</td></tr>)}{filteredTransactions.length === 0 && <tr><td colSpan="7" className="report-empty">ریکارد مطابق فیلتر یا جستجو پیدا نشد.</td></tr>}</tbody></table></div>
         <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filteredTransactions.length} pageSize={pageSize} />
       </div>
 

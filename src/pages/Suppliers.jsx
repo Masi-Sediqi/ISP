@@ -114,6 +114,8 @@ function Suppliers() {
     address: "",
     taxNumber: "",
     openingBalance: "",
+    supplierTypes: [],
+    customSupplierType: "",
     status: "Active",
     note: "",
   };
@@ -129,6 +131,7 @@ function Suppliers() {
       (supplier.contactPerson || "").toLowerCase().includes(search.toLowerCase()) ||
       (supplier.phone || "").toLowerCase().includes(search.toLowerCase()) ||
       (supplier.email || "").toLowerCase().includes(search.toLowerCase()) ||
+      (supplier.supplierTypes || []).join(" ").toLowerCase().includes(search.toLowerCase()) ||
       (supplier.status || "").toLowerCase().includes(search.toLowerCase())
     );
 
@@ -149,6 +152,43 @@ function Suppliers() {
     setFormData((previous) => ({
       ...previous,
       [name]: value,
+    }));
+  };
+
+  const toggleSupplierType = (type) => {
+    setFormData((previous) => {
+      const currentTypes = previous.supplierTypes || [];
+      const exists = currentTypes.includes(type);
+
+      return {
+        ...previous,
+        supplierTypes: exists
+          ? currentTypes.filter((item) => item !== type)
+          : [...currentTypes, type],
+      };
+    });
+  };
+
+  const addCustomSupplierType = () => {
+    const customType = formData.customSupplierType.trim();
+
+    if (!customType) return;
+
+    setFormData((previous) => ({
+      ...previous,
+      supplierTypes: Array.from(
+        new Set([...(previous.supplierTypes || []), customType])
+      ),
+      customSupplierType: "",
+    }));
+  };
+
+  const removeSupplierType = (type) => {
+    setFormData((previous) => ({
+      ...previous,
+      supplierTypes: (previous.supplierTypes || []).filter(
+        (item) => item !== type
+      ),
     }));
   };
 
@@ -176,9 +216,11 @@ function Suppliers() {
       address: formData.address.trim(),
       taxNumber: formData.taxNumber.trim(),
       openingBalance: Number(formData.openingBalance || 0),
+      supplierTypes: formData.supplierTypes || [],
       createdAt: formData.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+    delete cleanData.customSupplierType;
 
     if (editIndex !== null) {
   const updatedSuppliers = [...suppliers];
@@ -212,6 +254,8 @@ if (saved) {
     setFormData({
       ...emptyForm,
       ...suppliers[index],
+      supplierTypes: suppliers[index].supplierTypes || [],
+      customSupplierType: "",
     });
     setShowModal(true);
     setOpenAction(null);
@@ -504,6 +548,64 @@ const confirmDelete = () => {
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
+                </div>
+
+                <div className="form-group form-full">
+                  <label>Supplier Services</label>
+
+                  <div className="supplier-type-picker">
+                    <button
+                      type="button"
+                      className={
+                        (formData.supplierTypes || []).includes("Product Supplier")
+                          ? "active"
+                          : ""
+                      }
+                      onClick={() => toggleSupplierType("Product Supplier")}
+                    >
+                      Provides Products
+                    </button>
+
+                    <button
+                      type="button"
+                      className={
+                        (formData.supplierTypes || []).includes("Repair Service")
+                          ? "active"
+                          : ""
+                      }
+                      onClick={() => toggleSupplierType("Repair Service")}
+                    >
+                      Repairs Devices
+                    </button>
+                  </div>
+
+                  <div className="supplier-custom-type-add">
+                    <input
+                      name="customSupplierType"
+                      value={formData.customSupplierType}
+                      onChange={handleChange}
+                      placeholder="Add custom supplier service..."
+                    />
+
+                    <button type="button" onClick={addCustomSupplierType}>
+                      Add
+                    </button>
+                  </div>
+
+                  {(formData.supplierTypes || []).length > 0 && (
+                    <div className="supplier-type-chips">
+                      {(formData.supplierTypes || []).map((type) => (
+                        <button
+                          type="button"
+                          key={type}
+                          onClick={() => removeSupplierType(type)}
+                        >
+                          {type}
+                          <span>×</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group form-full">

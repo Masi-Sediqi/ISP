@@ -19,7 +19,7 @@ import {
 import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
-import { formatAfghanDate } from "../utils/afghanDate";
+import { formatAfghanDate, formatDateTime } from "../utils/afghanDate";
 import { getDateRange, toDateValue } from "../utils/financialAnalysis";
 import "./Reports.css";
 import "./CarReport.css";
@@ -345,7 +345,7 @@ function CarReport() {
                   <td><span className={`fleet-status ${car.status === "فعال" ? "active" : car.status === "در ترمیم" ? "repair" : "inactive"}`}>{car.status}</span></td>
                   <td>{money(car.tripCount)}</td><td>{money(car.kilometers)}</td><td className="fleet-income">{money(car.receivedIncome)}</td><td className="fleet-expense">{money(car.totalExpense)}</td>
                   <td><strong className={car.net >= 0 ? "fleet-income" : "fleet-expense"}>{money(car.net)}</strong></td>
-                  <td>{money(car.fuelExpense)}</td><td>{car.repairCount} / {money(car.repairExpense)}</td><td>{money(car.outstanding)}</td><td>{formatAfghanDate(car.lastTrip)}</td>
+                  <td>{money(car.fuelExpense)}</td><td>{car.repairCount} / {money(car.repairExpense)}</td><td>{money(car.outstanding)}</td><td>{formatDateTime(car.lastTrip)}</td>
                   <td><Link className="car-detail-link" to={`/cars/${car.id}`}>مشاهده</Link></td>
                 </tr>
               ))}

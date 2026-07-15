@@ -377,6 +377,78 @@
   resize: none;
 }
 
+.supplier-type-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.supplier-type-picker button {
+  min-height: 38px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #faf9f6;
+  color: #334155;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.supplier-type-picker button.active {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
+.supplier-custom-type-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.supplier-custom-type-add input {
+  flex: 1;
+}
+
+.supplier-custom-type-add button {
+  min-width: 72px;
+  border: 0;
+  border-radius: 10px;
+  background: #4f46e5;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.supplier-type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.supplier-type-chips button {
+  min-height: 30px;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  padding: 0 9px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.supplier-type-chips span {
+  margin-left: 6px;
+  color: #dc2626;
+}
+
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {

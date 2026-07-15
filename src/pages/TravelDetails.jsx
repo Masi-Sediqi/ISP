@@ -5,7 +5,7 @@ import { notify } from "../utils/notify";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
 import AfghanDateInput from "../components/AfghanDateInput";
-import { formatAfghanDate, todayDateValue } from "../utils/afghanDate";
+import { formatDateTime, todayDateValue } from "../utils/afghanDate";
 import { calculateTravelCommission, findEmployeeByName } from "../utils/employeeFinance";
 import "./RecordDetails.css";
 import { getSeatAssignments, getSeatCount } from "../utils/seatManagement";
@@ -117,6 +117,7 @@ function TravelDetails() {
       carPlate: travel.car,
       ...expenseForm,
       amount,
+      createdAt: new Date().toISOString(),
     };
 
     setTravelExpenses([...travelExpenses, expense]);
@@ -132,6 +133,7 @@ function TravelDetails() {
         source: "travel-expense",
         referenceId: expenseId,
         travelIndex,
+        createdAt: new Date().toISOString(),
       },
     ]);
 
@@ -151,6 +153,7 @@ function TravelDetails() {
           description: expenseForm.description,
           source: "travel-expense",
           travelIndex,
+          createdAt: new Date().toISOString(),
         },
       ]);
       setCars(cars.map((item) => item.plate === travel.car ? { ...item, status: "در ترمیم" } : item));
@@ -251,7 +254,7 @@ function TravelDetails() {
               {record ? (
                 <>
                   <span>{record.customerName}</span>
-                  <small>{formatAfghanDate(record.date)}</small>
+                  <small>{formatDateTime(record.date, record.createdAt || record.updatedAt)}</small>
                 </>
               ) : (
                 <span>خالی</span>
@@ -304,7 +307,7 @@ function TravelDetails() {
             <tbody>
               {expensePagination.pageItems.map((expense) => (
                 <tr key={expense.id}>
-                  <td>{formatAfghanDate(expense.date)}</td><td><span className={`record-type ${expense.category === "repair" ? "repair" : "expense"}`}>{categoryLabel(expense.category)}</span></td>
+                  <td>{formatDateTime(expense.date, expense.createdAt || expense.updatedAt)}</td><td><span className={`record-type ${expense.category === "repair" ? "repair" : "expense"}`}>{categoryLabel(expense.category)}</span></td>
                   <td>{expense.title}</td><td>{expense.paidBy || "-"}</td><td className="record-expense">{money(expense.amount)}</td><td>{expense.description || "-"}</td>
                 </tr>
               ))}

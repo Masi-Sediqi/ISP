@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
-import { todayDateValue } from "../utils/afghanDate";
+import { formatDateTime, todayDateValue } from "../utils/afghanDate";
 import { calculateMonthlyIncomeCommission, employeeBalance } from "../utils/employeeFinance";
 import "./Accounts.css";
 import "./EmployeeDetails.css";
@@ -92,7 +92,7 @@ function EmployeeDetails({ accounts, setAccounts }) {
             email,
             password: accountForm.password,
             role: employee.jobType || "کارمند",
-            createdAt: todayDateValue(),
+            createdAt: new Date().toISOString(),
           },
         ];
 
@@ -120,6 +120,7 @@ function EmployeeDetails({ accounts, setAccounts }) {
             amount,
             date: todayDateValue(),
             month: currentMonth,
+            createdAt: new Date().toISOString(),
             source: "monthly-income-commission",
             title: `فیصدی عواید ماهانه ${currentMonth}`,
             description: "محاسبه به اساس عواید ماهانه",
@@ -143,6 +144,7 @@ function EmployeeDetails({ accounts, setAccounts }) {
         employeeName: `${employee.firstName || ""} ${employee.lastName || ""}`.trim(),
         amount,
         date: todayDateValue(),
+        createdAt: new Date().toISOString(),
         description: "پرداخت از بیلانس کارمند",
       },
     ]);
@@ -278,7 +280,7 @@ function EmployeeDetails({ accounts, setAccounts }) {
             </div>
             <div className="employee-ledger-list">
               {employeeEarnings.filter((item) => String(item.employeeId) === String(employeeKey)).map((item) => (
-                <div key={item.id}><span>{item.title || item.source}</span><strong>{Number(item.amount || 0).toLocaleString("en-US")}</strong><small>{item.date}</small></div>
+                <div key={item.id}><span>{item.title || item.source}</span><strong>{Number(item.amount || 0).toLocaleString("en-US")}</strong><small>{formatDateTime(item.date, item.createdAt || item.updatedAt)}</small></div>
               ))}
               {employeeEarnings.filter((item) => String(item.employeeId) === String(employeeKey)).length === 0 && <p>هنوز عایدی برای این کارمند ثبت نشده است.</p>}
             </div>

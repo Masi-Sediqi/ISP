@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import { formatDateTime } from "../utils/afghanDate";
 import "./Customers.css";
 
 const emptyForm = {
@@ -16,7 +18,24 @@ const emptyForm = {
   notes: "",
 };
 
+const emptyIssueDeviceForm = {
+  sourceType: "Main Stock",
+  fromCustomerId: "",
+  assetKey: "",
+  issueDate: new Date().toISOString().slice(0, 10),
+  issueStatus: "Issued",
+  ownershipType: "Loaned",
+  salePrice: "",
+  paidAmount: "",
+  remainAmount: "",
+  depositAmount: "",
+  depositStatus: "Held",
+  notes: "",
+};
+
 const emptyPackageForm = {
+  packageId: "",
+  packageCode: "",
   packageName: "",
   speed: "",
   packagePrice: "",
@@ -74,11 +93,19 @@ function Customers() {
   const [showModal, setShowModal] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
   const [search, setSearch] = useState("");
-  const [detailRecord, setDetailRecord] = useState(null);
   const [deleteIndex, setDeleteIndex] = useState(null);
 
   const [openAction, setOpenAction] = useState(null);
   const [actionPosition, setActionPosition] = useState({ top: 0, left: 0 });
+
+
+  const [assets, setAssets] = useJsonCollection("assets");
+  const [deviceTransfers, setDeviceTransfers] = useJsonCollection("deviceTransfers");
+  const [securityDeposits, setSecurityDeposits] = useJsonCollection("securityDeposits");
+
+  const [showIssueDeviceModal, setShowIssueDeviceModal] = useState(false);
+  const [issueDeviceCustomer, setIssueDeviceCustomer] = useState(null);
+  const [issueDeviceForm, setIssueDeviceForm] = useState(emptyIssueDeviceForm);
 
   const activeCustomers = customers.filter((item) => item.status === "Active").length;
   const inactiveCustomers = customers.filter((item) => item.status === "Inactive").length;
@@ -90,24 +117,271 @@ const monthlyRevenue = activePackages.reduce(
   0
 );
 
-const getCustomerPackages = (customer) => {
-  return customerPackages.filter(
-    (item) =>
-      String(item.customerId) === String(customer.customerId) ||
-      String(item.customerRecordId) === String(customer.id)
+const navigate = useNavigate();
+const [packages] = useJsonCollection("packages");
+
+const getAssetKey = (asset) => String(asset.id || asset.assetId || asset.serialNumber || "");
+
+const getAssetLabel = (asset) => {
+  const id = asset.assetId || "No Asset ID";
+  const name = asset.deviceName || "Unnamed Device";
+  const serial = asset.serialNumber ? ` / SN: ${asset.serialNumber}` : "";
+  const mac = asset.macAddress ? ` / MAC: ${asset.macAddress}` : "";
+
+  return `${id} - ${name}${serial}${mac}`;
+};
+
+const getCustomerName = (customer) => {
+  return (
+    customer.customerName ||
+    customer.fullName ||
+    customer.name ||
+    `${customer.firstName || ""} ${customer.lastName || ""}`.trim() ||
+    "Unnamed Customer"
   );
 };
 
-const openPackageModal = (customer) => {
-  setPackageCustomer(customer);
-  setPackageForm(emptyPackageForm);
-  setShowPackageModal(true);
+const mainStockAssets = assets.filter((asset) => {
+  const location = String(asset.location || "").toLowerCase();
+  const status = String(asset.status || "").toLowerCase();
+
+  return (
+    location === "main stock" ||
+    status === "in stock" ||
+    status === "returned"
+  );
+});
+
+const customerOwnedAssets = assets.filter((asset) => {
+  if (issueDeviceForm.sourceType !== "Customer") return false;
+
+  const fromCustomer = customers.find(
+    (item) => String(item.id) === String(issueDeviceForm.fromCustomerId)
+  );
+
+  if (!fromCustomer) return false;
+
+  return (
+    String(asset.customerRecordId || "") === String(fromCustomer.id) ||
+    String(asset.customerId || "") === String(fromCustomer.customerId)
+  );
+});
+
+const availableIssueAssets =
+  issueDeviceForm.sourceType === "Main Stock"
+    ? mainStockAssets
+    : customerOwnedAssets;
+
+const selectedIssueAsset = assets.find(
+  (asset) => getAssetKey(asset) === String(issueDeviceForm.assetKey)
+);
+
+const openIssueDeviceModal = (customer) => {
+  setIssueDeviceCustomer(customer);
+  setIssueDeviceForm(emptyIssueDeviceForm);
+  setShowIssueDeviceModal(true);
 };
 
-const closePackageModal = () => {
-  setPackageCustomer(null);
-  setPackageForm(emptyPackageForm);
-  setShowPackageModal(false);
+const closeIssueDeviceModal = () => {
+  setIssueDeviceCustomer(null);
+  setIssueDeviceForm(emptyIssueDeviceForm);
+  setShowIssueDeviceModal(false);
+};
+
+const handleIssueDeviceChange = (event) => {
+  const { name, value } = event.target;
+
+  setIssueDeviceForm((previous) => {
+    const nextData = {
+      ...previous,
+      [name]: value,
+    };
+
+    if (name === "sourceType") {
+      nextData.fromCustomerId = "";
+      nextData.assetKey = "";
+    }
+
+    if (name === "ownershipType") {
+      nextData.salePrice = "";
+      nextData.paidAmount = "";
+      nextData.remainAmount = "";
+      nextData.depositAmount = "";
+    }
+
+    const salePrice =
+      name === "salePrice"
+        ? Number(value || 0)
+        : Number(nextData.salePrice || 0);
+
+    const paidAmount =
+      name === "paidAmount"
+        ? Number(value || 0)
+        : Number(nextData.paidAmount || 0);
+
+    if (nextData.ownershipType === "Sold") {
+      nextData.remainAmount = Math.max(salePrice - paidAmount, 0);
+    }
+
+    return nextData;
+  });
+};
+
+const saveIssueDevice = async (event) => {
+  event.preventDefault();
+
+  if (!issueDeviceCustomer) return;
+
+  const asset = selectedIssueAsset;
+
+  if (!asset) {
+    notify("Please select a device.", "error");
+    return;
+  }
+
+  if (
+    issueDeviceForm.sourceType === "Customer" &&
+    !issueDeviceForm.fromCustomerId
+  ) {
+    notify("Please select source customer.", "error");
+    return;
+  }
+
+  if (
+    issueDeviceForm.sourceType === "Customer" &&
+    String(issueDeviceForm.fromCustomerId) === String(issueDeviceCustomer.id)
+  ) {
+    notify("Source customer and destination customer cannot be the same.", "error");
+    return;
+  }
+
+  const fromCustomer =
+    issueDeviceForm.sourceType === "Customer"
+      ? customers.find(
+          (item) => String(item.id) === String(issueDeviceForm.fromCustomerId)
+        )
+      : null;
+
+  const salePrice = Number(issueDeviceForm.salePrice || 0);
+  const paidAmount = Number(issueDeviceForm.paidAmount || 0);
+  const remainAmount =
+    issueDeviceForm.ownershipType === "Sold"
+      ? Math.max(salePrice - paidAmount, 0)
+      : 0;
+
+  const depositAmount =
+    issueDeviceForm.ownershipType === "Loaned"
+      ? Number(issueDeviceForm.depositAmount || 0)
+      : 0;
+
+  const transferRecord = {
+    id: Date.now(),
+    transferType:
+      issueDeviceForm.sourceType === "Main Stock"
+        ? "Main Stock to Customer"
+        : "Customer to Customer",
+
+    fromType: issueDeviceForm.sourceType,
+    fromCustomerRecordId: fromCustomer?.id || "",
+    fromCustomerId: fromCustomer?.customerId || "",
+    fromCustomerName: fromCustomer ? getCustomerName(fromCustomer) : "Main Stock",
+
+    toCustomerRecordId: issueDeviceCustomer.id,
+    toCustomerId: issueDeviceCustomer.customerId,
+    toCustomerName: getCustomerName(issueDeviceCustomer),
+
+    assetRecordId: asset.id || "",
+    assetId: asset.assetId || "",
+    deviceName: asset.deviceName || "",
+    category: asset.category || "",
+    brand: asset.brand || "",
+    model: asset.model || "",
+    macAddress: asset.macAddress || "",
+    serialNumber: asset.serialNumber || "",
+
+    issueDate: issueDeviceForm.issueDate,
+    issueStatus: issueDeviceForm.issueStatus,
+    ownershipType: issueDeviceForm.ownershipType,
+
+    salePrice,
+    paidAmount,
+    remainAmount,
+
+    depositAmount,
+    depositStatus:
+      issueDeviceForm.ownershipType === "Loaned"
+        ? issueDeviceForm.depositStatus
+        : "",
+
+    notes: issueDeviceForm.notes.trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const updatedAssets = assets.map((item) => {
+    if (getAssetKey(item) !== getAssetKey(asset)) return item;
+
+    return {
+      ...item,
+      location: "Customer",
+      status:
+        issueDeviceForm.ownershipType === "Sold"
+          ? "Sold"
+          : issueDeviceForm.issueStatus,
+      ownershipType: issueDeviceForm.ownershipType,
+
+      customerRecordId: issueDeviceCustomer.id,
+      customerId: issueDeviceCustomer.customerId,
+      customerName: getCustomerName(issueDeviceCustomer),
+
+      previousCustomerRecordId: fromCustomer?.id || item.customerRecordId || "",
+      previousCustomerId: fromCustomer?.customerId || item.customerId || "",
+      previousCustomerName: fromCustomer
+        ? getCustomerName(fromCustomer)
+        : item.customerName || "",
+
+      lastTransferDate: issueDeviceForm.issueDate,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  const assetsSaved = await setAssets(updatedAssets);
+  if (!assetsSaved) return;
+
+  const transferSaved = await setDeviceTransfers([
+    ...deviceTransfers,
+    transferRecord,
+  ]);
+
+  if (!transferSaved) return;
+
+  if (issueDeviceForm.ownershipType === "Loaned" && depositAmount > 0) {
+    await setSecurityDeposits([
+      ...securityDeposits,
+      {
+        id: Date.now() + 1,
+        customerRecordId: issueDeviceCustomer.id,
+        customerId: issueDeviceCustomer.customerId,
+        customerName: getCustomerName(issueDeviceCustomer),
+
+        assetRecordId: asset.id || "",
+        assetId: asset.assetId || "",
+        deviceName: asset.deviceName || "",
+
+        depositAmount,
+        depositDate: issueDeviceForm.issueDate,
+        depositStatus: issueDeviceForm.depositStatus,
+        transferId: transferRecord.id,
+        notes: issueDeviceForm.notes.trim(),
+
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+  }
+
+  notify("Device issued to customer successfully.");
+  closeIssueDeviceModal();
 };
 
 const handlePackageChange = (event) => {
@@ -146,21 +420,27 @@ const saveCustomerPackage = async (event) => {
     customerRecordId: packageCustomer.id,
     customerId: packageCustomer.customerId,
     customerName: packageCustomer.customerName,
+
+    packageId: packageForm.packageId,
+    packageCode: packageForm.packageCode,
     packageName: packageForm.packageName.trim(),
     speed: packageForm.speed.trim(),
+
     packagePrice: Number(packageForm.packagePrice || 0),
     paidAmount: Number(packageForm.paidAmount || 0),
     remainAmount: Number(packageForm.remainAmount || 0),
+
     startDate: packageForm.startDate,
     endDate: packageForm.endDate,
     status: packageForm.status,
     notes: packageForm.notes.trim(),
+
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
-  if (!cleanPackage.packageName && !cleanPackage.speed) {
-    notify("Please enter package name or speed.", "error");
+  if (!cleanPackage.packageId && !cleanPackage.packageName) {
+    notify("Please select a package.", "error");
     return;
   }
 
@@ -191,6 +471,102 @@ const saveCustomerPackage = async (event) => {
     notify("Customer package saved successfully.");
     closePackageModal();
   }
+};
+
+
+const getCustomerPackages = (customer) => {
+  return customerPackages.filter(
+    (item) =>
+      String(item.customerId) === String(customer.customerId) ||
+      String(item.customerRecordId) === String(customer.id)
+  );
+};
+
+const getCustomerBalance = (customer) => {
+  const records = getCustomerPackages(customer);
+  const soldDeviceRecords = deviceTransfers.filter(
+    (item) =>
+      item.ownershipType === "Sold" &&
+      (String(item.toCustomerId || "") === String(customer.customerId) ||
+        String(item.toCustomerRecordId || "") === String(customer.id))
+  );
+
+  const packageTotal = records.reduce(
+    (sum, item) => sum + Number(item.packagePrice || 0),
+    0
+  );
+
+  const packagePaid = records.reduce(
+    (sum, item) => sum + Number(item.paidAmount || 0),
+    0
+  );
+
+  const deviceSaleTotal = soldDeviceRecords.reduce(
+    (sum, item) => sum + Number(item.salePrice || 0),
+    0
+  );
+
+  const deviceSalePaid = soldDeviceRecords.reduce(
+    (sum, item) => sum + Number(item.paidAmount || 0),
+    0
+  );
+
+  const totalPrice = packageTotal + deviceSaleTotal;
+  const totalPaid = packagePaid + deviceSalePaid;
+  const balance = totalPrice - totalPaid;
+
+  return {
+    totalPrice,
+    totalPaid,
+    balance,
+    customerOwes: balance > 0 ? balance : 0,
+    weOwe: balance < 0 ? Math.abs(balance) : 0,
+  };
+};
+
+const openPackageModal = (customer) => {
+  setPackageCustomer(customer);
+  setPackageForm(emptyPackageForm);
+  setShowPackageModal(true);
+};
+
+const closePackageModal = () => {
+  setPackageCustomer(null);
+  setPackageForm(emptyPackageForm);
+  setShowPackageModal(false);
+};
+
+const handleSelectedPackageChange = (event) => {
+  const packageId = event.target.value;
+  const selectedPackage = packages.find(
+    (item) => String(item.id) === String(packageId)
+  );
+
+  if (!selectedPackage) {
+    setPackageForm((previous) => ({
+      ...previous,
+      packageId: "",
+      packageCode: "",
+      packageName: "",
+      speed: "",
+      packagePrice: "",
+      remainAmount: "",
+    }));
+    return;
+  }
+
+  const price = Number(selectedPackage.monthlyPrice || 0);
+  const paid = Number(packageForm.paidAmount || 0);
+
+  setPackageForm((previous) => ({
+    ...previous,
+    packageId: selectedPackage.id,
+    packageCode: selectedPackage.packageCode || "",
+    packageName: selectedPackage.packageName || "",
+    speed: selectedPackage.speed || "",
+    packagePrice: price,
+    remainAmount: Math.max(price - paid, 0),
+  }));
 };
 
   const filteredCustomers = customers
@@ -444,13 +820,14 @@ const saveCustomerPackage = async (event) => {
           <table>
             <thead>
              <tr>
-  <th>Customer ID</th>
-  <th>Customer Name</th>
-  <th>Phone</th>
-  <th>Registration Date</th>
-  <th>Status</th>
-  <th>Actions</th>
-</tr>
+                <th>Customer ID</th>
+                <th>Customer Name</th>
+                <th>Phone</th>
+                <th>Registration Date</th>
+                <th>Status</th>
+                <th>Balance</th>
+                <th>Actions</th>
+              </tr>
             </thead>
 
             <tbody>
@@ -462,12 +839,40 @@ const saveCustomerPackage = async (event) => {
                     <td className="customer-strong">{customer.customerId || "-"}</td>
                     <td>{customer.customerName || "-"}</td>
                     <td>{customer.phone || "-"}</td>
-                    <td>{customer.registrationDate || "-"}</td>
+                    <td>
+                      {formatDateTime(
+                        customer.registrationDate,
+                        customer.createdAt || customer.updatedAt
+                      )}
+                    </td>
                     <td>
                       <span className={getStatusClass(customer.status)}>
                         {customer.status || "Unknown"}
                       </span>
                     </td>
+                    <td>
+  {(() => {
+    const balanceInfo = getCustomerBalance(customer);
+
+    if (balanceInfo.customerOwes > 0) {
+      return (
+        <span className="customer-balance customer-owes">
+          Owes {money(balanceInfo.customerOwes)} AFN
+        </span>
+      );
+    }
+
+    if (balanceInfo.weOwe > 0) {
+      return (
+        <span className="customer-balance we-owe">
+          We owe {money(balanceInfo.weOwe)} AFN
+        </span>
+      );
+    }
+
+    return <span className="customer-balance clear">Clear</span>;
+  })()}
+</td>
                     <td>
                       <div className="customer-action-cell">
                         <button
@@ -489,12 +894,34 @@ const saveCustomerPackage = async (event) => {
                             <button
                               type="button"
                               onClick={() => {
-                                setDetailRecord(customer);
+                                navigate(`/customers/${customer.id || customer.customerId}`);
                                 setOpenAction(null);
                               }}
                             >
                               <InfoIcon />
                               <span>Full Detail</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openPackageModal(customer);
+                                setOpenAction(null);
+                              }}
+                            >
+                              <span>＋</span>
+                              <span>Add Package</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigate(`/customers/${customer.id || customer.customerId}/issue-device`);
+                                setOpenAction(null);
+                              }}
+                            >
+                              <span>↗</span>
+                              <span>Issue Device</span>
                             </button>
 
                             <button type="button" onClick={() => openEditModal(index)}>
@@ -671,102 +1098,7 @@ const saveCustomerPackage = async (event) => {
         </div>
       )}
 
-      {detailRecord && (
-        <div className="customer-detail-backdrop" onClick={() => setDetailRecord(null)}>
-          <div className="customer-detail-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="customer-detail-header">
-              <div>
-                <h3>Customer Full Detail</h3>
-                <p>Complete customer profile information.</p>
-              </div>
-
-              <button type="button" onClick={() => setDetailRecord(null)}>
-                ×
-              </button>
-            </div>
-
-            <div className="customer-detail-grid">
-              <div><span>Customer ID</span><strong>{detailRecord.customerId || "-"}</strong></div>
-              <div><span>Customer Name</span><strong>{detailRecord.customerName || "-"}</strong></div>
-              <div><span>Father Name</span><strong>{detailRecord.fatherName || "-"}</strong></div>
-              <div><span>Phone</span><strong>{detailRecord.phone || "-"}</strong></div>
-              <div><span>Email</span><strong>{detailRecord.email || "-"}</strong></div>
-              <div><span>National ID</span><strong>{detailRecord.nationalId || "-"}</strong></div>
-              <div><span>Customer Type</span><strong>{detailRecord.customerType || "-"}</strong></div>
-              <div><span>Package / Speed</span><strong>{detailRecord.packageSpeed || "-"}</strong></div>
-              <div><span>Monthly Fee</span><strong>{money(detailRecord.monthlyFee)} AFN</strong></div>
-              <div><span>Registration Date</span><strong>{detailRecord.registrationDate || "-"}</strong></div>
-              <div><span>Status</span><strong>{detailRecord.status || "-"}</strong></div>
-            </div>
-
-            <div className="customer-detail-notes">
-              <span>Address</span>
-              <p>{detailRecord.address || "No address has been added for this customer."}</p>
-            </div>
-
-            <div className="customer-detail-notes">
-              <span>Notes</span>
-              <p>{detailRecord.notes || "No notes have been added for this customer."}</p>
-            </div>
-<div className="customer-package-history">
-  <h4>Package History</h4>
-
-  <div className="customer-package-table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Package</th>
-          <th>Speed</th>
-          <th>Price</th>
-          <th>Paid</th>
-          <th>Remain</th>
-          <th>Start Date</th>
-          <th>End Date</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {getCustomerPackages(detailRecord).map((item) => (
-          <tr key={item.id}>
-            <td>{item.packageName || "-"}</td>
-            <td>{item.speed || "-"}</td>
-            <td>{money(item.packagePrice)} AFN</td>
-            <td>{money(item.paidAmount)} AFN</td>
-            <td>{money(item.remainAmount)} AFN</td>
-            <td>{item.startDate || "-"}</td>
-            <td>{item.endDate || "-"}</td>
-            <td>{item.status || "-"}</td>
-          </tr>
-        ))}
-
-        {getCustomerPackages(detailRecord).length === 0 && (
-          <tr>
-            <td colSpan="8" className="customer-empty">
-              No package has been added for this customer yet.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-</div>
-            <div className="customer-detail-actions">
-  <button
-    type="button"
-    className="customer-package-btn"
-    onClick={() => openPackageModal(detailRecord)}
-  >
-    + Add Package
-  </button>
-
-  <button type="button" onClick={() => setDetailRecord(null)}>
-    Close
-  </button>
-</div>
-          </div>
-        </div>
-      )}
+   
       {showPackageModal && packageCustomer && (
   <div className="customer-modal-backdrop" onClick={closePackageModal}>
     <div className="customer-modal" onClick={(event) => event.stopPropagation()}>
@@ -783,25 +1115,41 @@ const saveCustomerPackage = async (event) => {
 
       <form onSubmit={saveCustomerPackage}>
         <div className="customer-form-grid">
-          <div className="customer-form-group">
-            <label>Package Name</label>
-            <input
-              name="packageName"
-              value={packageForm.packageName}
-              onChange={handlePackageChange}
-              placeholder="Example: Home Internet"
-            />
-          </div>
 
-          <div className="customer-form-group">
-            <label>Speed</label>
-            <input
-              name="speed"
-              value={packageForm.speed}
-              onChange={handlePackageChange}
-              placeholder="Example: 10 Mbps"
-            />
-          </div>
+        <div className="customer-form-group customer-form-full">
+          <label>Select Package</label>
+          <select
+            value={packageForm.packageId}
+            onChange={handleSelectedPackageChange}
+            required
+          >
+            <option value="">Select Package</option>
+
+            {packages
+              .filter((item) => item.status === "Active")
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.packageCode || "No Code"} - {item.packageName} - {item.speed} -{" "}
+                  {money(item.monthlyPrice)} AFN
+                </option>
+              ))}
+          </select>
+        </div>
+
+        <div className="customer-form-group">
+          <label>Package Name</label>
+          <input value={packageForm.packageName} readOnly />
+        </div>
+
+        <div className="customer-form-group">
+          <label>Speed</label>
+          <input value={packageForm.speed} readOnly />
+        </div>
+
+        <div className="customer-form-group">
+          <label>Package Price</label>
+          <input value={`${money(packageForm.packagePrice)} AFN`} readOnly />
+        </div>
 
           <div className="customer-form-group">
             <label>Package Price</label>
@@ -886,6 +1234,237 @@ const saveCustomerPackage = async (event) => {
 
           <button type="submit" className="customer-save-btn">
             Save Package
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+{showIssueDeviceModal && issueDeviceCustomer && (
+  <div className="customer-modal-backdrop" onClick={closeIssueDeviceModal}>
+    <div className="customer-modal" onClick={(event) => event.stopPropagation()}>
+      <div className="customer-modal-header">
+        <div>
+          <h3>Issue Device</h3>
+          <p>
+            Give, sell, or loan a device to {getCustomerName(issueDeviceCustomer)}.
+          </p>
+        </div>
+
+        <button type="button" onClick={closeIssueDeviceModal}>
+          ×
+        </button>
+      </div>
+
+      <form onSubmit={saveIssueDevice}>
+        <div className="customer-form-grid">
+          <div className="customer-form-group">
+            <label>Transfer Type</label>
+            <select
+              name="sourceType"
+              value={issueDeviceForm.sourceType}
+              onChange={handleIssueDeviceChange}
+            >
+              <option value="Main Stock">Main Stock to Customer</option>
+              <option value="Customer">Customer to Customer</option>
+            </select>
+          </div>
+
+          {issueDeviceForm.sourceType === "Customer" && (
+            <div className="customer-form-group">
+              <label>From Customer</label>
+              <select
+                name="fromCustomerId"
+                value={issueDeviceForm.fromCustomerId}
+                onChange={handleIssueDeviceChange}
+                required
+              >
+                <option value="">Select Source Customer</option>
+
+                {customers
+                  .filter(
+                    (customer) =>
+                      String(customer.id) !== String(issueDeviceCustomer.id)
+                  )
+                  .map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.customerId || "No ID"} - {getCustomerName(customer)}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
+
+          <div className="customer-form-group customer-form-full">
+            <label>Select Device</label>
+            <select
+              name="assetKey"
+              value={issueDeviceForm.assetKey}
+              onChange={handleIssueDeviceChange}
+              required
+            >
+              <option value="">Select Device</option>
+
+              {availableIssueAssets.map((asset) => (
+                <option key={getAssetKey(asset)} value={getAssetKey(asset)}>
+                  {getAssetLabel(asset)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedIssueAsset && (
+            <div className="customer-selected-device customer-form-full">
+              <div>
+                <span>Asset ID</span>
+                <strong>{selectedIssueAsset.assetId || "-"}</strong>
+              </div>
+              <div>
+                <span>Device Name</span>
+                <strong>{selectedIssueAsset.deviceName || "-"}</strong>
+              </div>
+              <div>
+                <span>Category</span>
+                <strong>{selectedIssueAsset.category || "-"}</strong>
+              </div>
+              <div>
+                <span>MAC Address</span>
+                <strong>{selectedIssueAsset.macAddress || "-"}</strong>
+              </div>
+              <div>
+                <span>Serial Number</span>
+                <strong>{selectedIssueAsset.serialNumber || "-"}</strong>
+              </div>
+              <div>
+                <span>Current Status</span>
+                <strong>{selectedIssueAsset.status || "-"}</strong>
+              </div>
+            </div>
+          )}
+
+          <div className="customer-form-group">
+            <label>Issue Date</label>
+            <input
+              type="date"
+              name="issueDate"
+              value={issueDeviceForm.issueDate}
+              onChange={handleIssueDeviceChange}
+              required
+            />
+          </div>
+
+          <div className="customer-form-group">
+            <label>Device Status</label>
+            <select
+              name="issueStatus"
+              value={issueDeviceForm.issueStatus}
+              onChange={handleIssueDeviceChange}
+            >
+              <option value="Issued">Issued</option>
+              <option value="Installed">Installed</option>
+            </select>
+          </div>
+
+          <div className="customer-form-group">
+            <label>Ownership Type</label>
+            <select
+              name="ownershipType"
+              value={issueDeviceForm.ownershipType}
+              onChange={handleIssueDeviceChange}
+            >
+              <option value="Loaned">Loaned / Deposit</option>
+              <option value="Sold">Sold</option>
+            </select>
+          </div>
+
+          {issueDeviceForm.ownershipType === "Sold" && (
+            <>
+              <div className="customer-form-group">
+                <label>Sale Price</label>
+                <input
+                  type="number"
+                  min="0"
+                  name="salePrice"
+                  value={issueDeviceForm.salePrice}
+                  onChange={handleIssueDeviceChange}
+                  placeholder="Example: 2500"
+                />
+              </div>
+
+              <div className="customer-form-group">
+                <label>Paid Amount</label>
+                <input
+                  type="number"
+                  min="0"
+                  name="paidAmount"
+                  value={issueDeviceForm.paidAmount}
+                  onChange={handleIssueDeviceChange}
+                  placeholder="Example: 1000"
+                />
+              </div>
+
+              <div className="customer-form-group">
+                <label>Remain Amount</label>
+                <input
+                  value={`${Number(issueDeviceForm.remainAmount || 0).toLocaleString("en-US")} AFN`}
+                  readOnly
+                />
+              </div>
+            </>
+          )}
+
+          {issueDeviceForm.ownershipType === "Loaned" && (
+            <>
+              <div className="customer-form-group">
+                <label>Security Deposit Amount</label>
+                <input
+                  type="number"
+                  min="0"
+                  name="depositAmount"
+                  value={issueDeviceForm.depositAmount}
+                  onChange={handleIssueDeviceChange}
+                  placeholder="Example: 1000"
+                />
+              </div>
+
+              <div className="customer-form-group">
+                <label>Deposit Status</label>
+                <select
+                  name="depositStatus"
+                  value={issueDeviceForm.depositStatus}
+                  onChange={handleIssueDeviceChange}
+                >
+                  <option value="Held">Held</option>
+                  <option value="Refunded">Refunded</option>
+                  <option value="Outstanding">Outstanding</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          <div className="customer-form-group customer-form-full">
+            <label>Notes</label>
+            <textarea
+              name="notes"
+              value={issueDeviceForm.notes}
+              onChange={handleIssueDeviceChange}
+              placeholder="Device issue notes..."
+            />
+          </div>
+        </div>
+
+        <div className="customer-modal-actions">
+          <button
+            type="button"
+            className="customer-cancel-btn"
+            onClick={closeIssueDeviceModal}
+          >
+            Cancel
+          </button>
+
+          <button type="submit" className="customer-save-btn">
+            Save Device Issue
           </button>
         </div>
       </form>

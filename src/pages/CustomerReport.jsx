@@ -19,7 +19,7 @@ import {
 import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
-import { formatAfghanDate } from "../utils/afghanDate";
+import { formatAfghanDate, formatDateTime } from "../utils/afghanDate";
 import { getDateRange, parseDate, toDateValue } from "../utils/financialAnalysis";
 import "./Reports.css";
 import "./CustomerReport.css";
@@ -238,7 +238,7 @@ function CustomerReport() {
           <div className="customer-ranking-list">
             {topDebtors.map((customer, index) => (
               <Link to={`/customers/${customer.customerIndex}`} key={customer.customerIndex}>
-                <b>{index + 1}</b><div><strong>{customer.fullName}</strong><span>آخرین فعالیت: {formatAfghanDate(customer.lastActivity)}</span></div><em>{money(customer.debt)}</em>
+                <b>{index + 1}</b><div><strong>{customer.fullName}</strong><span>آخرین فعالیت: {formatDateTime(customer.lastActivity)}</span></div><em>{money(customer.debt)}</em>
               </Link>
             ))}
             {topDebtors.length === 0 && <p className="customer-report-empty">هیچ مشتری بدهکار نیست.</p>}
@@ -260,7 +260,7 @@ function CustomerReport() {
                   <td><strong>{customer.fullName}</strong><small>{customer.phone || "-"} · {customer.tazkiraNo || "بدون تذکره"}</small></td>
                   <td><span className={`customer-account-status ${customer.status === "بدهکار" ? "debt" : customer.status === "بستانکار" ? "credit" : customer.status === "تسویه" ? "settled" : "inactive"}`}>{customer.status}</span></td>
                   <td>{customer.tripCount}</td><td>{money(customer.billed)}</td><td className="customer-report-income">{money(customer.paid)}</td><td className="customer-report-debt">{money(customer.debt)}</td><td>{money(customer.discount)}</td>
-                  <td className={customer.netValue >= 0 ? "customer-report-income" : "customer-report-debt"}>{money(customer.netValue)}</td><td>{customer.favoriteDestination}</td><td>{formatAfghanDate(customer.firstActivity)}</td><td>{formatAfghanDate(customer.lastActivity)}</td>
+                  <td className={customer.netValue >= 0 ? "customer-report-income" : "customer-report-debt"}>{money(customer.netValue)}</td><td>{customer.favoriteDestination}</td><td>{formatDateTime(customer.firstActivity)}</td><td>{formatDateTime(customer.lastActivity)}</td>
                   <td><div className="customer-report-actions"><Link className="customer-report-link" to={`/customers/${customer.customerIndex}`}>مشاهده</Link><Link className="customer-report-link print" to={`/customers/${customer.customerIndex}/statement`}>صورت‌حساب</Link></div></td>
                 </tr>
               ))}

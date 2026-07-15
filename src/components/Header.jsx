@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Bell, LogOut, Moon, Search, Settings, User, Users } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Moon, Search, Settings, Sun, User, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 
-function Header({ currentUser, onLogout }) {
+function HeaderActions({ currentUser, onLogout, compact = false }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [darkMode, setDarkMode] = useState(
     document.body.classList.contains("dark-mode")
@@ -29,18 +29,67 @@ function Header({ currentUser, onLogout }) {
     damagedOrLostAssets.length + pendingTowerAssets.length + outstandingDeposits.length;
 
   function toggleDarkMode() {
-    setDarkMode(!darkMode);
+    setDarkMode((value) => !value);
     document.body.classList.toggle("dark-mode");
   }
 
-  return (
-    <header className="topbar">
-      <div className="header-search">
-        <Search size={17} />
-        <input placeholder="Search system..." aria-label="Search system" />
-      </div>
+  if (compact) {
+    return (
+      <div className="header-menu mobile-brand-actions">
+        <button
+          className="profile-btn mobile-actions-toggle"
+          onClick={() => setOpenMenu(openMenu === "mobile" ? null : "mobile")}
+          aria-label="Open mobile actions"
+          type="button"
+        >
+          <User size={17} />
+          {alertCount > 0 && <span className="alert-count">{alertCount}</span>}
+          <ChevronDown size={14} />
+        </button>
 
-      <div className="top-actions">
+        {openMenu === "mobile" && (
+          <div className="dropdown mobile-actions-dropdown">
+            <strong>
+              {currentUser?.fullName || currentUser?.email || currentUser?.username}
+            </strong>
+            <p>{currentUser?.email || "No email configured"}</p>
+
+            <Link to="/accounts" className="dropdown-action" onClick={() => setOpenMenu(null)}>
+              <Users size={15} />
+              Accounts
+            </Link>
+            <Link to="/settings" className="dropdown-action" onClick={() => setOpenMenu(null)}>
+              <Settings size={15} />
+              Settings
+            </Link>
+            <button className="dropdown-action" type="button" onClick={toggleDarkMode}>
+              {darkMode ? <Sun size={15} /> : <Moon size={15} />}
+              {darkMode ? "Light mode" : "Dark mode"}
+            </button>
+
+            <div className="dropdown-alerts">
+              <span>
+                <Bell size={15} />
+                Alerts
+                <b>{alertCount}</b>
+              </span>
+              <small>Damaged / lost assets: {damagedOrLostAssets.length}</small>
+              <small>Pending tower installations: {pendingTowerAssets.length}</small>
+              <small>Outstanding deposits: {outstandingDeposits.length}</small>
+            </div>
+
+            <button className="dropdown-logout" onClick={onLogout} type="button">
+              <LogOut size={15} />
+              Logout
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="top-actions">
         <Link className="header-account-link" to="/accounts">
           <Users size={17} />
           Accounts
@@ -98,7 +147,7 @@ function Header({ currentUser, onLogout }) {
               </strong>
               <p>{currentUser?.email || "No email configured"}</p>
 
-              <button className="dropdown-logout" onClick={onLogout}>
+          <button className="dropdown-logout" onClick={onLogout}>
                 <LogOut size={15} />
                 Logout
               </button>
@@ -106,8 +155,22 @@ function Header({ currentUser, onLogout }) {
           )}
         </div>
       </div>
+  );
+}
+
+function Header({ currentUser, onLogout }) {
+  return (
+    <header className="topbar">
+      <div className="header-search">
+        <Search size={17} />
+        <input placeholder="Search system..." aria-label="Search system" />
+      </div>
+
+      <HeaderActions currentUser={currentUser} onLogout={onLogout} />
     </header>
   );
 }
+
+Header.Actions = HeaderActions;
 
 export default Header;

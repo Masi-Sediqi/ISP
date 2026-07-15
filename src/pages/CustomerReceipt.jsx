@@ -1,6 +1,6 @@
 import { ArrowRight, Printer } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { formatAfghanDate } from "../utils/afghanDate";
+import { formatDateTime } from "../utils/afghanDate";
 import { useNavigate, useParams } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { formatSeatNumbers } from "../utils/seatManagement";
@@ -49,7 +49,7 @@ function CustomerReceipt() {
             />
             <small>برای بازکردن سند اسکن کنید</small>
           </div>
-          <div className="receipt-number"><span>نمبر تکت</span><strong>{record.ticketNo || record.id}</strong><small>تاریخ صدور: {formatAfghanDate(record.date)}</small></div>
+          <div className="receipt-number"><span>نمبر تکت</span><strong>{record.ticketNo || record.id}</strong><small>تاریخ صدور: {formatDateTime(record.date, record.createdAt || record.updatedAt)}</small></div>
         </div>
       </header>
 
@@ -74,9 +74,9 @@ function CustomerReceipt() {
           <tbody>
             <tr><th>نام سفر</th><td>{record.travelName || "-"}</td><th>مسیر</th><td>{record.from || "-"} تا {record.to || "-"}</td></tr>
             <tr><th>راننده</th><td>{record.driver || "-"}</td><th>موتر</th><td>{record.car || "-"}</td></tr>
-            <tr><th>نمبر چوکی</th><td>{formatSeatNumbers(record)}</td><th>تاریخ سفر</th><td>{formatAfghanDate(record.date)}</td></tr>
+            <tr><th>نمبر چوکی</th><td>{formatSeatNumbers(record)}</td><th>تاریخ سفر</th><td>{formatDateTime(record.date, record.createdAt || record.updatedAt)}</td></tr>
             <tr><th>حالت</th><td>{record.mode || "شخصی"}</td><th>تعداد فامیل</th><td>{record.mode === "فامیلی" ? (record.familyCount || "-") : "-"}</td></tr>
-            <tr><th>مدت سفر</th><td>{record.duration || "-"}</td><th>تاریخ سند</th><td>{formatAfghanDate(record.date)}</td></tr>
+            <tr><th>مدت سفر</th><td>{record.duration || "-"}</td><th>تاریخ سند</th><td>{formatDateTime(record.date, record.createdAt || record.updatedAt)}</td></tr>
           </tbody>
         </table>
       </section>}

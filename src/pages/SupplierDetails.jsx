@@ -11,6 +11,7 @@ import {
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import { formatDateTime } from "../utils/afghanDate";
 import "./SupplierDetails.css";
 
 const emptyPurchaseForm = {
@@ -29,6 +30,20 @@ const emptyPurchaseForm = {
   remainAmount: "",
   location: "Main Stock",
   status: "In Stock",
+  notes: "",
+};
+
+const emptyPaymentForm = {
+  paymentDate: new Date().toISOString().slice(0, 10),
+  amount: "",
+  method: "Cash",
+  notes: "",
+};
+
+const emptyBalanceForm = {
+  balanceDate: new Date().toISOString().slice(0, 10),
+  balanceSide: "we_owe_supplier",
+  amount: "",
   notes: "",
 };
 
@@ -99,6 +114,8 @@ function SupplierDetails() {
   const [suppliers] = useJsonCollection("suppliers");
   const [assets, setAssets] = useJsonCollection("assets");
   const [supplierPurchases, setSupplierPurchases] = useJsonCollection("supplierPurchases");
+  const [assetMovements, setAssetMovements] = useJsonCollection("assetMovements");
+  const [supplierPayments, setSupplierPayments] = useJsonCollection("supplierPayments");
   const [customCategories, setCustomCategories] = useJsonCollection("assetCategories");
 
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -109,6 +126,17 @@ function SupplierDetails() {
   const [editPurchaseId, setEditPurchaseId] = useState(null);
   const [detailPurchase, setDetailPurchase] = useState(null);
   const [deletePurchaseId, setDeletePurchaseId] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showBalanceModal, setShowBalanceModal] = useState(false);
+  const [showSupplierInfo, setShowSupplierInfo] = useState(false);
+  const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
+  const [balanceForm, setBalanceForm] = useState(emptyBalanceForm);
+  const [editPayment, setEditPayment] = useState(null);
+  const [editBalance, setEditBalance] = useState(null);
+  const [deletePayment, setDeletePayment] = useState(null);
+  const [deleteBalance, setDeleteBalance] = useState(null);
+  const [editLedgerPurchase, setEditLedgerPurchase] = useState(null);
+  const [editLedgerPurchaseForm, setEditLedgerPurchaseForm] = useState({});
 
   const [openPurchaseAction, setOpenPurchaseAction] = useState(null);
   const [purchaseActionPosition, setPurchaseActionPosition] = useState({
@@ -122,11 +150,65 @@ function SupplierDetails() {
 
   const supplierName = supplier?.supplierName || "";
 
-  const purchases = supplierPurchases.filter(
-    (purchase) =>
-      Number(purchase.supplierIndex) === Number(supplierIndex) ||
-      purchase.supplierName === supplierName
+  const movementPurchases = assetMovements
+    .filter((movement) => {
+      const supplierKey = String(supplier?.id || supplierName || "");
+      return (
+        movement.movementType === "Purchase" &&
+        (String(movement.supplierRecordId || "") === supplierKey ||
+          movement.supplierName === supplierName)
+      );
+    })
+    .map((movement) => {
+      const relatedAsset = assets.find(
+        (asset) =>
+          String(asset.id || asset.assetId) ===
+            String(movement.assetRecordId || movement.assetId) ||
+          String(asset.assetId || "") === String(movement.assetId || "")
+      );
+
+      return {
+        ...movement,
+        source: "asset-movement",
+        purchaseDate: movement.date || movement.purchaseDate || "",
+        invoiceNumber: movement.invoiceNumber || movement.billNumber || "",
+        assetId: relatedAsset?.assetId || movement.assetId || "-",
+        deviceName: relatedAsset?.deviceName || movement.deviceName || "-",
+        category: relatedAsset?.category || movement.category || "-",
+        brand: relatedAsset?.brand || movement.brand || "-",
+        model: relatedAsset?.model || movement.model || "-",
+        macAddress: relatedAsset?.macAddress || movement.macAddress || "-",
+        serialNumber: relatedAsset?.serialNumber || movement.serialNumber || "-",
+        totalPurchaseValue: Number(movement.totalAmount || 0),
+        remainAmount: Number(movement.remainingAmount || 0),
+        status: movement.paymentStatus || "-",
+      };
+    });
+
+  const legacyPurchases = supplierPurchases
+    .filter(
+      (purchase) =>
+        Number(purchase.supplierIndex) === Number(supplierIndex) ||
+        purchase.supplierName === supplierName
+    )
+    .map((purchase) => ({
+      ...purchase,
+      source: "legacy-supplier-purchase",
+    }));
+
+  const purchases = [...movementPurchases, ...legacyPurchases];
+
+  const supplierPaymentRecords = supplierPayments.filter(
+    (payment) =>
+      Number(payment.supplierIndex) === Number(supplierIndex) ||
+      payment.supplierName === supplierName
   );
+
+  const isBalanceRecord = (record) =>
+    String(record.recordType || record.type || "").toLowerCase() === "balance";
+
+  const balanceRecords = supplierPaymentRecords.filter(isBalanceRecord);
+  const payments = supplierPaymentRecords.filter((record) => !isBalanceRecord(record));
 
   const supplierAssets = assets.filter(
     (asset) => asset.supplierName === supplierName
@@ -141,6 +223,116 @@ function SupplierDetails() {
     (sum, purchase) => sum + Number(purchase.quantity || 0),
     0
   );
+
+  const purchasePaidTotal = purchases.reduce(
+    (sum, purchase) => sum + Number(purchase.paidAmount || 0),
+    0
+  );
+
+  const supplierPaymentTotal = payments.reduce(
+    (sum, payment) => sum + Number(payment.amount || 0),
+    0
+  );
+
+  const openingWeOweSupplier = balanceRecords.reduce(
+    (sum, balance) =>
+      balance.balanceSide === "we_owe_supplier"
+        ? sum + Number(balance.amount || 0)
+        : sum,
+    0
+  );
+
+  const openingSupplierOwesUs = balanceRecords.reduce(
+    (sum, balance) =>
+      balance.balanceSide === "supplier_owes_us"
+        ? sum + Number(balance.amount || 0)
+        : sum,
+    0
+  );
+
+  const totalPaidToSupplier = purchasePaidTotal + supplierPaymentTotal;
+  const supplierBalance =
+    totalPurchaseValue + openingWeOweSupplier - totalPaidToSupplier - openingSupplierOwesUs;
+  const weOweSupplier = supplierBalance > 0 ? supplierBalance : 0;
+  const supplierOwesUs = supplierBalance < 0 ? Math.abs(supplierBalance) : 0;
+  const averagePurchaseValue =
+    purchases.length > 0 ? totalPurchaseValue / purchases.length : 0;
+  const hasSupplierFinancialRecords =
+    purchases.length > 0 || payments.length > 0 || balanceRecords.length > 0;
+
+  const ledgerRows = [
+    ...balanceRecords.map((balance) => ({
+      id: `balance-${balance.id}`,
+      type: "Balance",
+      date: balance.balanceDate || balance.createdAt?.slice(0, 10) || "-",
+      timeSource: balance.createdAt || balance.updatedAt || "",
+      description: balance.notes || "Opening balance",
+      debit:
+        balance.balanceSide === "we_owe_supplier"
+          ? Number(balance.amount || 0)
+          : 0,
+      credit:
+        balance.balanceSide === "supplier_owes_us"
+          ? Number(balance.amount || 0)
+          : 0,
+      status:
+        balance.balanceSide === "we_owe_supplier"
+          ? "We Owe Supplier"
+          : "Supplier Owes Us",
+      record: balance,
+      recordType: "balance",
+    })),
+    ...purchases.map((purchase) => ({
+      id: `purchase-${purchase.source}-${purchase.id}`,
+      type: "Purchase",
+      date: purchase.purchaseDate || purchase.createdAt?.slice(0, 10) || "-",
+      timeSource: purchase.createdAt || purchase.updatedAt || "",
+      description: `${purchase.deviceName || "-"} / ${purchase.invoiceNumber || purchase.purchaseCode || "-"}`,
+      debit: Number(purchase.totalPurchaseValue || 0),
+      credit: Number(purchase.paidAmount || 0),
+      status: purchase.status || purchase.paymentStatus || "-",
+      record: purchase,
+      recordType: "purchase",
+    })),
+    ...payments.map((payment) => ({
+      id: `payment-${payment.id}`,
+      type: "Payment",
+      date: payment.paymentDate || payment.createdAt?.slice(0, 10) || "-",
+      timeSource: payment.createdAt || payment.updatedAt || "",
+      description: payment.notes || "Supplier payment",
+      debit: 0,
+      credit: Number(payment.amount || 0),
+      status: payment.method || "Cash",
+      record: payment,
+      recordType: "payment",
+    })),
+  ].sort((a, b) => {
+  const getTimestamp = (row) => {
+    const date = row.date && row.date !== "-" ? row.date : "";
+    const timeSource = row.timeSource || "";
+
+    if (date) {
+      const timePart =
+        timeSource && timeSource.includes("T")
+          ? timeSource.split("T")[1]
+          : "00:00:00";
+
+      const timestamp = new Date(`${date}T${timePart}`).getTime();
+
+      if (!Number.isNaN(timestamp)) {
+        return timestamp;
+      }
+    }
+
+    const fallbackTimestamp = new Date(timeSource).getTime();
+
+    return Number.isNaN(fallbackTimestamp)
+      ? 0
+      : fallbackTimestamp;
+  };
+
+  return getTimestamp(b) - getTimestamp(a);
+});
 
   const categoryOptions = [
   ...defaultCategories,
@@ -243,7 +435,7 @@ const printPurchaseDetail = (purchase) => {
         </div>
 
         <div class="grid">
-          <div class="item"><span>Purchase Date</span><strong>${purchase.purchaseDate || "-"}</strong></div>
+          <div class="item"><span>Purchase Date</span><strong>${formatDateTime(purchase.purchaseDate, purchase.createdAt || purchase.updatedAt)}</strong></div>
           <div class="item"><span>Invoice No</span><strong>${purchase.invoiceNumber || "-"}</strong></div>
           <div class="item"><span>Asset ID</span><strong>${purchase.assetId || "-"}</strong></div>
           <div class="item"><span>Device Name</span><strong>${purchase.deviceName || "-"}</strong></div>
@@ -330,12 +522,8 @@ const backToCategorySelect = () => {
   setCategoryMode("select");
 };
 
-  const averagePurchaseValue =
-    purchases.length > 0 ? totalPurchaseValue / purchases.length : 0;
-
   const recentPurchases = [...purchases]
-    .sort((a, b) => String(b.purchaseDate || "").localeCompare(String(a.purchaseDate || "")))
-    .slice(0, 8);
+    .sort((a, b) => String(b.purchaseDate || "").localeCompare(String(a.purchaseDate || "")));
 
   const statusSummary = useMemo(() => {
     return supplierAssets.reduce((summary, asset) => {
@@ -392,6 +580,180 @@ const closePurchaseModal = () => {
   resetPurchaseForm();
   setEditPurchaseId(null);
   setShowPurchaseModal(false);
+};
+
+const openPaymentModal = () => {
+  setEditPayment(null);
+  setPaymentForm(emptyPaymentForm);
+  setShowPaymentModal(true);
+};
+
+const closePaymentModal = () => {
+  setEditPayment(null);
+  setPaymentForm(emptyPaymentForm);
+  setShowPaymentModal(false);
+};
+
+const openBalanceModal = () => {
+  if (hasSupplierFinancialRecords) {
+    notify("Opening balance can only be added before any supplier record exists.", "error");
+    return;
+  }
+
+  setEditBalance(null);
+  setBalanceForm(emptyBalanceForm);
+  setShowBalanceModal(true);
+};
+
+const closeBalanceModal = () => {
+  setEditBalance(null);
+  setBalanceForm(emptyBalanceForm);
+  setShowBalanceModal(false);
+};
+
+const handlePaymentChange = (event) => {
+  const { name, value } = event.target;
+  setPaymentForm((previous) => ({
+    ...previous,
+    [name]: value,
+  }));
+};
+
+const handleBalanceChange = (event) => {
+  const { name, value } = event.target;
+  setBalanceForm((previous) => ({
+    ...previous,
+    [name]: value,
+  }));
+};
+
+const saveSupplierBalance = async (event) => {
+  event.preventDefault();
+
+  if (!editBalance && hasSupplierFinancialRecords) {
+    notify("Opening balance is locked because this supplier already has records.", "error");
+    return;
+  }
+
+  const amount = Number(balanceForm.amount || 0);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    notify("Balance amount must be greater than zero.", "error");
+    return;
+  }
+
+  const cleanBalance = {
+    id: editBalance?.id || Date.now(),
+    recordType: "balance",
+    type: "Balance",
+    supplierIndex,
+    supplierRecordId: supplier?.id || "",
+    supplierName,
+    balanceDate: balanceForm.balanceDate,
+    balanceSide: balanceForm.balanceSide,
+    amount,
+    notes: balanceForm.notes.trim(),
+    createdAt: editBalance?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const nextRecords = editBalance
+    ? supplierPayments.map((record) =>
+        record.id === editBalance.id ? cleanBalance : record
+      )
+    : [...supplierPayments, cleanBalance];
+
+  const saved = await setSupplierPayments(nextRecords);
+
+  if (!saved) return;
+
+  notify(editBalance ? "Balance updated successfully." : "Opening balance saved successfully.");
+  closeBalanceModal();
+};
+
+const saveSupplierPayment = async (event) => {
+  event.preventDefault();
+
+  const amount = Number(paymentForm.amount || 0);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    notify("Payment amount must be greater than zero.", "error");
+    return;
+  }
+
+  const cleanPayment = {
+    id: editPayment?.id || Date.now(),
+    supplierIndex,
+    supplierRecordId: supplier?.id || "",
+    supplierName,
+    paymentDate: paymentForm.paymentDate,
+    amount,
+    method: paymentForm.method,
+    notes: paymentForm.notes.trim(),
+    createdAt: editPayment?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const nextPayments = editPayment
+    ? supplierPayments.map((payment) =>
+        payment.id === editPayment.id ? cleanPayment : payment
+      )
+    : [...supplierPayments, cleanPayment];
+
+  const saved = await setSupplierPayments(nextPayments);
+
+  if (!saved) return;
+
+  notify(editPayment ? "Payment updated successfully." : "Payment saved successfully.");
+  closePaymentModal();
+};
+
+const openEditPaymentModal = (payment) => {
+  setEditPayment(payment);
+  setPaymentForm({
+    paymentDate: payment.paymentDate || "",
+    amount: String(payment.amount || ""),
+    method: payment.method || "Cash",
+    notes: payment.notes || "",
+  });
+  setShowPaymentModal(true);
+};
+
+const openEditBalanceModal = (balance) => {
+  setEditBalance(balance);
+  setBalanceForm({
+    balanceDate: balance.balanceDate || "",
+    balanceSide: balance.balanceSide || "we_owe_supplier",
+    amount: String(balance.amount || ""),
+    notes: balance.notes || "",
+  });
+  setShowBalanceModal(true);
+};
+
+const confirmDeletePayment = async () => {
+  if (!deletePayment) return;
+
+  const saved = await setSupplierPayments(
+    supplierPayments.filter((payment) => payment.id !== deletePayment.id)
+  );
+
+  if (!saved) return;
+
+  notify("Payment deleted successfully.");
+  setDeletePayment(null);
+};
+
+const confirmDeleteBalance = async () => {
+  if (!deleteBalance) return;
+
+  const saved = await setSupplierPayments(
+    supplierPayments.filter((record) => record.id !== deleteBalance.id)
+  );
+
+  if (!saved) return;
+
+  notify("Balance deleted successfully.");
+  setDeleteBalance(null);
 };
 
   const identityExists = (data) => {
@@ -536,6 +898,19 @@ const savePurchase = async (event) => {
 };
 
 const openEditPurchaseModal = (purchase) => {
+  if (purchase.source === "asset-movement") {
+    setEditLedgerPurchase(purchase);
+    setEditLedgerPurchaseForm({
+      purchaseDate: purchase.purchaseDate || "",
+      invoiceNumber: purchase.invoiceNumber || "",
+      quantity: String(purchase.quantity || 1),
+      unitPrice: String(purchase.unitPrice || ""),
+      paidAmount: String(purchase.paidAmount || ""),
+      notes: purchase.notes || "",
+    });
+    return;
+  }
+
   setEditPurchaseId(purchase.id);
 
   setPurchaseForm({
@@ -560,6 +935,68 @@ const openEditPurchaseModal = (purchase) => {
   setCategoryMode("select");
   setNewCategory("");
   setShowPurchaseModal(true);
+};
+
+const handleEditLedgerPurchaseChange = (event) => {
+  const { name, value } = event.target;
+  setEditLedgerPurchaseForm((previous) => ({
+    ...previous,
+    [name]: value,
+  }));
+};
+
+const saveEditedLedgerPurchase = async (event) => {
+  event.preventDefault();
+
+  if (!editLedgerPurchase) return;
+
+  const quantity = Number(editLedgerPurchaseForm.quantity || 0);
+  const unitPrice = Number(editLedgerPurchaseForm.unitPrice || 0);
+  const paidAmount = Number(editLedgerPurchaseForm.paidAmount || 0);
+  const totalAmount = quantity * unitPrice;
+  const remainingAmount = Math.max(totalAmount - paidAmount, 0);
+
+  if (quantity <= 0 || unitPrice < 0 || paidAmount < 0) {
+    notify("Quantity, unit price, and paid amount must be valid.", "error");
+    return;
+  }
+
+  if (paidAmount > totalAmount) {
+    notify("Paid amount cannot be greater than total amount.", "error");
+    return;
+  }
+
+  const saved = await setAssetMovements(
+    assetMovements.map((movement) =>
+      movement.id === editLedgerPurchase.id
+        ? {
+            ...movement,
+            date: editLedgerPurchaseForm.purchaseDate,
+            invoiceNumber: editLedgerPurchaseForm.invoiceNumber.trim(),
+            billNumber: editLedgerPurchaseForm.invoiceNumber.trim(),
+            quantity,
+            unitPrice,
+            totalAmount,
+            paidAmount,
+            remainingAmount,
+            paymentStatus:
+              remainingAmount === 0
+                ? "Paid"
+                : paidAmount > 0
+                  ? "Partial"
+                  : "Unpaid",
+            notes: editLedgerPurchaseForm.notes.trim(),
+            updatedAt: new Date().toISOString(),
+          }
+        : movement
+    )
+  );
+
+  if (!saved) return;
+
+  notify("Purchase record updated successfully.");
+  setEditLedgerPurchase(null);
+  setEditLedgerPurchaseForm({});
 };
 
 const buildAssetFromPurchase = (purchase, existingAsset = {}) => ({
@@ -597,6 +1034,25 @@ const cancelDeletePurchase = () => {
 
 const confirmDeletePurchase = async () => {
   if (!deletePurchaseId) return;
+
+  const movementPurchase = purchases.find(
+    (purchase) =>
+      purchase.source === "asset-movement" &&
+      String(purchase.id) === String(deletePurchaseId)
+  );
+
+  if (movementPurchase) {
+    const saved = await setAssetMovements(
+      assetMovements.filter((movement) => movement.id !== deletePurchaseId)
+    );
+
+    if (saved) {
+      notify("Purchase record deleted successfully.");
+      setDeletePurchaseId(null);
+    }
+
+    return;
+  }
 
   const nextPurchases = supplierPurchases.filter(
     (purchase) => purchase.id !== deletePurchaseId
@@ -642,34 +1098,82 @@ const confirmDeletePurchase = async () => {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="supplier-purchase-btn"
-          onClick={openCreatePurchaseModal}
-        >
-          + Purchase
-        </button>
+        <div className="supplier-header-actions">
+          <button
+            type="button"
+            className="supplier-secondary-btn"
+            onClick={openBalanceModal}
+            disabled={hasSupplierFinancialRecords}
+            title={
+              hasSupplierFinancialRecords
+                ? "Opening balance is locked because this supplier already has records."
+                : "Add opening balance"
+            }
+          >
+            Add Balance
+          </button>
+
+          <button
+            type="button"
+            className="supplier-secondary-btn"
+            onClick={() => setShowSupplierInfo((value) => !value)}
+          >
+            {showSupplierInfo ? "Hide Supplier Info" : "Show Supplier Info"}
+          </button>
+
+          <button
+            type="button"
+            className="supplier-purchase-btn"
+            onClick={openPaymentModal}
+          >
+            Add Payment
+          </button>
+        </div>
       </div>
 
-      <div className="supplier-profile-card">
-        <div>
-          <span>Company</span>
-          <strong>{supplier.companyName || "-"}</strong>
+      {showSupplierInfo && (
+        <>
+          <div className="supplier-profile-card">
+            <div>
+              <span>Company</span>
+              <strong>{supplier.companyName || "-"}</strong>
+            </div>
+
+            <div>
+              <span>Contact Person</span>
+              <strong>{supplier.contactPerson || "-"}</strong>
+            </div>
+
+            <div>
+              <span>Phone</span>
+              <strong>{supplier.phone || "-"}</strong>
+            </div>
+
+            <div>
+              <span>Email</span>
+              <strong>{supplier.email || "-"}</strong>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="supplier-dashboard-stats supplier-account-stats">
+        <div className="supplier-dashboard-card">
+          <span>We Owe Supplier</span>
+          <strong>{money(weOweSupplier)} AFN</strong>
+          <p>Remaining payable balance</p>
         </div>
 
-        <div>
-          <span>Contact Person</span>
-          <strong>{supplier.contactPerson || "-"}</strong>
+        <div className="supplier-dashboard-card">
+          <span>Supplier Owes Us</span>
+          <strong>{money(supplierOwesUs)} AFN</strong>
+          <p>Overpaid supplier balance</p>
         </div>
 
-        <div>
-          <span>Phone</span>
-          <strong>{supplier.phone || "-"}</strong>
-        </div>
-
-        <div>
-          <span>Email</span>
-          <strong>{supplier.email || "-"}</strong>
+        <div className="supplier-dashboard-card">
+          <span>Total Paid</span>
+          <strong>{money(totalPaidToSupplier)} AFN</strong>
+          <p>Purchase paid + later payments</p>
         </div>
       </div>
 
@@ -705,7 +1209,7 @@ const confirmDeletePurchase = async () => {
         </div>
       </div>
 
-      <div className="supplier-analysis-grid">
+      {showSupplierInfo && <div className="supplier-analysis-grid">
         <div className="supplier-analysis-card">
           <div className="supplier-analysis-title">
             <h3>Inventory Status Analysis</h3>
@@ -740,13 +1244,13 @@ const confirmDeletePurchase = async () => {
             {supplier.note || "No supplier notes have been added yet."}
           </p>
         </div>
-      </div>
+      </div>}
 
       <div className="supplier-purchase-table-card">
         <div className="supplier-purchase-table-header">
           <div>
             <h3>Recent Purchase History</h3>
-            <p>Latest purchases recorded for this supplier</p>
+            <p>Purchases and payments recorded for this supplier</p>
           </div>
         </div>
 
@@ -755,6 +1259,7 @@ const confirmDeletePurchase = async () => {
             <thead>
               <tr>
                 <th>Purchase Date</th>
+                <th>Type</th>
                 <th>Invoice No</th>
                 <th>Asset ID</th>
                 <th>Device Name</th>
@@ -770,30 +1275,82 @@ const confirmDeletePurchase = async () => {
             </thead>
 
             <tbody>
-              {recentPurchases.map((purchase) => (
-                <tr key={purchase.id}>
-                  <td>{purchase.purchaseDate || "-"}</td>
-                  <td>{purchase.invoiceNumber || "-"}</td>
-                  <td>{purchase.assetId || "-"}</td>
-                  <td>{purchase.deviceName || "-"}</td>
-                  <td>{purchase.category || "-"}</td>
-                  <td>{purchase.quantity || 1}</td>
-                  <td>{money(purchase.unitPrice)} AFN</td>
-                  <td>{money(purchase.totalPurchaseValue)} AFN</td>
-                  <td>{money(purchase.paidAmount)} AFN</td>
-                  <td>{money(purchase.remainAmount)} AFN</td>
-                  <td>{purchase.status || "-"}</td>
+              {ledgerRows.map((row) => {
+                const purchase = row.recordType === "purchase" ? row.record : null;
+                const payment = row.recordType === "payment" ? row.record : null;
+                const balance = row.recordType === "balance" ? row.record : null;
+
+                return (
+                <tr key={row.id}>
+                  <td>{formatDateTime(row.date, row.timeSource)}</td>
+                  <td>
+                    <span
+                      className={
+                        row.recordType === "payment"
+                          ? "supplier-ledger-type payment"
+                          : row.recordType === "balance"
+                            ? "supplier-ledger-type balance"
+                            : "supplier-ledger-type purchase"
+                      }
+                    >
+                      {row.type}
+                    </span>
+                  </td>
+                  <td>{purchase?.invoiceNumber || "-"}</td>
+                  <td>{purchase?.assetId || "-"}</td>
+                  <td>
+                    {purchase?.deviceName ||
+                      payment?.notes ||
+                      balance?.notes ||
+                      (balance ? "Opening Balance" : "-")}
+                  </td>
+                  <td>{purchase?.category || "-"}</td>
+                  <td>{purchase?.quantity || "-"}</td>
+                  <td>{purchase ? `${money(purchase.unitPrice)} AFN` : "-"}</td>
+                  <td>
+                    {purchase
+                      ? `${money(purchase.totalPurchaseValue)} AFN`
+                      : row.debit
+                        ? `${money(row.debit)} AFN`
+                        : "-"}
+                  </td>
+                  <td>
+  {row.credit ? (
+    <span className="supplier-amount-badge paid">
+      {money(row.credit)} AFN
+    </span>
+  ) : (
+    "-"
+  )}
+</td>
+
+<td>
+  {purchase ? (
+    <span
+      className={`supplier-amount-badge ${
+        Number(purchase.remainAmount || 0) > 0
+          ? "remaining"
+          : "cleared"
+      }`}
+    >
+      {money(purchase.remainAmount)} AFN
+    </span>
+  ) : (
+    balance ? `${money(balance.amount)} AFN` : "-"
+  )}
+</td>
+                  <td>{row.status || "-"}</td>
                   <td>
   <div className="supplier-purchase-action-cell">
   <button
     type="button"
     className="supplier-purchase-action-btn"
-    onClick={(event) => togglePurchaseActionMenu(event, purchase.id)}
+    onClick={(event) => togglePurchaseActionMenu(event, row.id)}
   >
     ⋮
   </button>
 
-  {openPurchaseAction === purchase.id && (
+  {openPurchaseAction === row.id && (
     <div
       className="supplier-purchase-action-menu"
       style={{
@@ -801,50 +1358,116 @@ const confirmDeletePurchase = async () => {
         left: `${purchaseActionPosition.left}px`,
       }}
     >
-      <button
-        type="button"
-        onClick={() => {
-          setDetailPurchase(purchase);
-          setOpenPurchaseAction(null);
-        }}
-      >
-        <InfoIcon />
-        <span>Full Detail</span>
-      </button>
+      {row.recordType === "purchase" ? (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              setDetailPurchase(purchase);
+              setOpenPurchaseAction(null);
+            }}
+          >
+            <InfoIcon />
+            <span>Full Detail</span>
+          </button>
 
-      <button
-        type="button"
-        onClick={() => {
-          openEditPurchaseModal(purchase);
-          setOpenPurchaseAction(null);
-        }}
-      >
-        <EditIcon />
-        <span>Edit</span>
-      </button>
+          <button
+            type="button"
+            onClick={() => {
+              openEditPurchaseModal(purchase);
+              setOpenPurchaseAction(null);
+            }}
+          >
+            <EditIcon />
+            <span>Edit</span>
+          </button>
 
-      <button
-        type="button"
-        className="danger-action"
-        onClick={() => {
-          openDeletePurchaseModal(purchase.id);
-          setOpenPurchaseAction(null);
-        }}
-      >
-        <TrashIcon />
-        <span>Delete</span>
-      </button>
+          <button
+            type="button"
+            onClick={() => {
+              printPurchaseDetail(purchase);
+              setOpenPurchaseAction(null);
+            }}
+          >
+            <PrintIcon />
+            <span>Receipt</span>
+          </button>
+
+          <button
+            type="button"
+            className="danger-action"
+            onClick={() => {
+              openDeletePurchaseModal(purchase.id);
+              setOpenPurchaseAction(null);
+            }}
+          >
+            <TrashIcon />
+            <span>Delete</span>
+          </button>
+        </>
+      ) : row.recordType === "balance" ? (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              openEditBalanceModal(balance);
+              setOpenPurchaseAction(null);
+            }}
+          >
+            <EditIcon />
+            <span>Edit</span>
+          </button>
+
+          <button
+            type="button"
+            className="danger-action"
+            onClick={() => {
+              setDeleteBalance(balance);
+              setOpenPurchaseAction(null);
+            }}
+          >
+            <TrashIcon />
+            <span>Delete</span>
+          </button>
+        </>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => {
+              openEditPaymentModal(payment);
+              setOpenPurchaseAction(null);
+            }}
+          >
+            <EditIcon />
+            <span>Edit</span>
+          </button>
+
+          <button
+            type="button"
+            className="danger-action"
+            onClick={() => {
+              setDeletePayment(payment);
+              setOpenPurchaseAction(null);
+            }}
+          >
+            <TrashIcon />
+            <span>Delete</span>
+          </button>
+        </>
+      )}
     </div>
   )}
 </div>
 </td>
                 </tr>
-              ))}
+              );
+              })}
 
-              {recentPurchases.length === 0 && (
+              {ledgerRows.length === 0 && (
                 <tr>
-                  <td colSpan="12" className="supplier-empty-message">
-                    No purchase has been recorded for this supplier yet.
+                  <td colSpan="13" className="supplier-empty-message">
+                    No purchase, payment, or balance has been recorded for this supplier yet.
                   </td>
                 </tr>
               )}
@@ -853,7 +1476,7 @@ const confirmDeletePurchase = async () => {
         </div>
       </div>
 
-      {showPurchaseModal && (
+      {false && showPurchaseModal && (
         <div className="supplier-purchase-modal-backdrop" onClick={closePurchaseModal}>
           <div
             className="supplier-purchase-modal"
@@ -1138,6 +1761,307 @@ const confirmDeletePurchase = async () => {
           </div>
         </div>
       )}
+
+      {showBalanceModal && (
+        <div className="supplier-purchase-modal-backdrop" onClick={closeBalanceModal}>
+          <div
+            className="supplier-purchase-modal supplier-payment-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="supplier-purchase-modal-header">
+              <div>
+                <h3>{editBalance ? "Edit Opening Balance" : "Add Opening Balance"}</h3>
+                <p>Set who owes money before purchases or payments are recorded.</p>
+              </div>
+
+              <button
+  type="button"
+  className="supplier-modal-close-btn"
+  onClick={closeBalanceModal}
+  aria-label="Close"
+  title="Close"
+>
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
+    <path
+      d="M6 6L18 18M18 6L6 18"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+  </svg>
+</button>
+            </div>
+
+            <form onSubmit={saveSupplierBalance}>
+              <div className="supplier-purchase-form-grid">
+                <div className="supplier-form-group">
+                  <label>Balance Date</label>
+                  <input
+                    type="date"
+                    name="balanceDate"
+                    value={balanceForm.balanceDate}
+                    onChange={handleBalanceChange}
+                    required
+                  />
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Balance Type</label>
+                  <select
+                    name="balanceSide"
+                    value={balanceForm.balanceSide}
+                    onChange={handleBalanceChange}
+                    required
+                  >
+                    <option value="we_owe_supplier">We Owe Supplier</option>
+                    <option value="supplier_owes_us">Supplier Owes Us</option>
+                  </select>
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Amount</label>
+                  <input
+                    type="number"
+                    min="1"
+                    name="amount"
+                    value={balanceForm.amount}
+                    onChange={handleBalanceChange}
+                    placeholder="Example: 5000"
+                    required
+                  />
+                </div>
+
+                <div className="supplier-form-group supplier-form-full">
+                  <label>Description</label>
+                  <textarea
+                    name="notes"
+                    value={balanceForm.notes}
+                    onChange={handleBalanceChange}
+                    placeholder="Opening balance description..."
+                  />
+                </div>
+              </div>
+
+              <div className="supplier-purchase-modal-actions">
+                <button type="button" className="supplier-cancel-btn" onClick={closeBalanceModal}>
+                  Cancel
+                </button>
+
+                <button type="submit" className="supplier-save-btn">
+                  {editBalance ? "Save Changes" : "Save Balance"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPaymentModal && (
+        <div className="supplier-purchase-modal-backdrop" onClick={closePaymentModal}>
+          <div
+            className="supplier-purchase-modal supplier-payment-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="supplier-purchase-modal-header">
+              <div>
+                <h3>{editPayment ? "Edit Payment" : "Add Payment"}</h3>
+                <p>Current payable balance: {money(weOweSupplier)} AFN.</p>
+              </div>
+
+              <button type="button" onClick={closePaymentModal}>
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={saveSupplierPayment}>
+              <div className="supplier-purchase-form-grid">
+                <div className="supplier-form-group">
+                  <label>Payment Date</label>
+                  <input
+                    type="date"
+                    name="paymentDate"
+                    value={paymentForm.paymentDate}
+                    onChange={handlePaymentChange}
+                    required
+                  />
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Amount</label>
+                  <input
+                    type="number"
+                    min="1"
+                    name="amount"
+                    value={paymentForm.amount}
+                    onChange={handlePaymentChange}
+                    placeholder="Example: 500"
+                    required
+                  />
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Payment Method</label>
+                  <select
+                    name="method"
+                    value={paymentForm.method}
+                    onChange={handlePaymentChange}
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Bank Account">Bank Account</option>
+                    <option value="Mobile Money">Mobile Money</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="supplier-form-group supplier-form-full">
+                  <label>Description</label>
+                  <textarea
+                    name="notes"
+                    value={paymentForm.notes}
+                    onChange={handlePaymentChange}
+                    placeholder="Payment description..."
+                  />
+                </div>
+              </div>
+
+              <div className="supplier-purchase-modal-actions">
+                <button type="button" className="supplier-cancel-btn" onClick={closePaymentModal}>
+                  Cancel
+                </button>
+
+                <button type="submit" className="supplier-save-btn">
+                  {editPayment ? "Save Changes" : "Save Payment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editLedgerPurchase && (
+        <div
+          className="supplier-purchase-modal-backdrop"
+          onClick={() => setEditLedgerPurchase(null)}
+        >
+          <div
+            className="supplier-purchase-modal supplier-payment-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="supplier-purchase-modal-header">
+              <div>
+                <h3>Edit Purchase Record</h3>
+                <p>Update the purchase values recorded from Asset Inventory.</p>
+              </div>
+
+              <button type="button" onClick={() => setEditLedgerPurchase(null)}>
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={saveEditedLedgerPurchase}>
+              <div className="supplier-purchase-form-grid">
+                <div className="supplier-form-group">
+                  <label>Purchase Date</label>
+                  <input
+                    type="date"
+                    name="purchaseDate"
+                    value={editLedgerPurchaseForm.purchaseDate || ""}
+                    onChange={handleEditLedgerPurchaseChange}
+                    required
+                  />
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Bill / Invoice Number</label>
+                  <input
+                    name="invoiceNumber"
+                    value={editLedgerPurchaseForm.invoiceNumber || ""}
+                    onChange={handleEditLedgerPurchaseChange}
+                  />
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    name="quantity"
+                    value={editLedgerPurchaseForm.quantity || ""}
+                    onChange={handleEditLedgerPurchaseChange}
+                    required
+                  />
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Unit Price</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="unitPrice"
+                    value={editLedgerPurchaseForm.unitPrice || ""}
+                    onChange={handleEditLedgerPurchaseChange}
+                    required
+                  />
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Paid Amount</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="paidAmount"
+                    value={editLedgerPurchaseForm.paidAmount || ""}
+                    onChange={handleEditLedgerPurchaseChange}
+                  />
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Remaining Amount</label>
+                  <input
+                    value={`${money(
+                      Math.max(
+                        Number(editLedgerPurchaseForm.quantity || 0) *
+                          Number(editLedgerPurchaseForm.unitPrice || 0) -
+                          Number(editLedgerPurchaseForm.paidAmount || 0),
+                        0
+                      )
+                    )} AFN`}
+                    readOnly
+                  />
+                </div>
+
+                <div className="supplier-form-group supplier-form-full">
+                  <label>Notes</label>
+                  <textarea
+                    name="notes"
+                    value={editLedgerPurchaseForm.notes || ""}
+                    onChange={handleEditLedgerPurchaseChange}
+                  />
+                </div>
+              </div>
+
+              <div className="supplier-purchase-modal-actions">
+                <button
+                  type="button"
+                  className="supplier-cancel-btn"
+                  onClick={() => setEditLedgerPurchase(null)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="supplier-save-btn">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {detailPurchase && (
   <div className="supplier-detail-modal-backdrop" onClick={() => setDetailPurchase(null)}>
     <div
@@ -1156,7 +2080,15 @@ const confirmDeletePurchase = async () => {
       </div>
 
       <div className="supplier-detail-grid">
-        <div><span>Purchase Date</span><strong>{detailPurchase.purchaseDate || "-"}</strong></div>
+        <div>
+          <span>Purchase Date</span>
+          <strong>
+            {formatDateTime(
+              detailPurchase.purchaseDate,
+              detailPurchase.createdAt || detailPurchase.updatedAt
+            )}
+          </strong>
+        </div>
         <div><span>Invoice No</span><strong>{detailPurchase.invoiceNumber || "-"}</strong></div>
         <div><span>Asset ID</span><strong>{detailPurchase.assetId || "-"}</strong></div>
         <div><span>Device Name</span><strong>{detailPurchase.deviceName || "-"}</strong></div>
@@ -1215,6 +2147,66 @@ const confirmDeletePurchase = async () => {
         </button>
 
         <button type="button" className="supplier-delete-confirm" onClick={confirmDeletePurchase}>
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{deletePayment && (
+  <div className="supplier-delete-backdrop" onClick={() => setDeletePayment(null)}>
+    <div
+      className="supplier-delete-modal"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <h3>Delete Payment</h3>
+      <p>Are you sure you want to delete this supplier payment?</p>
+
+      <div className="supplier-delete-actions">
+        <button
+          type="button"
+          className="supplier-delete-cancel"
+          onClick={() => setDeletePayment(null)}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="supplier-delete-confirm"
+          onClick={confirmDeletePayment}
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{deleteBalance && (
+  <div className="supplier-delete-backdrop" onClick={() => setDeleteBalance(null)}>
+    <div
+      className="supplier-delete-modal"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <h3>Delete Balance</h3>
+      <p>Are you sure you want to delete this supplier opening balance?</p>
+
+      <div className="supplier-delete-actions">
+        <button
+          type="button"
+          className="supplier-delete-cancel"
+          onClick={() => setDeleteBalance(null)}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="supplier-delete-confirm"
+          onClick={confirmDeleteBalance}
+        >
           Delete
         </button>
       </div>

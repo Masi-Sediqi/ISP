@@ -16,7 +16,7 @@ import AfghanDateInput from "../components/AfghanDateInput";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { notify } from "../utils/notify";
-import { formatAfghanDate, todayDateValue } from "../utils/afghanDate";
+import { formatAfghanDate, formatDateTime, todayDateValue } from "../utils/afghanDate";
 import { calculateTravelCommission, findEmployeeByName } from "../utils/employeeFinance";
 import "./DestinationDetails.css";
 import "./Travels.css";
@@ -109,11 +109,11 @@ function DestinationDetails() {
   const saveTravel = (event) => {
     event.preventDefault();
     if (editTravelIndex !== null) {
-      setTravels(travels.map((travel, index) => index === editTravelIndex ? form : travel));
+      setTravels(travels.map((travel, index) => index === editTravelIndex ? { ...form, updatedAt: new Date().toISOString() } : travel));
       setCars(cars.map((car) => car.plate === form.car ? { ...car, status: form.status === "در جریان" ? "در سفر" : car.status } : car));
       notify("سفر ویرایش شد.");
     } else {
-      setTravels([...travels, form]);
+      setTravels([...travels, { ...form, createdAt: new Date().toISOString() }]);
       setCars(cars.map((car) => car.plate === form.car ? { ...car, status: form.status === "در جریان" ? "در سفر" : car.status } : car));
       notify("سفر جدید برای این مقصد ثبت شد.");
     }
@@ -279,7 +279,7 @@ function DestinationDetails() {
           <table>
             <thead><tr><th>تاریخ</th><th>نام سفر</th><th>راننده</th><th>موتر</th><th>مسیر</th><th>کرایه</th><th>وضعیت</th><th>عملیات</th></tr></thead>
             <tbody>
-              {pageItems.map((travel) => <tr key={travel.originalIndex}><td>{formatAfghanDate(travel.date)}</td><td>{travel.name || "-"}</td><td>{travel.driver || "-"}</td><td>{travel.car || "-"}</td><td>{travel.from || "-"} - {travel.to}</td><td>{money(travel.fare)}</td><td>{travel.status}</td><td><div className="destination-row-actions"><button className="destination-detail-link" onClick={() => navigate(`/travels/${travel.originalIndex}`)}>جزئیات</button><button type="button" onClick={() => openEditTravel(travel)}>ویرایش</button><button type="button" onClick={() => openFinishTravel(travel.originalIndex)} disabled={travel.status === "تکمیل شده"}>اتمام سفر</button><button type="button" className="danger-action" onClick={() => deleteTravel(travel.originalIndex)}>حذف</button></div></td></tr>)}
+              {pageItems.map((travel) => <tr key={travel.originalIndex}><td>{formatDateTime(travel.date, travel.createdAt || travel.updatedAt)}</td><td>{travel.name || "-"}</td><td>{travel.driver || "-"}</td><td>{travel.car || "-"}</td><td>{travel.from || "-"} - {travel.to}</td><td>{money(travel.fare)}</td><td>{travel.status}</td><td><div className="destination-row-actions"><button className="destination-detail-link" onClick={() => navigate(`/travels/${travel.originalIndex}`)}>جزئیات</button><button type="button" onClick={() => openEditTravel(travel)}>ویرایش</button><button type="button" onClick={() => openFinishTravel(travel.originalIndex)} disabled={travel.status === "تکمیل شده"}>اتمام سفر</button><button type="button" className="danger-action" onClick={() => deleteTravel(travel.originalIndex)}>حذف</button></div></td></tr>)}
               {!pageItems.length && <tr><td colSpan="8" className="destination-record-empty">ریکاردی پیدا نشد</td></tr>}
             </tbody>
           </table>

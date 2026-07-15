@@ -1,873 +1,1399 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import "./CustomerDetails.css";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
-import { createRecordId } from "../utils/ids";
-import TablePagination from "../components/TablePagination";
-import { useTablePagination } from "../hooks/useTablePagination";
-import { Pencil, Printer, Trash2 } from "lucide-react";
-import SeatSelector from "../components/SeatSelector";
-import AfghanDateInput from "../components/AfghanDateInput";
-import { formatSeatNumbers, getAvailableSeatNumbers } from "../utils/seatManagement";
-import { formatAfghanDate, todayDateValue } from "../utils/afghanDate";
+import { formatDateTime } from "../utils/afghanDate";
+import "./CustomerDetails.css";
+
+function money(value) {
+  return Number(value || 0).toLocaleString("en-US");
+}
 
 function CustomerDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const customerIndex = Number(id);
 
-  const [showTravelModal, setShowTravelModal] = useState(false);
+  const [customers, , , customersLoaded] = useJsonCollection("customers");
+  const [customerPackages, setCustomerPackages, , packagesLoaded] =
+    useJsonCollection("customerPackages");
+  const [customerPayments, setCustomerPayments, , paymentsLoaded] =
+    useJsonCollection("customerPayments");
+  const [deviceTransfers, , , transfersLoaded] =
+    useJsonCollection("deviceTransfers");
+  const [customerDeviceBuybacks, setCustomerDeviceBuybacks, , buybacksLoaded] =
+    useJsonCollection("customerDeviceBuybacks");
+
+  const [showCustomerInfo, setShowCustomerInfo] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showBalanceModal, setShowBalanceModal] = useState(false);
-  const [travelSearch, setTravelSearch] = useState("");
-  const [selectedDestination, setSelectedDestination] = useState("");
-  const [recordSearch, setRecordSearch] = useState("");
-  const [recordType, setRecordType] = useState("all");
-  const [editActivity, setEditActivity] = useState(null);
-  const [editForm, setEditForm] = useState({ date: "", fare: "", discount: "", payment: "", description: "" });
-
-  const [customers] = useJsonCollection("customers");
-  const [settings] = useJsonCollection("settings");
-  const [travels] = useJsonCollection("travels");
-  const [cars] = useJsonCollection("cars");
-  const [customerTravels, setCustomerTravels] = useJsonCollection("customerTravels");
-  const [customerPayments, setCustomerPayments] = useJsonCollection("customerPayments");
-  const [customerBalances, setCustomerBalances] = useJsonCollection("customerBalances");
-  const [transactions, setTransactions] = useJsonCollection("transactions");
-  const [paymentForm, setPaymentForm] = useState({
-    date: todayDateValue(),
-    amount: "",
-    description: "",
-  });
-  const [balanceForm, setBalanceForm] = useState({
-    date: todayDateValue(),
-    direction: "customer-owes-us",
-    amount: "",
-    description: "",
-  });
-
-  const emptyTravelForm = {
-    customerIndex,
-    travelIndex: "",
-    travelName: "",
-    date: "",
-    ticketNo: "",
-    seatNo: "",
-    seatNos: [],
-    mode: "شخصی",
-    familyCount: "",
-    driver: "",
-    car: "",
-    from: "",
-    to: "",
-    duration: "",
-    baseFare: "",
-    baggageKg: "",
-    baggageCharge: "",
-    fare: "",
-    discount: "",
+  const [showBuybackModal, setShowBuybackModal] = useState(false);
+  const [buybackForm, setBuybackForm] = useState({
+    purchaseDate: new Date().toISOString().slice(0, 10),
+    selectedTransferIds: [],
+    purchasePrices: {},
+    purchasedBy: "",
     paidAmount: "",
-    remainingAmount: "",
-    note: "",
-  };
+    notes: "",
+  });
 
-  const [travelForm, setTravelForm] = useState(emptyTravelForm);
+  const [openPackageAction, setOpenPackageAction] = useState(null);
+  const [packageActionPosition, setPackageActionPosition] = useState({
+    top: 0,
+    left: 0,
+  });
 
-  const customer = customers[customerIndex];
-  const cargoSettings = settings[0] || {};
-  const calculateBaggageCharge = (weight) => {
-    const kg = Number(weight || 0);
-    const threshold = Number(cargoSettings.cargoThresholdKg || 0);
-    const price = Number(cargoSettings.cargoPricePerKg || 0);
-    return kg > threshold ? Math.max(kg - threshold, 0) * price : 0;
-  };
+  const [openPaymentAction, setOpenPaymentAction] = useState(null);
+  const [paymentActionPosition, setPaymentActionPosition] = useState({
+    top: 0,
+    left: 0,
+  });
 
-  const records = customerTravels.filter(
-    (r) => Number(r.customerIndex) === customerIndex
+  const [editPackage, setEditPackage] = useState(null);
+  const [deletePackage, setDeletePackage] = useState(null);
+
+  const [editPayment, setEditPayment] = useState(null);
+  const [deletePayment, setDeletePayment] = useState(null);
+
+  const [editPackageForm, setEditPackageForm] = useState({
+    packageName: "",
+    speed: "",
+    packagePrice: "",
+    paidAmount: "",
+    remainAmount: "",
+    startDate: "",
+    endDate: "",
+    status: "Active",
+    notes: "",
+  });
+
+  const [paymentForm, setPaymentForm] = useState({
+    paymentDate: new Date().toISOString().slice(0, 10),
+    amount: "",
+    method: "Cash",
+    notes: "",
+  });
+
+  const customer = customers.find(
+    (item) =>
+      String(item.id) === String(id) ||
+      String(item.customerId) === String(id)
   );
 
-  const totalFare = records.reduce((sum, r) => sum + Number(r.fare || 0), 0);
-  const totalDiscount = records.reduce((sum, r) => sum + Number(r.discount || 0), 0);
-  const customerPaymentRecords = customerPayments.filter(
-    (payment) => Number(payment.customerIndex) === customerIndex
+  const packages = customer
+    ? customerPackages.filter(
+        (item) =>
+          String(item.customerId) === String(customer.customerId) ||
+          String(item.customerRecordId) === String(customer.id)
+      )
+    : [];
+
+  const customerPaymentRecords = customer
+    ? customerPayments.filter(
+        (item) =>
+          String(item.customerId) === String(customer.customerId) ||
+          String(item.customerRecordId) === String(customer.id)
+      )
+    : [];
+
+  const soldDeviceTransfers = customer
+    ? deviceTransfers.filter(
+        (item) =>
+          item.ownershipType === "Sold" &&
+          (String(item.toCustomerId || "") === String(customer.customerId) ||
+            String(item.toCustomerRecordId || "") === String(customer.id))
+      )
+    : [];
+
+  const customerBuybackRecords = customer
+    ? customerDeviceBuybacks.filter(
+        (item) =>
+          String(item.customerId || "") === String(customer.customerId) ||
+          String(item.customerRecordId || "") === String(customer.id)
+      )
+    : [];
+
+  const boughtBackTransferIds = new Set(
+    customerBuybackRecords.flatMap((record) =>
+      Array.isArray(record.items)
+        ? record.items.map((item) => String(item.transferId || ""))
+        : []
+    )
   );
-  const customerBalanceRecords = customerBalances.filter(
-    (balance) => Number(balance.customerIndex) === customerIndex
+
+  const buybackAvailableDevices = soldDeviceTransfers.filter(
+    (item) => !boughtBackTransferIds.has(String(item.id || ""))
   );
-  const openingCustomerDebt = customerBalanceRecords
-    .filter((balance) => balance.direction === "customer-owes-us")
-    .reduce((sum, balance) => sum + Number(balance.amount || 0), 0);
-  const openingOurDebt = customerBalanceRecords
-    .filter((balance) => balance.direction === "we-owe-customer")
-    .reduce((sum, balance) => sum + Number(balance.amount || 0), 0);
-  const initialPaid = records.reduce((sum, r) => sum + Number(r.paidAmount || 0), 0);
-  const laterPaid = customerPaymentRecords.reduce(
+
+  const selectedBuybackDevices = buybackAvailableDevices.filter((item) =>
+    buybackForm.selectedTransferIds.includes(String(item.id || ""))
+  );
+
+  const buybackTotal = selectedBuybackDevices.reduce(
+    (sum, item) =>
+      sum +
+      Number(
+        buybackForm.purchasePrices[String(item.id || "")] ??
+          item.salePrice ??
+          0
+      ),
+    0
+  );
+
+  const buybackPaid = Number(buybackForm.paidAmount || 0);
+  const buybackRemaining = Math.max(buybackTotal - buybackPaid, 0);
+
+  const legacyPackagePayments = packages.flatMap((item) =>
+    Array.isArray(item.payments)
+      ? item.payments.map((payment) => ({
+          ...payment,
+          packageId: item.id,
+          packageCode: item.packageCode,
+          packageName: item.packageName,
+          customerId: item.customerId,
+          customerRecordId: item.customerRecordId,
+        }))
+      : []
+  );
+
+  const allocatedPaymentTotal = customerPaymentRecords.reduce((sum, payment) => {
+    if (!Array.isArray(payment.allocations)) return sum;
+
+    return (
+      sum +
+      payment.allocations.reduce(
+        (allocationSum, allocation) =>
+          allocationSum + Number(allocation.amount || 0),
+        0
+      )
+    );
+  }, 0);
+
+  const legacyPaymentTotal = legacyPackagePayments.reduce(
     (sum, payment) => sum + Number(payment.amount || 0),
     0
   );
-  const totalPaid = initialPaid + laterPaid + openingOurDebt;
 
-  const customerDebt = Math.max(totalFare + openingCustomerDebt - totalDiscount - totalPaid, 0);
-  const ourDebt = Math.max(totalPaid - (totalFare + openingCustomerDebt - totalDiscount), 0);
+  const packagePaidTotal = packages.reduce(
+    (sum, item) => sum + Number(item.paidAmount || 0),
+    0
+  );
 
-  const waitingDestinationNames = [...new Set(
-    travels.filter((travel) => travel.status === "در انتظار" && travel.to).map((travel) => travel.to)
-  )].sort((a, b) => a.localeCompare(b));
+  const initialPaidTotal = Math.max(
+    packagePaidTotal - allocatedPaymentTotal - legacyPaymentTotal,
+    0
+  );
 
-  const filteredTravels = travels
-    .map((travel, index) => ({ ...travel, originalIndex: index }))
-    .filter((travel) => travel.status === "در انتظار" && travel.to === selectedDestination)
-    .filter((travel) =>
-      (travel.name || "").includes(travelSearch) ||
-      (travel.from || "").includes(travelSearch) ||
-      (travel.to || "").includes(travelSearch) ||
-      (travel.driver || "").includes(travelSearch)
+  const totalPrice = packages.reduce(
+    (sum, item) => sum + Number(item.packagePrice || 0),
+    0
+  );
+
+  const totalDeviceSaleValue = soldDeviceTransfers.reduce(
+    (sum, item) => sum + Number(item.salePrice || 0),
+    0
+  );
+
+  const totalAccountValue = totalPrice + totalDeviceSaleValue;
+
+  const deviceSalePaidTotal = soldDeviceTransfers.reduce(
+    (sum, item) => sum + Number(item.paidAmount || 0),
+    0
+  );
+
+  const buybackTotalValue = customerBuybackRecords.reduce(
+    (sum, item) => sum + Number(item.totalAmount || 0),
+    0
+  );
+
+  const buybackPaidTotal = customerBuybackRecords.reduce(
+    (sum, item) => sum + Number(item.paidAmount || 0),
+    0
+  );
+
+  const totalPaid =
+    initialPaidTotal +
+    legacyPaymentTotal +
+    deviceSalePaidTotal +
+    customerPaymentRecords.reduce(
+      (sum, item) => sum + Number(item.amount || 0),
+      0
     );
-  const selectedTravelRecord = travelForm.travelIndex === "" ? null : travels[Number(travelForm.travelIndex)];
-  const selectedTravelCar = selectedTravelRecord
-    ? cars.find((car) => car.plate === selectedTravelRecord.car)
-    : null;
-  const travelReservations = travelForm.travelIndex === ""
-    ? []
-    : customerTravels.filter((record) => Number(record.travelIndex) === Number(travelForm.travelIndex));
-  const availableSeatNumbers = getAvailableSeatNumbers(selectedTravelCar, travelReservations);
 
-  const selectTravel = (travel) => {
-    const fare = Number(travel.fare || 0);
-    setTravelForm({
-      customerIndex,
-      travelIndex: travel.originalIndex,
-      travelName: travel.name || "",
-      date: travel.date || "",
-      ticketNo: "",
-      seatNo: "",
-      seatNos: [],
-      mode: "شخصی",
-      familyCount: "",
-      driver: travel.driver || "",
-      car: travel.car || "",
-      from: travel.from || "",
-      to: travel.to || "",
-      duration: travel.duration || "",
-      baseFare: fare,
-      baggageKg: "",
-      baggageCharge: "",
-      fare: travel.fare || "",
-      discount: "",
-      paidAmount: "",
-      remainingAmount: fare,
-      note: "",
-    });
+  const balance =
+    totalAccountValue - totalPaid - buybackTotalValue + buybackPaidTotal;
+  const customerOwes = balance > 0 ? balance : 0;
+  const weOwe = balance < 0 ? Math.abs(balance) : 0;
+
+  const initialPaymentRows =
+    initialPaidTotal > 0 && packages.length
+      ? [
+          {
+            id: "initial-paid",
+            type: "Payment",
+            date: packages[0]?.startDate || packages[0]?.createdAt?.slice(0, 10) || "-",
+            timeSource: packages[0]?.createdAt || packages[0]?.updatedAt || "",
+            description: "Initial package payment",
+            debit: 0,
+            credit: initialPaidTotal,
+            status: "Initial",
+          },
+        ]
+      : [];
+
+  const ledgerRows = [
+    ...packages.map((item) => ({
+      id: `purchase-${item.id}`,
+      type: "Package Purchase",
+      date: item.startDate || item.createdAt?.slice(0, 10) || "-",
+      timeSource: item.createdAt || item.updatedAt || "",
+      description: `${item.packageCode || "-"} - ${item.packageName || "-"}`,
+      debit: Number(item.packagePrice || 0),
+      credit: 0,
+      status: item.status || "-",
+      record: item,
+    })),
+
+    ...initialPaymentRows,
+
+    ...soldDeviceTransfers.map((item) => ({
+      id: `device-sale-${item.id}`,
+      type: "Device Sale",
+      date: item.issueDate || item.date || item.createdAt?.slice(0, 10) || "-",
+      timeSource: item.createdAt || item.updatedAt || "",
+      description: `${item.assetId || "-"} - ${item.deviceName || "Device"}${
+        item.serialNumber ? ` / SN: ${item.serialNumber}` : ""
+      }`,
+      debit: Number(item.salePrice || 0),
+      credit: Number(item.paidAmount || 0),
+      status: item.issueStatus || item.transferType || "Sold",
+      record: item,
+    })),
+
+    ...customerBuybackRecords.map((item) => ({
+      id: `customer-buyback-${item.id}`,
+      type: "Customer Purchase",
+      date: item.purchaseDate || item.createdAt?.slice(0, 10) || "-",
+      timeSource: item.createdAt || item.updatedAt || "",
+      description: `${(item.items || []).length} device(s) purchased from customer`,
+      debit: Number(item.paidAmount || 0),
+      credit: Number(item.totalAmount || 0),
+      status: Number(item.remainingAmount || 0) > 0 ? "Partial" : "Paid",
+      record: item,
+    })),
+
+    ...legacyPackagePayments.map((item) => ({
+      id: `legacy-payment-${item.id}`,
+      type: "Payment",
+      date: item.paymentDate || item.createdAt?.slice(0, 10) || "-",
+      timeSource: item.createdAt || item.updatedAt || "",
+      description: item.notes || `${item.packageCode || "-"} - ${item.packageName || "-"}`,
+      debit: 0,
+      credit: Number(item.amount || 0),
+      status: item.method || "Cash",
+    })),
+
+    ...customerPaymentRecords.map((item) => ({
+  id: `payment-${item.id}`,
+  type: "Payment",
+  date: item.paymentDate || item.createdAt?.slice(0, 10) || "-",
+  timeSource: item.createdAt || item.updatedAt || "",
+  description: item.notes || "Customer payment",
+  debit: 0,
+  credit: Number(item.amount || 0),
+  status: item.method || "Cash",
+  record: item,
+  editablePayment: true,
+})),
+ ].sort((a, b) =>
+  String(b.date || "").localeCompare(String(a.date || ""))
+);
+
+  const recalculateRemain = (price, paid) => {
+    return Math.max(Number(price || 0) - Number(paid || 0), 0);
   };
 
-  const handleTravelFormChange = (e) => {
-    const { name, value } = e.target;
+  const reversePaymentAllocations = (payment, packageList) => {
+  const allocations = Array.isArray(payment?.allocations)
+    ? payment.allocations
+    : [];
 
-    const updated = {
-      ...travelForm,
-      [name]: value,
+  if (!allocations.length) return packageList;
+
+  return packageList.map((item) => {
+    const allocation = allocations.find(
+      (entry) => String(entry.packageId) === String(item.id)
+    );
+
+    if (!allocation) return item;
+
+    const nextPaid = Math.max(
+      Number(item.paidAmount || 0) - Number(allocation.amount || 0),
+      0
+    );
+
+    return {
+      ...item,
+      paidAmount: nextPaid,
+      remainAmount: recalculateRemain(item.packagePrice, nextPaid),
+      updatedAt: new Date().toISOString(),
     };
+  });
+};
 
-    if (name === "mode" && value === "شخصی") {
-      updated.familyCount = "";
-      updated.seatNos = updated.seatNos.slice(0, 1);
-    }
+const applyPaymentToCustomerPackages = (basePackages, amount) => {
+  let remainingPayment = Number(amount || 0);
+  const allocations = [];
 
-    if (name === "familyCount") {
-      updated.seatNos = updated.seatNos.slice(0, Math.max(Number(value || 0), 0));
-    }
+  const sortedPackages = [...packages].sort((a, b) =>
+    String(a.startDate || "").localeCompare(String(b.startDate || ""))
+  );
 
-    if (name === "baggageKg") {
-      const baseFare = Number(updated.baseFare || updated.fare || 0);
-      const baggageCharge = calculateBaggageCharge(value);
-      updated.baggageCharge = baggageCharge;
-      updated.fare = baseFare + baggageCharge;
-    }
+  const packageOrder = sortedPackages.map((item) => String(item.id));
 
-    if (name === "fare") {
-      updated.baseFare = value;
-    }
+  const nextPackages = basePackages.map((item) => {
+    if (!packageOrder.includes(String(item.id))) return item;
+    if (remainingPayment <= 0) return item;
 
-    const fare = Number(updated.fare || 0);
-    const discount = Number(updated.discount || 0);
-    const paid = Number(updated.paidAmount || 0);
+    const currentRemain = Math.max(
+      Number(item.packagePrice || 0) - Number(item.paidAmount || 0),
+      0
+    );
 
-    updated.remainingAmount = Math.max(fare - discount - paid, 0);
-    setTravelForm(updated);
+    if (currentRemain <= 0) return item;
+
+    const appliedAmount = Math.min(currentRemain, remainingPayment);
+    remainingPayment -= appliedAmount;
+
+    allocations.push({
+      packageId: item.id,
+      packageCode: item.packageCode || "",
+      packageName: item.packageName || "",
+      amount: appliedAmount,
+    });
+
+    const nextPaid = Number(item.paidAmount || 0) + appliedAmount;
+
+    return {
+      ...item,
+      paidAmount: nextPaid,
+      remainAmount: recalculateRemain(item.packagePrice, nextPaid),
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  return {
+    nextPackages,
+    allocations,
+    unappliedAmount: remainingPayment,
+  };
+};
+
+  const getActionMenuPosition = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 150;
+    const menuHeight = 88;
+    const screenGap = 12;
+
+    const left = Math.min(
+      Math.max(rect.right - menuWidth, screenGap),
+      window.innerWidth - menuWidth - screenGap
+    );
+
+    const openAbove =
+      rect.bottom + menuHeight + screenGap > window.innerHeight;
+
+    return {
+      top: openAbove ? rect.top - menuHeight - 8 : rect.bottom + 8,
+      left,
+    };
   };
 
-  const saveCustomerTravel = (e) => {
-    e.preventDefault();
+  const togglePackageActionMenu = (event, packageId) => {
+    setPackageActionPosition(getActionMenuPosition(event));
+    setOpenPaymentAction(null);
+    setOpenPackageAction((current) =>
+      current === packageId ? null : packageId
+    );
+  };
 
-    if (travelForm.travelIndex === "") {
-      notify("لطفاً اول یک سفر را انتخاب کنید.", "error");
-      return;
-    }
-    if (travelForm.mode === "فامیلی" && Number(travelForm.familyCount) < 1) {
-      notify("لطفاً تعداد فامیل را وارد کنید.", "error");
-      return;
-    }
-    const requiredSeats = travelForm.mode === "فامیلی" ? Number(travelForm.familyCount) : 1;
-    if (travelForm.seatNos.length !== requiredSeats) {
-      notify(`لطفاً دقیقاً ${requiredSeats} چوکی را انتخاب کنید.`, "error");
-      return;
-    }
-    if (travelForm.seatNos.some((seatNo) => !availableSeatNumbers.includes(String(seatNo)))) {
-      notify("یکی از چوکی‌ها قبلاً رزرف شده یا برای این موتر موجود نیست.", "error");
-      return;
-    }
+  const togglePaymentActionMenu = (event, paymentId) => {
+    setPaymentActionPosition(getActionMenuPosition(event));
+    setOpenPackageAction(null);
+    setOpenPaymentAction((current) =>
+      current === paymentId ? null : paymentId
+    );
+};
 
-    const recordId = createRecordId();
-    setCustomerTravels([
-      ...customerTravels,
-      {
-        id: recordId,
-        ...travelForm,
-        seatNo: travelForm.seatNos.join(","),
-        ticketNo: travelForm.ticketNo || `T-${recordId}`,
-      },
-    ]);
+  const resetBuybackForm = () => {
+    setBuybackForm({
+      purchaseDate: new Date().toISOString().slice(0, 10),
+      selectedTransferIds: [],
+      purchasePrices: {},
+      purchasedBy: "",
+      paidAmount: "",
+      notes: "",
+    });
+  };
 
-    const paidAmount = Number(travelForm.paidAmount || 0);
-    if (paidAmount > 0) {
-      setTransactions([
-        ...transactions,
-        {
-          id: recordId + 1,
-          type: "income",
-          title: `پرداخت سفر ${travelForm.travelName}`,
-          amount: paidAmount,
-          date: travelForm.date || todayDateValue(),
-          description: `پرداخت اولیه ${customer.firstName} ${customer.lastName}`,
-          source: "customer-travel",
-          referenceId: recordId,
-          customerIndex,
+  const toggleBuybackDevice = (transfer) => {
+    const transferId = String(transfer.id || "");
+
+    setBuybackForm((previous) => {
+      const selected = previous.selectedTransferIds.includes(transferId);
+
+      return {
+        ...previous,
+        selectedTransferIds: selected
+          ? previous.selectedTransferIds.filter((id) => id !== transferId)
+          : [...previous.selectedTransferIds, transferId],
+        purchasePrices: {
+          ...previous.purchasePrices,
+          [transferId]:
+            previous.purchasePrices[transferId] ??
+            transfer.salePrice ??
+            "",
         },
-      ]);
-    }
-
-    setTravelForm(emptyTravelForm);
-    setTravelSearch("");
-    setSelectedDestination("");
-    setShowTravelModal(false);
-    notify("سفر مشتری ثبت شد.");
-    navigate(`/customers/${customerIndex}/print/travel/${recordId}`);
-  };
-
-  const savePayment = (event) => {
-    event.preventDefault();
-    const amount = Number(paymentForm.amount || 0);
-
-    if (amount <= 0 || amount > customerDebt) {
-      notify("مقدار پرداخت باید بیشتر از صفر و کمتر یا مساوی بدهی مشتری باشد.", "error");
-      return;
-    }
-
-    const paymentId = Date.now();
-    setCustomerPayments([
-      ...customerPayments,
-      {
-        id: paymentId,
-        customerIndex,
-        ...paymentForm,
-        amount,
-      },
-    ]);
-    setTransactions([
-      ...transactions,
-      {
-        id: paymentId + 1,
-        type: "income",
-        title: `پرداخت بدهی ${customer.firstName} ${customer.lastName}`,
-        amount,
-        date: paymentForm.date,
-        description: paymentForm.description,
-        source: "customer-payment",
-        referenceId: paymentId,
-        customerIndex,
-      },
-    ]);
-    setPaymentForm({
-      date: todayDateValue(),
-      amount: "",
-      description: "",
+      };
     });
-    setShowPaymentModal(false);
-    notify("پرداخت مشتری با موفقیت ثبت شد.");
-    navigate(`/customers/${customerIndex}/print/payment/${paymentId}`);
   };
 
-  const saveBalance = (event) => {
+  const saveBuyback = async (event) => {
     event.preventDefault();
-    const amount = Number(balanceForm.amount || 0);
-    if (customerDebt > 0 || ourDebt > 0) {
-      notify("ثبت بیلانس فقط زمانی مجاز است که حساب مشتری صفر در صفر باشد.", "error");
-      return;
-    }
-    if (amount <= 0) {
-      notify("مقدار بیلانس باید بیشتر از صفر باشد.", "error");
+
+    if (!selectedBuybackDevices.length) {
+      notify("Please select at least one sold device to buy back.", "error");
       return;
     }
 
-    setCustomerBalances([
-      ...customerBalances,
+    if (buybackPaid > buybackTotal) {
+      notify("Paid amount cannot be greater than total purchase amount.", "error");
+      return;
+    }
+
+    const timestamp = Date.now();
+    const items = selectedBuybackDevices.map((item) => ({
+      transferId: item.id || "",
+      assetRecordId: item.assetRecordId || "",
+      assetId: item.assetId || "",
+      deviceName: item.deviceName || "",
+      category: item.category || "",
+      brand: item.brand || "",
+      model: item.model || "",
+      macAddress: item.macAddress || "",
+      serialNumber: item.serialNumber || "",
+      purchasePrice: Number(
+        buybackForm.purchasePrices[String(item.id || "")] ??
+          item.salePrice ??
+          0
+      ),
+    }));
+
+    const saved = await setCustomerDeviceBuybacks([
+      ...customerDeviceBuybacks,
       {
-        id: Date.now(),
-        customerIndex,
-        ...balanceForm,
-        amount,
+        id: `customer-buyback-${timestamp}`,
+        customerRecordId: customer.id || "",
+        customerId: customer.customerId || "",
+        customerName: customer.customerName || "",
+        purchaseDate: buybackForm.purchaseDate,
+        purchasedBy: buybackForm.purchasedBy.trim(),
+        totalAmount: buybackTotal,
+        paidAmount: buybackPaid,
+        remainingAmount: buybackRemaining,
+        notes: buybackForm.notes.trim(),
+        items,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       },
     ]);
-    setBalanceForm({
-      date: todayDateValue(),
-      direction: "customer-owes-us",
-      amount: "",
-      description: "",
-    });
-    setShowBalanceModal(false);
-    notify("بیلانس مشتری ثبت شد.");
+
+    if (!saved) return;
+
+    notify("Customer device purchase saved successfully.");
+    resetBuybackForm();
+    setShowBuybackModal(false);
   };
 
-  const rawCustomerActivity = [
-    ...records.map((record) => ({
-      id: `travel-${record.id}`,
-      type: "travel",
-      date: record.date,
-      title: record.travelName,
-      route: `${record.from || "-"} - ${record.to || "-"}`,
-      fare: Number(record.fare || 0),
-      discount: Number(record.discount || 0),
-      payment: Number(record.paidAmount || 0),
-      remaining: Number(record.remainingAmount ?? Math.max(
-        Number(record.fare || 0) -
-          Number(record.discount || 0) -
-          Number(record.paidAmount || 0),
-        0
-      )),
-      status: travels[record.travelIndex]?.status || "نامعلوم",
-      description: record.note,
-      recordId: record.id,
-    })),
-    ...customerPaymentRecords.map((payment) => ({
-      id: `payment-${payment.id}`,
-      type: "payment",
-      date: payment.date,
-      title: "پرداخت باقی‌مانده",
-      route: "-",
-      fare: null,
-      discount: null,
-      payment: Number(payment.amount || 0),
-      remaining: null,
-      status: "پرداخت",
-      description: payment.description || "پرداخت بعدی مشتری",
-      recordId: payment.id,
-    })),
-    ...customerBalanceRecords.map((balance) => ({
-      id: `balance-${balance.id}`,
-      type: "balance",
-      date: balance.date,
-      title: "ثبت بیلانس",
-      route: "-",
-      fare: balance.direction === "customer-owes-us" ? Number(balance.amount || 0) : null,
-      discount: null,
-      payment: balance.direction === "we-owe-customer" ? Number(balance.amount || 0) : 0,
-      remaining: null,
-      status: balance.direction === "customer-owes-us" ? "مشتری قرضدار ما" : "ما قرضدار مشتری",
-      description: balance.description || "-",
-      recordId: balance.id,
-    })),
-  ].sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+  const openEditPackageModal = (item) => {
+    setEditPackage(item);
+    setEditPackageForm({
+      packageName: item.packageName || "",
+      speed: item.speed || "",
+      packagePrice: String(item.packagePrice || ""),
+      paidAmount: String(item.paidAmount || ""),
+      remainAmount: String(item.remainAmount || ""),
+      startDate: item.startDate || "",
+      endDate: item.endDate || "",
+      status: item.status || "Active",
+      notes: item.notes || "",
+    });
+  };
 
-  const customerActivity = rawCustomerActivity
-    .filter((item) => recordType === "all" || item.type === recordType)
-    .filter((item) =>
-      (item.title || "").includes(recordSearch) ||
-      (item.route || "").includes(recordSearch) ||
-      (item.description || "").includes(recordSearch) ||
-      (item.date || "").includes(recordSearch)
+  const openEditPaymentModal = (payment) => {
+  setOpenPaymentAction(null);
+  setEditPayment(payment);
+  setPaymentForm({
+    paymentDate: payment.paymentDate || new Date().toISOString().slice(0, 10),
+    amount: String(payment.amount || ""),
+    method: payment.method || "Cash",
+    notes: payment.notes || "",
+  });
+  setShowPaymentModal(true);
+};
+
+const saveEditedPayment = async (event) => {
+  event.preventDefault();
+
+  if (!editPayment) return;
+
+  const amount = Number(paymentForm.amount || 0);
+
+  if (amount <= 0) {
+    notify("Please enter a valid payment amount.", "error");
+    return;
+  }
+
+  const reversedPackages = reversePaymentAllocations(
+    editPayment,
+    customerPackages
+  );
+
+  const {
+    nextPackages,
+    allocations,
+    unappliedAmount,
+  } = applyPaymentToCustomerPackages(reversedPackages, amount);
+
+  const nextPayments = customerPayments.map((payment) => {
+    if (String(payment.id) !== String(editPayment.id)) return payment;
+
+    return {
+      ...payment,
+      paymentDate: paymentForm.paymentDate,
+      amount,
+      method: paymentForm.method,
+      notes: paymentForm.notes.trim(),
+      allocations,
+      unappliedAmount,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  const packagesSaved = await setCustomerPackages(nextPackages);
+  if (!packagesSaved) return;
+
+  const paymentsSaved = await setCustomerPayments(nextPayments);
+
+  if (paymentsSaved) {
+    notify("Payment updated successfully.");
+    closePaymentModal();
+  }
+};
+
+const confirmDeletePayment = async () => {
+  if (!deletePayment) return;
+
+  const reversedPackages = reversePaymentAllocations(
+    deletePayment,
+    customerPackages
+  );
+
+  const packagesSaved = await setCustomerPackages(reversedPackages);
+  if (!packagesSaved) return;
+
+  const paymentsSaved = await setCustomerPayments(
+    customerPayments.filter(
+      (payment) => String(payment.id) !== String(deletePayment.id)
     )
-    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-  const activityPagination = useTablePagination(customerActivity, `${recordSearch}-${recordType}`);
-  const travelPagination = useTablePagination(filteredTravels, `${selectedDestination}-${travelSearch}`);
+  );
+
+  if (paymentsSaved) {
+    notify("Payment deleted successfully.");
+    setDeletePayment(null);
+  }
+};
+
+  const handleEditPackageChange = (event) => {
+    const { name, value } = event.target;
+
+    setEditPackageForm((previous) => {
+      const nextData = {
+        ...previous,
+        [name]: value,
+      };
+
+      const price =
+        name === "packagePrice"
+          ? Number(value || 0)
+          : Number(nextData.packagePrice || 0);
+
+      const paid =
+        name === "paidAmount"
+          ? Number(value || 0)
+          : Number(nextData.paidAmount || 0);
+
+      return {
+        ...nextData,
+        remainAmount: recalculateRemain(price, paid),
+      };
+    });
+  };
+
+  const saveEditedPackage = async (event) => {
+    event.preventDefault();
+
+    if (!editPackage) return;
+
+    const nextPackages = customerPackages.map((item) => {
+      if (String(item.id) !== String(editPackage.id)) return item;
+
+      return {
+        ...item,
+        packageName: editPackageForm.packageName.trim(),
+        speed: editPackageForm.speed.trim(),
+        packagePrice: Number(editPackageForm.packagePrice || 0),
+        paidAmount: Number(editPackageForm.paidAmount || 0),
+        remainAmount: recalculateRemain(
+          editPackageForm.packagePrice,
+          editPackageForm.paidAmount
+        ),
+        startDate: editPackageForm.startDate,
+        endDate: editPackageForm.endDate,
+        status: editPackageForm.status,
+        notes: editPackageForm.notes.trim(),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    const saved = await setCustomerPackages(nextPackages);
+
+    if (saved) {
+      notify("Package updated successfully.");
+      setEditPackage(null);
+    }
+  };
+
+  const confirmDeletePackage = async () => {
+    if (!deletePackage) return;
+
+    const saved = await setCustomerPackages(
+      customerPackages.filter(
+        (item) => String(item.id) !== String(deletePackage.id)
+      )
+    );
+
+    if (saved) {
+      notify("Package deleted successfully.");
+      setDeletePackage(null);
+    }
+  };
+
+const openPaymentModal = () => {
+  setEditPayment(null);
+  setPaymentForm({
+    paymentDate: new Date().toISOString().slice(0, 10),
+    amount: "",
+    method: "Cash",
+    notes: "",
+  });
+
+  setShowPaymentModal(true);
+};
+
+const closePaymentModal = () => {
+  setEditPayment(null);
+  setShowPaymentModal(false);
+  setPaymentForm({
+    paymentDate: new Date().toISOString().slice(0, 10),
+    amount: "",
+    method: "Cash",
+    notes: "",
+  });
+};
+
+  const handlePaymentChange = (event) => {
+    const { name, value } = event.target;
+
+    setPaymentForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+const saveCustomerPayment = async (event) => {
+  event.preventDefault();
+
+  if (!customer) return;
+
+  const amount = Number(paymentForm.amount || 0);
+
+  if (amount <= 0) {
+    notify("Please enter a valid payment amount.", "error");
+    return;
+  }
+
+  const {
+    nextPackages,
+    allocations,
+    unappliedAmount,
+  } = applyPaymentToCustomerPackages(customerPackages, amount);
+
+  const paymentRecord = {
+    id: Date.now(),
+    customerRecordId: customer.id,
+    customerId: customer.customerId,
+    customerName: customer.customerName,
+    paymentDate: paymentForm.paymentDate,
+    amount,
+    method: paymentForm.method,
+    notes: paymentForm.notes.trim(),
+    allocations,
+    unappliedAmount,
+    type: "Payment",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const packagesSaved = await setCustomerPackages(nextPackages);
+  if (!packagesSaved) return;
+
+  const paymentsSaved = await setCustomerPayments([
+    ...customerPayments,
+    paymentRecord,
+  ]);
+
+  if (paymentsSaved) {
+    notify("Payment saved successfully.");
+    closePaymentModal();
+  }
+};
+
+  if (
+    !customersLoaded ||
+    !packagesLoaded ||
+    !paymentsLoaded ||
+    !transfersLoaded ||
+    !buybacksLoaded
+  ) {
+    return <div className="page-loading">Loading customer details...</div>;
+  }
 
   if (!customer) {
     return (
       <div className="customer-details-page">
-        <div className="customer-details-card">
-          <h3>مشتری پیدا نشد</h3>
-          <button className="customer-btn" onClick={() => navigate("/customers")}>
-            برگشت
+        <div className="customer-details-not-found">
+          <h1>Customer Not Found</h1>
+          <p>The selected customer record does not exist.</p>
+          <button type="button" onClick={() => navigate("/customers")}>
+            Back to Customers
           </button>
         </div>
       </div>
     );
   }
 
-  const getStatusClass = (status) => {
-    if (status === "در انتظار") return "customer-badge pending";
-    if (status === "تکمیل شده") return "customer-badge done";
-    if (status === "در جریان") return "customer-badge active";
-    return "customer-badge inactive";
-  };
-
-  const openEditActivity = (item) => {
-    setEditActivity(item);
-    setEditForm({
-      date: item.date || "",
-      fare: item.fare ?? "",
-      discount: item.discount ?? "",
-      payment: item.payment ?? "",
-      description: item.description || "",
-    });
-  };
-
-  const saveActivityEdit = (event) => {
-    event.preventDefault();
-    const payment = Number(editForm.payment || 0);
-    if (editActivity.type === "travel") {
-      const fare = Number(editForm.fare || 0);
-      const discount = Number(editForm.discount || 0);
-      setCustomerTravels(customerTravels.map((record) => Number(record.id) === Number(editActivity.recordId) ? {
-        ...record, date: editForm.date, fare, discount, paidAmount: payment,
-        remainingAmount: Math.max(fare - discount - payment, 0), note: editForm.description,
-      } : record));
-      const existing = transactions.find((item) => item.source === "customer-travel" && Number(item.referenceId) === Number(editActivity.recordId));
-      if (payment > 0) {
-        const nextTransaction = {
-          id: existing?.id || Date.now(), type: "income", title: `پرداخت سفر ${editActivity.title}`, amount: payment,
-          date: editForm.date, description: `پرداخت اولیه ${customer.firstName} ${customer.lastName}`,
-          source: "customer-travel", referenceId: editActivity.recordId, customerIndex,
-        };
-        setTransactions(existing ? transactions.map((item) => item.id === existing.id ? nextTransaction : item) : [...transactions, nextTransaction]);
-      } else if (existing) {
-        setTransactions(transactions.filter((item) => item.id !== existing.id));
-      }
-    } else {
-      if (payment <= 0) return notify("مقدار پرداخت باید بیشتر از صفر باشد.", "error");
-      setCustomerPayments(customerPayments.map((item) => Number(item.id) === Number(editActivity.recordId) ? { ...item, date: editForm.date, amount: payment, description: editForm.description } : item));
-      const existing = transactions.find((item) => item.source === "customer-payment" && Number(item.referenceId) === Number(editActivity.recordId));
-      const nextTransaction = {
-        id: existing?.id || Date.now(), type: "income", title: `پرداخت بدهی ${customer.firstName} ${customer.lastName}`,
-        amount: payment, date: editForm.date, description: editForm.description, source: "customer-payment",
-        referenceId: editActivity.recordId, customerIndex,
-      };
-      setTransactions(existing ? transactions.map((item) => item.id === existing.id ? nextTransaction : item) : [...transactions, nextTransaction]);
-    }
-    setEditActivity(null);
-    notify("ریکارد ویرایش شد.");
-  };
-
-  const deleteActivity = (item) => {
-    if (!window.confirm(`ریکارد ${item.type === "travel" ? "سفر" : item.type === "payment" ? "پرداخت" : "بیلانس"} حذف شود؟`)) return;
-    if (item.type === "travel") {
-      setCustomerTravels(customerTravels.filter((record) => Number(record.id) !== Number(item.recordId)));
-      setTransactions(transactions.filter((transaction) => !(transaction.source === "customer-travel" && Number(transaction.referenceId) === Number(item.recordId))));
-    } else if (item.type === "payment") {
-      setCustomerPayments(customerPayments.filter((payment) => Number(payment.id) !== Number(item.recordId)));
-      setTransactions(transactions.filter((transaction) => !(transaction.source === "customer-payment" && Number(transaction.referenceId) === Number(item.recordId))));
-    } else {
-      setCustomerBalances(customerBalances.filter((balance) => Number(balance.id) !== Number(item.recordId)));
-    }
-    notify("ریکارد حذف شد.");
-  };
-
   return (
     <div className="customer-details-page">
+      <Link className="customer-details-back" to="/customers">
+        ← Back to Customers
+      </Link>
+
       <div className="customer-details-header">
         <div>
-          <h1>جزئیات مشتری</h1>
-          <p>
-            {customer.firstName} {customer.lastName} - {customer.phone} - {customer.gender || "جنسیت ثبت نشده"}
-          </p>
+          <h1>{customer.customerName || "Unnamed Customer"}</h1>
+          <p>Customer account ledger, payments, and balance summary.</p>
         </div>
 
-        <div className="customer-header-actions">
-          {customerDebt === 0 && ourDebt === 0 && (
-            <button className="customer-btn payment-btn" onClick={() => setShowBalanceModal(true)}>
-              ثبت بیلانس
-            </button>
-          )}
+        <div className="customer-details-header-actions">
           <button
-            className="customer-btn payment-btn"
-            onClick={() => setShowPaymentModal(true)}
-            disabled={customerDebt <= 0}
+            type="button"
+            className="customer-details-payment-btn"
+            onClick={openPaymentModal}
           >
-            پرداخت
+            Add Payment
           </button>
-          <button className="customer-btn" onClick={() => { setSelectedDestination(""); setShowTravelModal(true); }}>
-            + ثبت سفر
-          </button>
-          <button className="customer-btn" onClick={() => navigate("/customers")}>
-            برگشت به مشتری‌ها
+
+          <button
+            type="button"
+            className="customer-details-toggle-btn"
+            onClick={() => setShowCustomerInfo((value) => !value)}
+          >
+            {showCustomerInfo ? "Hide Customer Info" : "Show Customer Info"}
           </button>
         </div>
       </div>
 
-      <div className="customer-stats">
-        <div className="customer-stat-card">
-          <span>قرضدار ما</span>
-          <strong>{customerDebt}</strong>
-          <p>باقی‌مانده مشتری</p>
+      {showCustomerInfo && (
+        <>
+          <div className="customer-details-profile">
+            <div>
+              <span>Customer ID</span>
+              <strong>{customer.customerId || "-"}</strong>
+            </div>
+            <div>
+              <span>Phone</span>
+              <strong>{customer.phone || "-"}</strong>
+            </div>
+            <div>
+              <span>Father Name</span>
+              <strong>{customer.fatherName || "-"}</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>{customer.status || "-"}</strong>
+            </div>
+            <div>
+              <span>Registration Date</span>
+              <strong>
+                {formatDateTime(
+                  customer.registrationDate,
+                  customer.createdAt || customer.updatedAt
+                )}
+              </strong>
+            </div>
+            <div>
+              <span>Email</span>
+              <strong>{customer.email || "-"}</strong>
+            </div>
+          </div>
+
+          <div className="customer-details-card">
+            <div className="customer-details-card-header">
+              <div>
+                <h3>Address & Notes</h3>
+                <p>Additional customer information.</p>
+              </div>
+            </div>
+
+            <div className="customer-details-notes-grid">
+              <div>
+                <span>Address</span>
+                <p>{customer.address || "No address has been added."}</p>
+              </div>
+              <div>
+                <span>Notes</span>
+                <p>{customer.notes || "No notes have been added."}</p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="customer-details-stats">
+        <div>
+          <span>Total Account Value</span>
+          <strong>{money(totalAccountValue)} AFN</strong>
+          <p>Packages and sold devices</p>
         </div>
 
-        <div className="customer-stat-card">
-          <span>ما قرضدارش هستیم</span>
-          <strong>{ourDebt}</strong>
-          <p>پرداخت اضافه مشتری</p>
+        <div>
+          <span>Total Paid</span>
+          <strong>{money(totalPaid)} AFN</strong>
+          <p>Initial and later payments</p>
         </div>
 
-        <div className="customer-stat-card">
-          <span>پرداخت شده</span>
-          <strong>{totalPaid}</strong>
-          <p>کل پول پرداخت‌شده</p>
+        <div>
+          <span>Customer Owes Us</span>
+          <strong>{money(customerOwes)} AFN</strong>
+          <p>Remaining receivable</p>
         </div>
 
-        <div className="customer-stat-card">
-          <span>کل سفرها</span>
-          <strong>{records.length}</strong>
-          <p>سفرهای ثبت‌شده مشتری</p>
+        <div>
+          <span>We Owe Customer</span>
+          <strong>{money(weOwe)} AFN</strong>
+          <p>Overpaid amount</p>
         </div>
       </div>
 
-      <div className="customer-table-card">
-        <div className="customer-table-header">
+      <div className="customer-details-card">
+        <div className="customer-details-card-header customer-details-card-header-row">
           <div>
-            <h3>سفرها و پرداخت‌های مشتری</h3>
-            <p>تاریخچه تمام سفرها و پرداخت‌های ثبت‌شده برای این مشتری</p>
+            <h3>Customer Purchases</h3>
+            <p>Buy back sold devices from this customer.</p>
           </div>
-          <div className="customer-record-filters">
-            <input
-              value={recordSearch}
-              onChange={(event) => setRecordSearch(event.target.value)}
-              placeholder="جستجو در سفرها و پرداخت‌ها..."
-            />
-            <select value={recordType} onChange={(event) => setRecordType(event.target.value)}>
-              <option value="all">همه حالات</option>
-              <option value="travel">تنها سفرها</option>
-              <option value="payment">تنها پرداخت‌ها</option>
-              <option value="balance">تنها بیلانس</option>
-            </select>
-          </div>
+
+          <button
+            type="button"
+            className="customer-details-payment-btn"
+            onClick={() => {
+              resetBuybackForm();
+              setShowBuybackModal(true);
+            }}
+          >
+            Add Purchase
+          </button>
         </div>
 
-        <div className="customer-table-wrap">
-          <table className="customer-table">
+        <div className="customer-details-table-wrap">
+          <table>
             <thead>
               <tr>
-                <th>تاریخ</th>
-                <th>نمبر چوکی</th>
-                <th>حالت</th>
-                <th>عنوان</th>
-                <th>مسیر</th>
-                <th>کرایه</th>
-                <th>تخفیف</th>
-                <th>پرداخت</th>
-                <th>باقی‌مانده</th>
-                <th>وضعیت</th>
-                <th>توضیحات</th>
-                <th>عملیات</th>
+                <th>Date</th>
+                <th>Items</th>
+                <th>Purchased By</th>
+                <th>Total</th>
+                <th>Paid</th>
+                <th>Remaining</th>
+                <th>Notes</th>
               </tr>
             </thead>
 
             <tbody>
-              {activityPagination.pageItems.map((item) => (
-                  <tr key={item.id}>
-                    <td>{formatAfghanDate(item.date)}</td>
-                    <td>{formatSeatNumbers(item)}</td>
-                    <td>
-                      <span className={`customer-type-badge ${item.type}`}>
-                        {item.type === "travel" ? "سفر" : item.type === "payment" ? "پرداخت" : "بیلانس"}
-                      </span>
-                    </td>
-                    <td>{item.title}</td>
-                    <td>
-                      {item.route}
-                    </td>
-                    <td>{item.fare ?? "-"}</td>
-                    <td>{item.discount ?? "-"}</td>
-                    <td className={item.payment > 0 ? "customer-money-paid" : ""}>
-                      {item.payment || 0}
-                    </td>
-                    <td className={item.remaining > 0 ? "customer-money-remaining" : ""}>
-                      {item.remaining ?? "-"}
-                    </td>
-                    <td>
-                      <span className={item.type === "payment" ? "customer-badge active" : getStatusClass(item.status)}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td>{item.description || "-"}</td>
-                    <td>
-                      <div className="customer-row-actions">
-                        {item.type !== "balance" && <button title="چاپ" onClick={() => navigate(`/customers/${customerIndex}/print/${item.type}/${item.recordId}`)}><Printer size={15} /></button>}
-                        {item.type !== "balance" && <button title="ویرایش" onClick={() => openEditActivity(item)}><Pencil size={15} /></button>}
-                        <button title="حذف" className="danger" onClick={() => deleteActivity(item)}><Trash2 size={15} /></button>
-                      </div>
-                    </td>
-                  </tr>
+              {customerBuybackRecords.map((record) => (
+                <tr key={record.id}>
+                  <td>
+                    {formatDateTime(
+                      record.purchaseDate,
+                      record.createdAt || record.updatedAt
+                    )}
+                  </td>
+                  <td>{(record.items || []).length}</td>
+                  <td>{record.purchasedBy || "-"}</td>
+                  <td>{money(record.totalAmount)} AFN</td>
+                  <td>{money(record.paidAmount)} AFN</td>
+                  <td>{money(record.remainingAmount)} AFN</td>
+                  <td>{record.notes || "-"}</td>
+                </tr>
               ))}
 
-              {customerActivity.length === 0 && (
+              {customerBuybackRecords.length === 0 && (
                 <tr>
-                  <td colSpan="12" style={{ textAlign: "center", padding: "25px" }}>
-                    ریکاردی مطابق جستجو و فلتر پیدا نشد
+                  <td colSpan="7" className="customer-details-empty">
+                    No device purchase has been recorded for this customer yet.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-        <TablePagination page={activityPagination.page} totalPages={activityPagination.totalPages} setPage={activityPagination.setPage} totalItems={customerActivity.length} pageSize={activityPagination.pageSize} />
       </div>
 
-      {showTravelModal && (
+      <div className="customer-details-card">
+        <div className="customer-details-card-header">
+          <div>
+            <h3>Customer Account Ledger</h3>
+            <p>Packages, sold devices, and payments in one account history.</p>
+          </div>
+        </div>
+
+        <div className="customer-details-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Debit</th>
+                <th>Credit</th>
+                <th>Status / Method</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {ledgerRows.map((row) => (
+                <tr key={row.id}>
+                  <td>{formatDateTime(row.date, row.timeSource)}</td>
+                  <td>
+                    <span
+                      className={
+                        row.type === "Payment"
+                          ? "ledger-type payment"
+                          : "ledger-type purchase"
+                      }
+                    >
+                      {row.type}
+                    </span>
+                  </td>
+                  <td>{row.description || "-"}</td>
+                  <td>{row.debit ? `${money(row.debit)} AFN` : "-"}</td>
+                  <td>{row.credit ? `${money(row.credit)} AFN` : "-"}</td>
+                  <td>{row.status || "-"}</td>
+                  <td>
+  {row.type === "Package Purchase" ? (
+    <div className="customer-package-action-cell">
+      <button
+        type="button"
+        className="customer-package-action-btn"
+        aria-label="Open package actions"
+        onClick={(event) =>
+          togglePackageActionMenu(event, row.record.id)
+        }
+      >
+        ⋮
+      </button>
+
+      {openPackageAction === row.record.id && (
         <div
-          className="customer-modal-backdrop"
-          onClick={() => setShowTravelModal(false)}
+          className="customer-package-action-menu"
+          style={{
+            top: `${packageActionPosition.top}px`,
+            left: `${packageActionPosition.left}px`,
+          }}
         >
-          <div className="customer-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="customer-modal-header">
+          <button
+            type="button"
+            onClick={() => {
+              openEditPackageModal(row.record);
+              setOpenPackageAction(null);
+            }}
+          >
+            Edit
+          </button>
+
+          <button
+            type="button"
+            className="danger"
+            onClick={() => {
+              setDeletePackage(row.record);
+              setOpenPackageAction(null);
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  ) : row.editablePayment ? (
+    <div className="customer-payment-action-cell">
+      <button
+        type="button"
+        className="customer-payment-action-btn"
+        aria-label="Open payment actions"
+        onClick={(event) =>
+          togglePaymentActionMenu(event, row.record.id)
+        }
+      >
+        ⋮
+      </button>
+
+      {openPaymentAction === row.record.id && (
+        <div
+          className="customer-payment-action-menu"
+          style={{
+            top: `${paymentActionPosition.top}px`,
+            left: `${paymentActionPosition.left}px`,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => openEditPaymentModal(row.record)}
+          >
+            Edit
+          </button>
+
+          <button
+            type="button"
+            className="danger"
+            onClick={() => {
+              setDeletePayment(row.record);
+              setOpenPaymentAction(null);
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  ) : (
+    "-"
+  )}
+</td>
+                </tr>
+              ))}
+
+              {ledgerRows.length === 0 && (
+                <tr>
+                  <td colSpan="7" className="customer-details-empty">
+                    No package, device sale, or payment has been recorded yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showBuybackModal && (
+        <div
+          className="customer-details-modal-backdrop"
+          onClick={() => setShowBuybackModal(false)}
+        >
+          <div
+            className="customer-details-modal customer-buyback-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="customer-details-modal-header">
               <div>
-                <h3>ثبت سفر برای مشتری</h3>
-                <p>ابتدا مقصد و سپس یک سفر در انتظار را انتخاب کنید</p>
+                <h3>Purchase From Customer</h3>
+                <p>Select sold devices and record buyback payment.</p>
               </div>
 
-              <button
-                className="customer-close-btn"
-                onClick={() => { setSelectedDestination(""); setShowTravelModal(false); }}
-              >
+              <button type="button" onClick={() => setShowBuybackModal(false)}>
                 ×
               </button>
             </div>
 
-            <form onSubmit={saveCustomerTravel}>
-              <div className="customer-destination-step">
-                <label>قدم اول: انتخاب مقصد</label>
-                <div className="customer-destination-grid">
-                  {waitingDestinationNames.map((destination) => (
-                    <button
-                      type="button"
-                      key={destination}
-                      className={selectedDestination === destination ? "active" : ""}
-                      onClick={() => { setSelectedDestination(destination); setTravelSearch(""); setTravelForm(emptyTravelForm); }}
-                    >
-                      <strong>{destination}</strong>
-                      <span>{travels.filter((travel) => travel.status === "در انتظار" && travel.to === destination).length} سفر در انتظار</span>
-                    </button>
-                  ))}
-                  {waitingDestinationNames.length === 0 && <p>هیچ مقصد دارای سفر در انتظار نیست.</p>}
+            <form onSubmit={saveBuyback}>
+              <div className="customer-details-form-grid">
+                <label>
+                  Purchase Date
+                  <input
+                    type="date"
+                    value={buybackForm.purchaseDate}
+                    onChange={(event) =>
+                      setBuybackForm((previous) => ({
+                        ...previous,
+                        purchaseDate: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  Purchased By
+                  <input
+                    value={buybackForm.purchasedBy}
+                    onChange={(event) =>
+                      setBuybackForm((previous) => ({
+                        ...previous,
+                        purchasedBy: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+
+                <div className="customer-buyback-device-list full">
+                  {buybackAvailableDevices.map((item) => {
+                    const id = String(item.id || "");
+                    const selected = buybackForm.selectedTransferIds.includes(id);
+
+                    return (
+                      <label
+                        key={id}
+                        className={
+                          selected
+                            ? "customer-buyback-device selected"
+                            : "customer-buyback-device"
+                        }
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleBuybackDevice(item)}
+                        />
+
+                        <div>
+                          <strong>
+                            {item.assetId || "-"} - {item.deviceName || "Device"}
+                          </strong>
+                          <span>
+                            SN: {item.serialNumber || "-"} / MAC:{" "}
+                            {item.macAddress || "-"}
+                          </span>
+                        </div>
+
+                        <input
+                          type="number"
+                          min="0"
+                          value={
+                            buybackForm.purchasePrices[id] ??
+                            item.salePrice ??
+                            ""
+                          }
+                          onChange={(event) =>
+                            setBuybackForm((previous) => ({
+                              ...previous,
+                              purchasePrices: {
+                                ...previous.purchasePrices,
+                                [id]: event.target.value,
+                              },
+                            }))
+                          }
+                          onClick={(event) => event.stopPropagation()}
+                          placeholder="Purchase price"
+                        />
+                      </label>
+                    );
+                  })}
+
+                  {buybackAvailableDevices.length === 0 && (
+                    <div className="customer-details-empty">
+                      No sold device is available to purchase from this customer.
+                    </div>
+                  )}
                 </div>
+
+                <label>
+                  Total Amount
+                  <input value={`${money(buybackTotal)} AFN`} readOnly />
+                </label>
+
+                <label>
+                  Paid Amount
+                  <input
+                    type="number"
+                    min="0"
+                    max={buybackTotal}
+                    value={buybackForm.paidAmount}
+                    onChange={(event) =>
+                      setBuybackForm((previous) => ({
+                        ...previous,
+                        paidAmount: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  Remaining Amount
+                  <input value={`${money(buybackRemaining)} AFN`} readOnly />
+                </label>
+
+                <label className="full">
+                  Notes
+                  <textarea
+                    value={buybackForm.notes}
+                    onChange={(event) =>
+                      setBuybackForm((previous) => ({
+                        ...previous,
+                        notes: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
               </div>
 
-              <div className="customer-form-group customer-form-full">
-                <label>قدم دوم: جستجوی سفر در انتظار {selectedDestination && `به ${selectedDestination}`}</label>
-                <input
-                  value={travelSearch}
-                  onChange={(e) => setTravelSearch(e.target.value)}
-                  placeholder="نام سفر، راننده، مبدأ یا مقصد..."
-                />
+              <div className="customer-details-modal-actions">
+                <button type="button" onClick={() => setShowBuybackModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit">Save Purchase</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editPackage && (
+        <div
+          className="customer-details-modal-backdrop"
+          onClick={() => setEditPackage(null)}
+        >
+          <div
+            className="customer-details-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="customer-details-modal-header">
+              <div>
+                <h3>Edit Package</h3>
+                <p>Update package price, payment, dates, and status.</p>
               </div>
 
-              <div className="customer-table-wrap modal-table">
-                <table className="customer-table">
-                  <thead>
-                  <tr>
-                    <th>انتخاب</th>
-                    <th>نام سفر</th>
-                    <th>تاریخ</th>
-                    <th>مسیر</th>
-                    <th>کرایه</th>
-                    <th>وضعیت</th>
-                  </tr>
-                  </thead>
+              <button type="button" onClick={() => setEditPackage(null)}>
+                ×
+              </button>
+            </div>
 
-                  <tbody>
-                    {travelPagination.pageItems.map((travel) => (
-                      <tr key={travel.originalIndex}>
-                        <td>
-                          <button
-                            type="button"
-                            className="customer-save-btn small"
-                            onClick={() => selectTravel(travel)}
-                          >
-                            انتخاب
-                          </button>
-                        </td>
-                        <td>{travel.name}</td>
-                        <td>{formatAfghanDate(travel.date)}</td>
-                        <td>
-                          {travel.from} - {travel.to}
-                        </td>
-                        <td>{travel.fare}</td>
-                        <td>{travel.status}</td>
-                      </tr>
-                    ))}
-
-                    {filteredTravels.length === 0 && (
-                      <tr>
-                        <td colSpan="6" style={{ textAlign: "center", padding: "20px" }}>
-                          {selectedDestination ? "هیچ سفر در انتظاری برای این مقصد پیدا نشد" : "ابتدا یک مقصد را انتخاب کنید"}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <TablePagination page={travelPagination.page} totalPages={travelPagination.totalPages} setPage={travelPagination.setPage} totalItems={filteredTravels.length} pageSize={travelPagination.pageSize} />
-
-              <div className="customer-form-grid">
-                <div className="customer-form-group">
-                  <label>نام سفر</label>
-                  <input value={travelForm.travelName} readOnly />
+            <form onSubmit={saveEditedPackage}>
+              <div className="customer-details-form-grid">
+                <div>
+                  <label>Package Name</label>
+                  <input
+                    name="packageName"
+                    value={editPackageForm.packageName}
+                    onChange={handleEditPackageChange}
+                  />
                 </div>
 
-                <div className="customer-form-group">
-                  <label>تاریخ</label>
-                  <input value={formatAfghanDate(travelForm.date)} readOnly />
+                <div>
+                  <label>Speed</label>
+                  <input
+                    name="speed"
+                    value={editPackageForm.speed}
+                    onChange={handleEditPackageChange}
+                  />
                 </div>
 
-                <div className="customer-form-group">
-                  <label>حالت</label>
+                <div>
+                  <label>Package Price</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="packagePrice"
+                    value={editPackageForm.packagePrice}
+                    onChange={handleEditPackageChange}
+                  />
+                </div>
+
+                <div>
+                  <label>Paid Amount</label>
+                  <input
+                    type="number"
+                    min="0"
+                    name="paidAmount"
+                    value={editPackageForm.paidAmount}
+                    onChange={handleEditPackageChange}
+                  />
+                </div>
+
+                <div>
+                  <label>Remain Amount</label>
+                  <input
+                    value={`${money(editPackageForm.remainAmount)} AFN`}
+                    readOnly
+                  />
+                </div>
+
+                <div>
+                  <label>Start Date</label>
+                  <input
+                    type="date"
+                    name="startDate"
+                    value={editPackageForm.startDate}
+                    onChange={handleEditPackageChange}
+                  />
+                </div>
+
+                <div>
+                  <label>End Date</label>
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={editPackageForm.endDate}
+                    onChange={handleEditPackageChange}
+                  />
+                </div>
+
+                <div>
+                  <label>Status</label>
                   <select
-                    name="mode"
-                    value={travelForm.mode}
-                    onChange={handleTravelFormChange}
+                    name="status"
+                    value={editPackageForm.status}
+                    onChange={handleEditPackageChange}
                   >
-                    <option value="شخصی">شخصی</option>
-                    <option value="فامیلی">فامیلی</option>
+                    <option value="Active">Active</option>
+                    <option value="Expired">Expired</option>
+                    <option value="Paused">Paused</option>
+                    <option value="Disconnected">Disconnected</option>
                   </select>
                 </div>
 
-                {travelForm.mode === "فامیلی" && (
-                  <div className="customer-form-group">
-                    <label>تعداد فامیل</label>
-                    <input
-                      type="number"
-                      min="1"
-                      name="familyCount"
-                      value={travelForm.familyCount}
-                      onChange={handleTravelFormChange}
-                      placeholder="مثلاً 4"
-                    />
-                  </div>
-                )}
-
-                <div className="customer-form-group customer-form-full">
-                  <label>انتخاب چوکی</label>
-                  <SeatSelector
-                    availableSeats={availableSeatNumbers}
-                    disabled={!selectedTravelRecord}
-                    familyCount={travelForm.familyCount}
-                    mode={travelForm.mode}
-                    selectedSeats={travelForm.seatNos}
-                    onChange={(seatNos) => setTravelForm({
-                      ...travelForm,
-                      seatNos,
-                      seatNo: seatNos.join(","),
-                    })}
-                  />
-                </div>
-
-                <div className="customer-form-group">
-                  <label>راننده</label>
-                  <input value={travelForm.driver} readOnly />
-                </div>
-
-                <div className="customer-form-group">
-                  <label>موتر</label>
-                  <input value={travelForm.car} readOnly />
-                </div>
-
-                <div className="customer-form-group">
-                  <label>مبدأ</label>
-                  <input value={travelForm.from} readOnly />
-                </div>
-
-                <div className="customer-form-group">
-                  <label>مقصد</label>
-                  <input value={travelForm.to} readOnly />
-                </div>
-
-                <div className="customer-form-group">
-                  <label>مقدار بار</label>
-                  <input
-                    type="number"
-                    dir="ltr"
-                    min="0"
-                    name="baggageKg"
-                    value={travelForm.baggageKg}
-                    onChange={handleTravelFormChange}
-                    placeholder="کیلو"
-                  />
-                </div>
-
-                <div className="customer-form-group">
-                  <label>پول بار</label>
-                  <input dir="ltr" value={travelForm.baggageCharge || 0} readOnly />
-                </div>
-
-                <div className="customer-form-group">
-                  <label>مجموع قیمت</label>
-                  <input
-                    type="number"
-                    dir="ltr"
-                    name="fare"
-                    value={travelForm.fare}
-                    onChange={handleTravelFormChange}
-                    placeholder="مثلاً 300"
-                  />
-                </div>
-
-                <div className="customer-form-group">
-                  <label>تخفیف</label>
-                  <input
-                    type="number"
-                    dir="ltr"
-                    name="discount"
-                    value={travelForm.discount}
-                    onChange={handleTravelFormChange}
-                  />
-                </div>
-
-                <div className="customer-form-group">
-                  <label>مقدار پرداخت شده</label>
-                  <input
-                    type="number"
-                    dir="ltr"
-                    name="paidAmount"
-                    value={travelForm.paidAmount}
-                    onChange={handleTravelFormChange}
-                  />
-                </div>
-
-                <div className="customer-form-group">
-                  <label>باقی مانده</label>
-                  <input dir="ltr" value={travelForm.remainingAmount} readOnly />
-                </div>
-
-                <div className="customer-form-group customer-form-full">
-                  <label>توضیحات</label>
+                <div className="customer-details-form-full">
+                  <label>Notes</label>
                   <textarea
-                    name="note"
-                    value={travelForm.note}
-                    onChange={handleTravelFormChange}
+                    name="notes"
+                    value={editPackageForm.notes}
+                    onChange={handleEditPackageChange}
                   />
                 </div>
               </div>
 
-              <div className="customer-modal-actions">
-                <button
-                  type="button"
-                  className="customer-cancel-btn"
-                  onClick={() => { setSelectedDestination(""); setShowTravelModal(false); }}
-                >
-                  لغو
+              <div className="customer-details-modal-actions">
+                <button type="button" onClick={() => setEditPackage(null)}>
+                  Cancel
                 </button>
-
-                <button type="submit" className="customer-save-btn">
-                  ثبت سفر مشتری
-                </button>
+                <button type="submit">Save Changes</button>
               </div>
             </form>
           </div>
@@ -875,123 +1401,145 @@ function CustomerDetails() {
       )}
 
       {showPaymentModal && (
-        <div className="customer-modal-backdrop" onClick={() => setShowPaymentModal(false)}>
-          <div className="customer-modal payment-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="customer-modal-header">
+        <div className="customer-details-modal-backdrop" onClick={closePaymentModal}>
+          <div
+            className="customer-details-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="customer-details-modal-header">
               <div>
-                <h3>پرداخت بدهی مشتری</h3>
-                <p>بدهی فعلی: {customerDebt} افغانی</p>
+                <h3>{editPayment ? "Edit Payment" : "Add Payment"}</h3>
+                <p>
+                  Customer current balance: {money(customerOwes)} AFN receivable.
+                </p>
               </div>
-              <button className="customer-close-btn" onClick={() => setShowPaymentModal(false)}>
+
+              <button type="button" onClick={closePaymentModal}>
                 ×
               </button>
             </div>
-            <form onSubmit={savePayment}>
-              <div className="customer-form-grid">
-                <div className="customer-form-group">
-                  <label>تاریخ</label>
-                  <AfghanDateInput value={paymentForm.date} onChange={(date) => setPaymentForm({ ...paymentForm, date })} required />
-                </div>
-                <div className="customer-form-group">
-                  <label>مقدار پرداخت</label>
+
+            <form onSubmit={editPayment ? saveEditedPayment : saveCustomerPayment}>
+              <div className="customer-details-form-grid">
+                <div>
+                  <label>Payment Date</label>
                   <input
-                    type="number"
-                    min="1"
-                    max={customerDebt}
-                    value={paymentForm.amount}
-                    onChange={(event) => setPaymentForm({ ...paymentForm, amount: event.target.value })}
+                    type="date"
+                    name="paymentDate"
+                    value={paymentForm.paymentDate}
+                    onChange={handlePaymentChange}
                     required
                   />
                 </div>
-                <div className="customer-form-group customer-form-full">
-                  <label>توضیحات</label>
-                  <textarea
-                    value={paymentForm.description}
-                    onChange={(event) => setPaymentForm({ ...paymentForm, description: event.target.value })}
+
+                <div>
+                  <label>Amount</label>
+                  <input
+                    type="number"
+                    min="1"
+                    name="amount"
+                    value={paymentForm.amount}
+                    onChange={handlePaymentChange}
+                    placeholder="Example: 500"
+                    required
                   />
                 </div>
-              </div>
-              <div className="customer-modal-actions">
-                <button type="button" className="customer-cancel-btn" onClick={() => setShowPaymentModal(false)}>
-                  لغو
-                </button>
-                <button type="submit" className="customer-save-btn">ثبت پرداخت</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {showBalanceModal && (
-        <div className="customer-modal-backdrop" onClick={() => setShowBalanceModal(false)}>
-          <div className="customer-modal payment-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="customer-modal-header">
-              <div>
-                <h3>ثبت بیلانس مشتری</h3>
-                <p>این بخش برای زمانی است که حساب مشتری صفر در صفر باشد.</p>
-              </div>
-              <button className="customer-close-btn" onClick={() => setShowBalanceModal(false)}>
-                ×
-              </button>
-            </div>
-            <form onSubmit={saveBalance}>
-              <div className="customer-form-grid">
-                <div className="customer-form-group">
-                  <label>تاریخ</label>
-                  <AfghanDateInput value={balanceForm.date} onChange={(date) => setBalanceForm({ ...balanceForm, date })} required />
-                </div>
-                <div className="customer-form-group">
-                  <label>حالت بیلانس</label>
-                  <select value={balanceForm.direction} onChange={(event) => setBalanceForm({ ...balanceForm, direction: event.target.value })}>
-                    <option value="customer-owes-us">او قرضدار ما است</option>
-                    <option value="we-owe-customer">ما قرضدار او استیم</option>
+                <div>
+                  <label>Payment Method</label>
+                  <select
+                    name="method"
+                    value={paymentForm.method}
+                    onChange={handlePaymentChange}
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Bank">Bank</option>
+                    <option value="Mobile Money">Mobile Money</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
-                <div className="customer-form-group">
-                  <label>مقدار</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={balanceForm.amount}
-                    onChange={(event) => setBalanceForm({ ...balanceForm, amount: event.target.value })}
-                    required
-                  />
-                </div>
-                <div className="customer-form-group customer-form-full">
-                  <label>توضیحات</label>
+
+                <div className="customer-details-form-full">
+                  <label>Notes</label>
                   <textarea
-                    value={balanceForm.description}
-                    onChange={(event) => setBalanceForm({ ...balanceForm, description: event.target.value })}
+                    name="notes"
+                    value={paymentForm.notes}
+                    onChange={handlePaymentChange}
+                    placeholder="Payment notes..."
                   />
                 </div>
               </div>
-              <div className="customer-modal-actions">
-                <button type="button" className="customer-cancel-btn" onClick={() => setShowBalanceModal(false)}>
-                  لغو
+
+              <div className="customer-details-modal-actions">
+                <button type="button" onClick={closePaymentModal}>
+                  Cancel
                 </button>
-                <button type="submit" className="customer-save-btn">ثبت بیلانس</button>
+                <button type="submit">
+                  {editPayment ? "Save Changes" : "Save Payment"}
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {editActivity && (
-        <div className="customer-modal-backdrop" onClick={() => setEditActivity(null)}>
-          <div className="customer-modal payment-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="customer-modal-header"><div><h3>ویرایش {editActivity.type === "travel" ? "سفر مشتری" : "پرداخت"}</h3><p>تغییرات در بخش مالی نیز هماهنگ می‌شود.</p></div><button className="customer-close-btn" onClick={() => setEditActivity(null)}>×</button></div>
-            <form onSubmit={saveActivityEdit}>
-              <div className="customer-form-grid">
-                <div className="customer-form-group"><label>تاریخ</label><AfghanDateInput value={editForm.date} onChange={(date) => setEditForm({ ...editForm, date })} required /></div>
-                {editActivity.type === "travel" && <><div className="customer-form-group"><label>کرایه</label><input type="number" min="0" value={editForm.fare} onChange={(e) => setEditForm({ ...editForm, fare: e.target.value })} required /></div><div className="customer-form-group"><label>تخفیف</label><input type="number" min="0" value={editForm.discount} onChange={(e) => setEditForm({ ...editForm, discount: e.target.value })} /></div></>}
-                <div className="customer-form-group"><label>پرداخت</label><input type="number" min="0" value={editForm.payment} onChange={(e) => setEditForm({ ...editForm, payment: e.target.value })} required /></div>
-                <div className="customer-form-group customer-form-full"><label>توضیحات</label><textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} /></div>
-              </div>
-              <div className="customer-modal-actions"><button type="button" className="customer-cancel-btn" onClick={() => setEditActivity(null)}>لغو</button><button type="submit" className="customer-save-btn">ذخیره تغییرات</button></div>
-            </form>
+      {deletePackage && (
+        <div
+          className="customer-details-modal-backdrop"
+          onClick={() => setDeletePackage(null)}
+        >
+          <div
+            className="customer-details-delete-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3>Delete Package</h3>
+            <p>Are you sure you want to delete this customer package?</p>
+
+            <div>
+              <button type="button" onClick={() => setDeletePackage(null)}>
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="danger"
+                onClick={confirmDeletePackage}
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {deletePayment && (
+  <div
+    className="customer-details-modal-backdrop"
+    onClick={() => setDeletePayment(null)}
+  >
+    <div
+      className="customer-details-delete-modal"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <h3>Delete Payment</h3>
+      <p>Are you sure you want to delete this payment?</p>
+
+      <div>
+        <button type="button" onClick={() => setDeletePayment(null)}>
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="danger"
+          onClick={confirmDeletePayment}
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

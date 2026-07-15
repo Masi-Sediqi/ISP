@@ -19,21 +19,31 @@ const COLLECTIONS = new Set([
 
   "suppliers",
   "supplierPurchases",
+  "supplierPayments",
 
   "assets",
   "assetCategories",
+  "assetMovements",
 
   "customers",
+  "packages",
+  "customerPackages",
   "customerDevices",
 
+  "customerPayments",
+  "customerDeviceBuybacks",
+
   "towerAssets",
+  "towerLinks",
   "deviceTransfers",
+  "towerAssetTransfers",
   "deviceHistory",
 
   "disconnections",
   "securityDeposits",
 
   "transactions",
+  "financeCategories",
   "financeBudgets",
   "reports",
 ]);
@@ -102,12 +112,14 @@ async function readCollection(collection) {
     const data = await fs.readJson(file);
 
     if (!Array.isArray(data)) {
+      const brokenFile = `${file}.broken-${Date.now()}`;
+      await fs.copy(file, brokenFile, { overwrite: true });
       await writeCollection(collection, []);
       return [];
     }
 
     return data;
-  } catch (error) {
+  } catch {
     const brokenFile = `${file}.broken-${Date.now()}`;
 
     if (await fs.pathExists(file)) {
@@ -123,17 +135,31 @@ async function readOperationalData() {
   const names = [
     "suppliers",
     "supplierPurchases",
+    "supplierPayments",
+
     "assets",
     "assetCategories",
+    "assetMovements",
+
     "customers",
+    "packages",
     "customerPackages",
     "customerDevices",
+
+    "customerPayments",
+    "customerDeviceBuybacks",
+
     "towerAssets",
+    "towerLinks",
     "deviceTransfers",
+    "towerAssetTransfers",
     "deviceHistory",
+
     "disconnections",
     "securityDeposits",
+
     "transactions",
+    "financeCategories",
     "financeBudgets",
     "reports",
   ];
@@ -230,7 +256,6 @@ app.post("/api/:collection", async (req, res, next) => {
     };
 
     items.push(item);
-
     await writeCollection(req.params.collection, items);
 
     res.status(201).json(item);
@@ -281,6 +306,7 @@ app.delete("/api/:collection/:id", async (req, res, next) => {
 });
 
 app.use((error, req, res, next) => {
+  void next;
   console.error("ISP server error:", error);
 
   res.status(500).json({

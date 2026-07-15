@@ -10,9 +10,17 @@ const SupplierDetails = lazy(() => import("./pages/SupplierDetails"));
 const AssetInventory = lazy(() => import("./pages/AssetInventory"));
 const TowerAssets = lazy(() => import("./pages/TowerAssets"));
 const Customers = lazy(() => import("./pages/Customers"));
-const CustomerDevices = lazy(() => import("./pages/CustomerDevices"));
+const CustomerDetails = lazy(() => import("./pages/CustomerDetails"));
+const Packages = lazy(() => import("./pages/Packages"));
 const Accounts = lazy(() => import("./pages/Accounts"));
+const Finance = lazy(() => import("./pages/Finance"));
+const Settings = lazy(() => import("./pages/Settings"));
 const Login = lazy(() => import("./pages/Login"));
+const AssetFullInformation = lazy(() => import("./pages/AssetFullInformation"));
+const AssetInsightDetails = lazy(() => import("./pages/AssetInsightDetails"));
+const TowerLinks = lazy(() => import("./pages/TowerLinks"));
+const CustomerIssueDevice = lazy(() => import("./pages/CustomerIssueDevice"));
+const TowerAssetTransfer = lazy(() => import("./pages/TowerAssetTransfer"));
 
 function ModulePlaceholder({ title, description, items = [] }) {
   return (
@@ -68,14 +76,16 @@ function App() {
     { to: "/", label: "Dashboard" },
     { to: "/suppliers", label: "Suppliers" },
     { to: "/assets", label: "Asset & Inventory" },
-    { to: "/tower-assets", label: "Tower Assets" },
     { to: "/customers", label: "Customers" },
-    { to: "/customer-devices", label: "Customer Devices" },
-    { to: "/device-transfers", label: "Device Transfers" },
-    { to: "/device-history", label: "Device History" },
-    { to: "/disconnections", label: "Disconnections" },
-    { to: "/security-deposits", label: "Security Deposits" },
-    { to: "/employees", label: "Employees" },
+    { to: "/packages", label: "Packages" },
+      { to: "/tower-assets", label: "Tower Assets" },
+    { to: "/finance", label: "Financial" },
+    // { to: "/tower-links", label: "Tower Links" },
+    // { to: "/device-transfers", label: "Device Transfers" },
+    // { to: "/device-history", label: "Device History" },
+    // { to: "/disconnections", label: "Disconnections" },
+    // { to: "/security-deposits", label: "Security Deposits" },
+    // { to: "/employees", label: "Employees" },
   ];
 
   if (!accountsLoaded) {
@@ -119,6 +129,8 @@ function App() {
             <h2>{company.companyName || "ISP Assets"}</h2>
             <p>Asset & Inventory Management</p>
           </div>
+
+          <Header.Actions currentUser={currentUser} onLogout={logout} compact />
         </div>
 
         <nav className="menu">
@@ -128,10 +140,6 @@ function App() {
             </NavLink>
           ))}
         </nav>
-
-        <button className="logout" onClick={logout}>
-          Logout
-        </button>
       </aside>
 
       <main className="main">
@@ -147,27 +155,28 @@ function App() {
 
               <Route path="/assets" element={<AssetInventory />} />
 
-              <Route path="/tower-assets" element={<TowerAssets />} />
               <Route path="/customers" element={<Customers />} />
-              <Route path="/customer-devices" element={<CustomerDevices />} />
+              <Route path="/customers/:id" element={<CustomerDetails />} />
 
-          
+              <Route path="/tower-assets" element={<TowerAssets />} />
+              <Route path="/tower-links" element={<TowerLinks />} />
+              <Route path="/finance" element={<Finance />} />
+              <Route path="/settings" element={<Settings />} />
+              
+              <Route path="/packages" element={<Packages />} />
+              <Route path="/customers/:id/issue-device" element={<CustomerIssueDevice />} />
               <Route
-                path="/device-transfers"
-                element={
-                  <ModulePlaceholder
-                    title="Device Transfer Management"
-                    description="Track transfers between main stock, towers, and customers."
-                    items={[
-                      "Main stock transfer",
-                      "Tower transfer",
-                      "Customer transfer",
-                      "Transfer history",
-                    ]}
-                  />
-                }
-              />
-
+                  path="/tower-assets/:towerId/transfer"
+                  element={<TowerAssetTransfer />}
+                />
+                <Route
+                  path="/assets/:assetId/details"
+                  element={<AssetFullInformation />}
+                />
+                <Route
+                  path="/assets/:assetId/details/insights/:insightType"
+                  element={<AssetInsightDetails />}
+                />
               <Route
                 path="/device-history"
                 element={

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
 import TablePagination from "../components/TablePagination";
@@ -31,16 +32,43 @@ function TrashIcon() {
   );
 }
 
+function DetailIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+}
+
 const emptyForm = {
   assetId: "",
   deviceName: "",
   category: "",
   brand: "",
+
+  identityTracking: "Single Identity",
   model: "",
   macAddress: "",
   serialNumber: "",
-  quantity: "1",
+  assetImage: "",
+
+  purchaseUnit: "Piece",
+  purchaseUsageUnit: "Piece",
+  quantity: "0",
   unitPrice: "",
+  alertQuantity: "",
+
   purchaseDate: "",
   supplierName: "",
   location: "Main Stock",
@@ -50,8 +78,7 @@ const emptyForm = {
 
 function AssetInventory() {
   const [assets, setAssets] = useJsonCollection("assets");
-  const [suppliers] = useJsonCollection("suppliers");
-
+  const navigate = useNavigate();
   const [formData, setFormData] = useState(emptyForm);
   const [showModal, setShowModal] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
@@ -229,22 +256,63 @@ const backToCategorySelect = () => {
     }));
   };
 
-  const identityExists = (data) => {
-    return assets.some((asset, index) => {
-      if (editIndex !== null && index === editIndex) return false;
+  const handleAssetImageChange = (event) => {
+    const file = event.target.files?.[0];
 
-      const sameAssetId =
-        data.assetId && asset.assetId && data.assetId.trim().toLowerCase() === asset.assetId.trim().toLowerCase();
+    if (!file) return;
 
-      const sameMac =
-        data.macAddress && asset.macAddress && data.macAddress.trim().toLowerCase() === asset.macAddress.trim().toLowerCase();
+    if (file.size > 2 * 1024 * 1024) {
+      notify("Image size must be 2 MB or less.", "error");
+      return;
+    }
 
-      const sameSerial =
-        data.serialNumber && asset.serialNumber && data.serialNumber.trim().toLowerCase() === asset.serialNumber.trim().toLowerCase();
+    const reader = new FileReader();
 
-      return sameAssetId || sameMac || sameSerial;
-    });
+    reader.onload = () => {
+      setFormData((previous) => ({
+        ...previous,
+        assetImage: String(reader.result || ""),
+      }));
+    };
+
+    reader.readAsDataURL(file);
   };
+
+  const identityExists = (data) => {
+  return assets.some((asset, index) => {
+    if (editIndex !== null && index === editIndex) {
+      return false;
+    }
+
+    const sameAssetId =
+      data.assetId &&
+      asset.assetId &&
+      data.assetId.trim().toLowerCase() ===
+        asset.assetId.trim().toLowerCase();
+
+    if (sameAssetId) {
+      return true;
+    }
+
+    if (data.identityTracking !== "Single Identity") {
+      return false;
+    }
+
+    const sameMac =
+      data.macAddress &&
+      asset.macAddress &&
+      data.macAddress.trim().toLowerCase() ===
+        asset.macAddress.trim().toLowerCase();
+
+    const sameSerial =
+      data.serialNumber &&
+      asset.serialNumber &&
+      data.serialNumber.trim().toLowerCase() ===
+        asset.serialNumber.trim().toLowerCase();
+
+    return sameMac || sameSerial;
+  });
+};
 
 const handleSubmit = async (event) => {
   event.preventDefault();
@@ -255,30 +323,65 @@ const handleSubmit = async (event) => {
     deviceName: formData.deviceName.trim(),
     category: formData.category.trim(),
     brand: formData.brand.trim(),
-    model: formData.model.trim(),
-    macAddress: formData.macAddress.trim(),
-    serialNumber: formData.serialNumber.trim(),
-    supplierName: formData.supplierName.trim(),
-    location: formData.location.trim(),
-    quantity: Number(formData.quantity || 1),
+  identityTracking: formData.identityTracking,
+
+model:
+  formData.identityTracking === "Single Identity"
+    ? formData.model.trim()
+    : "",
+
+macAddress:
+  formData.identityTracking === "Single Identity"
+    ? formData.macAddress.trim()
+    : "",
+
+serialNumber:
+  formData.identityTracking === "Single Identity"
+    ? formData.serialNumber.trim()
+    : "",
+
+assetImage:
+  formData.identityTracking === "Single Identity"
+    ? formData.assetImage || ""
+    : "",
+
+    purchaseUnit: formData.purchaseUnit || "Piece",
+    purchaseUsageUnit: formData.purchaseUsageUnit || "Piece",
+    supplierName: (formData.supplierName || "").trim(),
+    location: (formData.location || "Main Stock").trim(),
+    quantity: Number(formData.quantity || 0),
     unitPrice: Number(formData.unitPrice || 0),
-    purchaseDate: formData.purchaseDate,
-    status: formData.status,
+    alertQuantity: Number(formData.alertQuantity || 0),
+    purchaseDate: formData.purchaseDate || "",
+    status: formData.status || "In Stock",
     notes: formData.notes.trim(),
     updatedAt: new Date().toISOString(),
     createdAt: formData.createdAt || new Date().toISOString(),
   };
 
-  if (!cleanData.assetId && !cleanData.macAddress && !cleanData.serialNumber) {
-    notify(
-      "Please enter at least one unique identity: Asset ID, MAC Address, or Serial Number.",
-      "error"
-    );
-    return;
-  }
+  if (!cleanData.assetId) {
+  notify("Asset ID is required.", "error");
+  return;
+}
+
+if (
+  cleanData.identityTracking === "Single Identity" &&
+  !cleanData.macAddress &&
+  !cleanData.serialNumber
+) {
+  notify(
+    "Please enter a MAC Address or Serial Number for Single Identity tracking.",
+    "error"
+  );
+
+  return;
+}
 
   if (identityExists(cleanData)) {
-    notify("Asset ID, MAC Address, or Serial Number already exists.", "error");
+    notify(
+  "Asset ID, MAC Address, or Serial Number already exists.",
+  "error"
+);
     return;
   }
 
@@ -335,6 +438,33 @@ const handleSubmit = async (event) => {
     setDeleteModalOpen(false);
     notify("Asset deleted successfully.");
   };
+
+
+  const getLocationClass = (location) => {
+  const value = String(location || "Main Stock").toLowerCase();
+
+  if (value === "main stock") {
+    return "asset-location-badge main-stock";
+  }
+
+  if (value === "tower") {
+    return "asset-location-badge tower";
+  }
+
+  if (value === "customer") {
+    return "asset-location-badge customer";
+  }
+
+  if (value === "repair") {
+    return "asset-location-badge repair";
+  }
+
+  if (value === "returned stock") {
+    return "asset-location-badge returned-stock";
+  }
+
+  return "asset-location-badge";
+};
 
   const getStatusClass = (status) => {
     if (status === "In Stock") return "asset-badge stock";
@@ -416,8 +546,6 @@ const handleSubmit = async (event) => {
                 <th>Serial Number</th>
                 <th>Qty</th>
                 <th>Unit Price</th>
-                <th>Location</th>
-                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -433,14 +561,8 @@ const handleSubmit = async (event) => {
                     <td>{asset.category || "-"}</td>
                     <td>{asset.macAddress || "-"}</td>
                     <td>{asset.serialNumber || "-"}</td>
-                    <td>{asset.quantity || 1}</td>
+                    <td>{asset.quantity ?? 0}</td>
                     <td>{money(asset.unitPrice)} AFN</td>
-                    <td>{asset.location || "Main Stock"}</td>
-                    <td>
-                      <span className={getStatusClass(asset.status)}>
-                        {asset.status || "Unknown"}
-                      </span>
-                    </td>
                     <td>
                   
  <td>
@@ -461,6 +583,17 @@ const handleSubmit = async (event) => {
           left: `${actionMenuPosition.left}px`,
         }}
       >
+        <button
+  type="button"
+  onClick={() => {
+    navigate(`/assets/${asset.id || asset.assetId}/details`);
+    setOpenAction(null);
+  }}
+>
+  <DetailIcon />
+  <span>Full Information</span>
+</button>
+
         <button type="button" onClick={() => editAsset(index)}>
           <EditIcon />
           <span>Edit</span>
@@ -631,118 +764,157 @@ const handleSubmit = async (event) => {
                   />
                 </div>
 
-                <div className="asset-form-group">
-                  <label>Model</label>
-                  <input
-                    name="model"
-                    value={formData.model}
-                    onChange={handleChange}
-                    placeholder="Example: RB750Gr3"
-                  />
-                </div>
+                
 
                 <div className="asset-form-group">
-                  <label>MAC Address</label>
-                  <input
-                    name="macAddress"
-                    value={formData.macAddress}
-                    onChange={handleChange}
-                    placeholder="Example: AA:BB:CC:DD:EE:FF"
-                  />
-                </div>
+  <label>Identity Tracking</label>
+
+  <select
+    name="identityTracking"
+    value={formData.identityTracking}
+    onChange={(event) => {
+      const value = event.target.value;
+
+      setFormData((previous) => ({
+        ...previous,
+        identityTracking: value,
+
+        model:
+          value === "Single Identity"
+            ? previous.model
+            : "",
+
+        macAddress:
+          value === "Single Identity"
+            ? previous.macAddress
+            : "",
+
+        serialNumber:
+          value === "Single Identity"
+            ? previous.serialNumber
+            : "",
+
+        assetImage:
+          value === "Single Identity"
+            ? previous.assetImage
+            : "",
+      }));
+    }}
+    required
+  >
+    <option value="Single Identity">
+      Single Model / MAC / Serial
+    </option>
+
+    <option value="Individual Identity">
+      Individual Identity per Unit
+    </option>
+  </select>
+</div>
 
                 <div className="asset-form-group">
-                  <label>Serial Number</label>
-                  <input
-                    name="serialNumber"
-                    value={formData.serialNumber}
-                    onChange={handleChange}
-                    placeholder="Example: SN-123456"
-                  />
-                </div>
-
-                <div className="asset-form-group">
-                  <label>Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    name="quantity"
-                    value={formData.quantity}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <div className="asset-form-group">
-                  <label>Unit Price</label>
+                  <label>Alert Quantity</label>
                   <input
                     type="number"
                     min="0"
-                    name="unitPrice"
-                    value={formData.unitPrice}
+                    name="alertQuantity"
+                    value={formData.alertQuantity}
                     onChange={handleChange}
-                    placeholder="Example: 2500"
+                    placeholder="Example: 5"
                   />
                 </div>
 
                 <div className="asset-form-group">
-                  <label>Purchase Date</label>
-                  <input
-                    type="date"
-                    name="purchaseDate"
-                    value={formData.purchaseDate}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="asset-form-group">
-                  <label>Supplier</label>
+                  <label>Purchase / Usage Unit</label>
                   <select
-                    name="supplierName"
-                    value={formData.supplierName}
+                    name="purchaseUsageUnit"
+                    value={formData.purchaseUsageUnit}
                     onChange={handleChange}
                   >
-                    <option value="">Select Supplier</option>
-                    {suppliers.map((supplier, index) => (
-                      <option key={index} value={supplier.supplierName}>
-                        {supplier.supplierName}
-                      </option>
-                    ))}
+                    <option value="Piece">Piece</option>
+                    <option value="Meter">Meter</option>
+                    <option value="Roll">Roll</option>
+                    <option value="Box">Box</option>
+                    <option value="Pack">Pack</option>
+                    <option value="Set">Set</option>
+                    <option value="Pair">Pair</option>
+                    <option value="Kilogram">Kilogram</option>
+                    <option value="Liter">Liter</option>
+                    <option value="Bundle">Bundle</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
-                <div className="asset-form-group">
-                  <label>Location</label>
-                  <select
-                    name="location"
-                    value={formData.location}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="Main Stock">Main Stock</option>
-                    <option value="Tower">Tower</option>
-                    <option value="Customer">Customer</option>
-                    <option value="Repair">Repair</option>
-                    <option value="Returned Stock">Returned Stock</option>
-                  </select>
-                </div>
+{formData.identityTracking === "Single Identity" && (
+  <>
+    <div className="asset-form-group">
+      <label>Model</label>
 
-                <div className="asset-form-group">
-                  <label>Status</label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="In Stock">In Stock</option>
-                    <option value="Issued">Issued</option>
-                    <option value="Installed">Installed</option>
-                    <option value="Returned">Returned</option>
-                    <option value="Damaged">Damaged</option>
-                    <option value="Lost">Lost</option>
-                  </select>
-                </div>
+      <input
+        name="model"
+        value={formData.model}
+        onChange={handleChange}
+        placeholder="Example: RB750Gr3"
+      />
+    </div>
+
+    <div className="asset-form-group">
+      <label>MAC Address</label>
+
+      <input
+        name="macAddress"
+        value={formData.macAddress}
+        onChange={handleChange}
+        placeholder="Example: AA:BB:CC:DD:EE:FF"
+      />
+    </div>
+
+    <div className="asset-form-group">
+      <label>Serial Number</label>
+
+      <input
+        name="serialNumber"
+        value={formData.serialNumber}
+        onChange={handleChange}
+        placeholder="Example: SN-123456"
+      />
+    </div>
+
+    <div className="asset-form-group asset-form-full">
+      <label>Image</label>
+
+      <div className="asset-image-picker">
+        <div>
+          {formData.assetImage ? (
+            <img src={formData.assetImage} alt="Asset preview" />
+          ) : (
+            <span>No Image</span>
+          )}
+        </div>
+
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={handleAssetImageChange}
+        />
+
+        {formData.assetImage && (
+          <button
+            type="button"
+            onClick={() =>
+              setFormData((previous) => ({
+                ...previous,
+                assetImage: "",
+              }))
+            }
+          >
+            Remove Image
+          </button>
+        )}
+      </div>
+    </div>
+  </>
+)}
 
                 <div className="asset-form-group asset-form-full">
                   <label>Notes</label>

@@ -438,6 +438,46 @@
   resize: none;
 }
 
+.asset-image-picker {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.asset-image-picker > div {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 72px;
+  overflow: hidden;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  background: #faf9f6;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.asset-image-picker img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.asset-image-picker button {
+  height: 36px;
+  border: 0;
+  border-radius: 9px;
+  padding: 0 12px;
+  background: #f1f0eb;
+  color: #334155;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .asset-form-group input:focus,
 .asset-form-group select:focus,
 .asset-form-group textarea:focus {
@@ -609,6 +649,13 @@ body.dark-mode .asset-form-group textarea {
   color: #f8fafc;
 }
 
+body.dark-mode .asset-image-picker > div,
+body.dark-mode .asset-image-picker button {
+  background: #0f172a;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
 body.dark-mode .asset-close-btn,
 body.dark-mode .asset-cancel-btn,
 body.dark-mode .asset-delete-cancel,
@@ -656,6 +703,15 @@ body.dark-mode .asset-action-menu .danger-action:hover {
 
   .asset-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .asset-image-picker {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .asset-image-picker > div {
+    width: 100%;
   }
 }
 
@@ -862,4 +918,100 @@ body.dark-mode .asset-category-save:hover {
 body.dark-mode .asset-category-back {
   background: #334155;
   color: #f8fafc;
+}/* Asset Location Badges */
+
+.asset-location-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 27px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* Main Stock */
+
+.asset-location-badge.main-stock {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+/* Tower */
+
+.asset-location-badge.tower {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+/* Customer */
+
+.asset-location-badge.customer {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* Repair / Maintenance */
+
+.asset-location-badge.repair {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+/* Returned Stock */
+
+.asset-location-badge.returned-stock {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+/* Dark Mode */
+
+body.dark-mode .asset-location-badge {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+body.dark-mode .asset-location-badge.main-stock {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+}
+
+body.dark-mode .asset-location-badge.tower {
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+}
+
+body.dark-mode .asset-location-badge.customer {
+  background: rgba(59, 130, 246, 0.2);
+  color: #bfdbfe;
+}
+
+body.dark-mode .asset-location-badge.repair {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fde68a;
+}
+
+body.dark-mode .asset-location-badge.returned-stock {
+  background: rgba(168, 85, 247, 0.2);
+  color: #e9d5ff;
+}.asset-identity-info {
+  padding: 13px 14px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 11px;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+body.dark-mode .asset-identity-info {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: rgba(129, 140, 248, 0.32);
+  color: #c7d2fe;
 }

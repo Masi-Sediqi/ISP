@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AfghanDateInput from "../components/AfghanDateInput";
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { formatAfghanDate, todayDateValue } from "../utils/afghanDate";
+import { formatAfghanDate, formatDateTime, todayDateValue } from "../utils/afghanDate";
 import { notify } from "../utils/notify";
 import "./Travels.css";
 
@@ -190,6 +190,7 @@ function Travels() {
     const normalizedTravel = {
       ...travelForm,
       kilometers: String(travelForm.kilometers || ""),
+      ...(editTravelIndex !== null ? { updatedAt: new Date().toISOString() } : { createdAt: new Date().toISOString() }),
     };
 
     if (editTravelIndex !== null) {
@@ -309,7 +310,7 @@ function Travels() {
                     <span>تاریخ‌های سفر</span>
                     <div>
                       {destination.travels.slice(0, 4).map((travel) => (
-                        <small key={`${travel.originalIndex}-${travel.date}`}>{formatAfghanDate(travel.date)}</small>
+                        <small key={`${travel.originalIndex}-${travel.date}`}>{formatDateTime(travel.date, travel.createdAt || travel.updatedAt)}</small>
                       ))}
                       {destination.travels.length > 4 && <small>+{destination.travels.length - 4}</small>}
                       {destination.travels.length === 0 && <small>هنوز سفر ندارد</small>}
@@ -331,7 +332,7 @@ function Travels() {
                       <tbody>
                         {destination.travels.map((travel) => (
                           <tr key={travel.originalIndex}>
-                            <td>{formatAfghanDate(travel.date)}</td>
+                            <td>{formatDateTime(travel.date, travel.createdAt || travel.updatedAt)}</td>
                             <td>{travel.name || "-"}</td>
                             <td>{travel.driver || "-"}</td>
                             <td>{travel.car || "-"}</td>

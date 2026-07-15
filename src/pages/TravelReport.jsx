@@ -3,7 +3,7 @@ import AfghanDateInput from "../components/AfghanDateInput";
 import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
-import { formatAfghanDate } from "../utils/afghanDate";
+import { formatAfghanDate, formatDateTime } from "../utils/afghanDate";
 import { getDateRange, toDateValue } from "../utils/financialAnalysis";
 import "./Reports.css";
 
@@ -140,7 +140,7 @@ function TravelReport() {
               </div>
               <div className="route-main">
                 <div className="route-main-title">
-                  <div><h4>{destination.name}</h4><p>آخرین سفر: {formatAfghanDate(destination.latestDate)}</p></div>
+                  <div><h4>{destination.name}</h4><p>آخرین سفر: {formatDateTime(destination.latestDate)}</p></div>
                   <strong>{destination.count} <small>سفر</small></strong>
                 </div>
                 <div className="route-volume-track">

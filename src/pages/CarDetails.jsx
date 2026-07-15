@@ -5,7 +5,7 @@ import { notify } from "../utils/notify";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
 import AfghanDateInput from "../components/AfghanDateInput";
-import { formatAfghanDate, todayDateValue } from "../utils/afghanDate";
+import { formatDateTime, todayDateValue } from "../utils/afghanDate";
 import "./RecordDetails.css";
 
 const today = todayDateValue;
@@ -61,6 +61,7 @@ function CarDetails() {
       id: `travel-${travel.originalIndex}`,
       type: "travel",
       date: travel.date,
+      timeSource: travel.createdAt || travel.updatedAt,
       title: travel.name,
       detail: `${travel.from || "-"} - ${travel.to || "-"}`,
       person: travel.driver,
@@ -73,6 +74,7 @@ function CarDetails() {
       id: `repair-${repair.id}`,
       type: "repair",
       date: repair.date,
+      timeSource: repair.createdAt || repair.updatedAt,
       title: repair.title || "مصرف موتر",
       detail: repair.repairerAddress,
       person: repair.takenBy,
@@ -113,6 +115,7 @@ function CarDetails() {
       ...repairForm,
       amount,
       source: "manual",
+      createdAt: new Date().toISOString(),
     };
     const nextStatus = repairForm.category === "repair" ? "در ترمیم" : (car.status || "فعال");
 
@@ -129,6 +132,7 @@ function CarDetails() {
         source: "car-expense",
         referenceId: repairId,
         carId,
+        createdAt: new Date().toISOString(),
       },
     ]);
     setCars(cars.map((item) => Number(item.id) === carId ? { ...item, status: nextStatus } : item));
@@ -186,7 +190,7 @@ function CarDetails() {
             <tbody>
               {recordsPagination.pageItems.map((record) => (
                 <tr key={record.id} onDoubleClick={() => record.travelIndex !== undefined && navigate(`/travels/${record.travelIndex}`)}>
-                  <td>{formatAfghanDate(record.date)}</td>
+                  <td>{formatDateTime(record.date, record.timeSource)}</td>
                   <td><span className={`record-type ${record.type}`}>{record.type === "travel" ? "سفر" : "مصرف موتر"}</span></td>
                   <td>{record.title}</td><td>{record.detail || "-"}</td><td>{record.person || "-"}</td>
                   <td className={record.type === "repair" ? "record-expense" : ""}>{money(record.amount)}</td>

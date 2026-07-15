@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import { formatDateTime } from "../utils/afghanDate";
 import "./CustomerDevices.css";
 
 const emptyForm = {
@@ -607,7 +608,15 @@ function CustomerDevices() {
               <div><span>Category</span><strong>{detailRecord.category || "-"}</strong></div>
               <div><span>MAC Address</span><strong>{detailRecord.macAddress || "-"}</strong></div>
               <div><span>Serial Number</span><strong>{detailRecord.serialNumber || "-"}</strong></div>
-              <div><span>Installation Date</span><strong>{detailRecord.installationDate || "-"}</strong></div>
+              <div>
+                <span>Installation Date</span>
+                <strong>
+                  {formatDateTime(
+                    detailRecord.installationDate,
+                    detailRecord.createdAt || detailRecord.updatedAt
+                  )}
+                </strong>
+              </div>
               <div><span>Package / Speed</span><strong>{detailRecord.packageSpeed || "-"}</strong></div>
               <div><span>Status</span><strong>{detailRecord.customerStatus || "-"}</strong></div>
             </div>

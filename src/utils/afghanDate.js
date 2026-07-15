@@ -111,6 +111,39 @@ export function formatAfghanDate(value, options = {}) {
   return String(value).slice(0, 10);
 }
 
+export function formatTime(value, options = {}) {
+  if (!value) return options.fallback ?? "";
+
+  const rawValue = String(value);
+  const timeMatch = rawValue.match(/T(\d{2}:\d{2})/) || rawValue.match(/\s(\d{2}:\d{2})/);
+
+  if (timeMatch?.[1]) return timeMatch[1];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) return options.fallback ?? "";
+
+  const parsedDate = new Date(rawValue);
+
+  if (Number.isNaN(parsedDate.getTime())) return options.fallback ?? "";
+
+  return `${String(parsedDate.getHours()).padStart(2, "0")}:${String(
+    parsedDate.getMinutes()
+  ).padStart(2, "0")}`;
+}
+
+export function formatDateTime(value, timeSourceOrOptions = {}, maybeOptions = {}) {
+  const hasExplicitTimeSource =
+    typeof timeSourceOrOptions === "string" ||
+    timeSourceOrOptions instanceof Date;
+  const timeSource = hasExplicitTimeSource ? timeSourceOrOptions : value;
+  const options = hasExplicitTimeSource ? maybeOptions : timeSourceOrOptions;
+  const date = formatAfghanDate(value, options);
+
+  if (date === (options.fallback ?? "-")) return date;
+
+  const time = formatTime(timeSource, { fallback: "" });
+
+  return time ? `${date} ${time}` : date;
+}
+
 export function formatAfghanMonth(value) {
   return value ? String(value).slice(0, 7) : "-";
 }

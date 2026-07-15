@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
+import { formatDateTime } from "../utils/afghanDate";
 import "./TowerAssets.css";
 
 const emptyForm = {
@@ -54,7 +56,7 @@ function TrashIcon() {
 function TowerAssets() {
   const [towerAssets, setTowerAssets] = useJsonCollection("towerAssets");
   const [assets] = useJsonCollection("assets");
-
+  const navigate = useNavigate();
   const [formData, setFormData] = useState(emptyForm);
   const [showModal, setShowModal] = useState(false);
   const [editIndex, setEditIndex] = useState(null);
@@ -475,7 +477,9 @@ const openEditModal = (index) => {
           </span>
         </td>
 
-        <td>{record.issueDate || "-"}</td>
+        <td>
+          {formatDateTime(record.issueDate, record.createdAt || record.updatedAt)}
+        </td>
 
         <td>
           <span className={getStatusClass(record.installationStatus)}>
@@ -505,6 +509,17 @@ const openEditModal = (index) => {
                   left: `${actionMenuPosition.left}px`,
                 }}
               >
+
+                <button
+                    type="button"
+                    onClick={() => {
+                      navigate(`/tower-assets/${record.id}/transfer`);
+                      setOpenAction(null);
+                    }}
+                  >
+                    <span>↔</span>
+                    <span>Transfer Asset</span>
+                  </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -779,7 +794,12 @@ const openEditModal = (index) => {
 
         <div>
           <span>Issue Date</span>
-          <strong>{detailRecord.issueDate || "-"}</strong>
+          <strong>
+            {formatDateTime(
+              detailRecord.issueDate,
+              detailRecord.createdAt || detailRecord.updatedAt
+            )}
+          </strong>
         </div>
 
         <div>
@@ -882,7 +902,15 @@ const openEditModal = (index) => {
         <div><span>Serial Number</span><strong>{assetDetailRecord.serialNumber || "-"}</strong></div>
         <div><span>Quantity</span><strong>{assetDetailRecord.quantity || 1}</strong></div>
         <div><span>Unit Price</span><strong>{assetDetailRecord.unitPrice || 0} AFN</strong></div>
-        <div><span>Purchase Date</span><strong>{assetDetailRecord.purchaseDate || "-"}</strong></div>
+        <div>
+          <span>Purchase Date</span>
+          <strong>
+            {formatDateTime(
+              assetDetailRecord.purchaseDate,
+              assetDetailRecord.createdAt || assetDetailRecord.updatedAt
+            )}
+          </strong>
+        </div>
         <div><span>Supplier</span><strong>{assetDetailRecord.supplierName || "-"}</strong></div>
         <div><span>Location</span><strong>{assetDetailRecord.location || "-"}</strong></div>
         <div><span>Status</span><strong>{assetDetailRecord.status || "-"}</strong></div>
