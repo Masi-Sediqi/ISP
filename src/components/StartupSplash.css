@@ -5,7 +5,7 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #000000;
+  background: #010103;
   color: #ffffff;
   pointer-events: none;
   opacity: 1;
@@ -21,6 +21,7 @@
 }
 
 .startup-splash-background,
+.startup-splash-track,
 .startup-splash-tile,
 .startup-splash-overlay {
   position: absolute;
@@ -29,7 +30,7 @@
 
 .startup-splash-background {
   opacity: 0;
-  transform: scale(1.01);
+  transform: scale(1.08);
   transition:
     opacity 450ms ease,
     transform 900ms ease;
@@ -40,27 +41,36 @@
 }
 
 .startup-splash-closing .startup-splash-background {
-  transform: scale(1.035);
+  transform: scale(1.12);
+}
+
+.startup-splash-track {
+  display: flex;
+  width: 240vw;
+  height: 100%;
+  transform: translate3d(0, 0, 0);
+  animation: startup-water-drift 18s linear infinite;
 }
 
 .startup-splash-tile {
-  width: 100%;
+  flex: 0 0 120vw;
+  min-width: 120vw;
   height: 100%;
   background-position: center center;
   background-repeat: no-repeat;
   background-size: cover;
-  filter: saturate(1.02) contrast(1.02);
+  filter: grayscale(1) brightness(0.62) contrast(1.55);
 }
 
 .startup-splash-overlay {
   background:
-    radial-gradient(circle at center, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.52) 60%, rgba(255, 255, 255, 0.82)),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.74));
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.06), rgba(1, 1, 3, 0.08) 28%, rgba(1, 1, 3, 0.54) 74%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.78), rgba(4, 4, 12, 0.18) 45%, rgba(0, 0, 0, 0.82));
 }
 
 .startup-splash-content {
   position: absolute;
-  top: 76%;
+  top: 52%;
   left: 50%;
   display: flex;
   width: min(92vw, 760px);
@@ -73,32 +83,43 @@
 }
 
 .startup-splash-content span {
-  color: rgba(15, 23, 42, 0.68);
-  font-size: clamp(11px, 1.1vw, 13px);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(10px, 0.9vw, 13px);
   font-weight: 500;
-  letter-spacing: 3px;
+  letter-spacing: 2.8px;
   line-height: 1.3;
+  text-transform: uppercase;
 }
 
 .startup-splash-content strong {
-  margin-top: 12px;
-  color: #050505;
-  font-size: clamp(34px, 5.4vw, 58px);
+  margin-top: 15px;
+  color: #ffffff;
+  font-size: clamp(34px, 4.2vw, 56px);
   font-weight: 900;
-  letter-spacing: clamp(4px, 0.75vw, 8px);
+  letter-spacing: 10px;
   line-height: 1.08;
   text-shadow:
-    0 2px 10px rgba(255, 255, 255, 0.85),
-    0 16px 36px rgba(15, 23, 42, 0.14);
+    0 0 18px rgba(255, 255, 255, 0.55),
+    0 12px 34px rgba(0, 0, 0, 0.48);
+}
+
+.startup-splash-content p {
+  max-width: min(420px, 84vw);
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: clamp(12px, 1vw, 15px);
+  font-weight: 400;
+  line-height: 1.45;
 }
 
 .startup-splash-line {
   position: relative;
-  width: min(220px, 44vw);
-  height: 1px;
-  margin-top: 28px;
+  width: min(230px, 44vw);
+  height: 3px;
+  margin-top: 42px;
   overflow: hidden;
-  background: rgba(15, 23, 42, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .startup-splash-line i {
@@ -108,8 +129,18 @@
   display: block;
   width: 42%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.8), transparent);
-  animation: startup-loading-line 1.55s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.88), transparent);
+  animation: startup-loading-line 1.45s ease-in-out infinite;
+}
+
+@keyframes startup-water-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-120vw, 0, 0);
+  }
 }
 
 @keyframes startup-content-in {
@@ -136,7 +167,7 @@
 
 @media (max-width: 640px) {
   .startup-splash-content strong {
-    letter-spacing: 4px;
+    letter-spacing: 5px;
   }
 
   .startup-splash-line {
@@ -147,9 +178,9 @@
 @media (prefers-reduced-motion: reduce) {
   .startup-splash,
   .startup-splash-background,
+  .startup-splash-track,
   .startup-splash-content,
   .startup-splash-line i {
     animation: none !important;
   }
-
 }

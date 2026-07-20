@@ -56,6 +56,11 @@ const CustomerIssueDevice = lazy(() => import("./pages/CustomerIssueDevice"));
 const TowerAssetDetails = lazy(() => import("./pages/TowerAssetDetails"));
 const HelpCenter = lazy(() => import("./pages/HelpCenter"));
 const Developer = lazy(() => import("./pages/Developer"));
+const TermsPrivacy = lazy(
+  () => import("./pages/TermsPrivacy")
+);
+const FAQ = lazy(() => import("./pages/FAQ"));
+const UserGuide = lazy(() => import("./pages/UserGuide"));
 
 const defaultAdminAccount = {
   id: "default-admin",
@@ -457,47 +462,17 @@ function App() {
 
 <Route
   path="/faq"
-  element={
-    <ModulePlaceholder
-      title="Frequently Asked Questions"
-      description="Answers to common questions about the system."
-      items={[
-        "How to register assets",
-        "How to transfer devices",
-        "How financial records are linked",
-      ]}
-    />
-  }
+  element={<FAQ />}
 />
 
 <Route
   path="/user-guide"
-  element={
-    <ModulePlaceholder
-      title="User Guide"
-      description="Learn how to use every module of the system."
-      items={[
-        "Dashboard guide",
-        "Inventory guide",
-        "Customer and tower management guide",
-      ]}
-    />
-  }
+  element={<UserGuide />}
 />
 
 <Route
   path="/terms-privacy"
-  element={
-    <ModulePlaceholder
-      title="Terms & Privacy"
-      description="System terms, privacy, and data usage information."
-      items={[
-        "Terms of use",
-        "Privacy policy",
-        "Data protection",
-      ]}
-    />
-  }
+  element={<TermsPrivacy />}
 />
 
               <Route

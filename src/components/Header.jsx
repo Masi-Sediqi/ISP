@@ -15,7 +15,6 @@ import {
   Trash2,
   User,
   Users,
-  Volume2,
   Wrench,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -207,7 +206,7 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
   return (
     <div className="top-actions">
         <Link className="header-account-link" to="/accounts">
-          <Users size={17} />
+          <Users size={19} strokeWidth={1.9} />
           Accounts
         </Link>
 
@@ -217,26 +216,40 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
             onClick={() => setOpenMenu(openMenu === "alerts" ? null : "alerts")}
             aria-label="Alerts"
           >
-            <Bell size={18} />
+            <Bell size={21} strokeWidth={1.9} />
             {alertCount > 0 && <span className="alert-count">{alertCount}</span>}
           </button>
 
           {openMenu === "alerts" && (
             <div className="dropdown alert-dropdown notification-dropdown">
               <div className="notification-dropdown-header">
-                <strong>Notifications</strong>
-                <div>
-                  <button type="button" aria-label="Sound">
-                    <Volume2 size={15} />
-                  </button>
-                  <button type="button" aria-label="Mark all as read">
-                    <CheckCheck size={15} />
-                  </button>
-                  <button type="button" aria-label="Clear notifications">
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
+  <div className="notification-dropdown-title">
+    <strong>Notifications</strong>
+
+    {alertCount > 0 && (
+      <span>{alertCount}</span>
+    )}
+  </div>
+
+  <div className="notification-header-actions">
+    <button
+      type="button"
+      aria-label="Mark all notifications as read"
+      title="Mark all as read"
+    >
+      <CheckCheck size={14} />
+    </button>
+
+    <button
+      type="button"
+      className="notification-clear-btn"
+      aria-label="Clear all notifications"
+      title="Clear notifications"
+    >
+      <Trash2 size={14} />
+    </button>
+  </div>
+</div>
 
               {notificationGroups.length > 0 ? (
                 <>
@@ -256,19 +269,29 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
                     {notificationItems.slice(0, 8).map((item, index) => {
                       const Icon = item.icon;
                       return (
-                        <div key={`${item.groupTitle}-${index}`} className="notification-item">
-                          <span className="notification-icon">
-                            <Icon size={16} />
-                          </span>
-                          <div>
-                            <strong>{item.title}</strong>
-                            <p>{item.description}</p>
-                            <small>less than a minute ago</small>
-                          </div>
-                          <button type="button" aria-label="Remove notification">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                        <div
+  key={`${item.groupTitle}-${index}`}
+  className="notification-item"
+>
+  <span className="notification-icon">
+    <Icon size={15} strokeWidth={1.9} />
+  </span>
+
+  <div className="notification-item-content">
+    <strong>{item.title}</strong>
+    <p>{item.description}</p>
+    <small>Less than a minute ago</small>
+  </div>
+
+  <button
+    type="button"
+    className="notification-remove-btn"
+    aria-label={`Remove ${item.title}`}
+    title="Remove notification"
+  >
+    <Trash2 size={13} />
+  </button>
+</div>
                       );
                     })}
                   </div>
@@ -281,12 +304,26 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
         </div>
 
         <button
-          className="icon-btn"
-          onClick={toggleDarkMode}
-          aria-label="Toggle display mode"
-        >
-          <Moon size={18} />
-        </button>
+  type="button"
+  className="icon-btn header-theme-btn"
+  onClick={toggleDarkMode}
+  aria-label={
+    darkMode
+      ? "Switch to light mode"
+      : "Switch to dark mode"
+  }
+  title={
+    darkMode
+      ? "Light mode"
+      : "Dark mode"
+  }
+>
+  {darkMode ? (
+    <Sun size={21} strokeWidth={1.9} />
+  ) : (
+    <Moon size={21} strokeWidth={1.9} />
+  )}
+</button>
 
         <div className="header-menu profile-menu">
           <button
@@ -294,7 +331,7 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
             onClick={() => setOpenMenu(openMenu === "profile" ? null : "profile")}
             aria-label="Profile"
           >
-            <User size={18} />
+          <User size={21} strokeWidth={1.9} />
           </button>
 
           {openMenu === "profile" && (

@@ -42,17 +42,24 @@ function StartupSplash() {
       <div
         className={`startup-splash-background${isImageReady ? " startup-splash-background-ready" : ""}`}
       >
-        <div
-          className="startup-splash-tile"
-          style={{ backgroundImage: `url(${backgroundImage})` }}
-        />
+        <div className="startup-splash-track">
+          <div
+            className="startup-splash-tile"
+            style={{ backgroundImage: `url(${backgroundImage})` }}
+          />
+          <div
+            className="startup-splash-tile"
+            style={{ backgroundImage: `url(${backgroundImage})` }}
+          />
+        </div>
       </div>
 
       <div className="startup-splash-overlay" />
 
       <div className="startup-splash-content">
-        <span>ASSET & INVENTORY MANAGEMENT</span>
-        <strong>ISP</strong>
+        <span>POWERED BY</span>
+        <strong>AFGHAN POWER</strong>
+        <p>Asset & Inventory Management</p>
         <div className="startup-splash-line">
           <i />
         </div>

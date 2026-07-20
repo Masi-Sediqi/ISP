@@ -593,7 +593,7 @@ function Reports() {
         <body>
           <main class="report-print-shell">
             <header class="print-header">
-              <div class="print-brand-left">${logoHtml}<span>Logo</span></div>
+              <div class="print-brand-left">${logoHtml}</div>
               <div class="print-title"><h1>${escapeHtml(activeMeta.title)}</h1><p>${escapeHtml(activeMeta.description)}</p></div>
               <div class="print-system">${escapeHtml(systemName)}</div>
             </header>
