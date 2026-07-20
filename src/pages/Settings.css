@@ -24,8 +24,25 @@
 .settings-preview-copy div { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 44px; padding: 10px 12px; border: 1px solid #eeeae2; border-radius: 12px; background: #faf9f6; }
 .settings-preview-copy span { color: #777; font-size: 12px; }
 .settings-preview-copy strong { font-size: 13px; text-align: left; }
-.settings-save, .settings-remove { min-height: 42px; border: 0; border-radius: 11px; font-family: inherit; cursor: pointer; }
+.settings-file-control { min-height: 46px; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 10px 12px; background: #faf9f6; display: flex; align-items: center; gap: 10px; color: #475569; cursor: pointer; }
+.settings-file-control input { min-height: auto; border: 0; padding: 0; background: transparent; cursor: pointer; }
+.settings-save, .settings-remove { min-height: 42px; border: 0; border-radius: 11px; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .settings-save { background: #252525; color: #fff; }
 .settings-remove { background: #fee2e2; color: #b91c1c; }
 body.dark-mode .settings-card, body.dark-mode .settings-tabs { background: #1e293b; border-color: #334155; }
+.settings-data-card { max-width: 860px; padding: 24px; background: #fff; border: 1px solid #eeeae2; border-radius: 20px; }
+.settings-data-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.settings-data-actions button, .settings-data-actions label, .settings-clear-zone button { min-height: 46px; border: 0; border-radius: 12px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-size: 13px; font-weight: 850; cursor: pointer; }
+.settings-data-actions button { background: #252525; color: #fff; }
+.settings-data-actions label { background: #eef2ff; color: #3730a3; }
+.settings-data-actions input { display: none; }
+.settings-data-actions button:disabled, .settings-data-actions label.disabled, .settings-clear-zone button:disabled, .settings-clear-zone input:disabled { opacity: .55; cursor: not-allowed; }
+.settings-clear-zone { display: grid; grid-template-columns: minmax(0, 1fr) 180px 150px; gap: 12px; align-items: center; padding: 16px; border: 1px solid #fecaca; border-radius: 14px; background: #fff1f2; }
+.settings-clear-zone > div { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 8px; color: #991b1b; }
+.settings-clear-zone span { color: #7f1d1d; font-size: 12px; }
+.settings-clear-zone input { min-height: 42px; border: 1px solid #fecaca; border-radius: 10px; padding: 0 12px; background: #fff; font-family: inherit; font-weight: 800; }
+.settings-clear-zone button { background: #dc2626; color: #fff; }
+body.dark-mode .settings-data-card { background: #1e293b; border-color: #334155; }
+body.dark-mode .settings-clear-zone { background: rgba(127, 29, 29, .25); border-color: #7f1d1d; }
 @media (max-width: 800px) { .settings-card { grid-template-columns: 1fr; } .settings-preview:not(.tab-visible) { display: none; } }
+@media (max-width: 800px) { .settings-data-actions, .settings-clear-zone { grid-template-columns: 1fr; } .settings-clear-zone > div { grid-template-columns: auto 1fr; } .settings-clear-zone span { grid-column: 1 / -1; } }

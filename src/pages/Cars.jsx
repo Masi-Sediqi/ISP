@@ -119,7 +119,7 @@ function Cars() {
     (car.color || "").includes(search) ||
     (car.chassisNo || car.phone || "").includes(search)
   );
-  const { page, setPage, totalPages, pageItems, pageSize } = useTablePagination(filteredCars, search);
+  const { page, setPage, totalPages, pageItems, pageSize, setPageSize } = useTablePagination(filteredCars, search);
 
   const activeCars = cars.filter((car) => car.status === "فعال").length;
   const repairCars = cars.filter((car) => car.status === "در ترمیم").length;
@@ -260,7 +260,7 @@ function Cars() {
             </tbody>
           </table>
         </div>
-        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filteredCars.length} pageSize={pageSize} />
+        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filteredCars.length} pageSize={pageSize} setPageSize={setPageSize} />
       </div>
 
       {showModal && (

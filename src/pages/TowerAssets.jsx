@@ -12,7 +12,6 @@ const emptyForm = {
   towerLocation: "",
   issueDate: "",
   installationStatus: "Pending",
-  installationCost: "",
   responsiblePerson: "",
   notes: "",
 };
@@ -63,6 +62,7 @@ function TowerAssets() {
   const [search, setSearch] = useState("");
 
 const [assetSearch, setAssetSearch] = useState("");
+const [assetTrackingFilter, setAssetTrackingFilter] = useState("All");
 const [selectedAssets, setSelectedAssets] = useState([]);
 const [assetDetailRecord, setAssetDetailRecord] = useState(null);
 
@@ -72,7 +72,6 @@ const [assetDetailRecord, setAssetDetailRecord] = useState(null);
     left: 0,
   });
 
-  const [detailRecord, setDetailRecord] = useState(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteIndex, setDeleteIndex] = useState(null);
 
@@ -93,11 +92,33 @@ const [assetDetailRecord, setAssetDetailRecord] = useState(null);
       );
     });
 
-    const assetKey = (asset) =>
-  String(asset?.assetId || asset?.id || asset?.serialNumber || asset?.macAddress || "");
+const getTrackingMode = (asset) =>
+  String(asset?.identityTracking || "").toLowerCase().includes("individual")
+    ? "Individual"
+    : "Single Model";
+
+const getAssetUnit = (asset) =>
+  asset?.purchaseUsageUnit || asset?.purchaseUnit || asset?.usageUnit || "Piece";
+
+const assetKey = (asset) =>
+  String(
+    asset?.selectionKey ||
+      asset?.identityRecordId ||
+      asset?.id ||
+      asset?.assetId ||
+      asset?.serialNumber ||
+      asset?.macAddress ||
+      ""
+  );
+
+const getRecordQuantity = (asset) => Number(asset?.quantity || asset?.assignedQuantity || 0);
 
 const normalizeTowerAsset = (asset) => ({
   id: asset.id || Date.now() + Math.random(),
+  selectionKey: asset.selectionKey || assetKey(asset),
+  sourceAssetRecordId: asset.sourceAssetRecordId || asset.sourceAssetId || asset.id || "",
+  identityRecordId: asset.identityRecordId || "",
+  identityTracking: asset.identityTracking || getTrackingMode(asset),
   assetId: asset.assetId || "",
   deviceName: asset.deviceName || "",
   category: asset.category || "",
@@ -110,7 +131,9 @@ const normalizeTowerAsset = (asset) => ({
   purchaseDate: asset.purchaseDate || "",
   supplierName: asset.supplierName || "",
   unitPrice: Number(asset.unitPrice || 0),
-  quantity: Number(asset.quantity || 1),
+  purchaseUsageUnit: getAssetUnit(asset),
+  availableQuantity: Number(asset.availableQuantity || 0),
+  quantity: Math.max(Number(asset.quantity || 1), 0),
   notes: asset.notes || "",
 });
 
@@ -139,6 +162,10 @@ const isAssetAssignedToAnotherTower = (asset) => {
   const key = assetKey(asset);
   if (!key) return false;
 
+  if (asset.identityTracking === "Single Model") {
+    return false;
+  }
+
   return towerAssets.some((record, index) => {
     if (editIndex !== null && index === editIndex) return false;
 
@@ -148,8 +175,112 @@ const isAssetAssignedToAnotherTower = (asset) => {
   });
 };
 
+const assignedQuantityForSingleAsset = (asset) => {
+  const key = String(asset.assetId || asset.id || "");
 
-const filteredAssets = assets.filter((asset) => {
+  return towerAssets.reduce((sum, record, index) => {
+    if (editIndex !== null && index === editIndex) return sum;
+
+    return (
+      sum +
+      getRecordAssets(record).reduce((recordSum, recordAsset) => {
+        const sameAsset =
+          String(recordAsset.assetId || recordAsset.sourceAssetRecordId || "") === key ||
+          String(recordAsset.sourceAssetRecordId || "") === String(asset.id || "");
+
+        if (!sameAsset || getTrackingMode(recordAsset) !== "Single Model") {
+          return recordSum;
+        }
+
+        return recordSum + getRecordQuantity(recordAsset);
+      }, 0)
+    );
+  }, 0);
+};
+
+const buildAvailableAssetOptions = () => {
+  const options = [];
+
+  assets.forEach((asset) => {
+    const trackingMode = getTrackingMode(asset);
+    const unit = getAssetUnit(asset);
+    const assetQuantity = Number(asset.quantity || 0);
+
+    if (assetQuantity <= 0) {
+      return;
+    }
+
+    if (assetTrackingFilter !== "All" && assetTrackingFilter !== trackingMode) {
+      return;
+    }
+
+    if (trackingMode === "Individual") {
+      const identityRecords = Array.isArray(asset.identityRecords)
+        ? asset.identityRecords
+        : [];
+
+      identityRecords.forEach((record, index) => {
+        const option = {
+          ...asset,
+          ...record,
+          id: record.id || `${asset.assetId || asset.id}-identity-${index}`,
+          selectionKey: `${asset.assetId || asset.id}-identity-${record.id || index}`,
+          sourceAssetRecordId: asset.id || asset.assetId || "",
+          identityRecordId: record.id || "",
+          identityTracking: "Individual",
+          assetId: asset.assetId || "",
+          deviceName: asset.deviceName || "",
+          category: asset.category || "",
+          brand: asset.brand || "",
+          status: record.status || asset.status || "In Stock",
+          purchaseUsageUnit: unit,
+          availableQuantity: 1,
+          quantity: 1,
+          unitPrice: Number(record.unitPrice || asset.unitPrice || 0),
+        };
+
+        if (!isAssetAssignedToAnotherTower(option)) {
+          options.push(option);
+        }
+      });
+
+      if (identityRecords.length === 0 && assetQuantity > 0) {
+        options.push({
+          ...asset,
+          selectionKey: `${asset.assetId || asset.id}-individual-fallback`,
+          sourceAssetRecordId: asset.id || asset.assetId || "",
+          identityTracking: "Individual",
+          purchaseUsageUnit: unit,
+          availableQuantity: assetQuantity,
+          quantity: 1,
+        });
+      }
+
+      return;
+    }
+
+    const availableQuantity =
+      assetQuantity - assignedQuantityForSingleAsset(asset);
+
+    if (availableQuantity <= 0) {
+      return;
+    }
+
+    options.push({
+      ...asset,
+      selectionKey: `${asset.assetId || asset.id}-single`,
+      sourceAssetRecordId: asset.id || asset.assetId || "",
+      identityTracking: "Single Model",
+      purchaseUsageUnit: unit,
+      availableQuantity,
+      quantity: Math.min(1, availableQuantity),
+    });
+  });
+
+  return options;
+};
+
+const filteredAssets = buildAvailableAssetOptions().filter((asset) => {
   const keyword = assetSearch.toLowerCase();
 
   return (
@@ -160,6 +291,7 @@ const filteredAssets = assets.filter((asset) => {
     (asset.model || "").toLowerCase().includes(keyword) ||
     (asset.macAddress || "").toLowerCase().includes(keyword) ||
     (asset.serialNumber || "").toLowerCase().includes(keyword) ||
+    (asset.identityTracking || "").toLowerCase().includes(keyword) ||
     (asset.status || "").toLowerCase().includes(keyword)
   );
 });
@@ -180,6 +312,7 @@ const resetForm = () => {
   setEditIndex(null);
   setSelectedAssets([]);
   setAssetSearch("");
+  setAssetTrackingFilter("All");
 };
 
   const openCreateModal = () => {
@@ -221,7 +354,16 @@ const toggleSelectedAsset = (asset) => {
     return;
   }
 
-  setSelectedAssets([...selectedAssets, asset]);
+  setSelectedAssets([
+    ...selectedAssets,
+    {
+      ...asset,
+      quantity:
+        asset.identityTracking === "Single Model"
+          ? Math.min(Number(asset.quantity || 1), Number(asset.availableQuantity || 1))
+          : 1,
+    },
+  ]);
 };
 
 // const isAssetSelected = (asset) => {
@@ -231,12 +373,29 @@ const toggleSelectedAsset = (asset) => {
 // };
 
 const isAssetSelected = (asset) => {
-  const assetKey = asset.assetId || asset.id || asset.serialNumber || asset.macAddress;
+  const key = assetKey(asset);
 
   return selectedAssets.some((item) => {
-    const itemKey = item.assetId || item.id || item.serialNumber || item.macAddress;
-    return String(itemKey) === String(assetKey);
+    return String(assetKey(item)) === String(key);
   });
+};
+
+const updateSelectedAssetQuantity = (asset, value) => {
+  const key = assetKey(asset);
+  const availableQuantity = Number(asset.availableQuantity || 0);
+  const nextQuantity =
+    value === "" ? "" : Math.min(Math.max(Number(value || 0), 0), availableQuantity);
+
+  setSelectedAssets((previous) =>
+    previous.map((item) =>
+      assetKey(item) === key
+        ? {
+            ...item,
+            quantity: nextQuantity,
+          }
+        : item
+    )
+  );
 };
 
   const towerDeviceExists = (data) => {
@@ -265,23 +424,6 @@ const isAssetSelected = (asset) => {
 const handleSubmit = async (event) => {
   event.preventDefault();
 
-  if (selectedAssets.length === 0) {
-    notify("Please select at least one asset for this tower.", "error");
-    return;
-  }
-
-  const duplicatedAsset = selectedAssets.find((asset) =>
-    isAssetAssignedToAnotherTower(asset)
-  );
-
-  if (duplicatedAsset) {
-    notify(
-      `Asset ${duplicatedAsset.assetId || duplicatedAsset.deviceName} is already assigned to another tower.`,
-      "error"
-    );
-    return;
-  }
-
   const currentRecord = editIndex !== null ? towerAssets[editIndex] : null;
 
   const cleanData = {
@@ -290,11 +432,11 @@ const handleSubmit = async (event) => {
     towerLocation: formData.towerLocation.trim(),
     issueDate: formData.issueDate,
     installationStatus: formData.installationStatus,
-    installationCost: Number(formData.installationCost || 0),
+    installationCost: Number(currentRecord?.installationCost || 0),
     responsiblePerson: formData.responsiblePerson.trim(),
     notes: formData.notes.trim(),
-    assets: selectedAssets.map(normalizeTowerAsset),
-    assetCount: selectedAssets.length,
+    assets: currentRecord?.assets || [],
+    assetCount: currentRecord?.assetCount || 0,
     createdAt: currentRecord?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -332,7 +474,6 @@ const openEditModal = (index) => {
     towerLocation: record.towerLocation || "",
     issueDate: record.issueDate || "",
     installationStatus: record.installationStatus || "Pending",
-    installationCost: String(record.installationCost || ""),
     responsiblePerson: record.responsiblePerson || "",
     notes: record.notes || "",
   });
@@ -510,20 +651,16 @@ const openEditModal = (index) => {
                 }}
               >
 
-                <button
+                {false && <button
                     type="button"
-                    onClick={() => {
-                      navigate(`/tower-assets/${record.id}/transfer`);
-                      setOpenAction(null);
-                    }}
                   >
                     <span>↔</span>
                     <span>Transfer Asset</span>
-                  </button>
+                  </button>}
                 <button
                   type="button"
                   onClick={() => {
-                    setDetailRecord(record);
+                    navigate(`/tower-assets/${record.id}/details`);
                     setOpenAction(null);
                   }}
                 >
@@ -569,6 +706,7 @@ const openEditModal = (index) => {
           setPage={towerPagination.setPage}
           totalItems={filteredTowerAssets.length}
           pageSize={towerPagination.pageSize}
+          setPageSize={towerPagination.setPageSize}
         />
       </div>
 
@@ -610,89 +748,6 @@ const openEditModal = (index) => {
                   />
                 </div>
 
-                <div className="tower-form-group tower-form-full">
-  <div className="tower-asset-picker-header">
-    <div>
-      <label>Select Existing Assets</label>
-      <p>Select one or multiple assets for this tower.</p>
-    </div>
-
-    <input
-      value={assetSearch}
-      onChange={(event) => setAssetSearch(event.target.value)}
-      placeholder="Search asset by ID, device, MAC, serial..."
-    />
-  </div>
-
-  <div className="tower-selected-summary">
-    Selected Assets: <strong>{selectedAssets.length}</strong>
-  </div>
-
-  <div className="tower-asset-picker">
-    <table>
-      <thead>
-        <tr>
-          <th>Select</th>
-          <th>Asset ID</th>
-          <th>Device Name</th>
-          <th>Category</th>
-          <th>MAC Address</th>
-          <th>Serial Number</th>
-          <th>Status</th>
-          <th>Full Detail</th>
-        </tr>
-      </thead>
-
-      <tbody>
-        {filteredAssets.map((asset, index) => {
-          const isSelected = isAssetSelected(asset);
-
-          return (
-            <tr
-              key={asset.id || asset.assetId || index}
-              className={isSelected ? "selected-asset-row" : ""}
-            >
-              <td>
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleSelectedAsset(asset)}
-                />
-              </td>
-
-              <td>{asset.assetId || "-"}</td>
-              <td>{asset.deviceName || "-"}</td>
-              <td>{asset.category || "-"}</td>
-              <td>{asset.macAddress || "-"}</td>
-              <td>{asset.serialNumber || "-"}</td>
-              <td>{asset.status || "Unknown"}</td>
-
-              <td>
-                <button
-                  type="button"
-                  className="tower-detail-small-btn"
-                  onClick={() => setAssetDetailRecord(asset)}
-                >
-                  Full Detail
-                </button>
-              </td>
-            </tr>
-          );
-        })}
-
-        {filteredAssets.length === 0 && (
-          <tr>
-            <td colSpan="8" className="tower-asset-picker-empty">
-              No asset found.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-
                 <div className="tower-form-group">
                   <label>Issue Date</label>
                   <input
@@ -717,19 +772,6 @@ const openEditModal = (index) => {
                     <option value="Maintenance">Maintenance</option>
                     <option value="Removed">Removed</option>
                   </select>
-                </div>
-
-
-                <div className="tower-form-group">
-                    <label>Installation Cost</label>
-                    <input
-                        type="number"
-                        min="0"
-                        name="installationCost"
-                        value={formData.installationCost}
-                        onChange={handleChange}
-                        placeholder="Example: 2500"
-                    />
                 </div>
 
                 <div className="tower-form-group">
@@ -767,7 +809,7 @@ const openEditModal = (index) => {
         </div>
       )}
 
-      {detailRecord && (
+      {false && (
   <div className="tower-detail-backdrop" onClick={() => setDetailRecord(null)}>
     <div className="tower-detail-modal" onClick={(event) => event.stopPropagation()}>
       <div className="tower-detail-header">

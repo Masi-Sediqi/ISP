@@ -1,0 +1,888 @@
+.agent-page {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 330px;
+  gap: 18px;
+  height: calc(100vh - 122px);
+  min-height: 660px;
+}
+
+.agent-history,
+.agent-chat,
+.agent-suggestions {
+  min-height: 0;
+  border: 1px solid #ece8df;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.agent-history,
+.agent-suggestions {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-panel-header,
+.agent-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px;
+  border-bottom: 1px solid #eeeae2;
+}
+
+.agent-panel-header h2,
+.agent-chat-header h1 {
+  margin: 4px 0 0;
+  color: #111827;
+}
+
+.agent-panel-header h2 {
+  font-size: 18px;
+}
+
+.agent-chat-header h1 {
+  font-size: 28px;
+}
+
+.agent-chat-header p {
+  margin: 5px 0 0;
+  color: #5b6b86;
+  font-size: 14px;
+}
+
+.agent-kicker {
+  display: inline-flex;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-panel-header button,
+.agent-history-actions button,
+.agent-feedback button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #ece8df;
+  border-radius: 8px;
+  background: #f7f5f1;
+  color: #111827;
+  cursor: pointer;
+}
+
+.agent-history-list,
+.agent-suggestion-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.agent-history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.agent-history-item.active {
+  background: #f1f5ff;
+}
+
+.agent-history-item > button {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #111827;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-history-item strong,
+.agent-history-item small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-history-item small {
+  margin-top: 4px;
+  color: #6f6f6f;
+}
+
+.agent-history-item input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid #ded8cc;
+  border-radius: 8px;
+  padding: 0 10px;
+}
+
+.agent-history-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.agent-history-actions button {
+  width: 30px;
+  height: 30px;
+}
+
+.agent-chat {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-messages {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px;
+  background:
+    linear-gradient(#ffffffd8, #ffffffd8),
+    repeating-linear-gradient(0deg, transparent, transparent 31px, #eef2f7 32px);
+}
+
+.agent-message {
+  display: flex;
+  margin-bottom: 14px;
+}
+
+.agent-message.user {
+  justify-content: flex-end;
+}
+
+.agent-message.assistant {
+  justify-content: flex-start;
+}
+
+.agent-message-bubble {
+  width: fit-content;
+  max-width: min(720px, 78%);
+  padding: 13px 15px;
+  border-radius: 8px;
+  border: 1px solid #ece8df;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+}
+
+.agent-message.user .agent-message-bubble {
+  border-color: #4f46e5;
+  background: #4f46e5;
+  color: #fff;
+}
+
+.agent-message-bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.agent-feedback {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.agent-feedback button {
+  width: 30px;
+  height: 30px;
+}
+
+.agent-feedback button.active {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.agent-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid #eeeae2;
+  background: #ffffff;
+}
+
+.agent-composer textarea {
+  width: 100%;
+  min-height: 56px;
+  max-height: 140px;
+  resize: vertical;
+  border: 1px solid #ded8cc;
+  border-radius: 8px;
+  padding: 14px;
+  color: #111827;
+  background: #fffdf9;
+}
+
+.agent-composer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 110px;
+  height: 56px;
+  border: 0;
+  border-radius: 8px;
+  background: #202020;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.agent-composer button:disabled,
+.agent-suggestion-section button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.agent-suggestion-section {
+  margin-bottom: 18px;
+}
+
+.agent-suggestion-section h3 {
+  margin: 0 0 9px;
+  color: #111827;
+  font-size: 14px;
+}
+
+.agent-suggestion-section button {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid #ece8df;
+  border-radius: 8px;
+  background: #fbfaf7;
+  color: #111827;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-suggestion-section button:hover {
+  border-color: #4f46e5;
+  color: #3730a3;
+  background: #f5f7ff;
+}
+
+body.dark-mode .agent-kicker,
+body.dark-mode .agent-history-item.active,
+body.dark-mode .agent-feedback button.active,
+body.dark-mode .agent-suggestion-section button:hover {
+  background: rgba(79, 70, 229, 0.18);
+  color: #c7d2fe;
+}
+
+body.dark-mode .agent-messages {
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.92)),
+    repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(148, 163, 184, 0.15) 32px);
+}
+
+@media (max-width: 1300px) {
+  .agent-page {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .agent-suggestions {
+    grid-column: 1 / -1;
+    max-height: 360px;
+  }
+}
+
+@media (max-width: 900px) {
+  .agent-page {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .agent-history,
+  .agent-suggestions {
+    max-height: 360px;
+  }
+
+  .agent-chat {
+    min-height: 620px;
+  }
+
+  .agent-composer {
+    grid-template-columns: 1fr;
+  }
+}
+/* =========================================================
+   AGENT PAGE — COMPLETE LIGHT / DARK MODE SUPPORT
+   Add this code at the END of Agent.css
+========================================================= */
+
+.agent-page {
+  --agent-text: #111827;
+  --agent-heading: #111827;
+  --agent-muted: #5b6b86;
+  --agent-soft-muted: #6f6f6f;
+
+  --agent-card-bg: #ffffff;
+  --agent-card-border: #ece8df;
+  --agent-header-border: #eeeae2;
+
+  --agent-input-bg: #fffdf9;
+  --agent-input-border: #ded8cc;
+  --agent-input-text: #111827;
+  --agent-placeholder: #94a3b8;
+
+  --agent-soft-bg: #f7f5f1;
+  --agent-hover-bg: #f5f7ff;
+  --agent-active-bg: #f1f5ff;
+
+  --agent-message-bg: #ffffff;
+  --agent-messages-base: rgba(255, 255, 255, 0.85);
+  --agent-grid-line: #eef2f7;
+
+  --agent-scrollbar: #cbd5e1;
+  --agent-scrollbar-hover: #94a3b8;
+
+  color: var(--agent-text);
+}
+
+
+/* =========================================================
+   DARK MODE VARIABLES
+========================================================= */
+
+html[data-theme="dark"] .agent-page,
+body[data-theme="dark"] .agent-page,
+html.dark .agent-page,
+body.dark .agent-page,
+body.dark-mode .agent-page,
+.dark-theme .agent-page {
+  --agent-text: #e5e7eb;
+  --agent-heading: #f8fafc;
+  --agent-muted: #94a3b8;
+  --agent-soft-muted: #7f8da3;
+
+  --agent-card-bg: #111827;
+  --agent-card-border: #29364d;
+  --agent-header-border: #29364d;
+
+  --agent-input-bg: #0c1422;
+  --agent-input-border: #34435a;
+  --agent-input-text: #f1f5f9;
+  --agent-placeholder: #718096;
+
+  --agent-soft-bg: #1e293b;
+  --agent-hover-bg: #1c2940;
+  --agent-active-bg: #26334e;
+
+  --agent-message-bg: #172033;
+  --agent-messages-base: rgba(12, 20, 34, 0.93);
+  --agent-grid-line: rgba(148, 163, 184, 0.11);
+
+  --agent-scrollbar: #475569;
+  --agent-scrollbar-hover: #64748b;
+}
+
+
+/* =========================================================
+   MAIN PANELS
+========================================================= */
+
+.agent-history,
+.agent-chat,
+.agent-suggestions {
+  border-color: var(--agent-card-border);
+  background: var(--agent-card-bg);
+}
+
+
+/* =========================================================
+   PANEL HEADERS
+========================================================= */
+
+.agent-panel-header,
+.agent-chat-header {
+  border-bottom-color: var(--agent-header-border);
+  background: var(--agent-card-bg);
+}
+
+.agent-panel-header h2,
+.agent-chat-header h1 {
+  color: var(--agent-heading);
+}
+
+.agent-chat-header p {
+  color: var(--agent-muted);
+}
+
+
+/* =========================================================
+   KICKER BADGES
+========================================================= */
+
+.agent-kicker {
+  border: 1px solid transparent;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+html[data-theme="dark"] .agent-kicker,
+body[data-theme="dark"] .agent-kicker,
+html.dark .agent-kicker,
+body.dark .agent-kicker,
+body.dark-mode .agent-kicker,
+.dark-theme .agent-kicker {
+  border-color: #4c5d87;
+  background: rgba(99, 102, 241, 0.18);
+  color: #c7d2fe;
+}
+
+
+/* =========================================================
+   HEADER AND SMALL ICON BUTTONS
+========================================================= */
+
+.agent-panel-header button,
+.agent-history-actions button,
+.agent-feedback button {
+  border-color: var(--agent-card-border);
+  background: var(--agent-soft-bg);
+  color: var(--agent-text);
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.agent-panel-header button:hover,
+.agent-history-actions button:hover,
+.agent-feedback button:hover {
+  border-color: #818cf8;
+  background: var(--agent-hover-bg);
+  color: #4f46e5;
+  transform: translateY(-1px);
+}
+
+html[data-theme="dark"] .agent-panel-header button:hover,
+body[data-theme="dark"] .agent-panel-header button:hover,
+html.dark .agent-panel-header button:hover,
+body.dark .agent-panel-header button:hover,
+body.dark-mode .agent-panel-header button:hover,
+.dark-theme .agent-panel-header button:hover,
+html[data-theme="dark"] .agent-history-actions button:hover,
+body[data-theme="dark"] .agent-history-actions button:hover,
+html.dark .agent-history-actions button:hover,
+body.dark .agent-history-actions button:hover,
+body.dark-mode .agent-history-actions button:hover,
+.dark-theme .agent-history-actions button:hover,
+html[data-theme="dark"] .agent-feedback button:hover,
+body[data-theme="dark"] .agent-feedback button:hover,
+html.dark .agent-feedback button:hover,
+body.dark .agent-feedback button:hover,
+body.dark-mode .agent-feedback button:hover,
+.dark-theme .agent-feedback button:hover {
+  border-color: #6879a8;
+  background: #26334e;
+  color: #c7d2fe;
+}
+
+
+/* Delete conversation button */
+.agent-history-actions button:last-child:hover {
+  border-color: #fca5a5;
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+html[data-theme="dark"] .agent-history-actions button:last-child:hover,
+body[data-theme="dark"] .agent-history-actions button:last-child:hover,
+html.dark .agent-history-actions button:last-child:hover,
+body.dark .agent-history-actions button:last-child:hover,
+body.dark-mode .agent-history-actions button:last-child:hover,
+.dark-theme .agent-history-actions button:last-child:hover {
+  border-color: #991b1b;
+  background: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
+}
+
+
+/* =========================================================
+   CONVERSATION HISTORY
+========================================================= */
+
+.agent-history-item {
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.agent-history-item:hover {
+  background: var(--agent-hover-bg);
+}
+
+.agent-history-item.active {
+  background: var(--agent-active-bg);
+}
+
+.agent-history-item > button {
+  color: var(--agent-text);
+}
+
+.agent-history-item strong {
+  color: var(--agent-heading);
+}
+
+.agent-history-item small {
+  color: var(--agent-soft-muted);
+}
+
+
+/* Rename input */
+.agent-history-item input {
+  border-color: var(--agent-input-border);
+  background: var(--agent-input-bg);
+  color: var(--agent-input-text);
+  outline: none;
+}
+
+.agent-history-item input:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+}
+
+
+/* =========================================================
+   CHAT MESSAGES BACKGROUND
+========================================================= */
+
+.agent-messages {
+  background:
+    linear-gradient(
+      var(--agent-messages-base),
+      var(--agent-messages-base)
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 31px,
+      var(--agent-grid-line) 32px
+    );
+}
+
+
+/* =========================================================
+   MESSAGE BUBBLES
+========================================================= */
+
+.agent-message-bubble {
+  border-color: var(--agent-card-border);
+  background: var(--agent-message-bg);
+  color: var(--agent-text);
+}
+
+html[data-theme="dark"] .agent-message-bubble,
+body[data-theme="dark"] .agent-message-bubble,
+html.dark .agent-message-bubble,
+body.dark .agent-message-bubble,
+body.dark-mode .agent-message-bubble,
+.dark-theme .agent-message-bubble {
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+
+/* User message */
+.agent-message.user .agent-message-bubble {
+  border-color: #4f46e5;
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .agent-message.user .agent-message-bubble,
+body[data-theme="dark"] .agent-message.user .agent-message-bubble,
+html.dark .agent-message.user .agent-message-bubble,
+body.dark .agent-message.user .agent-message-bubble,
+body.dark-mode .agent-message.user .agent-message-bubble,
+.dark-theme .agent-message.user .agent-message-bubble {
+  border-color: #6366f1;
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+
+/* Assistant message */
+html[data-theme="dark"] .agent-message.assistant .agent-message-bubble,
+body[data-theme="dark"] .agent-message.assistant .agent-message-bubble,
+html.dark .agent-message.assistant .agent-message-bubble,
+body.dark .agent-message.assistant .agent-message-bubble,
+body.dark-mode .agent-message.assistant .agent-message-bubble,
+.dark-theme .agent-message.assistant .agent-message-bubble {
+  border-color: #34435a;
+  background: #172033;
+  color: #e5e7eb;
+}
+
+
+/* =========================================================
+   FEEDBACK BUTTONS
+========================================================= */
+
+.agent-feedback button.active {
+  border-color: #4f46e5;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+html[data-theme="dark"] .agent-feedback button.active,
+body[data-theme="dark"] .agent-feedback button.active,
+html.dark .agent-feedback button.active,
+body.dark .agent-feedback button.active,
+body.dark-mode .agent-feedback button.active,
+.dark-theme .agent-feedback button.active {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.18);
+  color: #c7d2fe;
+}
+
+
+/* =========================================================
+   MESSAGE COMPOSER
+========================================================= */
+
+.agent-composer {
+  border-top-color: var(--agent-header-border);
+  background: var(--agent-card-bg);
+}
+
+.agent-composer textarea {
+  border-color: var(--agent-input-border);
+  background: var(--agent-input-bg);
+  color: var(--agent-input-text);
+  font-family: inherit;
+  outline: none;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.agent-composer textarea::placeholder {
+  color: var(--agent-placeholder);
+}
+
+.agent-composer textarea:focus {
+  border-color: #818cf8;
+  background: var(--agent-card-bg);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+}
+
+.agent-composer button {
+  transition:
+    background 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.agent-composer button:hover:not(:disabled) {
+  background: #303030;
+  box-shadow: 0 9px 20px rgba(15, 23, 42, 0.16);
+  transform: translateY(-1px);
+}
+
+html[data-theme="dark"] .agent-composer button,
+body[data-theme="dark"] .agent-composer button,
+html.dark .agent-composer button,
+body.dark .agent-composer button,
+body.dark-mode .agent-composer button,
+.dark-theme .agent-composer button {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .agent-composer button:hover:not(:disabled),
+body[data-theme="dark"] .agent-composer button:hover:not(:disabled),
+html.dark .agent-composer button:hover:not(:disabled),
+body.dark .agent-composer button:hover:not(:disabled),
+body.dark-mode .agent-composer button:hover:not(:disabled),
+.dark-theme .agent-composer button:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+
+/* =========================================================
+   SUGGESTION PANEL
+========================================================= */
+
+.agent-suggestion-section h3 {
+  color: var(--agent-heading);
+}
+
+.agent-suggestion-section button {
+  border-color: var(--agent-card-border);
+  background: var(--agent-input-bg);
+  color: var(--agent-text);
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.agent-suggestion-section button:hover:not(:disabled) {
+  border-color: #4f46e5;
+  background: var(--agent-hover-bg);
+  color: #3730a3;
+  transform: translateY(-1px);
+}
+
+html[data-theme="dark"]
+  .agent-suggestion-section
+  button:hover:not(:disabled),
+body[data-theme="dark"]
+  .agent-suggestion-section
+  button:hover:not(:disabled),
+html.dark
+  .agent-suggestion-section
+  button:hover:not(:disabled),
+body.dark
+  .agent-suggestion-section
+  button:hover:not(:disabled),
+body.dark-mode
+  .agent-suggestion-section
+  button:hover:not(:disabled),
+.dark-theme
+  .agent-suggestion-section
+  button:hover:not(:disabled) {
+  border-color: #6879a8;
+  background: #26334e;
+  color: #c7d2fe;
+}
+
+
+/* =========================================================
+   DARK MODE NATIVE CONTROLS
+========================================================= */
+
+html[data-theme="dark"] .agent-history-item input,
+body[data-theme="dark"] .agent-history-item input,
+html.dark .agent-history-item input,
+body.dark .agent-history-item input,
+body.dark-mode .agent-history-item input,
+.dark-theme .agent-history-item input,
+html[data-theme="dark"] .agent-composer textarea,
+body[data-theme="dark"] .agent-composer textarea,
+html.dark .agent-composer textarea,
+body.dark .agent-composer textarea,
+body.dark-mode .agent-composer textarea,
+.dark-theme .agent-composer textarea {
+  color-scheme: dark;
+}
+
+
+/* =========================================================
+   SCROLLBARS
+========================================================= */
+
+.agent-history-list,
+.agent-suggestion-list,
+.agent-messages,
+.agent-composer textarea {
+  scrollbar-width: thin;
+  scrollbar-color: var(--agent-scrollbar) transparent;
+}
+
+.agent-history-list::-webkit-scrollbar,
+.agent-suggestion-list::-webkit-scrollbar,
+.agent-messages::-webkit-scrollbar,
+.agent-composer textarea::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.agent-history-list::-webkit-scrollbar-track,
+.agent-suggestion-list::-webkit-scrollbar-track,
+.agent-messages::-webkit-scrollbar-track,
+.agent-composer textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agent-history-list::-webkit-scrollbar-thumb,
+.agent-suggestion-list::-webkit-scrollbar-thumb,
+.agent-messages::-webkit-scrollbar-thumb,
+.agent-composer textarea::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--agent-scrollbar);
+}
+
+.agent-history-list::-webkit-scrollbar-thumb:hover,
+.agent-suggestion-list::-webkit-scrollbar-thumb:hover,
+.agent-messages::-webkit-scrollbar-thumb:hover,
+.agent-composer textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--agent-scrollbar-hover);
+}
+
+
+/* =========================================================
+   RESPONSIVE IMPROVEMENTS
+========================================================= */
+
+@media (max-width: 1300px) {
+  .agent-page {
+    height: auto;
+    min-height: calc(100vh - 122px);
+  }
+
+  .agent-suggestions {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 900px) {
+  .agent-page {
+    gap: 14px;
+  }
+
+  .agent-chat {
+    min-height: 580px;
+  }
+
+  .agent-chat-header h1 {
+    font-size: 24px;
+  }
+
+  .agent-message-bubble {
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 560px) {
+  .agent-chat-header,
+  .agent-panel-header {
+    padding: 14px;
+  }
+
+  .agent-messages {
+    padding: 14px;
+  }
+
+  .agent-composer {
+    padding: 12px;
+  }
+
+  .agent-message-bubble {
+    max-width: 94%;
+  }
+}

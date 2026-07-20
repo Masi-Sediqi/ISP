@@ -178,7 +178,7 @@ function CustomerReport() {
   const topDebtors = [...visibleCustomers].filter((customer) => customer.debt > 0).sort((a, b) => b.debt - a.debt).slice(0, 6);
   const newCustomersCount = customerData.filter((customer) => customer.firstActivity !== "-" && inRange(customer.firstActivity)).length;
   const overdueCount = customerData.filter((customer) => customer.debt > 0 && customer.inactiveDays !== null && customer.inactiveDays > 30).length;
-  const { page, setPage, totalPages, pageItems, pageSize } = useTablePagination(
+  const { page, setPage, totalPages, pageItems, pageSize, setPageSize } = useTablePagination(
     searchedCustomers,
     `${search}-${accountStatus}-${period}-${activeDate}`
   );
@@ -268,7 +268,7 @@ function CustomerReport() {
             </tbody>
           </table>
         </div>
-        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={searchedCustomers.length} pageSize={pageSize} />
+        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={searchedCustomers.length} pageSize={pageSize} setPageSize={setPageSize} />
       </div>
     </div>
   );

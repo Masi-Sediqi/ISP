@@ -45,7 +45,9 @@ const defaultCategories = [
   { id: "repair", title: "Repair" },
   { id: "fuel", title: "Fuel" },
   { id: "purchase", title: "Purchases" },
+  { id: "supplier-payment", title: "Supplier Payment" },
   { id: "customer-payment", title: "Customer Payment" },
+  { id: "customer-refund", title: "Customer Refund" },
   { id: "deposit", title: "Security Deposit" },
   { id: "other", title: "Other" },
 ];
@@ -91,6 +93,12 @@ function Finance() {
   const [employeePayments] =
     useJsonCollection("employeePayments");
 
+  const [supplierPayments] =
+    useJsonCollection("supplierPayments");
+
+  const [assetMovements] =
+    useJsonCollection("assetMovements");
+
   const [showModal, setShowModal] = useState(false);
   const [editingTransaction, setEditingTransaction] =
     useState(null);
@@ -103,6 +111,8 @@ function Finance() {
 
   const [search, setSearch] = useState("");
   const [newCategory, setNewCategory] = useState("");
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [categoryEditTitle, setCategoryEditTitle] = useState("");
 
   const [formData, setFormData] =
     useState(emptyFinanceForm);
@@ -121,6 +131,21 @@ function Finance() {
       ]),
     ];
   }, [financeCategories]);
+
+  const customCategoryItems = useMemo(
+    () =>
+      financeCategories
+        .map((category) => ({
+          id:
+            typeof category === "object" && category?.id
+              ? category.id
+              : normalizeCategory(category),
+          title: normalizeCategory(category),
+          raw: category,
+        }))
+        .filter((category) => category.title),
+    [financeCategories]
+  );
 
   const allTransactions = useMemo(() => {
     const legacyTravelPayments = customerTravels
@@ -158,6 +183,7 @@ function Finance() {
       customerPayments
         .filter(
           (payment) =>
+            payment.source !== "deposit-refund-offset" &&
             !transactions.some(
               (transaction) =>
                 transaction.source ===
@@ -167,24 +193,33 @@ function Finance() {
                 ) === String(payment.id)
             )
         )
-        .map((payment) => ({
-          id: `legacy-payment-${payment.id}`,
-          type: "income",
-          title:
-            payment.title ||
-            "Customer Payment",
-          amount: Number(payment.amount || 0),
-          date: payment.date,
-          category: "Customer Payment",
-          description:
-            payment.description || "",
-          source: "customer-payment",
-          referenceId: payment.id,
-          createdAt:
-            payment.createdAt ||
-            payment.updatedAt ||
-            payment.date,
-        }));
+        .map((payment) => {
+          const isPaidToCustomer =
+            (payment.direction || payment.paymentDirection || "customer-to-us") ===
+            "us-to-customer";
+
+          return {
+            id: `legacy-payment-${payment.id}`,
+            type: isPaidToCustomer ? "expense" : "income",
+            title:
+              payment.title ||
+              (isPaidToCustomer
+                ? `Paid to Customer ${payment.customerName || ""}`.trim()
+                : `Customer Payment ${payment.customerName || ""}`.trim()),
+            amount: Number(payment.amount || 0),
+            date: payment.paymentDate || payment.date,
+            category: isPaidToCustomer ? "Customer Refund" : "Customer Payment",
+            description:
+              payment.description || payment.notes || "",
+            source: "customer-payment",
+            referenceId: payment.id,
+            createdAt:
+              payment.createdAt ||
+              payment.updatedAt ||
+              payment.paymentDate ||
+              payment.date,
+          };
+        });
 
     const legacyTravelExpenses = travelExpenses
       .filter(
@@ -297,6 +332,75 @@ function Finance() {
             payment.date,
         }));
 
+    const legacySupplierPayments =
+      supplierPayments
+        .filter(
+          (payment) =>
+            payment.recordType !== "balance" &&
+            payment.type !== "Balance" &&
+            !transactions.some(
+              (item) =>
+                item.source ===
+                  "supplier-payment" &&
+                String(item.referenceId || "") ===
+                  String(payment.id)
+            )
+        )
+        .map((payment) => ({
+          id: `legacy-supplier-payment-${payment.id}`,
+          type: "expense",
+          title: `Supplier Payment ${payment.supplierName || ""}`.trim(),
+          amount: Number(payment.amount || 0),
+          date: payment.paymentDate,
+          category: "Supplier Payment",
+          description: payment.notes,
+          source: "supplier-payment",
+          referenceId: payment.id,
+          createdAt: payment.createdAt,
+          updatedAt: payment.updatedAt,
+        }));
+
+    const legacyCustomerDeviceSales =
+      assetMovements
+        .filter(
+          (movement) =>
+            movement.movementType === "Transfer" &&
+            (movement.transferType === "To Customer" ||
+              movement.destinationType === "Customer" ||
+              movement.transferType === "Main Stock to Customer" ||
+              movement.transferType === "Customer to Customer") &&
+            movement.dealType === "Sold" &&
+            Number(movement.paidAmount || 0) > 0 &&
+            !transactions.some(
+              (transaction) =>
+                transaction.source ===
+                  "customer-device-sale" &&
+                String(transaction.referenceId || "") ===
+                  String(movement.id)
+            )
+        )
+        .map((movement) => ({
+          id: `legacy-customer-device-sale-${movement.id}`,
+          type: "income",
+          title: `Device Sale ${movement.deviceName || movement.assetId || ""}`.trim(),
+          amount: Number(movement.paidAmount || 0),
+          date: movement.date,
+          category: "Customer Payment",
+          description: [
+            movement.destinationName
+              ? `Customer: ${movement.destinationName}`
+              : "",
+            `Total: ${formatAmount(movement.totalAmount || 0)} AFN`,
+            `Remaining: ${formatAmount(movement.remainingAmount || 0)} AFN`,
+          ]
+            .filter(Boolean)
+            .join(" | "),
+          source: "customer-device-sale",
+          referenceId: movement.id,
+          createdAt: movement.createdAt,
+          updatedAt: movement.updatedAt,
+        }));
+
     return [
       ...transactions,
       ...legacyTravelPayments,
@@ -304,6 +408,8 @@ function Finance() {
       ...legacyTravelExpenses,
       ...legacyCarExpenses,
       ...legacyEmployeePayments,
+      ...legacySupplierPayments,
+      ...legacyCustomerDeviceSales,
     ];
   }, [
     transactions,
@@ -312,6 +418,8 @@ function Finance() {
     travelExpenses,
     carRepairs,
     employeePayments,
+    supplierPayments,
+    assetMovements,
   ]);
 
   const totalIncome = allTransactions
@@ -444,6 +552,7 @@ function Finance() {
     totalPages,
     pageItems,
     pageSize,
+    setPageSize,
   } = useTablePagination(
     filteredTransactions,
     search
@@ -457,6 +566,8 @@ function Finance() {
     });
 
     setNewCategory("");
+    setEditingCategory(null);
+    setCategoryEditTitle("");
     setEditingTransaction(null);
   };
 
@@ -473,6 +584,8 @@ function Finance() {
     });
 
     setNewCategory("");
+    setEditingCategory(null);
+    setCategoryEditTitle("");
     setShowModal(true);
   };
 
@@ -513,6 +626,8 @@ function Finance() {
     });
 
     setNewCategory("");
+    setEditingCategory(null);
+    setCategoryEditTitle("");
     setOpenActionId("");
     setShowModal(true);
   };
@@ -577,6 +692,113 @@ function Finance() {
     notify(
       "New category added successfully."
     );
+  };
+
+  const beginEditCategory = (category) => {
+    setEditingCategory(category);
+    setCategoryEditTitle(category.title);
+    setNewCategory("");
+  };
+
+  const saveCategoryEdit = async () => {
+    const nextTitle = categoryEditTitle.trim();
+
+    if (!editingCategory || !nextTitle) {
+      notify("Please enter a category name.", "error");
+      return;
+    }
+
+    const oldTitle = editingCategory.title;
+    const isDefaultCategory = defaultCategories.some(
+      (category) =>
+        category.title.toLowerCase() === nextTitle.toLowerCase()
+    );
+    const duplicateCategory = categoryOptions.some(
+      (category) =>
+        category.toLowerCase() === nextTitle.toLowerCase() &&
+        category.toLowerCase() !== oldTitle.toLowerCase()
+    );
+
+    if (isDefaultCategory || duplicateCategory) {
+      notify("This category already exists.", "error");
+      return;
+    }
+
+    const updatedAt = new Date().toISOString();
+    const categoriesSaved = await setFinanceCategories(
+      financeCategories.map((category) => {
+        const title = normalizeCategory(category);
+        const id =
+          typeof category === "object" && category?.id
+            ? category.id
+            : title;
+
+        if (String(id) !== String(editingCategory.id)) {
+          return category;
+        }
+
+        return typeof category === "object"
+          ? { ...category, title: nextTitle, updatedAt }
+          : { id: editingCategory.id, title: nextTitle, updatedAt };
+      })
+    );
+
+    if (!categoriesSaved) return;
+
+    const transactionsSaved = await setTransactions((previousTransactions) =>
+      previousTransactions.map((transaction) =>
+        transaction.category === oldTitle
+          ? { ...transaction, category: nextTitle, updatedAt }
+          : transaction
+      )
+    );
+
+    if (!transactionsSaved) return;
+
+    setFormData((previous) => ({
+      ...previous,
+      category:
+        previous.category === oldTitle ? nextTitle : previous.category,
+    }));
+    setEditingCategory(null);
+    setCategoryEditTitle("");
+    notify("Category updated successfully.");
+  };
+
+  const deleteCategory = async (category) => {
+    const categoriesSaved = await setFinanceCategories(
+      financeCategories.filter((item) => {
+        const title = normalizeCategory(item);
+        const id =
+          typeof item === "object" && item?.id
+            ? item.id
+            : title;
+
+        return String(id) !== String(category.id);
+      })
+    );
+
+    if (!categoriesSaved) return;
+
+    const updatedAt = new Date().toISOString();
+    const transactionsSaved = await setTransactions((previousTransactions) =>
+      previousTransactions.map((transaction) =>
+        transaction.category === category.title
+          ? { ...transaction, category: "Other", updatedAt }
+          : transaction
+      )
+    );
+
+    if (!transactionsSaved) return;
+
+    setFormData((previous) => ({
+      ...previous,
+      category:
+        previous.category === category.title ? "Other" : previous.category,
+    }));
+    setEditingCategory(null);
+    setCategoryEditTitle("");
+    notify("Category deleted successfully.");
   };
 
   const handleSubmit = async (
@@ -750,7 +972,16 @@ function Finance() {
       transaction.source ===
       "customer-payment"
     ) {
-      return "Customer Payment";
+      return transaction.type === "expense"
+        ? "Customer Payout"
+        : "Customer Payment";
+    }
+
+    if (
+      transaction.source ===
+      "customer-device-sale"
+    ) {
+      return "Device Sale";
     }
 
     if (
@@ -758,6 +989,13 @@ function Finance() {
       "employee-payment"
     ) {
       return "Employee Payment";
+    }
+
+    if (
+      transaction.source ===
+      "supplier-payment"
+    ) {
+      return "Supplier Payment";
     }
 
     if (
@@ -1262,6 +1500,7 @@ function Finance() {
             filteredTransactions.length
           }
           pageSize={pageSize}
+          setPageSize={setPageSize}
         />
       </div>
 
@@ -1464,6 +1703,55 @@ function Finance() {
                       Add
                     </button>
                   </div>
+
+                  {customCategoryItems.length > 0 && (
+                    <div className="finance-category-manager">
+                      {customCategoryItems.map((category) => (
+                        <div className="finance-category-item" key={category.id}>
+                          {String(editingCategory?.id) === String(category.id) ? (
+                            <>
+                              <input
+                                value={categoryEditTitle}
+                                onChange={(event) =>
+                                  setCategoryEditTitle(event.target.value)
+                                }
+                              />
+                              <button type="button" onClick={saveCategoryEdit}>
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                className="muted"
+                                onClick={() => {
+                                  setEditingCategory(null);
+                                  setCategoryEditTitle("");
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span>{category.title}</span>
+                              <button
+                                type="button"
+                                onClick={() => beginEditCategory(category)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="danger"
+                                onClick={() => deleteCategory(category)}
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="finance-form-group finance-form-full">

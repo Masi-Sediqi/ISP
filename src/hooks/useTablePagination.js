@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
-export function useTablePagination(items, resetKey = "", pageSize = 20) {
+export function useTablePagination(items, resetKey = "", initialPageSize = 20) {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(initialPageSize);
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
 
   useEffect(() => {
@@ -17,5 +18,5 @@ export function useTablePagination(items, resetKey = "", pageSize = 20) {
     [items, page, pageSize]
   );
 
-  return { page, setPage, totalPages, pageItems, pageSize };
+  return { page, setPage, totalPages, pageItems, pageSize, setPageSize };
 }

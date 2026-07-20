@@ -1,3 +1,131 @@
+.package-back-link {
+  display: inline-flex;
+  margin-bottom: 14px;
+  color: #4f46e5;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.package-detail-page-card,
+.package-detail-page-table {
+  padding: 18px;
+  margin-bottom: 16px;
+  background: #ffffff;
+  border: 1px solid #eeeae2;
+  border-radius: 18px;
+}
+
+.package-page-kicker {
+  display: inline-flex;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.package-detail-page-card h1 {
+  margin: 0 0 7px;
+  color: #111827;
+  font-size: 26px;
+}
+
+.package-detail-page-card p,
+.package-detail-page-table-header p {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.package-detail-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.package-detail-stat-grid.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.package-detail-stat-grid article {
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #eeeae2;
+  border-radius: 16px;
+}
+
+.package-detail-stat-grid span {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.package-detail-stat-grid strong {
+  display: block;
+  color: #111827;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.package-detail-stat-grid p {
+  margin-top: 5px;
+  color: #888888;
+  font-size: 12px;
+}
+
+.package-detail-page-table-header {
+  margin-bottom: 14px;
+}
+
+.package-detail-page-table-header h2 {
+  margin: 0 0 4px;
+  font-size: 19px;
+}
+
+.package-payment-status {
+  display: inline-flex;
+  min-width: 68px;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.package-payment-status.paid {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.package-payment-status.partial {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.package-payment-status.unpaid {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.package-empty-cell {
+  padding: 24px !important;
+  color: #64748b;
+  text-align: center !important;
+}
+
+@media (max-width: 900px) {
+  .package-detail-stat-grid,
+  .package-detail-stat-grid.compact {
+    grid-template-columns: 1fr;
+  }
+}
+
 .packages-page {
   padding: 26px 28px 32px;
   direction: ltr;

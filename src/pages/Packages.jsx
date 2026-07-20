@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
 import "./Packages.css";
@@ -48,6 +49,7 @@ function TrashIcon() {
 const money = (value) => Number(value || 0).toLocaleString("en-US");
 
 function Packages() {
+  const navigate = useNavigate();
   const [packages, setPackages] = useJsonCollection("packages");
 
   const [formData, setFormData] = useState(emptyForm);
@@ -358,7 +360,9 @@ function Packages() {
                             <button
                               type="button"
                               onClick={() => {
-                                setDetailRecord(item);
+                                navigate(
+                                  `/packages/${item.id || item.packageCode}/details`
+                                );
                                 setOpenAction(null);
                               }}
                             >

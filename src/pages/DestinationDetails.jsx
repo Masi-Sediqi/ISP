@@ -100,7 +100,7 @@ function DestinationDetails() {
     return [...byDate.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)));
   }, [destinationName, travels]);
 
-  const { page, setPage, totalPages, pageItems, pageSize } = useTablePagination(destinationTravels, search);
+  const { page, setPage, totalPages, pageItems, pageSize, setPageSize } = useTablePagination(destinationTravels, search);
   const allDestinationTravels = travels.filter((travel) => travel.to === destinationName);
   const completed = allDestinationTravels.filter((travel) => travel.status === "تکمیل شده").length;
   const waiting = allDestinationTravels.filter((travel) => travel.status === "در انتظار").length;
@@ -284,7 +284,7 @@ function DestinationDetails() {
             </tbody>
           </table>
         </div>
-        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={destinationTravels.length} pageSize={pageSize} />
+        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={destinationTravels.length} pageSize={pageSize} setPageSize={setPageSize} />
       </div>
 
       {showModal && <div className="travel-modal-backdrop" onClick={() => setShowModal(false)}><div className="travel-modal" onClick={(event) => event.stopPropagation()}>

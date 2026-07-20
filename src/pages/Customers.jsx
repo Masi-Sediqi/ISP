@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
-import { formatDateTime } from "../utils/afghanDate";
+import { formatDateTime, todayDateValue } from "../utils/afghanDate";
 import "./Customers.css";
 
 const emptyForm = {
@@ -84,6 +84,7 @@ function money(value) {
 function Customers() {
   const [customers, setCustomers] = useJsonCollection("customers");
   const [customerPackages, setCustomerPackages] = useJsonCollection("customerPackages");
+  const [, setTransactions] = useJsonCollection("transactions");
 
   const [showPackageModal, setShowPackageModal] = useState(false);
   const [packageForm, setPackageForm] = useState(emptyPackageForm);
@@ -269,6 +270,11 @@ const saveIssueDevice = async (event) => {
       ? Math.max(salePrice - paidAmount, 0)
       : 0;
 
+  if (issueDeviceForm.ownershipType === "Sold" && paidAmount > salePrice) {
+    notify("Paid amount cannot be greater than sale amount.", "error");
+    return;
+  }
+
   const depositAmount =
     issueDeviceForm.ownershipType === "Loaned"
       ? Number(issueDeviceForm.depositAmount || 0)
@@ -354,6 +360,48 @@ const saveIssueDevice = async (event) => {
   ]);
 
   if (!transferSaved) return;
+
+  if (issueDeviceForm.ownershipType === "Sold" && paidAmount > 0) {
+    const incomeSaved = await setTransactions((previousTransactions) => [
+      ...previousTransactions.filter(
+        (transaction) =>
+          !(
+            transaction.source === "customer-device-sale" &&
+            String(transaction.referenceId || "") === String(transferRecord.id)
+          )
+      ),
+      {
+        id: `customer-device-sale-income-${transferRecord.id}`,
+        type: "income",
+        title: `Customer Device Sale - ${getCustomerName(issueDeviceCustomer)}`,
+        category: "Device Sale",
+        amount: paidAmount,
+        date: issueDeviceForm.issueDate,
+        description: [
+          `Asset: ${asset.assetId || ""} - ${asset.deviceName || ""}`,
+          `Sale Amount: ${money(salePrice)} AFN`,
+          `Paid: ${money(paidAmount)} AFN`,
+          `Remaining: ${money(remainAmount)} AFN`,
+          issueDeviceForm.notes.trim(),
+        ]
+          .filter(Boolean)
+          .join(" | "),
+        source: "customer-device-sale",
+        referenceId: transferRecord.id,
+        customerRecordId: issueDeviceCustomer.id || "",
+        customerId: issueDeviceCustomer.customerId || "",
+        customerName: getCustomerName(issueDeviceCustomer),
+        assetId: asset.assetId || "",
+        createdAt: transferRecord.createdAt,
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+
+    if (!incomeSaved) {
+      notify("Device was issued, but its income could not be linked to Financial.", "error");
+      return;
+    }
+  }
 
   if (issueDeviceForm.ownershipType === "Loaned" && depositAmount > 0) {
     await setSecurityDeposits([
@@ -468,7 +516,56 @@ const saveCustomerPackage = async (event) => {
   const saved = await setCustomerPackages([...updatedPackages, cleanPackage]);
 
   if (saved) {
-    notify("Customer package saved successfully.");
+    if (Number(cleanPackage.paidAmount || 0) > 0) {
+      const incomeSaved = await setTransactions((previousTransactions) => [
+        ...previousTransactions.filter(
+          (transaction) =>
+            !(
+              transaction.source === "customer-package" &&
+              String(transaction.referenceId || "") === String(cleanPackage.id)
+            )
+        ),
+        {
+          id: `customer-package-income-${cleanPackage.id}`,
+          type: "income",
+          title: `Package Payment - ${cleanPackage.customerName || "Customer"}`,
+          category: "Package Payment",
+          amount: Number(cleanPackage.paidAmount || 0),
+          date: cleanPackage.startDate,
+          description: [
+            cleanPackage.packageName ? `Package: ${cleanPackage.packageName}` : "",
+            cleanPackage.speed ? `Speed: ${cleanPackage.speed}` : "",
+            `Package Price: ${money(cleanPackage.packagePrice)} AFN`,
+            `Paid: ${money(cleanPackage.paidAmount)} AFN`,
+            `Remaining: ${money(cleanPackage.remainAmount)} AFN`,
+            cleanPackage.notes || "",
+          ]
+            .filter(Boolean)
+            .join(" | "),
+          source: "customer-package",
+          referenceId: cleanPackage.id,
+          customerRecordId: cleanPackage.customerRecordId || "",
+          customerId: cleanPackage.customerId || "",
+          customerName: cleanPackage.customerName || "",
+          createdAt: cleanPackage.createdAt,
+          updatedAt: new Date().toISOString(),
+        },
+      ]);
+
+      if (!incomeSaved) {
+        notify("Package saved, but its income could not be linked to Financial.", "error");
+        return;
+      }
+    }
+
+    if (cleanPackage.endDate <= todayDateValue()) {
+      notify(
+        "Customer package saved, but its End Date has arrived. Please review the package.",
+        "warning"
+      );
+    } else {
+      notify("Customer package saved successfully.");
+    }
     closePackageModal();
   }
 };

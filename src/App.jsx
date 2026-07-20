@@ -1,26 +1,74 @@
-import { lazy, Suspense, useEffect, useState } from "react";
-import { Routes, Route, NavLink } from "react-router-dom";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  Routes,
+  Route,
+  NavLink,
+} from "react-router-dom";
+
+import {
+  BookOpen,
+  CircleHelp,
+  Code2,
+  FileText,
+  HelpCircle,
+  Info,
+  ShieldCheck,
+} from "lucide-react";
 import Header from "./components/Header";
+import GlobalTableEnhancer from "./components/GlobalTableEnhancer";
+import StartupSplash from "./components/StartupSplash";
 import ToastHost from "./components/ToastHost";
 import { useJsonCollection } from "./hooks/useJsonCollection";
+import { canViewModule } from "./utils/permissions";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Suppliers = lazy(() => import("./pages/Suppliers"));
 const SupplierDetails = lazy(() => import("./pages/SupplierDetails"));
+const SupplierAnalysis = lazy(() => import("./pages/SupplierAnalysis"));
 const AssetInventory = lazy(() => import("./pages/AssetInventory"));
+const MainStock = lazy(() => import("./pages/MainStock"));
+const DeviceTransferManagement = lazy(() => import("./pages/DeviceTransferManagement"));
 const TowerAssets = lazy(() => import("./pages/TowerAssets"));
 const Customers = lazy(() => import("./pages/Customers"));
 const CustomerDetails = lazy(() => import("./pages/CustomerDetails"));
 const Packages = lazy(() => import("./pages/Packages"));
+const PackageFullDetail = lazy(() => import("./pages/PackageFullDetail"));
 const Accounts = lazy(() => import("./pages/Accounts"));
 const Finance = lazy(() => import("./pages/Finance"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Repair = lazy(() => import("./pages/Repair"));
 const Settings = lazy(() => import("./pages/Settings"));
+const UserManagement = lazy(() => import("./pages/UserManagement"));
+const Agent = lazy(() => import("./pages/Agent"));
 const Login = lazy(() => import("./pages/Login"));
 const AssetFullInformation = lazy(() => import("./pages/AssetFullInformation"));
+const AssetAuditTrail = lazy(() => import("./pages/AssetAuditTrail"));
 const AssetInsightDetails = lazy(() => import("./pages/AssetInsightDetails"));
 const TowerLinks = lazy(() => import("./pages/TowerLinks"));
 const CustomerIssueDevice = lazy(() => import("./pages/CustomerIssueDevice"));
-const TowerAssetTransfer = lazy(() => import("./pages/TowerAssetTransfer"));
+const TowerAssetDetails = lazy(() => import("./pages/TowerAssetDetails"));
+const HelpCenter = lazy(() => import("./pages/HelpCenter"));
+const Developer = lazy(() => import("./pages/Developer"));
+
+const defaultAdminAccount = {
+  id: "default-admin",
+  fullName: "System Admin",
+  email: "admin@gmail.com",
+  password: "mynameisadmin",
+  secondaryPassword: "",
+  role: "Admin",
+  status: "Active",
+  permissions: {},
+  isDefaultAdmin: true,
+  createdAt: "2026-07-18",
+};
 
 function ModulePlaceholder({ title, description, items = [] }) {
   return (
@@ -45,15 +93,42 @@ function ModulePlaceholder({ title, description, items = [] }) {
   );
 }
 
+function PermissionDenied() {
+  return (
+    <div className="module-placeholder">
+      <div className="module-placeholder-card">
+        <span className="module-kicker">Access Control</span>
+        <h1>Permission Denied</h1>
+        <p>You do not have permission to access this module.</p>
+      </div>
+    </div>
+  );
+}
+
+function ProtectedModule({ currentUser, moduleKey, children }) {
+  if (!canViewModule(currentUser, moduleKey)) {
+    return <PermissionDenied />;
+  }
+
+  return children;
+}
+
 function App() {
   const [settings, , loadSettings] = useJsonCollection("settings");
   const [accounts, setAccounts, , accountsLoaded] = useJsonCollection("accounts");
+    const [sidebarInfoOpen, setSidebarInfoOpen] = useState(false);
+  const sidebarInfoRef = useRef(null);
   const [sessionId, setSessionId] = useState(() =>
     localStorage.getItem("isp-system-session")
   );
 
   const company = settings[0] || {};
-  const currentUser = accounts.find(
+  const systemName = company.companyName || "ISP Assets";
+  const systemSubtitle = company.systemSubtitle || "Asset & Inventory Management";
+  const effectiveAccounts = accounts.some((account) => String(account.id) === "default-admin")
+    ? accounts
+    : [defaultAdminAccount, ...accounts];
+  const currentUser = effectiveAccounts.find(
     (account) => String(account.id) === String(sessionId)
   );
 
@@ -61,6 +136,44 @@ function App() {
     window.addEventListener("company-settings-updated", loadSettings);
     return () => window.removeEventListener("company-settings-updated", loadSettings);
   }, [loadSettings]);
+
+    useEffect(() => {
+    const closeSidebarInfo = (event) => {
+      if (
+        sidebarInfoRef.current &&
+        !sidebarInfoRef.current.contains(event.target)
+      ) {
+        setSidebarInfoOpen(false);
+      }
+    };
+
+    const closeWithEscape = (event) => {
+      if (event.key === "Escape") {
+        setSidebarInfoOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeSidebarInfo);
+    document.addEventListener("keydown", closeWithEscape);
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        closeSidebarInfo
+      );
+
+      document.removeEventListener(
+        "keydown",
+        closeWithEscape
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!accountsLoaded) return;
+    if (accounts.some((account) => String(account.id) === "default-admin")) return;
+    setAccounts([defaultAdminAccount, ...accounts]);
+  }, [accountsLoaded, accounts, setAccounts]);
 
   const login = (account) => {
     localStorage.setItem("isp-system-session", String(account.id));
@@ -73,13 +186,20 @@ function App() {
   };
 
   const menuItems = [
-    { to: "/", label: "Dashboard" },
-    { to: "/suppliers", label: "Suppliers" },
-    { to: "/assets", label: "Asset & Inventory" },
-    { to: "/customers", label: "Customers" },
-    { to: "/packages", label: "Packages" },
-      { to: "/tower-assets", label: "Tower Assets" },
-    { to: "/finance", label: "Financial" },
+    { to: "/", label: "Dashboard", moduleKey: "dashboard" },
+    { to: "/suppliers", label: "Suppliers", moduleKey: "suppliers" },
+    { to: "/assets", label: "Asset & Inventory", moduleKey: "assets" },
+    { to: "/main-stock", label: "Main Stock", moduleKey: "mainStock" },
+    { to: "/device-transfer-management", label: "Device Transfer Management", moduleKey: "deviceTransfer" },
+    { to: "/customers", label: "Customers", moduleKey: "customers" },
+    { to: "/packages", label: "Packages", moduleKey: "packages" },
+    { to: "/tower-assets", label: "Tower Assets", moduleKey: "towerAssets" },
+    { to: "/finance", label: "Financial", moduleKey: "finance" },
+    { to: "/reports", label: "Reports", moduleKey: "reports" },
+    { to: "/repair", label: "Repair", moduleKey: "repair" },
+    { to: "/user-management", label: "User Management", moduleKey: "userManagement" },
+    { to: "/settings", label: "Settings", moduleKey: "settings" },
+    { to: "/agent", label: "Agent / AI", moduleKey: "agent" },
     // { to: "/tower-links", label: "Tower Links" },
     // { to: "/device-transfers", label: "Device Transfers" },
     // { to: "/device-history", label: "Device History" },
@@ -88,94 +208,192 @@ function App() {
     // { to: "/employees", label: "Employees" },
   ];
 
+    const sidebarInfoLinks = [
+    {
+      key: "help-center",
+      label: "Help Center",
+      icon: HelpCircle,
+      to: "/help-center",
+    },
+    {
+      key: "developer",
+      label: "Developer",
+      icon: Code2,
+      to: "/developer",
+    },
+    {
+      key: "faq",
+      label: "FAQ",
+      icon: CircleHelp,
+      to: "/faq",
+    },
+    {
+      key: "user-guide",
+      label: "User Guide",
+      icon: BookOpen,
+      to: "/user-guide",
+    },
+    {
+      key: "terms-privacy",
+      label: "Terms & Privacy",
+      icon: ShieldCheck,
+      to: "/terms-privacy",
+    },
+  ];
+
+  const protect = (moduleKey, element) => (
+    <ProtectedModule currentUser={currentUser} moduleKey={moduleKey}>
+      {element}
+    </ProtectedModule>
+  );
+
+  let appContent;
+
   if (!accountsLoaded) {
-    return (
-      <>
-        <div className="page-loading">Preparing system...</div>
-        <ToastHost />
-      </>
+    appContent = <div className="page-loading">Preparing system...</div>;
+  } else if (!currentUser) {
+    appContent = (
+      <Suspense fallback={<div className="page-loading">Loading...</div>}>
+        <Login
+          accounts={accounts}
+          setAccounts={setAccounts}
+          onLogin={login}
+          company={company}
+        />
+      </Suspense>
     );
-  }
-
-  if (!currentUser) {
-    return (
-      <>
-        <Suspense fallback={<div className="page-loading">Loading...</div>}>
-          <Login
-            accounts={accounts}
-            setAccounts={setAccounts}
-            onLogin={login}
-            company={company}
-          />
-        </Suspense>
-        <ToastHost />
-      </>
-    );
-  }
-
-  return (
-    <div className="app" dir="ltr">
-      <aside className="sidebar">
+  } else {
+    appContent = (
+      <div className="app" dir="ltr">
+        <aside className="sidebar">
         <div className="brand">
           <div className="brand-logo">
             {company.logo ? (
               <img src={company.logo} alt="Company Logo" />
             ) : (
-              (company.companyName || "I").slice(0, 1)
+              systemName.slice(0, 1)
             )}
           </div>
 
           <div>
-            <h2>{company.companyName || "ISP Assets"}</h2>
-            <p>Asset & Inventory Management</p>
+            <h2>{systemName}</h2>
+            <p>{systemSubtitle}</p>
           </div>
 
           <Header.Actions currentUser={currentUser} onLogout={logout} compact />
         </div>
 
         <nav className="menu">
-          {menuItems.map((item) => (
+          {menuItems.filter((item) => canViewModule(currentUser, item.moduleKey)).map((item) => (
             <NavLink key={item.to} to={item.to}>
               {item.label}
             </NavLink>
           ))}
         </nav>
-      </aside>
+        <div
+  className="sidebar-version-area"
+  ref={sidebarInfoRef}
+>
+  <div className="sidebar-version-row">
+   <span className="sidebar-version-label">
+  v0.0.1 • ISP Asset Inventory
+</span>
 
-      <main className="main">
+    <button
+      type="button"
+      className={`sidebar-version-info-btn ${
+        sidebarInfoOpen ? "active" : ""
+      }`}
+      onClick={() =>
+        setSidebarInfoOpen((previous) => !previous)
+      }
+      aria-label="Open information menu"
+      aria-expanded={sidebarInfoOpen}
+      title="Information"
+    >
+      <Info size={16} />
+    </button>
+  </div>
+
+  {sidebarInfoOpen && (
+    <div className="sidebar-simple-dropdown">
+      {sidebarInfoLinks.map((item) => {
+        const Icon = item.icon;
+
+        return (
+          <NavLink
+            key={item.key}
+            to={item.to}
+            className="sidebar-simple-dropdown-link"
+            onClick={() => setSidebarInfoOpen(false)}
+          >
+            <Icon size={16} />
+            <span>{item.label}</span>
+          </NavLink>
+        );
+      })}
+    </div>
+  )}
+</div>
+        </aside>
+
+        <main className="main">
         <Header company={company} currentUser={currentUser} onLogout={logout} />
+        <GlobalTableEnhancer />
 
         <div className="page-content">
           <Suspense fallback={<div className="page-loading">Loading...</div>}>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={protect("dashboard", <Dashboard />)} />
 
-              <Route path="/suppliers" element={<Suppliers />} />
-              <Route path="/suppliers/:id" element={<SupplierDetails />} />
+              <Route path="/suppliers" element={protect("suppliers", <Suppliers currentUser={currentUser} />)} />
+              <Route path="/suppliers/:id/analysis" element={protect("suppliers", <SupplierAnalysis />)} />
+              <Route path="/suppliers/:id" element={protect("suppliers", <SupplierDetails />)} />
 
-              <Route path="/assets" element={<AssetInventory />} />
+              <Route path="/assets" element={protect("assets", <AssetInventory />)} />
+              <Route path="/assets/:assetId/audit-trail" element={protect("assets", <AssetAuditTrail />)} />
+              <Route path="/assets/:assetId/audit-trail/*" element={protect("assets", <AssetAuditTrail />)} />
+              <Route path="/assets/:assetId/details/audit-trail" element={protect("assets", <AssetAuditTrail />)} />
+              <Route path="/main-stock" element={protect("mainStock", <MainStock />)} />
+              <Route path="/device-transfer-management" element={protect("deviceTransfer", <DeviceTransferManagement />)} />
 
-              <Route path="/customers" element={<Customers />} />
-              <Route path="/customers/:id" element={<CustomerDetails />} />
+              <Route path="/customers" element={protect("customers", <Customers />)} />
+              <Route path="/customers/:id" element={protect("customers", <CustomerDetails />)} />
 
-              <Route path="/tower-assets" element={<TowerAssets />} />
-              <Route path="/tower-links" element={<TowerLinks />} />
-              <Route path="/finance" element={<Finance />} />
-              <Route path="/settings" element={<Settings />} />
-              
-              <Route path="/packages" element={<Packages />} />
-              <Route path="/customers/:id/issue-device" element={<CustomerIssueDevice />} />
+              <Route path="/tower-assets" element={protect("towerAssets", <TowerAssets />)} />
+              <Route path="/tower-links" element={protect("towerAssets", <TowerLinks />)} />
+              <Route path="/finance" element={protect("finance", <Finance />)} />
+              <Route path="/reports" element={protect("reports", <Reports />)} />
+              <Route path="/repair" element={protect("repair", <Repair />)} />
+              <Route path="/agent" element={protect("agent", <Agent />)} />
               <Route
-                  path="/tower-assets/:towerId/transfer"
-                  element={<TowerAssetTransfer />}
+                path="/user-management"
+                element={protect(
+                  "userManagement",
+                  <UserManagement
+                    accounts={effectiveAccounts}
+                    setAccounts={setAccounts}
+                    currentUser={currentUser}
+                  />
+                )}
+              />
+              <Route path="/settings" element={protect("settings", <Settings />)} />
+              
+              <Route path="/packages" element={protect("packages", <Packages />)} />
+              <Route path="/packages/:packageId/details" element={protect("packages", <PackageFullDetail />)} />
+              <Route path="/customers/:id/issue-device" element={protect("customers", <CustomerIssueDevice />)} />
+              <Route path="/customers/:id/issue-device/:viewMode" element={protect("customers", <CustomerIssueDevice />)} />
+              <Route
+                  path="/tower-assets/:towerId/details"
+                  element={protect("towerAssets", <TowerAssetDetails />)}
                 />
                 <Route
                   path="/assets/:assetId/details"
-                  element={<AssetFullInformation />}
+                  element={protect("assets", <AssetFullInformation />)}
                 />
                 <Route
                   path="/assets/:assetId/details/insights/:insightType"
-                  element={<AssetInsightDetails />}
+                  element={protect("assets", <AssetInsightDetails />)}
                 />
               <Route
                 path="/device-history"
@@ -227,6 +445,61 @@ function App() {
                 }
               />
 
+             <Route
+  path="/help-center"
+  element={<HelpCenter />}
+/>
+
+<Route
+  path="/developer"
+  element={<Developer />}
+/>
+
+<Route
+  path="/faq"
+  element={
+    <ModulePlaceholder
+      title="Frequently Asked Questions"
+      description="Answers to common questions about the system."
+      items={[
+        "How to register assets",
+        "How to transfer devices",
+        "How financial records are linked",
+      ]}
+    />
+  }
+/>
+
+<Route
+  path="/user-guide"
+  element={
+    <ModulePlaceholder
+      title="User Guide"
+      description="Learn how to use every module of the system."
+      items={[
+        "Dashboard guide",
+        "Inventory guide",
+        "Customer and tower management guide",
+      ]}
+    />
+  }
+/>
+
+<Route
+  path="/terms-privacy"
+  element={
+    <ModulePlaceholder
+      title="Terms & Privacy"
+      description="System terms, privacy, and data usage information."
+      items={[
+        "Terms of use",
+        "Privacy policy",
+        "Data protection",
+      ]}
+    />
+  }
+/>
+
               <Route
                 path="/employees"
                 element={
@@ -240,13 +513,14 @@ function App() {
 
               <Route
                 path="/accounts"
-                element={
+                element={protect(
+                  "userManagement",
                   <Accounts
                     accounts={accounts}
                     setAccounts={setAccounts}
                     currentUser={currentUser}
                   />
-                }
+                )}
               />
 
               <Route
@@ -261,10 +535,19 @@ function App() {
             </Routes>
           </Suspense>
         </div>
-      </main>
+        </main>
 
-      <ToastHost />
-    </div>
+        <ToastHost />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <StartupSplash />
+      {appContent}
+      {!currentUser && <ToastHost />}
+    </>
   );
 }
 

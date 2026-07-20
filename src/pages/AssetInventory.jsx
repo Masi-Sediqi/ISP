@@ -93,14 +93,28 @@ const [actionMenuPosition, setActionMenuPosition] = useState({
 
 const defaultCategories = [
   "Router",
+  "ONU / ONT",
+  "Modem",
   "Switch",
+  "Access Point",
   "Radio",
   "Antenna",
-  "Cable",
-  "ONU",
-  "ONT",
-  "Fiber Device",
-  "Power Device",
+  "Power Supply",
+  "UPS",
+  "Battery",
+  "Server",
+  "Rack",
+  "Fiber Cable",
+  "Ethernet Cable",
+  "SFP Module",
+  "Media Converter",
+  "PoE Adapter",
+  "Tower Equipment",
+  "Tools",
+  "Office Equipment",
+  "Computers",
+  "Printers",
+  "Vehicles",
 ];
 
 const toggleActionMenu = (event, index) => {
@@ -117,6 +131,8 @@ const toggleActionMenu = (event, index) => {
 const [customCategories, setCustomCategories] = useJsonCollection("assetCategories");
 const [categoryMode, setCategoryMode] = useState("select");
 const [newCategory, setNewCategory] = useState("");
+const [editingCategoryId, setEditingCategoryId] = useState(null);
+const [editingCategoryName, setEditingCategoryName] = useState("");
 
   const filteredAssets = assets
     .map((asset, originalIndex) => ({ ...asset, originalIndex }))
@@ -182,7 +198,7 @@ const handleCategoryChange = (event) => {
   }));
 };
 
-const saveCustomCategory = () => {
+const saveCustomCategory = async () => {
   const cleanCategory = newCategory.trim();
 
   if (!cleanCategory) {
@@ -199,7 +215,7 @@ const saveCustomCategory = () => {
     return;
   }
 
-  setCustomCategories([
+  const saved = await setCustomCategories([
     ...customCategories,
     {
       id: Date.now(),
@@ -207,6 +223,8 @@ const saveCustomCategory = () => {
       createdAt: new Date().toISOString(),
     },
   ]);
+
+  if (!saved) return;
 
   setFormData((previous) => ({
     ...previous,
@@ -216,6 +234,63 @@ const saveCustomCategory = () => {
   setNewCategory("");
   setCategoryMode("select");
   notify("Category saved successfully.");
+};
+
+const beginEditCustomCategory = (category) => {
+  setEditingCategoryId(category.id);
+  setEditingCategoryName(category.name || "");
+};
+
+const saveEditedCustomCategory = async (category) => {
+  const cleanCategory = editingCategoryName.trim();
+
+  if (!cleanCategory) {
+    notify("Please enter a category name.", "error");
+    return;
+  }
+
+  const alreadyExists = categoryOptions.some(
+    (name) =>
+      name.toLowerCase() === cleanCategory.toLowerCase() &&
+      name.toLowerCase() !== String(category.name || "").toLowerCase()
+  );
+
+  if (alreadyExists) {
+    notify("This category already exists.", "error");
+    return;
+  }
+
+  const saved = await setCustomCategories(
+    customCategories.map((item) =>
+      item.id === category.id
+        ? { ...item, name: cleanCategory, updatedAt: new Date().toISOString() }
+        : item
+    )
+  );
+
+  if (!saved) return;
+
+  if (formData.category === category.name) {
+    setFormData((previous) => ({ ...previous, category: cleanCategory }));
+  }
+
+  setEditingCategoryId(null);
+  setEditingCategoryName("");
+  notify("Category updated successfully.");
+};
+
+const deleteCustomCategory = async (category) => {
+  const saved = await setCustomCategories(
+    customCategories.filter((item) => item.id !== category.id)
+  );
+
+  if (!saved) return;
+
+  if (formData.category === category.name) {
+    setFormData((previous) => ({ ...previous, category: "" }));
+  }
+
+  notify("Category deleted successfully.");
 };
 
 const backToCategorySelect = () => {
@@ -361,19 +436,6 @@ assetImage:
 
   if (!cleanData.assetId) {
   notify("Asset ID is required.", "error");
-  return;
-}
-
-if (
-  cleanData.identityTracking === "Single Identity" &&
-  !cleanData.macAddress &&
-  !cleanData.serialNumber
-) {
-  notify(
-    "Please enter a MAC Address or Serial Number for Single Identity tracking.",
-    "error"
-  );
-
   return;
 }
 
@@ -540,7 +602,9 @@ if (
             <thead>
               <tr>
                 <th>Asset ID</th>
+                <th>Image</th>
                 <th>Device Name</th>
+                <th>Tracking</th>
                 <th>Category</th>
                 <th>MAC Address</th>
                 <th>Serial Number</th>
@@ -557,7 +621,31 @@ if (
                 return (
                   <tr key={index}>
                     <td className="asset-strong">{asset.assetId || "-"}</td>
+                    <td>
+                      {asset.identityTracking === "Single Identity" && asset.assetImage ? (
+                        <img
+                          className="asset-table-thumb"
+                          src={asset.assetImage}
+                          alt={asset.deviceName || asset.assetId || "Asset"}
+                        />
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                     <td>{asset.deviceName || "-"}</td>
+                    <td>
+                      <span
+                        className={`asset-tracking-badge ${
+                          String(asset.identityTracking || "").includes("Individual")
+                            ? "individual"
+                            : "single"
+                        }`}
+                      >
+                        {String(asset.identityTracking || "").includes("Individual")
+                          ? "Individual"
+                          : "Single Model"}
+                      </span>
+                    </td>
                     <td>{asset.category || "-"}</td>
                     <td>{asset.macAddress || "-"}</td>
                     <td>{asset.serialNumber || "-"}</td>
@@ -565,7 +653,6 @@ if (
                     <td>{money(asset.unitPrice)} AFN</td>
                     <td>
                   
- <td>
   <div className="asset-action-cell">
     <button
       type="button"
@@ -594,6 +681,17 @@ if (
   <span>Full Information</span>
 </button>
 
+        <button
+          type="button"
+          onClick={() => {
+            navigate(`/assets/${asset.id || asset.assetId}/audit-trail`);
+            setOpenAction(null);
+          }}
+        >
+          <DetailIcon />
+          <span>Audit Trail</span>
+        </button>
+
         <button type="button" onClick={() => editAsset(index)}>
           <EditIcon />
           <span>Edit</span>
@@ -610,7 +708,6 @@ if (
       </div>
     )}
   </div>
-</td>
                     </td>
                   </tr>
                 );
@@ -633,6 +730,7 @@ if (
           setPage={assetPagination.setPage}
           totalItems={filteredAssets.length}
           pageSize={assetPagination.pageSize}
+          setPageSize={assetPagination.setPageSize}
         />
       </div>
 
@@ -751,6 +849,57 @@ if (
                             Back
                         </button>
                         </div>
+                    )}
+                    {customCategories.length > 0 && (
+                      <div className="asset-custom-category-list">
+                        {customCategories.map((category) => (
+                          <div className="asset-custom-category-chip" key={category.id}>
+                            {editingCategoryId === category.id ? (
+                              <>
+                                <input
+                                  value={editingCategoryName}
+                                  onChange={(event) =>
+                                    setEditingCategoryName(event.target.value)
+                                  }
+                                  autoFocus
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => saveEditedCustomCategory(category)}
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingCategoryId(null);
+                                    setEditingCategoryName("");
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span>{category.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => beginEditCustomCategory(category)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="danger"
+                                  onClick={() => deleteCustomCategory(category)}
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     )}
                     </div>
 

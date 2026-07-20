@@ -1,0 +1,924 @@
+.main-stock-page {
+  width: 100%;
+  min-width: 0;
+  padding: 26px 28px 32px;
+  direction: ltr;
+  text-align: left;
+}
+
+.main-stock-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.main-stock-header span {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.main-stock-header h1 {
+  margin: 10px 0 6px;
+  color: #111827;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.main-stock-header p,
+.main-stock-toolbar p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.main-stock-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.main-stock-stats > div,
+.main-stock-card {
+  min-width: 0;
+  background: #ffffff;
+  border: 1px solid #eeeae2;
+  border-radius: 18px;
+}
+
+.main-stock-stats > div {
+  padding: 18px;
+}
+
+.main-stock-stats span {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.main-stock-stats strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #111827;
+  font-size: 25px;
+  font-weight: 900;
+}
+
+.main-stock-stats p {
+  margin: 0;
+  color: #8a8a8a;
+  font-size: 12px;
+}
+
+.main-stock-card {
+  overflow: hidden;
+}
+
+.main-stock-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px;
+  border-bottom: 1px solid #eeeae2;
+}
+
+.main-stock-toolbar h3 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.main-stock-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.main-stock-controls select,
+.main-stock-controls input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #e4e0d7;
+  border-radius: 11px;
+  outline: none;
+  background: #faf9f6;
+  color: #111827;
+  font-family: inherit;
+  font-size: 13px;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.main-stock-controls select:focus,
+.main-stock-controls input:focus {
+  border-color: #818cf8;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.main-stock-controls input {
+  width: 260px;
+}
+
+.main-stock-table-wrap {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.main-stock-table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+
+.main-stock-table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-stock-table-wrap::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.main-stock-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.main-stock-card table {
+  width: 100%;
+  min-width: 1480px;
+  border-collapse: collapse;
+}
+
+.main-stock-card th,
+.main-stock-card td {
+  height: 56px;
+  padding: 0 14px;
+  border-top: 1px solid #eeeae2;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.main-stock-card thead th {
+  border-top: 0;
+}
+
+.main-stock-card th {
+  background: #faf9f6;
+  color: #52627a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.main-stock-card td {
+  color: #111827;
+  font-size: 13px;
+}
+
+.main-stock-card tbody tr {
+  transition: background 0.2s ease;
+}
+
+.main-stock-card tbody tr:hover {
+  background: #fafafa;
+}
+
+.main-stock-strong {
+  font-weight: 900;
+}
+
+.main-stock-thumb {
+  width: 44px;
+  height: 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  object-fit: cover;
+}
+
+.main-stock-tracking {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.main-stock-tracking.single {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.main-stock-tracking.individual {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.main-stock-actions-heading {
+  width: 78px;
+  text-align: center !important;
+}
+
+.main-stock-actions-cell {
+  width: 78px;
+  text-align: center !important;
+}
+
+/* Three-dot action button */
+.main-stock-action-trigger {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  outline: none;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.main-stock-action-trigger span {
+  width: 4px;
+  height: 4px;
+  flex: 0 0 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.main-stock-action-trigger:hover {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+  transform: translateY(-1px);
+}
+
+.main-stock-action-trigger.active {
+  border-color: #818cf8;
+  background: #eef2ff;
+  color: #4338ca;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* Portal dropdown */
+.main-stock-action-menu {
+  position: fixed;
+  z-index: 99999;
+  width: 190px;
+  padding: 7px;
+  border: 1px solid #e7e5e4;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow:
+    0 20px 45px rgba(15, 23, 42, 0.16),
+    0 4px 12px rgba(15, 23, 42, 0.08);
+  animation: main-stock-menu-open 0.16s ease;
+}
+
+@keyframes main-stock-menu-open {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.main-stock-action-menu > button {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 10px;
+  outline: none;
+  background: transparent;
+  color: #1f2937;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.main-stock-action-menu > button:hover {
+  background: #f8fafc;
+}
+
+.main-stock-action-menu > button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.main-stock-action-menu > button:disabled:hover {
+  background: transparent;
+}
+
+.main-stock-menu-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.main-stock-menu-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.main-stock-menu-content strong {
+  color: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.main-stock-menu-content small {
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main-stock-action-menu
+  > button.main-stock-menu-waste {
+  color: #b91c1c;
+}
+
+.main-stock-menu-waste .main-stock-menu-icon {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.main-stock-menu-hidden {
+  display: none !important;
+}
+
+.main-stock-action-menu
+  > button.main-stock-menu-waste:hover {
+  background: #fff7f7;
+}
+
+.main-stock-empty {
+  height: 120px !important;
+  color: #64748b !important;
+  font-weight: 800;
+  text-align: center !important;
+}
+
+@media (max-width: 1000px) {
+  .main-stock-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .main-stock-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .main-stock-controls {
+    align-items: stretch;
+  }
+
+  .main-stock-controls select,
+  .main-stock-controls input {
+    flex: 1;
+  }
+
+  .main-stock-controls input {
+    width: 100%;
+  }
+}
+
+@media (max-width: 650px) {
+  .main-stock-page {
+    padding: 20px 14px 28px;
+  }
+
+  .main-stock-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .main-stock-controls {
+    flex-direction: column;
+  }
+
+  .main-stock-header h1 {
+    font-size: 24px;
+  }
+}
+/* =========================================================
+   MAIN STOCK — DARK MODE SUPPORT
+   Add this code at the END of MainStock.css
+========================================================= */
+
+/* Light mode variables */
+.main-stock-page {
+  --ms-page-text: #111827;
+  --ms-heading: #111827;
+  --ms-muted: #64748b;
+  --ms-soft-muted: #8a8a8a;
+
+  --ms-card-bg: #ffffff;
+  --ms-card-border: #eeeae2;
+  --ms-toolbar-bg: #ffffff;
+
+  --ms-table-head-bg: #faf9f6;
+  --ms-table-head-text: #52627a;
+  --ms-table-row-hover: #fafafa;
+  --ms-table-border: #eeeae2;
+
+  --ms-input-bg: #faf9f6;
+  --ms-input-focus-bg: #ffffff;
+  --ms-input-border: #e4e0d7;
+  --ms-input-text: #111827;
+  --ms-placeholder: #94a3b8;
+
+  --ms-button-bg: #ffffff;
+  --ms-button-border: #e5e7eb;
+  --ms-button-text: #64748b;
+
+  --ms-menu-bg: #ffffff;
+  --ms-menu-border: #e7e5e4;
+  --ms-menu-hover: #f8fafc;
+
+  --ms-scrollbar: #cbd5e1;
+  --ms-scrollbar-hover: #94a3b8;
+
+  color: var(--ms-page-text);
+}
+
+
+/* =========================================================
+   DARK MODE VARIABLES
+========================================================= */
+
+html[data-theme="dark"] .main-stock-page,
+body[data-theme="dark"] .main-stock-page,
+html.dark .main-stock-page,
+body.dark .main-stock-page,
+body.dark-mode .main-stock-page,
+.dark-theme .main-stock-page {
+  --ms-page-text: #e5e7eb;
+  --ms-heading: #f8fafc;
+  --ms-muted: #94a3b8;
+  --ms-soft-muted: #7c8ba1;
+
+  --ms-card-bg: #111827;
+  --ms-card-border: #29364d;
+  --ms-toolbar-bg: #101827;
+
+  --ms-table-head-bg: #0d1728;
+  --ms-table-head-text: #b9c8dc;
+  --ms-table-row-hover: #182338;
+  --ms-table-border: #29364d;
+
+  --ms-input-bg: #0c1422;
+  --ms-input-focus-bg: #111c2e;
+  --ms-input-border: #34435a;
+  --ms-input-text: #f1f5f9;
+  --ms-placeholder: #718096;
+
+  --ms-button-bg: #f8fafc;
+  --ms-button-border: #d9e0e8;
+  --ms-button-text: #475569;
+
+  --ms-menu-bg: #111827;
+  --ms-menu-border: #334155;
+  --ms-menu-hover: #1c2940;
+
+  --ms-scrollbar: #475569;
+  --ms-scrollbar-hover: #64748b;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.main-stock-header h1 {
+  color: var(--ms-heading);
+}
+
+.main-stock-header p,
+.main-stock-toolbar p {
+  color: var(--ms-muted);
+}
+
+.main-stock-header span {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+html[data-theme="dark"] .main-stock-header span,
+body[data-theme="dark"] .main-stock-header span,
+html.dark .main-stock-header span,
+body.dark .main-stock-header span,
+body.dark-mode .main-stock-header span,
+.dark-theme .main-stock-header span {
+  border: 1px solid #415174;
+  background: #26334e;
+  color: #c7d2fe;
+}
+
+
+/* =========================================================
+   STATISTIC CARDS
+========================================================= */
+
+.main-stock-stats > div,
+.main-stock-card {
+  border-color: var(--ms-card-border);
+  background: var(--ms-card-bg);
+}
+
+.main-stock-stats span {
+  color: var(--ms-muted);
+}
+
+.main-stock-stats strong {
+  color: var(--ms-heading);
+}
+
+.main-stock-stats p {
+  color: var(--ms-soft-muted);
+}
+
+html[data-theme="dark"] .main-stock-stats > div,
+body[data-theme="dark"] .main-stock-stats > div,
+html.dark .main-stock-stats > div,
+body.dark .main-stock-stats > div,
+body.dark-mode .main-stock-stats > div,
+.dark-theme .main-stock-stats > div {
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+
+/* =========================================================
+   TOOLBAR
+========================================================= */
+
+.main-stock-toolbar {
+  border-bottom-color: var(--ms-table-border);
+  background: var(--ms-toolbar-bg);
+}
+
+.main-stock-toolbar h3 {
+  color: var(--ms-heading);
+}
+
+
+/* =========================================================
+   SELECT AND SEARCH INPUT
+========================================================= */
+
+.main-stock-controls select,
+.main-stock-controls input {
+  border-color: var(--ms-input-border);
+  background: var(--ms-input-bg);
+  color: var(--ms-input-text);
+  color-scheme: light;
+}
+
+.main-stock-controls input::placeholder {
+  color: var(--ms-placeholder);
+}
+
+.main-stock-controls select:focus,
+.main-stock-controls input:focus {
+  border-color: #818cf8;
+  background: var(--ms-input-focus-bg);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16);
+}
+
+html[data-theme="dark"] .main-stock-controls select,
+body[data-theme="dark"] .main-stock-controls select,
+html.dark .main-stock-controls select,
+body.dark .main-stock-controls select,
+body.dark-mode .main-stock-controls select,
+.dark-theme .main-stock-controls select,
+html[data-theme="dark"] .main-stock-controls input,
+body[data-theme="dark"] .main-stock-controls input,
+html.dark .main-stock-controls input,
+body.dark .main-stock-controls input,
+body.dark-mode .main-stock-controls input,
+.dark-theme .main-stock-controls input {
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] .main-stock-controls option,
+body[data-theme="dark"] .main-stock-controls option,
+html.dark .main-stock-controls option,
+body.dark .main-stock-controls option,
+body.dark-mode .main-stock-controls option,
+.dark-theme .main-stock-controls option {
+  background: #111827;
+  color: #f1f5f9;
+}
+
+
+/* =========================================================
+   TABLE
+========================================================= */
+
+.main-stock-card th,
+.main-stock-card td {
+  border-top-color: var(--ms-table-border);
+}
+
+.main-stock-card th {
+  background: var(--ms-table-head-bg);
+  color: var(--ms-table-head-text);
+}
+
+.main-stock-card td {
+  color: var(--ms-page-text);
+}
+
+.main-stock-card tbody tr:hover {
+  background: var(--ms-table-row-hover);
+}
+
+.main-stock-empty {
+  color: var(--ms-muted) !important;
+}
+
+
+/* Keep the first table border clean */
+.main-stock-card tbody tr:first-child td {
+  border-top-color: var(--ms-table-border);
+}
+
+
+/* =========================================================
+   ASSET IMAGE
+========================================================= */
+
+.main-stock-thumb {
+  border-color: var(--ms-input-border);
+  background: var(--ms-input-bg);
+}
+
+
+/* =========================================================
+   TRACKING BADGES
+========================================================= */
+
+.main-stock-tracking.single {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.main-stock-tracking.individual {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+html[data-theme="dark"] .main-stock-tracking.single,
+body[data-theme="dark"] .main-stock-tracking.single,
+html.dark .main-stock-tracking.single,
+body.dark .main-stock-tracking.single,
+body.dark-mode .main-stock-tracking.single,
+.dark-theme .main-stock-tracking.single {
+  border: 1px solid #164e63;
+  background: rgba(8, 145, 178, 0.18);
+  color: #7dd3fc;
+}
+
+html[data-theme="dark"] .main-stock-tracking.individual,
+body[data-theme="dark"] .main-stock-tracking.individual,
+html.dark .main-stock-tracking.individual,
+body.dark .main-stock-tracking.individual,
+body.dark-mode .main-stock-tracking.individual,
+.dark-theme .main-stock-tracking.individual {
+  border: 1px solid #78350f;
+  background: rgba(217, 119, 6, 0.18);
+  color: #fcd34d;
+}
+
+
+/* =========================================================
+   ACTION BUTTON
+========================================================= */
+
+.main-stock-action-trigger {
+  border-color: var(--ms-button-border);
+  background: var(--ms-button-bg);
+  color: var(--ms-button-text);
+}
+
+.main-stock-action-trigger:hover,
+.main-stock-action-trigger.active {
+  border-color: #818cf8;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+html[data-theme="dark"] .main-stock-action-trigger:hover,
+body[data-theme="dark"] .main-stock-action-trigger:hover,
+html.dark .main-stock-action-trigger:hover,
+body.dark .main-stock-action-trigger:hover,
+body.dark-mode .main-stock-action-trigger:hover,
+.dark-theme .main-stock-action-trigger:hover,
+html[data-theme="dark"] .main-stock-action-trigger.active,
+body[data-theme="dark"] .main-stock-action-trigger.active,
+html.dark .main-stock-action-trigger.active,
+body.dark .main-stock-action-trigger.active,
+body.dark-mode .main-stock-action-trigger.active,
+.dark-theme .main-stock-action-trigger.active {
+  border-color: #6879a8;
+  background: #26334e;
+  color: #c7d2fe;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.14);
+}
+
+
+/* =========================================================
+   PORTAL ACTION DROPDOWN
+   This menu is rendered inside document.body
+========================================================= */
+
+.main-stock-action-menu {
+  border-color: var(--ms-menu-border);
+  background: var(--ms-menu-bg);
+}
+
+.main-stock-action-menu > button {
+  color: var(--ms-page-text);
+}
+
+.main-stock-action-menu > button:hover {
+  background: var(--ms-menu-hover);
+}
+
+.main-stock-menu-content small {
+  color: var(--ms-muted);
+}
+
+html[data-theme="dark"] .main-stock-action-menu,
+body[data-theme="dark"] .main-stock-action-menu,
+html.dark .main-stock-action-menu,
+body.dark .main-stock-action-menu,
+body.dark-mode .main-stock-action-menu,
+.dark-theme .main-stock-action-menu {
+  border-color: #334155;
+  background: #111827;
+  box-shadow:
+    0 22px 50px rgba(0, 0, 0, 0.45),
+    0 5px 15px rgba(0, 0, 0, 0.25);
+}
+
+html[data-theme="dark"] .main-stock-action-menu > button,
+body[data-theme="dark"] .main-stock-action-menu > button,
+html.dark .main-stock-action-menu > button,
+body.dark .main-stock-action-menu > button,
+body.dark-mode .main-stock-action-menu > button,
+.dark-theme .main-stock-action-menu > button {
+  color: #e5e7eb;
+}
+
+html[data-theme="dark"] .main-stock-action-menu > button:hover,
+body[data-theme="dark"] .main-stock-action-menu > button:hover,
+html.dark .main-stock-action-menu > button:hover,
+body.dark .main-stock-action-menu > button:hover,
+body.dark-mode .main-stock-action-menu > button:hover,
+.dark-theme .main-stock-action-menu > button:hover {
+  background: #1c2940;
+}
+
+html[data-theme="dark"] .main-stock-menu-icon,
+body[data-theme="dark"] .main-stock-menu-icon,
+html.dark .main-stock-menu-icon,
+body.dark .main-stock-menu-icon,
+body.dark-mode .main-stock-menu-icon,
+.dark-theme .main-stock-menu-icon {
+  background: #26334e;
+  color: #c7d2fe;
+}
+
+html[data-theme="dark"] .main-stock-menu-content small,
+body[data-theme="dark"] .main-stock-menu-content small,
+html.dark .main-stock-menu-content small,
+body.dark .main-stock-menu-content small,
+body.dark-mode .main-stock-menu-content small,
+.dark-theme .main-stock-menu-content small {
+  color: #8fa0b8;
+}
+
+
+/* Waste action */
+html[data-theme="dark"]
+  .main-stock-action-menu
+  > button.main-stock-menu-waste,
+body[data-theme="dark"]
+  .main-stock-action-menu
+  > button.main-stock-menu-waste,
+html.dark
+  .main-stock-action-menu
+  > button.main-stock-menu-waste,
+body.dark
+  .main-stock-action-menu
+  > button.main-stock-menu-waste,
+body.dark-mode
+  .main-stock-action-menu
+  > button.main-stock-menu-waste,
+.dark-theme
+  .main-stock-action-menu
+  > button.main-stock-menu-waste {
+  color: #fca5a5;
+}
+
+html[data-theme="dark"] .main-stock-menu-waste .main-stock-menu-icon,
+body[data-theme="dark"] .main-stock-menu-waste .main-stock-menu-icon,
+html.dark .main-stock-menu-waste .main-stock-menu-icon,
+body.dark .main-stock-menu-waste .main-stock-menu-icon,
+body.dark-mode .main-stock-menu-waste .main-stock-menu-icon,
+.dark-theme .main-stock-menu-waste .main-stock-menu-icon {
+  background: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
+}
+
+html[data-theme="dark"]
+  .main-stock-action-menu
+  > button.main-stock-menu-waste:hover,
+body[data-theme="dark"]
+  .main-stock-action-menu
+  > button.main-stock-menu-waste:hover,
+html.dark
+  .main-stock-action-menu
+  > button.main-stock-menu-waste:hover,
+body.dark
+  .main-stock-action-menu
+  > button.main-stock-menu-waste:hover,
+body.dark-mode
+  .main-stock-action-menu
+  > button.main-stock-menu-waste:hover,
+.dark-theme
+  .main-stock-action-menu
+  > button.main-stock-menu-waste:hover {
+  background: rgba(127, 29, 29, 0.22);
+}
+
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+.main-stock-table-wrap {
+  scrollbar-color: var(--ms-scrollbar) transparent;
+}
+
+.main-stock-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--ms-scrollbar);
+}
+
+.main-stock-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--ms-scrollbar-hover);
+}

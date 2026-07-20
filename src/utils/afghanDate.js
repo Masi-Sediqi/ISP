@@ -99,34 +99,51 @@ export function getAfghanMonthDays(year, month) {
 }
 
 export function todayDateValue() {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kabul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 export function formatAfghanDate(value, options = {}) {
   if (!value) return options.fallback ?? "-";
-  return String(value).slice(0, 10);
+
+  const rawValue = String(value);
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) {
+    return rawValue;
+  }
+
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) return rawValue.slice(0, 10);
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kabul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(parsedDate);
 }
 
 export function formatTime(value, options = {}) {
   if (!value) return options.fallback ?? "";
 
   const rawValue = String(value);
-  const timeMatch = rawValue.match(/T(\d{2}:\d{2})/) || rawValue.match(/\s(\d{2}:\d{2})/);
-
-  if (timeMatch?.[1]) return timeMatch[1];
   if (/^\d{4}-\d{2}-\d{2}$/.test(rawValue)) return options.fallback ?? "";
 
   const parsedDate = new Date(rawValue);
 
   if (Number.isNaN(parsedDate.getTime())) return options.fallback ?? "";
 
-  return `${String(parsedDate.getHours()).padStart(2, "0")}:${String(
-    parsedDate.getMinutes()
-  ).padStart(2, "0")}`;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kabul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  }).format(parsedDate);
 }
 
 export function formatDateTime(value, timeSourceOrOptions = {}, maybeOptions = {}) {

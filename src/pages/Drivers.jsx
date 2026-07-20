@@ -312,7 +312,7 @@ function Drivers() {
             </tbody>
           </table>
         </div>
-        <TablePagination page={pagination.page} totalPages={pagination.totalPages} setPage={pagination.setPage} totalItems={filteredEmployees.length} pageSize={pagination.pageSize} />
+        <TablePagination page={pagination.page} totalPages={pagination.totalPages} setPage={pagination.setPage} totalItems={filteredEmployees.length} pageSize={pagination.pageSize} setPageSize={pagination.setPageSize} />
       </div>
 
       {showModal && (

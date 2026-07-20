@@ -7,9 +7,10 @@ import "./CustomerIssueDevice.css";
 
 function createEmptyIssueForm() {
   return {
-    sourceType: "Main Stock",
+    sourceType: "Customer",
     fromCustomerId: "",
     destinationCustomerId: "",
+    destinationTowerId: "",
     issueDate: new Date().toISOString().slice(0, 10),
     issueStatus: "Issued",
     ownershipType: "Loaned",
@@ -41,7 +42,7 @@ function money(value) {
 }
 
 function CustomerIssueDevice() {
-  const { id } = useParams();
+  const { id, viewMode } = useParams();
   const navigate = useNavigate();
 
   const [customers, , , customersLoaded] = useJsonCollection("customers");
@@ -54,11 +55,33 @@ function CustomerIssueDevice() {
 
   const [securityDeposits, setSecurityDeposits, , depositsLoaded] =
     useJsonCollection("securityDeposits");
+  const [customerDeviceBuybacks, setCustomerDeviceBuybacks, , buybacksLoaded] =
+    useJsonCollection("customerDeviceBuybacks");
+  const [customerPayments, setCustomerPayments, , paymentsLoaded] =
+    useJsonCollection("customerPayments");
+  const [, setTransactions, , transactionsLoaded] =
+    useJsonCollection("transactions");
+  const [towerAssets, setTowerAssets, , towersLoaded] =
+    useJsonCollection("towerAssets");
+  const [towerAssetTransfers, setTowerAssetTransfers, , towerTransfersLoaded] =
+    useJsonCollection("towerAssetTransfers");
 
   const [formData, setFormData] = useState(createEmptyIssueForm);
   const [selectedAssetKeys, setSelectedAssetKeys] = useState([]);
+  const [selectedQuantities, setSelectedQuantities] = useState({});
   const [search, setSearch] = useState("");
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [showBuybackModal, setShowBuybackModal] = useState(false);
+  const [editBuybackRecord, setEditBuybackRecord] = useState(null);
+  const [buybackForm, setBuybackForm] = useState({
+    purchaseDate: new Date().toISOString().slice(0, 10),
+    destination: "Main Stock",
+    selectedTransferIds: [],
+    purchasePrices: {},
+    purchasedBy: "",
+    paidAmount: "",
+    notes: "",
+  });
 
   const [openActionId, setOpenActionId] = useState(null);
 
@@ -118,8 +141,20 @@ function CustomerIssueDevice() {
   const isIndividualAsset = (asset) =>
     String(asset?.identityTracking || "")
       .toLowerCase()
-      .includes("individual") ||
-    (asset?.identityRecords || []).length > 0;
+      .includes("individual");
+
+  const getBulkAssetGroupKey = (asset) =>
+    String(
+      asset?.assetRecordId ||
+        asset?.parentAssetId ||
+        asset?.parentAssetKey ||
+        asset?.assetId ||
+        asset?.id ||
+        ""
+    );
+
+  const getSelectableAssetKey = (asset) =>
+    isIndividualAsset(asset) ? getAssetKey(asset) : getBulkAssetGroupKey(asset);
 
   const buildUnitOption = (asset, record, index, sourceLabel = "") => ({
     ...asset,
@@ -160,10 +195,43 @@ function CustomerIssueDevice() {
         assetRecordId: asset.id || "",
         selectionKey: asset.id || asset.assetId || "",
         quantity: Number(asset.quantity || 1),
+        availableQuantity: Number(asset.quantity || 1),
         unitRecordId: "",
         sourceType: sourceLabel || asset.location || "",
       },
     ];
+  };
+
+  const mergeSelectableAssets = (assetOptions) => {
+    const merged = new Map();
+
+    assetOptions.forEach((asset) => {
+      const key = getSelectableAssetKey(asset);
+      const existing = merged.get(key);
+
+      if (!existing || isIndividualAsset(asset)) {
+        merged.set(key, asset);
+        return;
+      }
+
+      merged.set(key, {
+        ...existing,
+        quantity: Number(existing.quantity || 0) + Number(asset.quantity || 1),
+        availableQuantity:
+          Number(existing.availableQuantity ?? existing.quantity ?? 0) +
+          Number(asset.availableQuantity ?? asset.quantity ?? 1),
+        depositAmount:
+          Number(existing.depositAmount || 0) + Number(asset.depositAmount || 0),
+        depositRemainingAmount:
+          Number(existing.depositRemainingAmount || 0) +
+          Number(asset.depositRemainingAmount ?? asset.depositAmount ?? 0),
+        securityDepositPerDevice:
+          Number(existing.securityDepositPerDevice || 0) +
+          Number(asset.securityDepositPerDevice || 0),
+      });
+    });
+
+    return Array.from(merged.values());
   };
 
   const getAssetLabel = (asset) => {
@@ -181,8 +249,75 @@ function CustomerIssueDevice() {
     return `${assetId} - ${name}${serial}${mac}`;
   };
 
+  const getCustomerByAnyId = (value) =>
+    customers.find(
+      (item) =>
+        String(item.id || "") === String(value || "") ||
+        String(item.customerId || "") === String(value || "")
+    );
+
+  const normalizeCustomerTransfer = (transfer) => {
+    const repairResult = transfer.repairResult || null;
+    const repairToCustomer = repairResult?.sendTo === "Customer";
+    const centralToCustomer = String(transfer.destinationType || "") === "Customer";
+    const centralFromCustomer = String(transfer.sourceType || "") === "Customer";
+
+    const toCustomerRecordId =
+      transfer.toCustomerRecordId ||
+      (centralToCustomer ? transfer.destinationRecordId : "") ||
+      (repairToCustomer ? repairResult.destinationRecordId : "");
+    const fromCustomerRecordId =
+      transfer.fromCustomerRecordId ||
+      (centralFromCustomer ? transfer.sourceRecordId : "");
+
+    const toCustomer = getCustomerByAnyId(toCustomerRecordId || transfer.toCustomerId);
+    const fromCustomer = getCustomerByAnyId(fromCustomerRecordId || transfer.fromCustomerId);
+
+    const normalizedTransferType = repairToCustomer
+      ? "Repair -> Customer"
+      : transfer.transferType || transfer.fromType || "-";
+    const ownershipType =
+      transfer.ownershipType ||
+      (transfer.dealType === "Sold" ? "Sold" : transfer.dealType ? "Loaned" : "");
+
+    return {
+      ...transfer,
+      id: repairToCustomer ? `repair-customer-${transfer.id || transfer.transferId}` : transfer.id,
+      issueDate: repairResult?.resultDate || transfer.issueDate || transfer.transferDate || transfer.date || "",
+      transferType: normalizedTransferType,
+      fromCustomerRecordId,
+      fromCustomerId: fromCustomer?.customerId || transfer.fromCustomerId || "",
+      fromCustomerName:
+        fromCustomer ? getCustomerName(fromCustomer) : transfer.fromCustomerName || transfer.sourceLocation || "-",
+      toCustomerRecordId,
+      toCustomerId: toCustomer?.customerId || transfer.toCustomerId || "",
+      toCustomerName:
+        toCustomer ? getCustomerName(toCustomer) : transfer.toCustomerName || transfer.destinationLocation || "-",
+      ownershipType,
+      salePrice: transfer.salePrice || transfer.totalAmount || 0,
+      paidAmount: transfer.paidAmount || 0,
+      depositAmount: transfer.depositAmount || 0,
+      depositReceivedAmount: transfer.depositReceivedAmount || 0,
+      depositRemainingAmount: transfer.remainingDeposit || 0,
+      issueStatus:
+        repairToCustomer
+          ? repairResult.repairStatus === "Fixed"
+            ? "Issued"
+            : "Not Fixed"
+          : transfer.issueStatus || transfer.newStatus || transfer.status || "Issued",
+      quantity: repairResult?.quantity || transfer.quantity || 1,
+      createdAt: repairResult?.updatedAt || transfer.createdAt,
+      updatedAt: repairResult?.updatedAt || transfer.updatedAt,
+    };
+  };
+
+  const normalizedCustomerTransfers = useMemo(
+    () => deviceTransfers.map((transfer) => normalizeCustomerTransfer(transfer)),
+    [deviceTransfers, customers]
+  );
+
   const isLatestTransferForAsset = (transfer) => {
-    const relatedTransfers = deviceTransfers.filter(
+    const relatedTransfers = normalizedCustomerTransfers.filter(
       (item) =>
         getTransferAssetKey(item) === getTransferAssetKey(transfer)
     );
@@ -227,7 +362,7 @@ function CustomerIssueDevice() {
   }, [assets]);
 
   const latestCustomerTransferOptions = useMemo(() => {
-    const sortedTransfers = [...deviceTransfers].sort((a, b) =>
+    const sortedTransfers = [...normalizedCustomerTransfers].sort((a, b) =>
       String(a.createdAt || a.issueDate || "").localeCompare(
         String(b.createdAt || b.issueDate || "")
       )
@@ -277,6 +412,7 @@ function CustomerIssueDevice() {
             transfer.macAddress ||
             transfer.id,
           quantity: Number(transfer.quantity || 1),
+          availableQuantity: Number(transfer.quantity || 1),
           location: "Customer",
           status: transfer.issueStatus || "Issued",
           customerRecordId: transfer.toCustomerRecordId || "",
@@ -284,7 +420,7 @@ function CustomerIssueDevice() {
           customerName: transfer.toCustomerName || "",
         };
       });
-  }, [assets, deviceTransfers]);
+  }, [assets, normalizedCustomerTransfers]);
 
   const customerOwnedAssets = useMemo(() => {
     if (formData.sourceType !== "Customer") {
@@ -305,6 +441,18 @@ function CustomerIssueDevice() {
         String(asset.customerRecordId || "") === String(fromCustomer.id) ||
         String(asset.customerId || "") === String(fromCustomer.customerId);
 
+      const unitRecords = Array.isArray(asset.identityRecords)
+        ? asset.identityRecords.filter(
+            (record) =>
+              String(record.customerRecordId || "") === String(fromCustomer.id) ||
+              String(record.customerId || "") === String(fromCustomer.customerId)
+          )
+        : [];
+
+      if (unitRecords.length) {
+        return unitRecords.map((record, index) => buildUnitOption(asset, record, index, "Customer"));
+      }
+
       return belongsToCustomer ? expandAssetOptions(asset, "Customer") : [];
     });
 
@@ -314,13 +462,7 @@ function CustomerIssueDevice() {
         String(asset.customerId || "") === String(fromCustomer.customerId)
     );
 
-    const seen = new Set();
-    return [...assetOptions, ...transferOptions].filter((asset) => {
-      const key = getAssetKey(asset);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    return mergeSelectableAssets([...assetOptions, ...transferOptions]);
   }, [
     assets,
     customers,
@@ -332,34 +474,117 @@ function CustomerIssueDevice() {
   const currentCustomerAssets = useMemo(() => {
   if (!customer) return [];
 
-  const assetOptions = assets.flatMap((asset) => {
+  const grouped = new Map();
+  const sameCustomer = (recordId, customerId) =>
+    String(recordId || "") === String(customer.id || "") ||
+    String(customerId || "") === String(customer.customerId || "");
+
+  normalizedCustomerTransfers.forEach((transfer) => {
+    const incoming = sameCustomer(transfer.toCustomerRecordId, transfer.toCustomerId);
+    const outgoing = sameCustomer(transfer.fromCustomerRecordId, transfer.fromCustomerId);
+
+    if (!incoming && !outgoing) return;
+
+    const parentAsset =
+      assets.find(
+        (asset) =>
+          String(asset.id || "") === String(transfer.assetRecordId || "") ||
+          String(asset.assetId || "") === String(transfer.assetId || "")
+      ) || {};
+
+    const key = [
+      transfer.assetRecordId || transfer.assetId,
+      transfer.unitRecordId || transfer.serialNumber || transfer.macAddress || "bulk",
+      transfer.ownershipType || transfer.dealType || "",
+    ].join("::");
+
+    const previous = grouped.get(key) || {
+      ...parentAsset,
+      ...transfer,
+      id: parentAsset.id || transfer.assetRecordId || transfer.id,
+      parentAssetId: transfer.assetRecordId || parentAsset.id || "",
+      assetRecordId: transfer.assetRecordId || parentAsset.id || "",
+      assetId: transfer.assetId || parentAsset.assetId || "",
+      deviceName: transfer.deviceName || parentAsset.deviceName || "",
+      category: transfer.category || parentAsset.category || "",
+      brand: transfer.brand || parentAsset.brand || "",
+      selectionKey: `${transfer.assetRecordId || transfer.assetId}::${
+        transfer.unitRecordId || transfer.serialNumber || transfer.macAddress || "bulk"
+      }`,
+      unitRecordId:
+        transfer.unitRecordId ||
+        transfer.serialNumber ||
+        transfer.macAddress ||
+        "",
+      quantity: 0,
+      availableQuantity: 0,
+      location: "Customer",
+      status: transfer.issueStatus || transfer.newStatus || "Issued",
+      customerRecordId: customer.id || "",
+      customerId: customer.customerId || "",
+      customerName: getCustomerName(customer),
+      ownershipType:
+        transfer.ownershipType ||
+        (transfer.dealType === "Sold" ? "Sold" : transfer.dealType ? "Loaned" : ""),
+      salePrice: transfer.salePrice || transfer.totalAmount || 0,
+      paidAmount: transfer.paidAmount || 0,
+      depositAmount: transfer.depositAmount || 0,
+      depositReceivedAmount: transfer.depositReceivedAmount || 0,
+    };
+
+    const delta = Number(transfer.quantity || 1) * (incoming ? 1 : -1);
+
+    grouped.set(key, {
+      ...previous,
+      quantity: Number(previous.quantity || 0) + delta,
+      availableQuantity: Number(previous.availableQuantity || 0) + delta,
+    });
+  });
+
+  const transferAssets = Array.from(grouped.values()).filter(
+    (asset) => Number(asset.quantity || 0) > 0
+  );
+
+  if (transferAssets.length) {
+    return transferAssets;
+  }
+
+  const legacyAssetOptions = assets.flatMap((asset) => {
     const belongsToCustomer =
       String(asset.customerRecordId || "") === String(customer.id) ||
       String(asset.customerId || "") === String(customer.customerId);
 
+    const unitRecords = Array.isArray(asset.identityRecords)
+      ? asset.identityRecords.filter(
+          (record) =>
+            String(record.customerRecordId || "") === String(customer.id) ||
+            String(record.customerId || "") === String(customer.customerId)
+        )
+      : [];
+
+    if (unitRecords.length) {
+      return unitRecords.map((record, index) => buildUnitOption(asset, record, index, "Customer"));
+    }
+
     return belongsToCustomer ? expandAssetOptions(asset, "Customer") : [];
   });
 
-  const transferOptions = latestCustomerTransferOptions.filter(
-    (asset) =>
-      String(asset.customerRecordId || "") === String(customer.id) ||
-      String(asset.customerId || "") === String(customer.customerId)
-  );
-
-  const seen = new Set();
-  return [...assetOptions, ...transferOptions].filter((asset) => {
-    const key = getAssetKey(asset);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}, [assets, customer, latestCustomerTransferOptions]);
+  return mergeSelectableAssets(legacyAssetOptions);
+}, [assets, customer, normalizedCustomerTransfers]);
 
 
 const currentCustomerDeviceCount = currentCustomerAssets.reduce(
   (sum, asset) => sum + Number(asset.quantity || 1),
   0
 );
+
+const currentSoldDeviceCount = currentCustomerAssets
+  .filter((asset) => asset.ownershipType === "Sold")
+  .reduce((sum, asset) => sum + Number(asset.quantity || 1), 0);
+
+const currentLoanedDeviceCount = currentCustomerAssets
+  .filter((asset) => asset.ownershipType === "Loaned")
+  .reduce((sum, asset) => sum + Number(asset.quantity || 1), 0);
 
 const isSourceCurrentCustomer = (transfer) => {
   if (!customer) return false;
@@ -400,7 +625,10 @@ const getTransferRowClass = (transfer) => {
     return customerOwnedAssets;
   }
 
-  if (formData.sourceType === "Customer to Main Stock") {
+  if (
+    formData.sourceType === "Customer to Main Stock" ||
+    formData.sourceType === "Customer to Tower"
+  ) {
     return currentCustomerAssets;
   }
 
@@ -441,24 +669,68 @@ const getTransferRowClass = (transfer) => {
       selectedAssetKeys.map(String)
     );
 
-    return availableAssets.filter((asset) =>
-      selectedKeys.has(getAssetKey(asset))
-    );
-  }, [availableAssets, selectedAssetKeys]);
+    return availableAssets
+      .filter((asset) => selectedKeys.has(getSelectableAssetKey(asset)))
+      .map((asset) => {
+        if (isIndividualAsset(asset)) return asset;
 
-  const getIssueSalePrice = (asset) =>
+        const key = getSelectableAssetKey(asset);
+        const availableQuantity = Number(
+          asset.availableQuantity ?? asset.quantity ?? 1
+        );
+        const selectedQuantity = Math.min(
+          Math.max(Number(selectedQuantities[key] || 1), 1),
+          Math.max(availableQuantity, 1)
+        );
+
+        return {
+          ...asset,
+          quantity: selectedQuantity,
+          availableQuantity,
+        };
+      });
+  }, [availableAssets, selectedAssetKeys, selectedQuantities]);
+
+  const getSourceDepositHeld = (asset) =>
     Number(
-      formData.salePrices?.[getAssetKey(asset)] ??
-        asset.salePrice ??
-        asset.unitPrice ??
-        formData.salePrice ??
+      asset.depositRemainingAmount ??
+        asset.depositAmount ??
+        asset.securityDepositPerDevice ??
+        asset.previousDepositAmount ??
         0
     );
 
-  const selectedSaleTotal = selectedAssets.reduce(
-    (sum, asset) => sum + getIssueSalePrice(asset),
-    0
-  );
+  const getDefaultIssueSalePrice = (asset) =>
+    Number(
+      formData.salePrices?.[getSelectableAssetKey(asset)] ??
+        asset.salePrice ??
+        asset.unitPrice ??
+        0
+    );
+
+  const manualSaleTotal =
+    formData.salePrice !== "" && formData.salePrice !== null
+      ? Number(formData.salePrice || 0)
+      : null;
+
+  const getIssueSalePrice = (asset) => {
+    if (manualSaleTotal !== null) {
+      return selectedAssets.length > 1
+        ? manualSaleTotal / Math.max(selectedAssets.length, 1)
+        : manualSaleTotal;
+    }
+
+    const unitPrice = getDefaultIssueSalePrice(asset);
+
+    return isIndividualAsset(asset)
+      ? unitPrice
+      : Number(asset.quantity || 1) * unitPrice;
+  };
+
+  const selectedSaleTotal =
+    manualSaleTotal !== null
+      ? manualSaleTotal
+      : selectedAssets.reduce((sum, asset) => sum + getIssueSalePrice(asset), 0);
 
   const selectedPaidTotal = Number(formData.paidAmount || 0);
 
@@ -468,14 +740,7 @@ const getTransferRowClass = (transfer) => {
       : 0;
 
   const selectedLoanedDepositTotal = selectedAssets.reduce(
-    (sum, asset) =>
-      sum +
-      Number(
-        asset.depositAmount ||
-          asset.securityDepositPerDevice ||
-          formData.depositAmount ||
-          0
-      ),
+    (sum, asset) => sum + getSourceDepositHeld(asset),
     0
   );
 
@@ -512,7 +777,7 @@ const getTransferRowClass = (transfer) => {
       return [];
     }
 
-    return deviceTransfers
+    return normalizedCustomerTransfers
       .filter(
         (item) =>
           String(item.toCustomerRecordId || "") ===
@@ -536,7 +801,7 @@ const getTransferRowClass = (transfer) => {
     second.updatedTime - first.updatedTime
   );
 });
-  }, [customer, deviceTransfers]);
+  }, [customer, normalizedCustomerTransfers]);
 
   const totalTransfers = customerTransferHistory.length;
 
@@ -553,6 +818,297 @@ const getTransferRowClass = (transfer) => {
       sum + Number(item.depositAmount || 0),
     0
   );
+
+  const customerBuybackRecords = customer
+    ? customerDeviceBuybacks.filter(
+        (item) =>
+          String(item.customerId || "") === String(customer.customerId) ||
+          String(item.customerRecordId || "") === String(customer.id)
+      )
+    : [];
+
+  const boughtBackTransferIds = new Set(
+    customerBuybackRecords.flatMap((record) =>
+      Array.isArray(record.items)
+        ? record.items.map((item) => String(item.transferId || ""))
+        : []
+    )
+  );
+
+  const buybackAvailableDevices = customerTransferHistory.filter(
+    (item) => {
+      const transferId = String(item.id || "");
+      const belongsToEditingRecord = (editBuybackRecord?.items || []).some(
+        (recordItem) => String(recordItem.transferId || "") === transferId
+      );
+
+      return (
+        item.ownershipType === "Sold" &&
+        isDestinationCurrentCustomer(item) &&
+        (!boughtBackTransferIds.has(transferId) || belongsToEditingRecord)
+      );
+    }
+  );
+
+  const selectedBuybackDevices = buybackAvailableDevices.filter((item) =>
+    buybackForm.selectedTransferIds.includes(String(item.id || ""))
+  );
+
+  const buybackTotal = selectedBuybackDevices.reduce((sum, item) => {
+    const transferId = String(item.id || "");
+    const price = Number(
+      buybackForm.purchasePrices[transferId] ??
+        item.salePrice ??
+        item.totalAmount ??
+        0
+    );
+    return sum + price;
+  }, 0);
+
+  const buybackPaid = Number(buybackForm.paidAmount || 0);
+  const buybackRemaining = Math.max(buybackTotal - buybackPaid, 0);
+
+  const resetBuybackForm = () => {
+    setEditBuybackRecord(null);
+    setBuybackForm({
+      purchaseDate: new Date().toISOString().slice(0, 10),
+      destination: "Main Stock",
+      selectedTransferIds: [],
+      purchasePrices: {},
+      purchasedBy: "",
+      paidAmount: "",
+      notes: "",
+    });
+  };
+
+  const applyBuybackStock = (baseAssets, record, multiplier = 1) => {
+    const items = Array.isArray(record?.items) ? record.items : [];
+
+    return baseAssets.map((asset) => {
+      const matchingItems = items.filter(
+        (item) =>
+          String(item.assetRecordId || "") === String(asset.id || "") ||
+          String(item.assetId || "") === String(asset.assetId || "")
+      );
+
+      if (!matchingItems.length) return asset;
+
+      const quantityDelta =
+        matchingItems.reduce((sum, item) => sum + Number(item.quantity || 1), 0) *
+        multiplier;
+      const nextIdentityRecords = Array.isArray(asset.identityRecords)
+        ? asset.identityRecords.map((unit) => {
+            const matched = matchingItems.some(
+              (item) =>
+                String(item.unitRecordId || "") === String(unit.id || "") ||
+                String(item.macAddress || "") === String(unit.macAddress || "") ||
+                String(item.serialNumber || "") === String(unit.serialNumber || "")
+            );
+
+            if (!matched) return unit;
+
+            return {
+              ...unit,
+              location: multiplier > 0 ? "Main Stock" : "Customer",
+              status: multiplier > 0 ? "In Stock" : "Issued",
+              customerRecordId: multiplier > 0 ? "" : record.customerRecordId || customer?.id || "",
+              updatedAt: new Date().toISOString(),
+            };
+          })
+        : asset.identityRecords;
+
+      return {
+        ...asset,
+        quantity: Math.max(Number(asset.quantity || 0) + quantityDelta, 0),
+        location: multiplier > 0 ? "Main Stock" : "Customer",
+        status: multiplier > 0 ? "In Stock" : "Issued",
+        customerRecordId: multiplier > 0 ? "" : record.customerRecordId || customer?.id || "",
+        identityRecords: nextIdentityRecords,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  };
+
+  const openEditBuyback = (record) => {
+    const purchasePrices = {};
+    const selectedTransferIds = (record.items || []).map((item) => {
+      const transferId = String(item.transferId || "");
+      purchasePrices[transferId] = item.purchasePrice ?? "";
+      return transferId;
+    });
+
+    setEditBuybackRecord(record);
+    setBuybackForm({
+      purchaseDate: record.purchaseDate || new Date().toISOString().slice(0, 10),
+      destination: record.destination || "Main Stock",
+      selectedTransferIds,
+      purchasePrices,
+      purchasedBy: record.purchasedBy || "",
+      paidAmount: String(record.paidAmount || ""),
+      notes: record.notes || "",
+    });
+    setShowBuybackModal(true);
+  };
+
+  const deleteBuyback = async (record) => {
+    if (!window.confirm("Delete this customer purchase record?")) return;
+
+    const assetsSaved = await setAssets(applyBuybackStock(assets, record, -1));
+    if (!assetsSaved) return;
+
+    const recordsSaved = await setCustomerDeviceBuybacks(
+      customerDeviceBuybacks.filter((item) => String(item.id) !== String(record.id))
+    );
+    if (!recordsSaved) return;
+
+    const expenseRemoved = await setTransactions((previous) =>
+      previous.filter(
+        (item) =>
+          !(
+            item.source === "customer-device-buyback" &&
+            String(item.referenceId || "") === String(record.id)
+          )
+      )
+    );
+    if (!expenseRemoved) return;
+
+    notify("Customer purchase deleted and stock was adjusted.");
+  };
+
+  const toggleBuybackDevice = (transfer) => {
+    const transferId = String(transfer.id || "");
+
+    setBuybackForm((previous) => {
+      const selected = previous.selectedTransferIds.includes(transferId);
+
+      return {
+        ...previous,
+        selectedTransferIds: selected
+          ? previous.selectedTransferIds.filter((item) => item !== transferId)
+          : [...previous.selectedTransferIds, transferId],
+        purchasePrices: {
+          ...previous.purchasePrices,
+          [transferId]:
+            previous.purchasePrices[transferId] ??
+            transfer.salePrice ??
+            transfer.totalAmount ??
+            "",
+        },
+      };
+    });
+  };
+
+  const saveBuyback = async (event) => {
+    event.preventDefault();
+
+    if (!customer) return;
+
+    if (!selectedBuybackDevices.length) {
+      notify("Please select at least one sold device to purchase from this customer.", "error");
+      return;
+    }
+
+    if (!buybackForm.purchasedBy.trim()) {
+      notify("Purchased By is required.", "error");
+      return;
+    }
+
+    if (buybackPaid > buybackTotal) {
+      notify("Paid amount cannot be greater than total purchase amount.", "error");
+      return;
+    }
+
+    const timestamp = Date.now();
+    const createdAt = new Date().toISOString();
+    const record = {
+      id: editBuybackRecord?.id || `customer-buyback-${timestamp}`,
+      customerRecordId: customer.id || "",
+      customerId: customer.customerId || "",
+      customerName: getCustomerName(customer),
+      purchaseDate: buybackForm.purchaseDate,
+      destination: "Main Stock",
+      purchasedBy: buybackForm.purchasedBy.trim(),
+      totalAmount: buybackTotal,
+      paidAmount: buybackPaid,
+      remainingAmount: buybackRemaining,
+      notes: buybackForm.notes.trim(),
+      items: selectedBuybackDevices.map((item) => {
+        const transferId = String(item.id || "");
+        return {
+          transferId,
+          assetRecordId: item.assetRecordId || "",
+          assetId: item.assetId || "",
+          unitRecordId: item.unitRecordId || "",
+          deviceName: item.deviceName || "",
+          category: item.category || "",
+          model: item.model || "",
+          macAddress: item.macAddress || "",
+          serialNumber: item.serialNumber || "",
+          quantity: Number(item.quantity || 1),
+          purchasePrice: Number(
+            buybackForm.purchasePrices[transferId] ??
+              item.salePrice ??
+              item.totalAmount ??
+              0
+          ),
+        };
+      }),
+      createdAt: editBuybackRecord?.createdAt || createdAt,
+      updatedAt: createdAt,
+    };
+
+    let nextAssets = assets;
+    if (editBuybackRecord) {
+      nextAssets = applyBuybackStock(nextAssets, editBuybackRecord, -1);
+    }
+    nextAssets = applyBuybackStock(nextAssets, record, 1);
+
+    const assetsSaved = await setAssets(nextAssets);
+    if (!assetsSaved) return;
+
+    const saved = await setCustomerDeviceBuybacks(
+      editBuybackRecord
+        ? customerDeviceBuybacks.map((item) =>
+            String(item.id) === String(editBuybackRecord.id) ? record : item
+          )
+        : [...customerDeviceBuybacks, record]
+    );
+    if (!saved) return;
+
+    const expenseSaved = await setTransactions((previous) => [
+      ...previous.filter(
+        (item) =>
+          !(
+            item.source === "customer-device-buyback" &&
+            String(item.referenceId || "") === String(record.id)
+          )
+      ),
+      ...(buybackPaid > 0
+        ? [
+            {
+          id: `customer-buyback-expense-${timestamp}`,
+          type: "expense",
+          category: "Customer Device Purchase",
+          title: `Purchase From Customer - ${getCustomerName(customer)}`,
+          amount: buybackPaid,
+          date: buybackForm.purchaseDate,
+          description: `Paid amount for ${record.items.length} device purchase item(s).`,
+          source: "customer-device-buyback",
+          referenceId: record.id,
+          customerRecordId: customer.id || "",
+          customerId: customer.customerId || "",
+          createdAt,
+          updatedAt: createdAt,
+        },
+          ]
+        : []),
+    ]);
+    if (!expenseSaved) return;
+
+    notify(editBuybackRecord ? "Customer purchase updated successfully." : "Customer purchase saved successfully.");
+    resetBuybackForm();
+    setShowBuybackModal(false);
+  };
 
   useEffect(() => {
     if (!openActionId) {
@@ -589,6 +1145,7 @@ const getTransferRowClass = (transfer) => {
   const resetIssueForm = () => {
     setFormData(createEmptyIssueForm());
     setSelectedAssetKeys([]);
+    setSelectedQuantities({});
     setSearch("");
   };
 
@@ -604,26 +1161,33 @@ const getTransferRowClass = (transfer) => {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    const nextValue =
+      name === "depositRefundAmount"
+        ? String(Math.min(Number(value || 0), selectedLoanedDepositTotal))
+        : value;
 
     if (
       name === "sourceType" ||
       name === "fromCustomerId" ||
-      name === "destinationCustomerId"
+      name === "destinationCustomerId" ||
+      name === "destinationTowerId"
     ) {
       setSelectedAssetKeys([]);
+      setSelectedQuantities({});
     }
 
     setFormData((previous) => {
       const nextData = {
         ...previous,
-        [name]: value,
+        [name]: nextValue,
       };
 
       if (name === "sourceType") {
   nextData.fromCustomerId = "";
   nextData.destinationCustomerId = "";
+  nextData.destinationTowerId = "";
 
-  if (value === "Customer to Main Stock") {
+  if (value === "Customer to Main Stock" || value === "Customer to Tower") {
     nextData.ownershipType = "";
     nextData.salePrice = "";
     nextData.paidAmount = "";
@@ -632,7 +1196,8 @@ const getTransferRowClass = (transfer) => {
     nextData.depositRefundAmount = "";
     nextData.depositAmount = "";
     nextData.depositStatus = "";
-    nextData.issueStatus = "Returned";
+    nextData.issueStatus =
+      value === "Customer to Tower" ? "Installed" : "Returned";
   } else {
     nextData.ownershipType = "Loaned";
     nextData.depositStatus = "Held";
@@ -652,12 +1217,12 @@ const getTransferRowClass = (transfer) => {
 
       const salePrice =
         name === "salePrice"
-          ? Number(value || 0)
+          ? Number(nextValue || 0)
           : Number(nextData.salePrice || 0);
 
       const paidAmount =
         name === "paidAmount"
-          ? Number(value || 0)
+          ? Number(nextValue || 0)
           : Number(nextData.paidAmount || 0);
 
       if (nextData.ownershipType === "Sold") {
@@ -674,7 +1239,7 @@ const getTransferRowClass = (transfer) => {
   };
 
   const updateSelectedSalePrice = (asset, value) => {
-    const key = getAssetKey(asset);
+      const key = getSelectableAssetKey(asset);
 
     setFormData((previous) => ({
       ...previous,
@@ -686,7 +1251,9 @@ const getTransferRowClass = (transfer) => {
   };
 
   const isLockedSoldCustomerAsset = (asset) =>
-    ["Customer", "Customer to Main Stock"].includes(formData.sourceType) &&
+    ["Customer", "Customer to Main Stock", "Customer to Tower"].includes(
+      formData.sourceType
+    ) &&
     String(asset.ownershipType || "") === "Sold";
 
   const toggleAssetSelection = (asset) => {
@@ -695,7 +1262,7 @@ const getTransferRowClass = (transfer) => {
       return;
     }
 
-    const assetKey = getAssetKey(asset);
+    const assetKey = getSelectableAssetKey(asset);
 
     setSelectedAssetKeys((previous) => {
       const exists = previous.some(
@@ -703,9 +1270,22 @@ const getTransferRowClass = (transfer) => {
       );
 
       if (exists) {
+        setSelectedQuantities((previousQuantities) => {
+          const next = { ...previousQuantities };
+          delete next[assetKey];
+          return next;
+        });
+
         return previous.filter(
           (key) => String(key) !== assetKey
         );
+      }
+
+      if (!isIndividualAsset(asset)) {
+        setSelectedQuantities((previousQuantities) => ({
+          ...previousQuantities,
+          [assetKey]: previousQuantities[assetKey] || 1,
+        }));
       }
 
       return [...previous, assetKey];
@@ -713,9 +1293,17 @@ const getTransferRowClass = (transfer) => {
   };
 
   const selectAllVisibleAssets = () => {
-    const visibleKeys = filteredAssets
+      const visibleKeys = filteredAssets
       .filter((asset) => !isLockedSoldCustomerAsset(asset))
-      .map(getAssetKey);
+      .map(getSelectableAssetKey);
+
+    const nextQuantities = {};
+    filteredAssets
+      .filter((asset) => !isLockedSoldCustomerAsset(asset) && !isIndividualAsset(asset))
+      .forEach((asset) => {
+        const key = getSelectableAssetKey(asset);
+        nextQuantities[key] = selectedQuantities[key] || 1;
+      });
 
     setSelectedAssetKeys((previous) => {
       const nextKeys = new Set(
@@ -728,6 +1316,28 @@ const getTransferRowClass = (transfer) => {
 
       return [...nextKeys];
     });
+
+    setSelectedQuantities((previous) => ({
+      ...previous,
+      ...nextQuantities,
+    }));
+  };
+
+  const updateSelectedQuantity = (asset, value) => {
+    const key = getSelectableAssetKey(asset);
+    const maxQuantity = Math.max(
+      Number(asset.availableQuantity ?? asset.quantity ?? 1),
+      1
+    );
+    const nextQuantity = Math.min(
+      Math.max(Number(value || 1), 1),
+      maxQuantity
+    );
+
+    setSelectedQuantities((previous) => ({
+      ...previous,
+      [key]: nextQuantity,
+    }));
   };
 
   const toggleActionMenu = (
@@ -782,6 +1392,14 @@ const getTransferRowClass = (transfer) => {
     event.preventDefault();
 
     if (!customer) return;
+
+    if (formData.sourceType === "Main Stock") {
+      notify(
+        "Main Stock to Customer is not allowed from this form. Send devices from the Asset section first.",
+        "error"
+      );
+      return;
+    }
 
     if (!selectedAssets.length) {
       notify(
@@ -842,6 +1460,8 @@ const getTransferRowClass = (transfer) => {
 
     const isReturnToMainStock =
   formData.sourceType === "Customer to Main Stock";
+    const isCustomerToTower =
+  formData.sourceType === "Customer to Tower";
 
 const fromCustomer =
   formData.sourceType === "Customer"
@@ -849,7 +1469,7 @@ const fromCustomer =
         (item) =>
           String(item.id) === String(formData.fromCustomerId)
       )
-    : isReturnToMainStock
+    : isReturnToMainStock || isCustomerToTower
       ? customer
       : null;
 
@@ -863,9 +1483,21 @@ const destinationCustomer =
     : isReturnToMainStock
       ? null
       : customer;
+const destinationTower = isCustomerToTower
+  ? towerAssets.find(
+      (tower) => String(tower.id || "") === String(formData.destinationTowerId || "")
+    )
+  : null;
+
+    if (isCustomerToTower && !destinationTower) {
+      notify("Please select a destination tower.", "error");
+      return;
+    }
 
     const isSoldTransfer =
-      !isReturnToMainStock && formData.ownershipType === "Sold";
+      !isReturnToMainStock &&
+      !isCustomerToTower &&
+      formData.ownershipType === "Sold";
 
     const totalSaleAmount = isSoldTransfer
       ? selectedAssets.reduce((sum, asset) => sum + getIssueSalePrice(asset), 0)
@@ -877,12 +1509,21 @@ const totalPaidAmount = isSoldTransfer
 
     const depositAmount =
   !isReturnToMainStock &&
+  !isCustomerToTower &&
   formData.ownershipType === "Loaned"
     ? Number(formData.depositAmount || 0)
     : 0;
 
     if (isSoldTransfer && totalPaidAmount > totalSaleAmount) {
       notify("Paid amount cannot be greater than total sale amount.", "error");
+      return;
+    }
+
+    if (Number(formData.depositRefundAmount || 0) > selectedLoanedDepositTotal) {
+      notify(
+        "Refund paid to from customer cannot be greater than deposit held.",
+        "error"
+      );
       return;
     }
 
@@ -897,9 +1538,12 @@ const totalPaidAmount = isSoldTransfer
         ? "Main Stock to Customer"
         : formData.sourceType === "Customer"
           ? "Customer to Customer"
-          : "Customer to Main Stock";
+          : isCustomerToTower
+            ? "Customer to Tower"
+            : "Customer to Main Stock";
 
     let remainingPaidAmount = totalPaidAmount;
+    let remainingRefundAmount = Number(formData.depositRefundAmount || 0);
 
     const newTransferRecords =
       selectedAssets.map((asset, index) => {
@@ -918,17 +1562,29 @@ const totalPaidAmount = isSoldTransfer
         const itemRemainAmount = isSoldTransfer
           ? Math.max(itemSalePrice - itemPaidAmount, 0)
           : 0;
-        const previousDepositAmount = Number(asset.depositAmount || 0);
+        const previousDepositAmount = getSourceDepositHeld(asset);
         const itemRefundAmount =
-          !isReturnToMainStock && formData.ownershipType === "Loaned"
-            ? Number(formData.depositRefundAmount || 0)
+          !isReturnToMainStock &&
+          !isCustomerToTower &&
+          formData.ownershipType === "Loaned"
+            ? Math.min(previousDepositAmount, Math.max(remainingRefundAmount, 0))
             : 0;
+
+        if (itemRefundAmount > 0) {
+          remainingRefundAmount = Math.max(
+            remainingRefundAmount - itemRefundAmount,
+            0
+          );
+        }
 
         return ({
         id: `${timestamp}-${index}`,
         batchId,
         referenceNumber,
         batchSize: selectedAssets.length,
+        createdFromCustomerId: customer?.id || "",
+        createdFromCustomerCode: customer?.customerId || "",
+        sourcePage: "customer-device-transfer",
 
         transferType: transferTypeLabel,
 
@@ -945,15 +1601,25 @@ const totalPaidAmount = isSoldTransfer
           : "Main Stock",
 
         toCustomerRecordId:
-  isReturnToMainStock ? "" : destinationCustomer?.id || "",
+  isReturnToMainStock || isCustomerToTower ? "" : destinationCustomer?.id || "",
 
 toCustomerId:
-  isReturnToMainStock ? "" : destinationCustomer?.customerId || "",
+  isReturnToMainStock || isCustomerToTower
+    ? ""
+    : destinationCustomer?.customerId || "",
 
 toCustomerName:
   isReturnToMainStock
     ? "Main Stock"
+    : isCustomerToTower
+    ? destinationTower?.towerName || "Tower"
     : getCustomerName(destinationCustomer),
+        toTowerRecordId:
+          isCustomerToTower ? destinationTower?.id || "" : "",
+        toTowerName:
+          isCustomerToTower ? destinationTower?.towerName || "" : "",
+        toTowerLocation:
+          isCustomerToTower ? destinationTower?.towerLocation || "" : "",
 
         assetRecordId:
           asset.assetRecordId || asset.parentAssetId || asset.id || "",
@@ -1005,10 +1671,12 @@ toCustomerName:
         issueStatus:
   isReturnToMainStock
     ? "Returned"
+    : isCustomerToTower
+    ? "Installed"
     : formData.issueStatus,
 
 ownershipType:
-  isReturnToMainStock
+  isReturnToMainStock || isCustomerToTower
     ? ""
     : formData.ownershipType,
 
@@ -1022,6 +1690,7 @@ ownershipType:
 
         depositStatus:
   !isReturnToMainStock &&
+  !isCustomerToTower &&
   formData.ownershipType === "Loaned"
     ? formData.depositStatus
     : "",
@@ -1042,9 +1711,16 @@ ownershipType:
       selectedByParent.set(parentId, list);
     });
 
+    const getSelectedUnitsForAsset = (asset) =>
+      selectedByParent.get(String(asset.id || "")) ||
+      selectedByParent.get(String(asset.assetId || "")) ||
+      selectedByParent.get(String(asset.assetRecordId || "")) ||
+      selectedByParent.get(String(asset.parentAssetId || "")) ||
+      [];
+
     const updatedAssets = assets.map(
       (asset) => {
-        const selectedUnits = selectedByParent.get(String(asset.id || ""));
+        const selectedUnits = getSelectedUnitsForAsset(asset);
 
         if (!selectedUnits?.length) {
           return asset;
@@ -1134,6 +1810,35 @@ ownershipType:
   };
 }
 
+if (isCustomerToTower) {
+  return {
+    ...asset,
+
+    location: "Tower",
+    status: "Installed",
+    ownershipType: "",
+    towerRecordId: destinationTower?.id || "",
+    towerName: destinationTower?.towerName || "",
+    towerLocation: destinationTower?.towerLocation || "",
+    previousCustomerRecordId:
+      customer.id || asset.customerRecordId || "",
+    previousCustomerId:
+      customer.customerId || asset.customerId || "",
+    previousCustomerName:
+      getCustomerName(customer),
+    customerRecordId: "",
+    customerId: "",
+    customerName: "",
+    lastTransferId:
+      newTransferRecords.find(
+        (record) =>
+          String(record.assetRecordId || "") === String(asset.id || "")
+      )?.id || "",
+    lastTransferDate: formData.issueDate,
+    updatedAt: createdAt,
+  };
+}
+
 return {
   ...asset,
 
@@ -1215,6 +1920,96 @@ return {
       return;
     }
 
+    if (isCustomerToTower) {
+      const towerUnits = selectedAssets.map((unit) => ({
+        ...unit,
+        location: "Tower",
+        status: "Installed",
+        ownershipType: "",
+        customerRecordId: "",
+        customerId: "",
+        customerName: "",
+        towerRecordId: destinationTower?.id || "",
+        towerName: destinationTower?.towerName || "",
+        towerLocation: destinationTower?.towerLocation || "",
+        sourceType: "Customer",
+        lastTowerTransferDate: formData.issueDate,
+        updatedAt: createdAt,
+      }));
+      const towerSaved = await setTowerAssets((previousTowers) =>
+        previousTowers.map((tower) => {
+          if (String(tower.id || "") !== String(destinationTower?.id || "")) {
+            return tower;
+          }
+
+          const existingAssets = Array.isArray(tower.assets) ? tower.assets : [];
+          const existingKeys = new Set(existingAssets.map(getAssetKey));
+          const nextAssets = [
+            ...existingAssets,
+            ...towerUnits.filter((unit) => !existingKeys.has(getAssetKey(unit))),
+          ];
+
+          return {
+            ...tower,
+            assets: nextAssets,
+            assetCount: nextAssets.length,
+            updatedAt: createdAt,
+          };
+        })
+      );
+
+      if (!towerSaved) {
+        return;
+      }
+
+      const towerTransferRecords = selectedAssets.map((unit, index) => ({
+        id: `${timestamp}-tower-${index}`,
+        batchId,
+        batchSize: selectedAssets.length,
+        transferType: "Customer to Tower",
+        referenceNumber,
+        quantity: Number(unit.quantity || 1),
+        sourceType: "Customer",
+        sourceCustomerId: customer.customerId || "",
+        sourceCustomerRecordId: customer.id || "",
+        sourceCustomerName: getCustomerName(customer),
+        sourceTowerId: "",
+        sourceTowerName: getCustomerName(customer),
+        sourceTowerLocation: "",
+        destinationType: "Tower",
+        destinationTowerId: destinationTower?.id || "",
+        destinationTowerName: destinationTower?.towerName || "",
+        destinationTowerLocation: destinationTower?.towerLocation || "",
+        parentAssetId: unit.parentAssetId || unit.assetRecordId || unit.id || "",
+        assetRecordId: unit.assetRecordId || unit.parentAssetId || unit.id || "",
+        assetId: unit.assetId || "",
+        deviceName: unit.deviceName || "",
+        category: unit.category || "",
+        brand: unit.brand || "",
+        model: unit.model || "",
+        macAddress: unit.macAddress || "",
+        serialNumber: unit.serialNumber || "",
+        transferDate: formData.issueDate,
+        transferStatus: "Completed",
+        responsiblePerson: "",
+        sourcePage: "customer-device-transfer",
+        createdFromCustomerId: customer.id || "",
+        createdFromCustomerCode: customer.customerId || "",
+        notes: formData.notes.trim(),
+        createdAt,
+        updatedAt: createdAt,
+      }));
+
+      const towerTransfersSaved = await setTowerAssetTransfers([
+        ...towerAssetTransfers,
+        ...towerTransferRecords,
+      ]);
+
+      if (!towerTransfersSaved) {
+        return;
+      }
+    }
+
     const movementRecords = Array.from(selectedByParent.entries()).map(
       ([parentId, selectedUnits], index) => {
         const parentAsset =
@@ -1267,7 +2062,10 @@ return {
           category: parentAsset.category || selectedUnits[0]?.category || "",
           movementType: "Transfer",
           transferType: transferTypeLabel,
-          dealType: isReturnToMainStock ? "" : formData.ownershipType,
+          dealType:
+            isReturnToMainStock || isCustomerToTower
+              ? ""
+              : formData.ownershipType,
           batchId,
           referenceNumber,
           date: formData.issueDate,
@@ -1278,47 +2076,77 @@ return {
           sourceCustomerId: fromCustomer?.customerId || "",
           destinationName: isReturnToMainStock
             ? "Main Stock"
+            : isCustomerToTower
+            ? destinationTower?.towerName || "Tower"
             : getCustomerName(destinationCustomer),
-          destinationType: isReturnToMainStock ? "Main Stock" : "Customer",
+          destinationType: isReturnToMainStock
+            ? "Main Stock"
+            : isCustomerToTower
+            ? "Tower"
+            : "Customer",
           destinationRecordId: isReturnToMainStock
             ? ""
+            : isCustomerToTower
+            ? destinationTower?.id || ""
             : destinationCustomer?.id || "",
           destinationCustomerId: isReturnToMainStock
             ? ""
+            : isCustomerToTower
+            ? ""
             : destinationCustomer?.customerId || "",
           totalAmount:
-            formData.ownershipType === "Sold" && !isReturnToMainStock
+            formData.ownershipType === "Sold" &&
+            !isReturnToMainStock &&
+            !isCustomerToTower
               ? movementSaleTotal
               : 0,
           paidAmount:
-            formData.ownershipType === "Sold" && !isReturnToMainStock
+            formData.ownershipType === "Sold" &&
+            !isReturnToMainStock &&
+            !isCustomerToTower
               ? movementPaidTotal
               : 0,
           remainingAmount:
-            formData.ownershipType === "Sold" && !isReturnToMainStock
+            formData.ownershipType === "Sold" &&
+            !isReturnToMainStock &&
+            !isCustomerToTower
               ? movementRemainTotal
               : 0,
           trustAmount:
-            formData.ownershipType === "Loaned" && !isReturnToMainStock
+            formData.ownershipType === "Loaned" &&
+            !isReturnToMainStock &&
+            !isCustomerToTower
               ? quantity * depositAmount
               : 0,
           securityDepositPerDevice:
-            formData.ownershipType === "Loaned" && !isReturnToMainStock
+            formData.ownershipType === "Loaned" &&
+            !isReturnToMainStock &&
+            !isCustomerToTower
               ? depositAmount
               : 0,
           salePricePerDevice:
-            formData.ownershipType === "Sold" && !isReturnToMainStock
+            formData.ownershipType === "Sold" &&
+            !isReturnToMainStock &&
+            !isCustomerToTower
               ? movementSaleTotal / Math.max(quantity, 1)
               : 0,
           paidAmountPerDevice:
-            formData.ownershipType === "Sold" && !isReturnToMainStock
+            formData.ownershipType === "Sold" &&
+            !isReturnToMainStock &&
+            !isCustomerToTower
               ? movementPaidTotal / Math.max(quantity, 1)
               : 0,
           remainingAmountPerDevice:
-            formData.ownershipType === "Sold" && !isReturnToMainStock
+            formData.ownershipType === "Sold" &&
+            !isReturnToMainStock &&
+            !isCustomerToTower
               ? movementRemainTotal / Math.max(quantity, 1)
               : 0,
-          transferStatus: isReturnToMainStock ? "Returned" : formData.issueStatus,
+          transferStatus: isReturnToMainStock
+            ? "Returned"
+            : isCustomerToTower
+            ? "Installed"
+            : formData.issueStatus,
           responsiblePerson: "",
           notes: formData.notes.trim(),
           createdAt,
@@ -1336,6 +2164,18 @@ return {
       return;
     }
 
+    for (const movement of movementRecords) {
+      const saleIncomeSaved = await saveDeviceSaleIncome(movement);
+
+      if (!saleIncomeSaved) {
+        notify(
+          "Device transfer was saved, but sale income could not be updated.",
+          "error"
+        );
+        return;
+      }
+    }
+
     const transfersSaved =
       await setDeviceTransfers([
         ...deviceTransfers,
@@ -1346,8 +2186,9 @@ return {
       return;
     }
 
-    if (
+if (
   !isReturnToMainStock &&
+  !isCustomerToTower &&
   formData.ownershipType === "Loaned" &&
   depositAmount > 0
 ) {
@@ -1404,11 +2245,71 @@ return {
       }
     }
 
+    const refundOffsetAmount =
+      formData.sourceType === "Customer" && selectedLoanedDepositTotal > 0
+        ? Math.max(
+            selectedLoanedDepositTotal - Number(formData.depositRefundAmount || 0),
+            0
+          )
+        : 0;
+
+    if (refundOffsetAmount > 0 && fromCustomer) {
+      const refundOffsetRecord = {
+        id: `deposit-refund-offset-${batchId}`,
+        customerRecordId: fromCustomer.id || "",
+        customerId: fromCustomer.customerId || "",
+        customerName: getCustomerName(fromCustomer),
+        paymentDate: formData.issueDate,
+        date: formData.issueDate,
+        direction: "customer-to-us",
+        paymentDirection: "customer-to-us",
+        amount: refundOffsetAmount,
+        method: "Deposit Refund Offset",
+        notes: [
+          `Deposit refund not paid in cash. Offset against customer balance.`,
+          `Held: ${money(selectedLoanedDepositTotal)} AFN`,
+          `Paid: ${money(formData.depositRefundAmount || 0)} AFN`,
+          `Remaining/Offset: ${money(refundOffsetAmount)} AFN`,
+          referenceNumber ? `Reference: ${referenceNumber}` : "",
+          formData.notes.trim(),
+        ]
+          .filter(Boolean)
+          .join(" | "),
+        source: "deposit-refund-offset",
+        referenceId: batchId,
+        createdAt,
+        updatedAt: createdAt,
+      };
+
+      const refundOffsetSaved = await setCustomerPayments((previousPayments) => [
+        ...previousPayments.filter(
+          (payment) =>
+            !(
+              payment.source === "deposit-refund-offset" &&
+              String(payment.referenceId || "") === String(batchId)
+            )
+        ),
+        refundOffsetRecord,
+      ]);
+
+      if (!refundOffsetSaved) {
+        notify(
+          "Device transfer was saved, but refund balance could not be updated.",
+          "error"
+        );
+        return;
+      }
+    }
+
     notify(
   isReturnToMainStock
     ? `${selectedAssets.length} device${
         selectedAssets.length === 1 ? "" : "s"
       } returned to Main Stock successfully.`
+    : isCustomerToTower
+    ? `${selectedAssets.length} device${
+        selectedAssets.length === 1 ? "" : "s"
+      } sent to Tower successfully.`
     : `${selectedAssets.length} device${
         selectedAssets.length === 1 ? "" : "s"
       } issued successfully.`
@@ -1420,6 +2321,12 @@ return {
   const openEditTransferModal = (
     transfer
   ) => {
+    if (!canManageTransfer(transfer)) {
+      notify("This transfer can only be edited from the page that created it.", "error");
+      setOpenActionId(null);
+      return;
+    }
+
     setEditTransfer(transfer);
 
     setEditForm({
@@ -1736,6 +2643,32 @@ const paidAmount =
       return;
     }
 
+    const updatedMovements = updateTransferInMovements(
+      editTransfer,
+      updatedTransfer
+    );
+    const movementsSaved = await setAssetMovements(updatedMovements);
+
+    if (!movementsSaved) {
+      return;
+    }
+
+    const relatedUpdatedMovements = updatedMovements.filter((movement) =>
+      transferMatchesMovement(updatedTransfer, movement)
+    );
+
+    for (const movement of relatedUpdatedMovements) {
+      const saleIncomeSaved = await saveDeviceSaleIncome(movement);
+
+      if (!saleIncomeSaved) {
+        notify(
+          "Device transfer was updated, but sale income could not be updated.",
+          "error"
+        );
+        return;
+      }
+    }
+
     notify(
       "Device transfer updated successfully."
     );
@@ -1836,9 +2769,192 @@ const removeTransferFromMovements = (transfer) => {
   });
 };
 
+const canManageTransfer = (transfer) =>
+  isSourceCurrentCustomer(transfer);
+
+const getTransferMovementAmounts = (transfer) => {
+  const isSold = transfer.ownershipType === "Sold";
+  const isLoaned = transfer.ownershipType === "Loaned";
+
+  return {
+    totalAmount: isSold ? Number(transfer.salePrice || 0) : 0,
+    paidAmount: isSold ? Number(transfer.paidAmount || 0) : 0,
+    remainingAmount: isSold ? Number(transfer.remainAmount || 0) : 0,
+    trustAmount: isLoaned ? Number(transfer.depositAmount || 0) : 0,
+  };
+};
+
+const saveDeviceSaleIncome = async (movement) => {
+  const paidAmount = Number(movement?.paidAmount || 0);
+
+  if (
+    movement?.movementType !== "Transfer" ||
+    movement?.dealType !== "Sold" ||
+    paidAmount <= 0
+  ) {
+    return setTransactions((previousTransactions) =>
+      previousTransactions.filter(
+        (transaction) =>
+          !(
+            transaction.source === "customer-device-sale" &&
+            String(transaction.referenceId || "") === String(movement?.id || "")
+          )
+      )
+    );
+  }
+
+  const updatedAt = new Date().toISOString();
+  const incomeRecord = {
+    id: `customer-device-sale-income-${movement.id}`,
+    type: "income",
+    title: `Device Sale - ${movement.deviceName || movement.assetId || "Asset"}`,
+    category: "Customer Payment",
+    amount: paidAmount,
+    date: movement.date,
+    description: [
+      movement.destinationName ? `Customer: ${movement.destinationName}` : "",
+      `Total: ${money(movement.totalAmount || 0)} AFN`,
+      `Paid: ${money(paidAmount)} AFN`,
+      `Remaining: ${money(movement.remainingAmount || 0)} AFN`,
+      movement.referenceNumber ? `Reference: ${movement.referenceNumber}` : "",
+      movement.notes || "",
+    ]
+      .filter(Boolean)
+      .join(" | "),
+    source: "customer-device-sale",
+    referenceId: movement.id,
+    assetRecordId: movement.assetRecordId || "",
+    assetId: movement.assetId || "",
+    customerRecordId: movement.destinationRecordId || "",
+    customerName: movement.destinationName || "",
+    createdAt: movement.createdAt || updatedAt,
+    updatedAt,
+  };
+
+  return setTransactions((previousTransactions) => [
+    ...previousTransactions.filter(
+      (transaction) =>
+        !(
+          transaction.source === "customer-device-sale" &&
+          String(transaction.referenceId || "") === String(movement.id)
+        )
+    ),
+    incomeRecord,
+  ]);
+};
+
+const updateTransferInMovements = (oldTransfer, updatedTransfer) => {
+  const oldAmounts = getTransferMovementAmounts(oldTransfer);
+  const nextAmounts = getTransferMovementAmounts(updatedTransfer);
+  const updatedAt = new Date().toISOString();
+
+  return assetMovements.map((movement) => {
+    if (!transferMatchesMovement(oldTransfer, movement)) {
+      return movement;
+    }
+
+    const movementUnits = movement.identityRecords || [];
+    const nextUnitRecords = movementUnits.map((record) => {
+      const recordKey = String(
+        record.id ||
+          record.serialNumber ||
+          record.macAddress ||
+          ""
+      );
+      const transferKey = String(
+        oldTransfer.unitRecordId ||
+          oldTransfer.serialNumber ||
+          oldTransfer.macAddress ||
+          ""
+      );
+
+      if (!transferKey || recordKey !== transferKey) {
+        return record;
+      }
+
+      return {
+        ...record,
+        unitPrice:
+          updatedTransfer.ownershipType === "Sold"
+            ? updatedTransfer.salePrice
+            : record.unitPrice,
+      };
+    });
+
+    const isSingleRecord = Number(movement.quantity || 0) <= Number(oldTransfer.quantity || 1);
+
+    return {
+      ...movement,
+      dealType:
+        updatedTransfer.transferType === "Customer to Main Stock"
+          ? ""
+          : updatedTransfer.ownershipType || movement.dealType,
+      date: updatedTransfer.issueDate || movement.date,
+      transferStatus: updatedTransfer.issueStatus || movement.transferStatus,
+      identityRecords: movementUnits.length ? nextUnitRecords : movement.identityRecords,
+      totalAmount: isSingleRecord
+        ? nextAmounts.totalAmount
+        : Math.max(
+            Number(movement.totalAmount || 0) -
+              oldAmounts.totalAmount +
+              nextAmounts.totalAmount,
+            0
+          ),
+      paidAmount: isSingleRecord
+        ? nextAmounts.paidAmount
+        : Math.max(
+            Number(movement.paidAmount || 0) -
+              oldAmounts.paidAmount +
+              nextAmounts.paidAmount,
+            0
+          ),
+      remainingAmount: isSingleRecord
+        ? nextAmounts.remainingAmount
+        : Math.max(
+            Number(movement.remainingAmount || 0) -
+              oldAmounts.remainingAmount +
+              nextAmounts.remainingAmount,
+            0
+          ),
+      trustAmount: isSingleRecord
+        ? nextAmounts.trustAmount
+        : Math.max(
+            Number(movement.trustAmount || 0) -
+              oldAmounts.trustAmount +
+              nextAmounts.trustAmount,
+            0
+          ),
+      securityDepositPerDevice:
+        updatedTransfer.ownershipType === "Loaned"
+          ? Number(updatedTransfer.depositAmount || 0)
+          : 0,
+      salePricePerDevice:
+        updatedTransfer.ownershipType === "Sold"
+          ? Number(updatedTransfer.salePrice || 0)
+          : 0,
+      paidAmountPerDevice:
+        updatedTransfer.ownershipType === "Sold"
+          ? Number(updatedTransfer.paidAmount || 0)
+          : 0,
+      remainingAmountPerDevice:
+        updatedTransfer.ownershipType === "Sold"
+          ? Number(updatedTransfer.remainAmount || 0)
+          : 0,
+      notes: updatedTransfer.notes || movement.notes,
+      updatedAt,
+    };
+  });
+};
+
   const confirmDeleteTransfer =
     async () => {
       if (!deleteTransfer) {
+        return;
+      }
+
+      if (!canManageTransfer(deleteTransfer)) {
+        notify("This transfer can only be deleted from the page that created it.", "error");
+        setDeleteTransfer(null);
         return;
       }
 
@@ -1851,15 +2967,71 @@ const removeTransferFromMovements = (transfer) => {
 
       if (latestTransfer) {
         nextAssets = assets.map((asset) => {
-          if (
-            String(getAssetKey(asset)) !==
-            String(
-              getTransferAssetKey(
-                deleteTransfer
-              )
-            )
-          ) {
+          const matchesTransferAsset =
+            String(getAssetKey(asset)) === String(getTransferAssetKey(deleteTransfer)) ||
+            String(asset.id || "") === String(deleteTransfer.assetRecordId || "") ||
+            String(asset.id || "") === String(deleteTransfer.parentAssetId || "") ||
+            String(asset.assetId || "") === String(deleteTransfer.assetId || "");
+
+          if (!matchesTransferAsset) {
             return asset;
+          }
+
+          if (deleteTransfer.transferType === "Customer to Main Stock") {
+            const deleteQuantity = Number(deleteTransfer.quantity || 1);
+            const deleteUnitKey = String(
+              deleteTransfer.unitRecordId ||
+                deleteTransfer.serialNumber ||
+                deleteTransfer.macAddress ||
+                ""
+            );
+
+            return {
+              ...asset,
+
+              location:
+                deleteTransfer.previousAssetLocation ||
+                "Customer",
+              status:
+                deleteTransfer.previousAssetStatus ||
+                "Issued",
+              ownershipType:
+                deleteTransfer.previousOwnershipType ||
+                "Loaned",
+              quantity: Math.max(
+                Number(asset.quantity || 0) - deleteQuantity,
+                0
+              ),
+              identityRecords: isIndividualAsset(asset)
+                ? (asset.identityRecords || []).filter((record) => {
+                    if (!deleteUnitKey) return true;
+
+                    const recordKey = String(
+                      record.id ||
+                        record.serialNumber ||
+                        record.macAddress ||
+                        ""
+                    );
+
+                    return recordKey !== deleteUnitKey;
+                  })
+                : asset.identityRecords || [],
+              customerRecordId:
+                deleteTransfer.fromCustomerRecordId ||
+                deleteTransfer.previousCustomerRecordId ||
+                "",
+              customerId:
+                deleteTransfer.fromCustomerId ||
+                deleteTransfer.previousCustomerId ||
+                "",
+              customerName:
+                deleteTransfer.fromCustomerName ||
+                deleteTransfer.previousCustomerName ||
+                "",
+              lastTransferId: "",
+              lastTransferDate: "",
+              updatedAt: new Date().toISOString(),
+            };
           }
 
           if (
@@ -1945,6 +3117,13 @@ const removeTransferFromMovements = (transfer) => {
             String(deleteTransfer.id)
         );
 
+        const saleMovementIdsToRemove = assetMovements
+          .filter(
+            (movement) =>
+              transferMatchesMovement(deleteTransfer, movement) &&
+              movement.dealType === "Sold"
+          )
+          .map((movement) => String(movement.id || ""));
         const nextMovements = removeTransferFromMovements(deleteTransfer);
 
       const nextDeposits =
@@ -1980,11 +3159,40 @@ const removeTransferFromMovements = (transfer) => {
         return;
       }
 
+      const paymentsSaved = await setCustomerPayments((previousPayments) =>
+        previousPayments.filter(
+          (payment) =>
+            !(
+              payment.source === "deposit-refund-offset" &&
+              String(payment.referenceId || "") ===
+                String(deleteTransfer.batchId || "")
+            )
+        )
+      );
+
+      if (!paymentsSaved) {
+        return;
+      }
+
       const movementsSaved = await setAssetMovements(nextMovements);
 
 if (!movementsSaved) {
   return;
 }
+
+      const transactionsSaved = await setTransactions((previousTransactions) =>
+        previousTransactions.filter(
+          (transaction) =>
+            !(
+              transaction.source === "customer-device-sale" &&
+              saleMovementIdsToRemove.includes(String(transaction.referenceId || ""))
+            )
+        )
+      );
+
+      if (!transactionsSaved) {
+        return;
+      }
 
 
 
@@ -2003,7 +3211,12 @@ if (!movementsSaved) {
     !assetsLoaded ||
     !movementsLoaded ||
     !transfersLoaded ||
-    !depositsLoaded
+    !depositsLoaded ||
+    !buybacksLoaded ||
+    !paymentsLoaded ||
+    !transactionsLoaded ||
+    !towersLoaded ||
+    !towerTransfersLoaded
   ) {
     return (
       <div className="page-loading">
@@ -2036,6 +3249,97 @@ if (!movementsSaved) {
     );
   }
 
+  if (viewMode === "current") {
+    return (
+      <div className="customer-issue-page">
+        <Link
+          className="customer-issue-back"
+          to={`/customers/${customer.id || customer.customerId}/issue-device`}
+        >
+          ← Back to Customer Device Transfer
+        </Link>
+
+        <div className="customer-issue-header">
+          <div>
+            <span className="customer-issue-kicker">
+              Current Devices
+            </span>
+            <h1>Current Devices With Customer</h1>
+            <p>
+              <strong>{getCustomerName(customer)}</strong> currently has{" "}
+              {currentCustomerDeviceCount} device(s).
+            </p>
+          </div>
+        </div>
+
+        <div className="customer-current-summary">
+          <div>
+            <span>Total</span>
+            <strong>{currentCustomerDeviceCount}</strong>
+          </div>
+          <div>
+            <span>Purchased / Sold</span>
+            <strong>{currentSoldDeviceCount}</strong>
+          </div>
+          <div>
+            <span>Loaned / Deposit</span>
+            <strong>{currentLoanedDeviceCount}</strong>
+          </div>
+        </div>
+
+        <div className="customer-issue-card">
+          <div className="customer-issue-card-header">
+            <div>
+              <h3>Current Device List</h3>
+              <p>Devices grouped by ownership status for this customer.</p>
+            </div>
+          </div>
+
+          <div className="customer-current-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Asset</th>
+                  <th>Model</th>
+                  <th>Serial Number</th>
+                  <th>Ownership</th>
+                  <th>Quantity</th>
+                  <th>Sale / Deposit</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentCustomerAssets.map((asset) => (
+                  <tr key={getAssetKey(asset)}>
+                    <td>{asset.assetId || "-"} - {asset.deviceName || "-"}</td>
+                    <td>{asset.model || "-"}</td>
+                    <td>{asset.serialNumber || "-"}</td>
+                    <td>{asset.ownershipType || "-"}</td>
+                    <td>{asset.quantity || 1}</td>
+                    <td>
+                      {asset.ownershipType === "Sold"
+                        ? `${money(asset.salePrice || 0)} AFN`
+                        : `${money(asset.depositAmount || 0)} AFN`}
+                    </td>
+                    <td>{asset.status || asset.issueStatus || "-"}</td>
+                  </tr>
+                ))}
+
+                {currentCustomerAssets.length === 0 && (
+                  <tr>
+                    <td colSpan="7" className="customer-issue-empty-row">
+                      No current device is recorded for this customer.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="customer-issue-page">
       <Link
@@ -2051,26 +3355,18 @@ if (!movementsSaved) {
             Customer Device Transfer
           </span>
 
-          <h1>Issue Device</h1>
+          <h1>Customer Device Transfer</h1>
 
           <p>
-            Give, sell, or loan devices to{" "}
+            View devices currently held by{" "}
             <strong>
               {getCustomerName(customer)}
             </strong>
-            .
+            , plus every incoming and outgoing transfer report.
           </p>
         </div>
 
         <div className="customer-issue-header-actions">
-          <button
-            type="button"
-            className="customer-issue-add-btn"
-            onClick={openIssueModal}
-          >
-            + Issue Devices
-          </button>
-
           <Link
             className="customer-issue-detail-link"
             to={`/customers/${
@@ -2084,11 +3380,16 @@ if (!movementsSaved) {
       </div>
 
       <div className="customer-issue-stats">
-  <div className="customer-issue-current-device-card">
+  <Link
+    to={`/customers/${customer.id || customer.customerId}/issue-device/current`}
+    className="customer-issue-current-device-card"
+  >
     <span>Current Devices With Customer</span>
     <strong>{currentCustomerDeviceCount}</strong>
-    <p>Devices currently held by this customer</p>
-  </div>
+    <p>
+      Sold: {currentSoldDeviceCount} / Loaned: {currentLoanedDeviceCount}
+    </p>
+  </Link>
 
   <div>
     <span>Total Transfers</span>
@@ -2121,14 +3422,275 @@ if (!movementsSaved) {
 
       <div className="customer-issue-card">
         <div className="customer-issue-card-header">
+          <div>
+            <h3>Customer Purchases</h3>
+            <p>Buy back sold devices from this customer and track purchase payments.</p>
+          </div>
+          <button
+            type="button"
+            className="customer-issue-add-btn"
+            onClick={() => {
+              resetBuybackForm();
+              setShowBuybackModal(true);
+            }}
+          >
+            Purchase From Customer
+          </button>
+        </div>
+
+        <div className="customer-current-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Items</th>
+                <th>Purchased By</th>
+                <th>Total Amount</th>
+                <th>Paid Amount</th>
+                <th>Remaining Amount</th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {customerBuybackRecords.map((record) => (
+                <tr key={record.id}>
+                  <td>{formatDateTime(record.purchaseDate, record.createdAt || record.updatedAt)}</td>
+                  <td>{(record.items || []).length}</td>
+                  <td>{record.purchasedBy || "-"}</td>
+                  <td>{money(record.totalAmount)} AFN</td>
+                  <td>{money(record.paidAmount)} AFN</td>
+                  <td>{money(record.remainingAmount)} AFN</td>
+                  <td>{record.notes || "-"}</td>
+                  <td>
+                    <div className="customer-issue-buyback-row-actions">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          window.alert(
+                            (record.items || [])
+                              .map(
+                                (item) =>
+                                  `${item.assetId || "-"} - ${item.deviceName || "Device"}: ${money(item.purchasePrice)} AFN`
+                              )
+                              .join("\n") || "No item detail."
+                          )
+                        }
+                      >
+                        View
+                      </button>
+                      <button type="button" onClick={() => openEditBuyback(record)}>
+                        Edit
+                      </button>
+                      <button type="button" className="danger" onClick={() => deleteBuyback(record)}>
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {customerBuybackRecords.length === 0 && (
+                <tr>
+                  <td colSpan="8" className="customer-issue-empty-row">
+                    No customer purchase has been recorded yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showBuybackModal && (
+        <div
+          className="customer-issue-buyback-backdrop"
+          onClick={() => setShowBuybackModal(false)}
+        >
+          <div
+            className="customer-issue-buyback-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="customer-issue-buyback-header">
+              <div>
+                <h3>Purchase From Customer</h3>
+                <p>Select sold devices and record the customer buyback payment.</p>
+              </div>
+              <button type="button" onClick={() => setShowBuybackModal(false)}>
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={saveBuyback} className="customer-issue-buyback-form">
+              <div className="customer-issue-buyback-grid">
+                <label>
+                  Purchase Date
+                  <input
+                    type="date"
+                    value={buybackForm.purchaseDate}
+                    onChange={(event) =>
+                      setBuybackForm((previous) => ({
+                        ...previous,
+                        purchaseDate: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  Purchased By
+                  <input
+                    value={buybackForm.purchasedBy}
+                    onChange={(event) =>
+                      setBuybackForm((previous) => ({
+                        ...previous,
+                        purchasedBy: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  Destination
+                  <input value={buybackForm.destination || "Main Stock"} readOnly />
+                </label>
+
+                <div className="customer-issue-buyback-section full">
+                  <div className="customer-issue-buyback-section-title">
+                    <h4>Select Sold Devices</h4>
+                    <span>{selectedBuybackDevices.length} selected</span>
+                  </div>
+
+                  <div className="customer-issue-buyback-device-list">
+                    {buybackAvailableDevices.map((item) => {
+                      const transferId = String(item.id || "");
+                      const selected = buybackForm.selectedTransferIds.includes(transferId);
+
+                      return (
+                        <label
+                          key={transferId}
+                          className={
+                            selected
+                              ? "customer-issue-buyback-device selected"
+                              : "customer-issue-buyback-device"
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleBuybackDevice(item)}
+                          />
+
+                          <div>
+                            <strong>
+                              {item.assetId || "-"} - {item.deviceName || "Device"}
+                            </strong>
+                            <span>
+                              SN: {item.serialNumber || "-"} / MAC: {item.macAddress || "-"}
+                            </span>
+                          </div>
+
+                          <label className="customer-issue-buyback-price">
+                            <span>Purchase Price</span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={
+                                buybackForm.purchasePrices[transferId] ??
+                                item.salePrice ??
+                                item.totalAmount ??
+                                ""
+                              }
+                              onChange={(event) =>
+                                setBuybackForm((previous) => ({
+                                  ...previous,
+                                  purchasePrices: {
+                                    ...previous.purchasePrices,
+                                    [transferId]: event.target.value,
+                                  },
+                                }))
+                              }
+                              onClick={(event) => event.stopPropagation()}
+                              placeholder="Purchase price"
+                            />
+                          </label>
+                        </label>
+                      );
+                    })}
+
+                    {buybackAvailableDevices.length === 0 && (
+                      <div className="customer-issue-empty-row">
+                        No sold device is available to purchase from this customer.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <label>
+                  Total Amount
+                  <input value={`${money(buybackTotal)} AFN`} readOnly />
+                </label>
+
+                <label>
+                  Paid Amount
+                  <input
+                    type="number"
+                    min="0"
+                    max={buybackTotal}
+                    value={buybackForm.paidAmount}
+                    onChange={(event) =>
+                      setBuybackForm((previous) => ({
+                        ...previous,
+                        paidAmount: String(
+                          Math.min(Number(event.target.value || 0), buybackTotal)
+                        ),
+                      }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  Remaining Amount
+                  <input value={`${money(buybackRemaining)} AFN`} readOnly />
+                </label>
+
+                <label className="full">
+                  Notes
+                  <textarea
+                    value={buybackForm.notes}
+                    onChange={(event) =>
+                      setBuybackForm((previous) => ({
+                        ...previous,
+                        notes: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="customer-issue-buyback-actions">
+                <button type="button" onClick={() => setShowBuybackModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit">Save Purchase</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <div className="customer-issue-card">
+        <div className="customer-issue-card-header">
   <div>
     <h3>
       Customer Device Transfer History
     </h3>
 
     <p>
-      View, edit, or delete every
-      device transfer record.
+      Report of every asset sent to this customer or taken from this customer.
     </p>
   </div>
 
@@ -2155,9 +3717,10 @@ if (!movementsSaved) {
                 <th>To</th>
                 <th>Device</th>
                 <th>Ownership</th>
-                <th>Deposit</th>
+                <th>Quantity</th>
+                <th>Sale / Deposit</th>
+                <th>Paid / Received</th>
                 <th>Status</th>
-                <th>Actions</th>
               </tr>
             </thead>
 
@@ -2218,9 +3781,22 @@ if (!movementsSaved) {
                         "-"}
                     </td>
 
+                    <td>{money(item.quantity || 1)}</td>
+
                     <td>
                       {money(
-                        item.depositAmount
+                        item.ownershipType === "Sold"
+                          ? item.salePrice
+                          : item.depositAmount
+                      )}{" "}
+                      AFN
+                    </td>
+
+                    <td>
+                      {money(
+                        item.ownershipType === "Sold"
+                          ? item.paidAmount
+                          : item.depositReceivedAmount || item.depositAmount
                       )}{" "}
                       AFN
                     </td>
@@ -2275,32 +3851,36 @@ if (!movementsSaved) {
                               View Details
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                openEditTransferModal(
-                                  item
-                                )
-                              }
-                            >
-                              Edit
-                            </button>
+                            {canManageTransfer(item) && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    openEditTransferModal(
+                                      item
+                                    )
+                                  }
+                                >
+                                  Edit
+                                </button>
 
-                            <button
-                              type="button"
-                              className="danger"
-                              onClick={() => {
-                                setDeleteTransfer(
-                                  item
-                                );
+                                <button
+                                  type="button"
+                                  className="danger"
+                                  onClick={() => {
+                                    setDeleteTransfer(
+                                      item
+                                    );
 
-                                setOpenActionId(
-                                  null
-                                );
-                              }}
-                            >
-                              Delete
-                            </button>
+                                    setOpenActionId(
+                                      null
+                                    );
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -2313,7 +3893,7 @@ if (!movementsSaved) {
                 0 && (
                 <tr>
                   <td
-                    colSpan="9"
+                    colSpan="10"
                     className="customer-issue-empty-row"
                   >
                     No device transfer has been
@@ -2327,7 +3907,7 @@ if (!movementsSaved) {
         </div>
       </div>
 
-      {showIssueModal && (
+      {false && showIssueModal && (
         <div
           className="customer-issue-modal-backdrop"
           onClick={closeIssueModal}
@@ -2369,9 +3949,9 @@ if (!movementsSaved) {
                     <h3>Issue Device Form</h3>
 
                     <p>
-                      The selected financial
-                      values are applied to each
-                      device.
+                      Transfer devices from one
+                      customer to another, or return
+                      this customer's devices to stock.
                     </p>
                   </div>
                 </div>
@@ -2390,16 +3970,16 @@ if (!movementsSaved) {
                         value={formData.sourceType}
                         onChange={handleChange}
                         >
-                        <option value="Main Stock">
-                            Main Stock to Customer
-                        </option>
-
                         <option value="Customer">
                             Customer to Customer
                         </option>
 
                         <option value="Customer to Main Stock">
                             Customer to Main Stock
+                        </option>
+
+                        <option value="Customer to Tower">
+                            Customer to Tower
                         </option>
                         </select>
                     </div>
@@ -2424,6 +4004,43 @@ if (!movementsSaved) {
                             value="Main Stock"
                             readOnly
                         />
+                        </div>
+                    </>
+                    )}
+
+                    {formData.sourceType === "Customer to Tower" && (
+                    <>
+                        <div className="customer-issue-form-group">
+                        <label>Source Customer</label>
+
+                        <input
+                            value={`${customer.customerId || "No ID"} - ${getCustomerName(
+                            customer
+                            )}`}
+                            readOnly
+                        />
+                        </div>
+
+                        <div className="customer-issue-form-group">
+                        <label>Destination Tower</label>
+
+                        <select
+                            name="destinationTowerId"
+                            value={formData.destinationTowerId}
+                            onChange={handleChange}
+                            required
+                        >
+                            <option value="">Select Destination Tower</option>
+
+                            {towerAssets.map((tower) => (
+                            <option key={tower.id} value={tower.id}>
+                                {tower.towerName || "Unnamed Tower"}
+                                {tower.towerLocation
+                                ? ` - ${tower.towerLocation}`
+                                : ""}
+                            </option>
+                            ))}
+                        </select>
                         </div>
                     </>
                     )}
@@ -2541,11 +4158,18 @@ if (!movementsSaved) {
   name="issueStatus"
   value={formData.issueStatus}
   onChange={handleChange}
-  disabled={formData.sourceType === "Customer to Main Stock"}
+  disabled={[
+    "Customer to Main Stock",
+    "Customer to Tower",
+  ].includes(formData.sourceType)}
 >
   {formData.sourceType === "Customer to Main Stock" ? (
     <option value="Returned">
       Returned to Main Stock
+    </option>
+  ) : formData.sourceType === "Customer to Tower" ? (
+    <option value="Installed">
+      Installed at Tower
     </option>
   ) : (
     <>
@@ -2561,7 +4185,10 @@ if (!movementsSaved) {
 </select>
                     </div>
 
-                    {formData.sourceType !== "Customer to Main Stock" && (
+                    {![
+                      "Customer to Main Stock",
+                      "Customer to Tower",
+                    ].includes(formData.sourceType) && (
   <div className="customer-issue-form-group">
     <label>Destination Deal</label>
 
@@ -2615,7 +4242,10 @@ if (!movementsSaved) {
                         </>
                       )}
 
-                    {formData.sourceType !== "Customer to Main Stock" &&
+                    {![
+                      "Customer to Main Stock",
+                      "Customer to Tower",
+                    ].includes(formData.sourceType) &&
   formData.ownershipType === "Sold" && (
                       <>
                         <div className="customer-issue-form-group">
@@ -2624,8 +4254,15 @@ if (!movementsSaved) {
                           </label>
 
                           <input
-                            value={`${money(selectedSaleTotal)} AFN`}
-                            readOnly
+                            type="number"
+                            min="0"
+                            name="salePrice"
+                            value={
+                              formData.salePrice === ""
+                                ? selectedSaleTotal
+                                : formData.salePrice
+                            }
+                            onChange={handleChange}
                           />
                         </div>
 
@@ -2637,6 +4274,7 @@ if (!movementsSaved) {
                           <input
                             type="number"
                             min="0"
+                            max={selectedSaleTotal}
                             name="paidAmount"
                             value={
                               formData.paidAmount
@@ -2663,7 +4301,10 @@ if (!movementsSaved) {
                       </>
                     )}
 
-                    {formData.sourceType !== "Customer to Main Stock" &&
+                    {![
+                      "Customer to Main Stock",
+                      "Customer to Tower",
+                    ].includes(formData.sourceType) &&
   formData.ownershipType === "Loaned" && (
                       <>
                         <div className="customer-issue-form-group">
@@ -2704,12 +4345,36 @@ if (!movementsSaved) {
                               Held
                             </option>
 
-                            <option value="Refunded">
-                              Refunded
+                            <option value="Not Received">
+                              Not Received
+                            </option>
+
+                            <option value="Partially Received">
+                              Partially Received
+                            </option>
+
+                            <option value="Partially Refunded">
+                              Partially Refunded
+                            </option>
+
+                            <option value="Fully Refunded">
+                              Fully Refunded
+                            </option>
+
+                            <option value="Deducted">
+                              Deducted
+                            </option>
+
+                            <option value="Forfeited">
+                              Forfeited
                             </option>
 
                             <option value="Outstanding">
                               Outstanding
+                            </option>
+
+                            <option value="Adjusted Against Damage">
+                              Adjusted Against Damage
                             </option>
                           </select>
                         </div>
@@ -2747,6 +4412,12 @@ if (!movementsSaved) {
       } Device${
         selectedAssets.length === 1 ? "" : "s"
       } to Main Stock`
+    : formData.sourceType === "Customer to Tower"
+    ? `Send ${
+        selectedAssets.length || "Selected"
+      } Device${
+        selectedAssets.length === 1 ? "" : "s"
+      } to Tower`
     : `Issue ${
         selectedAssets.length || "Selected"
       } Device${
@@ -2780,11 +4451,10 @@ if (!movementsSaved) {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setSelectedAssetKeys(
-                          []
-                        )
-                      }
+                      onClick={() => {
+                        setSelectedAssetKeys([]);
+                        setSelectedQuantities({});
+                      }}
                     >
                       Clear
                     </button>
@@ -2809,7 +4479,7 @@ if (!movementsSaved) {
                         selectedAssetKeys.some(
                           (key) =>
                             String(key) ===
-                            getAssetKey(
+                            getSelectableAssetKey(
                               asset
                             )
                         );
@@ -2818,7 +4488,7 @@ if (!movementsSaved) {
 
                       return (
                         <button
-                          key={getAssetKey(
+                          key={getSelectableAssetKey(
                             asset
                           )}
                           type="button"
@@ -2860,7 +4530,34 @@ if (!movementsSaved) {
                                 "-"}
                               {lockedSoldAsset ? " / Purchased by customer" : ""}
                             </small>
+                            {!isIndividualAsset(asset) && (
+                              <small>
+                                Available:{" "}
+                                {money(asset.availableQuantity ?? asset.quantity ?? 0)}
+                              </small>
+                            )}
                           </span>
+
+                          {selected && !isIndividualAsset(asset) && (
+                            <span
+                              className="customer-issue-quantity-inline"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <small>Quantity</small>
+                              <input
+                                type="number"
+                                min="1"
+                                max={asset.availableQuantity ?? asset.quantity ?? 1}
+                                value={
+                                  selectedQuantities[getSelectableAssetKey(asset)] ||
+                                  1
+                                }
+                                onChange={(event) =>
+                                  updateSelectedQuantity(asset, event.target.value)
+                                }
+                              />
+                            </span>
+                          )}
                         </button>
                       );
                     }
@@ -2951,15 +4648,48 @@ if (!movementsSaved) {
                           </strong>
                         </div>
 
-                        {formData.ownershipType === "Sold" &&
-                          formData.sourceType !== "Customer to Main Stock" && (
+                        {!isIndividualAsset(asset) && (
+                          <>
+                            <div>
+                              <span>Available</span>
+                              <strong>
+                                {money(asset.availableQuantity ?? asset.quantity ?? 0)}
+                              </strong>
+                            </div>
+
                             <label className="customer-issue-selected-price">
-                              <span>Sale Price</span>
+                              <span>Quantity</span>
+                              <input
+                                type="number"
+                                min="1"
+                                max={asset.availableQuantity ?? asset.quantity ?? 1}
+                                value={asset.quantity || 1}
+                                onChange={(event) =>
+                                  updateSelectedQuantity(asset, event.target.value)
+                                }
+                              />
+                            </label>
+                          </>
+                        )}
+
+                        {formData.ownershipType === "Sold" &&
+                          ![
+                            "Customer to Main Stock",
+                            "Customer to Tower",
+                          ].includes(formData.sourceType) && (
+                            <label className="customer-issue-selected-price">
+                              <span>
+                                {isIndividualAsset(asset)
+                                  ? "Sale Price"
+                                  : "Sale Price Per Quantity"}
+                              </span>
                               <input
                                 type="number"
                                 min="0"
                                 value={
-                                  formData.salePrices?.[getAssetKey(asset)] ??
+                                  formData.salePrices?.[
+                                    getSelectableAssetKey(asset)
+                                  ] ??
                                   asset.salePrice ??
                                   asset.unitPrice ??
                                   ""

@@ -129,6 +129,9 @@ const [editTransfer, setEditTransfer] = useState(null);
 const [deleteTransfer, setDeleteTransfer] = useState(null);
 
 const [editTransferForm, setEditTransferForm] = useState({
+  transferType: "",
+  destinationTowerId: "",
+  quantity: "",
   transferDate: "",
   transferStatus: "",
   responsiblePerson: "",
@@ -310,6 +313,16 @@ const getVisibleTransferType = (transfer) => {
 
   return transfer.transferType || "-";
 };
+
+const getTransferQuantity = (transfer) =>
+  Number(
+    transfer.quantity ||
+      transfer.batchQuantity ||
+      transfer.batchSize ||
+      1
+  );
+
+const canManageTransfer = (transfer) => isOutgoingTransfer(transfer);
 
   const mainStockAssets = useMemo(() => {
     return assets.flatMap((asset) => {
@@ -537,6 +550,12 @@ nextData.damageLostStatus =
   const confirmDeleteTransfer = async () => {
   if (!deleteTransfer) return;
 
+  if (!canManageTransfer(deleteTransfer)) {
+    notify("This transfer can only be changed from the page that created it.", "error");
+    setDeleteTransfer(null);
+    return;
+  }
+
   const latestTransfer =
     isLatestTransferForAsset(deleteTransfer);
 
@@ -596,11 +615,59 @@ nextData.damageLostStatus =
     });
 
     nextAssets = assets.map((asset) => {
-      if (
-        String(getAssetKey(asset)) !==
-        String(transferAssetKey)
-      ) {
+      const matchesTransferAsset =
+        String(getAssetKey(asset)) === String(transferAssetKey) ||
+        String(asset.id || "") === String(deleteTransfer.assetRecordId || "") ||
+        String(asset.id || "") === String(deleteTransfer.parentAssetId || "") ||
+        String(asset.assetId || "") === String(deleteTransfer.assetId || "");
+
+      if (!matchesTransferAsset) {
         return asset;
+      }
+
+      if (deleteTransfer.transferType === "Tower to Main Stock") {
+        const deleteQuantity = Number(deleteTransfer.quantity || 1);
+        const deleteUnitKey = String(
+          deleteTransfer.unitRecordId ||
+            deleteTransfer.serialNumber ||
+            deleteTransfer.macAddress ||
+            ""
+        );
+
+        return {
+          ...asset,
+
+          location:
+            deleteTransfer.previousAssetLocation ||
+            "Tower",
+          status:
+            deleteTransfer.previousAssetStatus ||
+            "Installed",
+          quantity: Math.max(Number(asset.quantity || 0) - deleteQuantity, 0),
+          identityRecords: isIndividualAsset(asset)
+            ? (asset.identityRecords || []).filter((record) => {
+                if (!deleteUnitKey) return true;
+
+                const recordKey = String(
+                  record.id ||
+                    record.serialNumber ||
+                    record.macAddress ||
+                    ""
+                );
+
+                return recordKey !== deleteUnitKey;
+              })
+            : asset.identityRecords || [],
+
+          towerRecordId:
+            deleteTransfer.sourceTowerId || "",
+          towerName:
+            deleteTransfer.sourceTowerName || "",
+          towerLocation:
+            deleteTransfer.sourceTowerLocation || "",
+
+          updatedAt: new Date().toISOString(),
+        };
       }
 
       if (deleteTransfer.sourceType === "Main Stock") {
@@ -647,33 +714,7 @@ nextData.damageLostStatus =
       String(item.id) !== String(deleteTransfer.id)
   );
 
-  const nextMovements = assetMovements.filter((movement) => {
-  if (
-    deleteTransfer.batchId &&
-    movement.batchId &&
-    String(deleteTransfer.batchId) === String(movement.batchId)
-  ) {
-    return false;
-  }
-
-  if (
-    deleteTransfer.referenceNumber &&
-    movement.referenceNumber &&
-    String(deleteTransfer.referenceNumber) === String(movement.referenceNumber)
-  ) {
-    return false;
-  }
-
-  const sameAsset =
-    String(movement.assetRecordId || movement.parentAssetId || "") ===
-      String(deleteTransfer.assetRecordId || deleteTransfer.parentAssetId || "") ||
-    String(movement.assetId || "") === String(deleteTransfer.assetId || "");
-
-  const sameDate =
-    String(movement.date || "") === String(deleteTransfer.transferDate || "");
-
-  return !(sameAsset && sameDate);
-});
+  const nextMovements = removeTransferFromMovements(deleteTransfer);
 
   const towersSaved =
     await setTowerAssets(nextTowerAssets);
@@ -704,9 +745,21 @@ if (!movementsSaved) return;
 
 
 const openEditTransfer = (transfer) => {
+  if (!canManageTransfer(transfer)) {
+    notify("This transfer can only be edited from the page that created it.", "error");
+    setOpenTransferActionId(null);
+    return;
+  }
+
   setEditTransfer(transfer);
 
   setEditTransferForm({
+    transferType: transfer.transferType || "Tower to Tower",
+    destinationTowerId:
+      transfer.destinationTowerId && String(transfer.destinationTowerId) !== String(towerId)
+        ? transfer.destinationTowerId
+        : "",
+    quantity: String(getTransferQuantity(transfer) || 1),
     transferDate: transfer.transferDate || "",
     transferStatus: transfer.transferStatus || "Completed",
     responsiblePerson: transfer.responsiblePerson || "",
@@ -731,16 +784,218 @@ const handleEditTransferChange = (event) => {
   setEditTransferForm((previous) => ({
     ...previous,
     [name]: value,
+    ...(name === "transferType"
+      ? {
+          destinationTowerId: "",
+          transferStatus:
+            value === "Tower to Repair"
+              ? "In Repair"
+              : value === "Tower to Damaged / Lost"
+                ? "Closed"
+                : "Completed",
+        }
+      : {}),
   }));
 };
+
+const transferMatchesMovement = (transfer, movement) => {
+  if (!transfer || !movement) return false;
+
+  if (
+    transfer.batchId &&
+    movement.batchId &&
+    String(transfer.batchId) === String(movement.batchId)
+  ) {
+    return true;
+  }
+
+  if (
+    transfer.referenceNumber &&
+    movement.referenceNumber &&
+    String(transfer.referenceNumber) === String(movement.referenceNumber)
+  ) {
+    return true;
+  }
+
+  const sameAsset =
+    String(movement.assetRecordId || movement.parentAssetId || "") ===
+      String(transfer.assetRecordId || transfer.parentAssetId || "") ||
+    String(movement.assetId || "") === String(transfer.assetId || "");
+
+  const sameDate =
+    String(movement.date || "") ===
+    String(transfer.transferDate || transfer.date || "");
+
+  return sameAsset && sameDate;
+};
+
+const removeTransferFromMovements = (transfer) =>
+  assetMovements.flatMap((movement) => {
+    if (!transferMatchesMovement(transfer, movement)) {
+      return [movement];
+    }
+
+    const movementQuantity = Number(movement.quantity || 0);
+    const transferQuantity = Number(transfer.quantity || 1);
+    const movementUnits = movement.identityRecords || [];
+
+    if (movementUnits.length > 1) {
+      const transferUnitKey = String(
+        transfer.unitRecordId ||
+          transfer.serialNumber ||
+          transfer.macAddress ||
+          transfer.assetRecordId ||
+          transfer.assetId ||
+          ""
+      );
+
+      const nextIdentityRecords = movementUnits.filter((record) => {
+        const recordKey = String(
+          record.id ||
+            record.serialNumber ||
+            record.macAddress ||
+            ""
+        );
+
+        return recordKey !== transferUnitKey;
+      });
+
+      if (nextIdentityRecords.length === movementUnits.length) {
+        return [movement];
+      }
+
+      return [
+        {
+          ...movement,
+          quantity: Math.max(movementQuantity - transferQuantity, 0),
+          identityRecords: nextIdentityRecords,
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+    }
+
+    if (movementQuantity > transferQuantity) {
+      return [
+        {
+          ...movement,
+          quantity: Math.max(movementQuantity - transferQuantity, 0),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+    }
+
+    return [];
+  });
+
+const updateTransferMovement = (oldTransfer, updatedTransfer) =>
+  assetMovements.map((movement) => {
+    if (!transferMatchesMovement(oldTransfer, movement)) {
+      return movement;
+    }
+
+    const isDamagedLost =
+      updatedTransfer.transferType === "Tower to Damaged / Lost";
+    const isRepair =
+      updatedTransfer.transferType === "Tower to Repair";
+
+    return {
+      ...movement,
+      date: updatedTransfer.transferDate || movement.date,
+      movement:
+        updatedTransfer.transferType === "Tower to Main Stock"
+          ? "Transfer"
+          : movement.movement,
+      transferType: updatedTransfer.transferType || movement.transferType,
+      type: updatedTransfer.transferType || movement.type,
+      quantity: Number(updatedTransfer.quantity || movement.quantity || 0),
+      destinationName:
+        updatedTransfer.destinationTowerName ||
+        updatedTransfer.destinationType ||
+        movement.destinationName,
+      destinationType: updatedTransfer.destinationType || movement.destinationType,
+      destinationRecordId:
+        updatedTransfer.destinationTowerId || movement.destinationRecordId || "",
+      batchQuantity:
+        Number(updatedTransfer.quantity || movement.batchQuantity || 0),
+      transferStatus:
+        updatedTransfer.transferStatus ||
+        updatedTransfer.repairStatus ||
+        movement.transferStatus,
+      responsiblePerson:
+        updatedTransfer.responsiblePerson || movement.responsiblePerson,
+      notes: updatedTransfer.notes || movement.notes,
+      repairType: isRepair ? updatedTransfer.repairType : movement.repairType,
+      repairProblem: isRepair
+        ? updatedTransfer.repairProblem
+        : movement.repairProblem,
+      repairCenter: isRepair
+        ? updatedTransfer.repairCenter
+        : movement.repairCenter,
+      repairTechnician: isRepair
+        ? updatedTransfer.repairTechnician
+        : movement.repairTechnician,
+      repairCost: isRepair
+        ? Number(updatedTransfer.repairCost || 0)
+        : movement.repairCost,
+      repairSentDate: isRepair
+        ? updatedTransfer.repairSentDate
+        : movement.repairSentDate,
+      expectedReturnDate: isRepair
+        ? updatedTransfer.expectedReturnDate
+        : movement.expectedReturnDate,
+      repairStatus: isRepair
+        ? updatedTransfer.repairStatus
+        : movement.repairStatus,
+      wasteReason: isDamagedLost
+        ? updatedTransfer.damageLostReason || movement.wasteReason
+        : movement.wasteReason,
+      damageLostType: isDamagedLost
+        ? updatedTransfer.damageLostType || movement.damageLostType
+        : movement.damageLostType,
+      damageLostReason: isDamagedLost
+        ? updatedTransfer.damageLostReason || movement.damageLostReason
+        : movement.damageLostReason,
+      damageLostDate: isDamagedLost
+        ? updatedTransfer.damageLostDate || movement.damageLostDate
+        : movement.damageLostDate,
+      damageLostReportedBy: isDamagedLost
+        ? updatedTransfer.damageLostReportedBy || movement.damageLostReportedBy
+        : movement.damageLostReportedBy,
+      damageLostStatus: isDamagedLost
+        ? updatedTransfer.damageLostStatus || movement.damageLostStatus
+        : movement.damageLostStatus,
+      updatedAt: new Date().toISOString(),
+    };
+  });
 
 const saveEditedTransfer = async (event) => {
   event.preventDefault();
 
   if (!editTransfer) return;
 
+  const nextQuantity = Number(editTransferForm.quantity || 0);
+  const oldQuantity = getTransferQuantity(editTransfer);
+  const nextTransferType = editTransferForm.transferType || editTransfer.transferType;
+  const nextDestinationTower =
+    nextTransferType === "Tower to Tower"
+      ? towerAssets.find(
+          (tower) =>
+            String(tower.id || "") === String(editTransferForm.destinationTowerId || "")
+        )
+      : null;
+
+  if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) {
+    notify("Quantity must be greater than zero.", "error");
+    return;
+  }
+
+  if (nextTransferType === "Tower to Tower" && !nextDestinationTower) {
+    notify("Please select the destination tower.", "error");
+    return;
+  }
+
   if (
-    editTransfer.transferType === "Tower to Repair" &&
+    nextTransferType === "Tower to Repair" &&
     !editTransferForm.repairCenter.trim()
   ) {
     notify("Please enter the repair center.", "error");
@@ -752,6 +1007,31 @@ const saveEditedTransfer = async (event) => {
   const updatedTransfer = {
     ...editTransfer,
 
+    transferType: nextTransferType,
+    quantity: nextQuantity,
+    batchQuantity: nextQuantity,
+    destinationType:
+      nextTransferType === "Tower to Main Stock"
+        ? "Main Stock"
+        : nextTransferType === "Tower to Repair"
+          ? "Repair"
+          : nextTransferType === "Tower to Damaged / Lost"
+            ? editTransferForm.damageLostType || "Damaged"
+            : "Tower",
+    destinationTowerId:
+      nextTransferType === "Tower to Tower" ? nextDestinationTower?.id || "" : "",
+    destinationTowerName:
+      nextTransferType === "Tower to Main Stock"
+        ? "Main Stock"
+        : nextTransferType === "Tower to Repair"
+          ? "Repair / Maintenance"
+          : nextTransferType === "Tower to Damaged / Lost"
+            ? editTransferForm.damageLostType || "Damaged"
+            : nextDestinationTower?.towerName || "",
+    destinationTowerLocation:
+      nextTransferType === "Tower to Tower"
+        ? nextDestinationTower?.towerLocation || ""
+        : "",
     transferDate: editTransferForm.transferDate,
     transferStatus: editTransferForm.transferStatus,
     responsiblePerson:
@@ -768,6 +1048,26 @@ const saveEditedTransfer = async (event) => {
     expectedReturnDate:
       editTransferForm.expectedReturnDate,
     repairStatus: editTransferForm.repairStatus,
+    damageLostType:
+      nextTransferType === "Tower to Damaged / Lost"
+        ? editTransferForm.damageLostType
+        : "",
+    damageLostReason:
+      nextTransferType === "Tower to Damaged / Lost"
+        ? editTransferForm.damageLostReason.trim()
+        : "",
+    damageLostDate:
+      nextTransferType === "Tower to Damaged / Lost"
+        ? editTransferForm.damageLostDate
+        : "",
+    damageLostReportedBy:
+      nextTransferType === "Tower to Damaged / Lost"
+        ? editTransferForm.damageLostReportedBy.trim()
+        : "",
+    damageLostStatus:
+      nextTransferType === "Tower to Damaged / Lost"
+        ? editTransferForm.damageLostStatus || "Closed"
+        : "",
 
     updatedAt,
   };
@@ -782,13 +1082,20 @@ const saveEditedTransfer = async (event) => {
 
   if (isLatestTransferForAsset(editTransfer)) {
     nextAssets = assets.map((asset) => {
-      if (
-        String(getAssetKey(asset)) !==
-        String(getTransferAssetKey(editTransfer))
-      ) {
+      const matchesTransferAsset =
+        String(getAssetKey(asset)) === String(getTransferAssetKey(editTransfer)) ||
+        String(asset.id || "") === String(editTransfer.assetRecordId || "") ||
+        String(asset.id || "") === String(editTransfer.parentAssetId || "") ||
+        String(asset.assetId || "") === String(editTransfer.assetId || "");
+
+      if (!matchesTransferAsset) {
         return asset;
       }
 
+      const wasMainStock = editTransfer.transferType === "Tower to Main Stock";
+      const isMainStock = nextTransferType === "Tower to Main Stock";
+      const quantityDelta =
+        (isMainStock ? nextQuantity : 0) - (wasMainStock ? oldQuantity : 0);
       const nextAsset = {
         ...asset,
         lastTowerTransferDate:
@@ -796,7 +1103,59 @@ const saveEditedTransfer = async (event) => {
         updatedAt,
       };
 
-      if (editTransfer.transferType === "Tower to Repair") {
+      if (quantityDelta !== 0) {
+        const transferUnitKey = String(
+          editTransfer.unitRecordId ||
+            editTransfer.serialNumber ||
+            editTransfer.macAddress ||
+            ""
+        );
+        const existingIdentityRecords = asset.identityRecords || [];
+        const hasReturnedUnit = existingIdentityRecords.some((record) => {
+          const recordKey = String(
+            record.id || record.serialNumber || record.macAddress || ""
+          );
+
+          return transferUnitKey && recordKey === transferUnitKey;
+        });
+        const returnedIdentityRecord = {
+          id: editTransfer.unitRecordId || `${editTransfer.id}-unit`,
+          model: editTransfer.model || "",
+          macAddress: editTransfer.macAddress || "",
+          serialNumber: editTransfer.serialNumber || "",
+          image: editTransfer.image || "",
+          sourceType: "Tower Return",
+          sourceId: editTransfer.id,
+          returnedAt: updatedAt,
+        };
+
+        return {
+          ...nextAsset,
+          location: isMainStock && Number(asset.quantity || 0) + quantityDelta > 0
+            ? "Main Stock"
+            : nextAsset.location,
+          status: isMainStock ? "Returned" : nextAsset.status,
+          quantity: Math.max(Number(asset.quantity || 0) + quantityDelta, 0),
+          identityRecords: isIndividualAsset(asset)
+            ? quantityDelta > 0
+              ? hasReturnedUnit
+                ? existingIdentityRecords
+                : [...existingIdentityRecords, returnedIdentityRecord]
+              : existingIdentityRecords.filter((record) => {
+                  const recordKey = String(
+                    record.id || record.serialNumber || record.macAddress || ""
+                  );
+
+                  return !transferUnitKey || recordKey !== transferUnitKey;
+                })
+            : existingIdentityRecords,
+          towerRecordId: isMainStock ? "" : nextAsset.towerRecordId || "",
+          towerName: isMainStock ? "" : nextAsset.towerName || "",
+          towerLocation: isMainStock ? "" : nextAsset.towerLocation || "",
+        };
+      }
+
+      if (nextTransferType === "Tower to Repair") {
         return {
           ...nextAsset,
 
@@ -829,6 +1188,21 @@ const saveEditedTransfer = async (event) => {
         };
       }
 
+      if (nextTransferType === "Tower to Tower") {
+        return {
+          ...nextAsset,
+          location: "Tower",
+          status:
+            editTransferForm.transferStatus === "Completed"
+              ? "Installed"
+              : editTransferForm.transferStatus,
+          towerRecordId: nextDestinationTower?.id || nextAsset.towerRecordId || "",
+          towerName: nextDestinationTower?.towerName || nextAsset.towerName || "",
+          towerLocation:
+            nextDestinationTower?.towerLocation || nextAsset.towerLocation || "",
+        };
+      }
+
       return {
         ...nextAsset,
 
@@ -850,6 +1224,12 @@ const saveEditedTransfer = async (event) => {
   const assetsSaved = await setAssets(nextAssets);
 
   if (!assetsSaved) return;
+
+  const movementsSaved = await setAssetMovements(
+    updateTransferMovement(editTransfer, updatedTransfer)
+  );
+
+  if (!movementsSaved) return;
 
   notify("Tower asset transfer updated successfully.");
 
@@ -957,6 +1337,13 @@ if (isTowerToTower) {
       selectedByParent.set(parentId, list);
     });
 
+    const getSelectedUnitsForAsset = (asset) =>
+      selectedByParent.get(String(asset.id || "")) ||
+      selectedByParent.get(String(asset.assetId || "")) ||
+      selectedByParent.get(String(asset.assetRecordId || "")) ||
+      selectedByParent.get(String(asset.parentAssetId || "")) ||
+      [];
+
     const selectedKeySet = new Set(selectedAssets.map(getAssetKey));
 
     const nextTowerAssets = towerAssets.map((tower) => {
@@ -1051,7 +1438,7 @@ String(tower.id) === String(towerId)
     });
 
     const nextAssets = assets.map((asset) => {
-      const selectedUnits = selectedByParent.get(String(asset.id || ""));
+      const selectedUnits = getSelectedUnitsForAsset(asset);
 
       if (!selectedUnits?.length) {
         return asset;
@@ -1259,6 +1646,9 @@ String(tower.id) === String(towerId)
       batchId,
       referenceNumber,
       batchSize: selectedAssets.length,
+      quantity: Number(asset.quantity || 1),
+      createdFromTowerId: towerId,
+      sourcePage: "tower-asset-transfer",
 
       transferType: formData.transferType,
 
@@ -1624,6 +2014,7 @@ damageLostStatus:
                 <th>Source</th>
                 <th>Destination</th>
                 <th>Asset</th>
+                <th>Quantity</th>
                 <th>Responsible Person</th>
                 <th>Status</th>
                 <th>Direction</th>
@@ -1636,6 +2027,7 @@ damageLostStatus:
                 const isIncoming =
                   String(transfer.destinationTowerId || "") ===
                   String(towerId);
+                const canManage = canManageTransfer(transfer);
 
                 const statusClass = String(
                   transfer.transferStatus || ""
@@ -1669,6 +2061,8 @@ damageLostStatus:
                       {transfer.assetId || "-"} -{" "}
                       {transfer.deviceName || "-"}
                     </td>
+
+                    <td>{getTransferQuantity(transfer)}</td>
 
                     <td>
                       {transfer.responsiblePerson || "-"}
@@ -1766,25 +2160,29 @@ const menuHeight = 128;
     <span>Full Detail</span>
   </button>
 
-  <button
-    type="button"
-    onClick={() => openEditTransfer(transfer)}
-  >
-    <EditIcon size={16} />
-    <span>Edit</span>
-  </button>
+  {canManage && (
+    <>
+      <button
+        type="button"
+        onClick={() => openEditTransfer(transfer)}
+      >
+        <EditIcon size={16} />
+        <span>Edit</span>
+      </button>
 
-  <button
-    type="button"
-    className="danger"
-    onClick={() => {
-      setDeleteTransfer(transfer);
-      setOpenTransferActionId(null);
-    }}
-  >
-    <DeleteIcon size={16} />
-    <span>Delete</span>
-  </button>
+      <button
+        type="button"
+        className="danger"
+        onClick={() => {
+          setDeleteTransfer(transfer);
+          setOpenTransferActionId(null);
+        }}
+      >
+        <DeleteIcon size={16} />
+        <span>Delete</span>
+      </button>
+    </>
+  )}
 </div>
     )}
   </div>
@@ -1796,7 +2194,7 @@ const menuHeight = 128;
               {currentTowerTransfers.length === 0 && (
                 <tr>
                   <td
-                    colSpan="9"
+                    colSpan="10"
                     className="tower-transfer-history-empty"
                   >
                     No asset transfer has been recorded for this tower yet.
@@ -1897,6 +2295,11 @@ const menuHeight = 128;
         <div>
           <span>Device Name</span>
           <strong>{viewTransfer.deviceName || "-"}</strong>
+        </div>
+
+        <div>
+          <span>Quantity</span>
+          <strong>{getTransferQuantity(viewTransfer)}</strong>
         </div>
 
         <div>
@@ -2018,16 +2421,18 @@ const menuHeight = 128;
           Close
         </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            const transfer = viewTransfer;
-            setViewTransfer(null);
-            openEditTransfer(transfer);
-          }}
-        >
-          Edit Transfer
-        </button>
+        {canManageTransfer(viewTransfer) && (
+          <button
+            type="button"
+            onClick={() => {
+              const transfer = viewTransfer;
+              setViewTransfer(null);
+              openEditTransfer(transfer);
+            }}
+          >
+            Edit Transfer
+          </button>
+        )}
       </div>
     </div>
   </div>
@@ -2050,7 +2455,7 @@ const menuHeight = 128;
           </h3>
 
           <p>
-            Source, destination, and asset cannot be changed.
+            Update transfer route, quantity, status, and notes.
           </p>
         </div>
 
@@ -2064,6 +2469,109 @@ const menuHeight = 128;
 
       <form onSubmit={saveEditedTransfer}>
         <div className="tower-transfer-form-grid">
+          <div className="tower-transfer-form-group">
+            <label>Transfer Type</label>
+
+            <select
+              name="transferType"
+              value={editTransferForm.transferType}
+              onChange={handleEditTransferChange}
+            >
+              <option value="Tower to Tower">Tower to Tower</option>
+              <option value="Tower to Main Stock">Tower to Main Stock</option>
+              <option value="Tower to Repair">Tower to Repair</option>
+              <option value="Tower to Damaged / Lost">
+                Tower to Damaged / Lost
+              </option>
+            </select>
+          </div>
+
+          <div className="tower-transfer-form-group">
+            <label>Source</label>
+
+            <input
+              value={
+                editTransfer.sourceTowerName ||
+                editTransfer.sourceType ||
+                "-"
+              }
+              readOnly
+            />
+          </div>
+
+          <div className="tower-transfer-form-group">
+            <label>Destination</label>
+
+            {editTransferForm.transferType === "Tower to Tower" ? (
+              <select
+                name="destinationTowerId"
+                value={editTransferForm.destinationTowerId}
+                onChange={handleEditTransferChange}
+                required
+              >
+                <option value="">Select Destination Tower</option>
+                {towerAssets
+                  .filter((tower) => String(tower.id || "") !== String(towerId))
+                  .map((tower) => (
+                    <option key={tower.id} value={tower.id}>
+                      {tower.towerName || "Tower"}{" "}
+                      {tower.towerLocation ? `- ${tower.towerLocation}` : ""}
+                    </option>
+                  ))}
+              </select>
+            ) : editTransferForm.transferType === "Tower to Damaged / Lost" ? (
+              <select
+                name="damageLostType"
+                value={editTransferForm.damageLostType}
+                onChange={handleEditTransferChange}
+              >
+                <option value="Damaged">Damaged</option>
+                <option value="Lost">Lost</option>
+              </select>
+            ) : (
+              <input
+                value={
+                  editTransferForm.transferType === "Tower to Main Stock"
+                    ? "Main Stock"
+                    : "Repair / Maintenance"
+                }
+                readOnly
+              />
+            )}
+          </div>
+
+          <div className="tower-transfer-form-group">
+            <label>Quantity</label>
+
+            <input
+              type="number"
+              min="1"
+              name="quantity"
+              value={editTransferForm.quantity}
+              onChange={handleEditTransferChange}
+              required
+            />
+          </div>
+
+          <div className="tower-transfer-form-group tower-transfer-full">
+            <label>Asset</label>
+
+            <input
+              value={`${editTransfer.assetId || "-"} - ${
+                editTransfer.deviceName || "-"
+              }${
+                editTransfer.serialNumber
+                  ? ` / SN: ${editTransfer.serialNumber}`
+                  : ""
+              }${
+                editTransfer.macAddress
+                  ? ` / MAC: ${editTransfer.macAddress}`
+                  : ""
+              }`}
+              readOnly
+            />
+          </div>
+
           <div className="tower-transfer-form-group">
             <label>Transfer Date</label>
 
@@ -2084,9 +2592,14 @@ const menuHeight = 128;
               value={editTransferForm.transferStatus}
               onChange={handleEditTransferChange}
             >
-              {editTransfer.transferType ===
+              {editTransferForm.transferType ===
               "Tower to Repair" ? (
                 <option value="In Repair">In Repair</option>
+              ) : editTransferForm.transferType === "Tower to Damaged / Lost" ? (
+                <>
+                  <option value="Closed">Closed</option>
+                  <option value="Pending">Pending</option>
+                </>
               ) : (
                 <>
                   <option value="Completed">Completed</option>
@@ -2107,7 +2620,7 @@ const menuHeight = 128;
             />
           </div>
 
-          {editTransfer.transferType === "Tower to Repair" && (
+          {editTransferForm.transferType === "Tower to Repair" && (
             <>
               <div className="tower-transfer-form-group">
                 <label>Repair Type</label>
@@ -2185,6 +2698,55 @@ const menuHeight = 128;
                   value={editTransferForm.repairProblem}
                   onChange={handleEditTransferChange}
                 />
+              </div>
+            </>
+          )}
+
+          {editTransferForm.transferType === "Tower to Damaged / Lost" && (
+            <>
+              <div className="tower-transfer-form-group">
+                <label>Reason</label>
+
+                <input
+                  name="damageLostReason"
+                  value={editTransferForm.damageLostReason}
+                  onChange={handleEditTransferChange}
+                />
+              </div>
+
+              <div className="tower-transfer-form-group">
+                <label>Date</label>
+
+                <input
+                  type="date"
+                  name="damageLostDate"
+                  value={editTransferForm.damageLostDate}
+                  onChange={handleEditTransferChange}
+                />
+              </div>
+
+              <div className="tower-transfer-form-group">
+                <label>Reported By</label>
+
+                <input
+                  name="damageLostReportedBy"
+                  value={editTransferForm.damageLostReportedBy}
+                  onChange={handleEditTransferChange}
+                />
+              </div>
+
+              <div className="tower-transfer-form-group">
+                <label>Damage / Lost Status</label>
+
+                <select
+                  name="damageLostStatus"
+                  value={editTransferForm.damageLostStatus}
+                  onChange={handleEditTransferChange}
+                >
+                  <option value="Closed">Closed</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Investigating">Investigating</option>
+                </select>
               </div>
             </>
           )}

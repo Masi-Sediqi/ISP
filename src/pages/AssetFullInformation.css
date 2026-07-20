@@ -106,6 +106,16 @@
   background: #115e59;
 }
 
+.asset-detail-header-actions .sale-price {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+}
+
+.asset-detail-header-actions .sale-price:hover {
+  background: #1d4ed8;
+}
+
 .asset-detail-header-actions .waste {
   background: #dc2626;
   color: #ffffff;
@@ -382,7 +392,7 @@
 
 .asset-detail-table-card table {
   width: 100%;
-  min-width: 1260px;
+  min-width: 1660px;
   table-layout: fixed;
   border-collapse: collapse;
 }
@@ -411,17 +421,132 @@
   border-top: 1px solid #eeeae2;
 }
 
+.asset-detail-table-card th:first-child,
+.asset-movement-date-cell {
+  width: 150px;
+}
+
+.asset-movement-date-cell {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.asset-movement-image-cell {
+  width: 72px;
+  text-align: center !important;
+}
+
+.asset-movement-image-cell img {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e8e4dc;
+  background: #ffffff;
+}
+
+.asset-movement-image-cell span {
+  color: #94a3b8;
+}
+
+.asset-insight-image-cell {
+  width: 72px;
+  text-align: center !important;
+}
+
+.asset-insight-image-cell img {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e8e4dc;
+  background: #ffffff;
+}
+
+.asset-insight-image-cell span {
+  color: #94a3b8;
+}
+
+.asset-insight-table-wrap td:last-child {
+  position: relative;
+  overflow: visible;
+}
+
+.asset-insight-action-menu {
+  position: absolute;
+  right: 14px;
+  z-index: 20;
+  display: grid;
+  width: 170px;
+  padding: 7px 6px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e8e4dc;
+  border-radius: 12px;
+  box-shadow:
+    0 18px 45px rgba(15, 23, 42, 0.14),
+    0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.asset-insight-action-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #111827;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.asset-insight-action-menu button:hover {
+  background: #f7f6f2;
+}
+
+.asset-insight-action-menu button.danger {
+  color: #ef1b1b;
+}
+
 .asset-detail-table-card tbody tr:hover td {
   background: #fcfbf8;
 }
 
 .asset-repair-result-row td {
-  height: auto;
-  padding: 8px 14px !important;
-  background: #fffbeb !important;
-  border-top: 1px solid #fde68a !important;
-  border-bottom: 1px solid #fde68a;
-  white-space: normal;
+    height: auto;
+    padding: 8px 14px !important;
+    background: #fffbeb !important;
+    border-top: 1px solid #fde68a !important;
+    border-bottom: 1px solid #fde68a;
+    white-space: normal;
+  }
+
+.asset-repair-result-row.fixed td {
+    background: #ecfdf5 !important;
+    border-top-color: #86efac !important;
+    border-bottom-color: #86efac !important;
+}
+
+.asset-repair-result-row.not-fixed td {
+    background: #fff1f2 !important;
+    border-top-color: #fda4af !important;
+    border-bottom-color: #fda4af !important;
+}
+
+.asset-repair-result-row.fixed .asset-repair-result-content strong {
+    color: #166534;
+}
+
+.asset-repair-result-row.not-fixed .asset-repair-result-content strong {
+    color: #9f1239;
 }
 
 .asset-repair-result-content {
@@ -1750,6 +1875,14 @@ body.dark-mode
   font-weight: 700;
 }
 
+.asset-detail-value-hint {
+  display: block;
+  margin-top: 4px;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .asset-detail-form-grid input:disabled,
 .asset-detail-form-grid select:disabled {
   background: #f1f5f9;
@@ -1767,6 +1900,10 @@ body.dark-mode
 
 body.dark-mode .asset-detail-stock-hint {
   color: #94a3b8;
+}
+
+body.dark-mode .asset-detail-value-hint {
+  color: #f8fafc;
 }
 
 body.dark-mode .asset-detail-form-grid input:disabled,
@@ -2629,11 +2766,7 @@ body.dark-mode
 }
 
 @media (max-width: 900px) {
-  .asset0.3) !important;
-  color: #f8fafc;
-}
-
-@media (max-width: 900-detail-table-header {
+  .asset-detail-table-header {
     align-items: flex-start;
     flex-direction: column;
   }

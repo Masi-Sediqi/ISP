@@ -16,6 +16,7 @@ import "./SupplierDetails.css";
 
 const emptyPurchaseForm = {
   purchaseDate: "",
+  referenceNumber: "",
   invoiceNumber: "",
   assetId: "",
   deviceName: "",
@@ -35,6 +36,7 @@ const emptyPurchaseForm = {
 
 const emptyPaymentForm = {
   paymentDate: new Date().toISOString().slice(0, 10),
+  direction: "we_pay_supplier",
   amount: "",
   method: "Cash",
   notes: "",
@@ -49,14 +51,28 @@ const emptyBalanceForm = {
 
 const defaultCategories = [
   "Router",
+  "ONU / ONT",
+  "Modem",
   "Switch",
+  "Access Point",
   "Radio",
   "Antenna",
-  "Cable",
-  "ONU",
-  "ONT",
-  "Fiber Device",
-  "Power Device",
+  "Power Supply",
+  "UPS",
+  "Battery",
+  "Server",
+  "Rack",
+  "Fiber Cable",
+  "Ethernet Cable",
+  "SFP Module",
+  "Media Converter",
+  "PoE Adapter",
+  "Tower Equipment",
+  "Tools",
+  "Office Equipment",
+  "Computers",
+  "Printers",
+  "Vehicles",
 ];
 
 function InfoIcon() {
@@ -117,6 +133,7 @@ function SupplierDetails() {
   const [assetMovements, setAssetMovements] = useJsonCollection("assetMovements");
   const [supplierPayments, setSupplierPayments] = useJsonCollection("supplierPayments");
   const [customCategories, setCustomCategories] = useJsonCollection("assetCategories");
+  const [, setTransactions] = useJsonCollection("transactions");
 
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [purchaseForm, setPurchaseForm] = useState(emptyPurchaseForm);
@@ -149,6 +166,20 @@ function SupplierDetails() {
   const money = (value) => Number(value || 0).toLocaleString("en-US");
 
   const supplierName = supplier?.supplierName || "";
+
+  const generateNextPurchaseReference = () => {
+    const maxNumber = [...supplierPurchases, ...assetMovements].reduce((max, record) => {
+      const value = record.referenceNumber || record.purchaseCode || record.invoiceNumber || "";
+      const match = String(value).match(/^(?:REF|PUR)-(\d+)$/i);
+
+      if (!match) return max;
+
+      const number = Number(match[1] || 0);
+      return number > max ? number : max;
+    }, 0);
+
+    return `REF-${String(maxNumber + 1).padStart(4, "0")}`;
+  };
 
   const movementPurchases = assetMovements
     .filter((movement) => {
@@ -185,6 +216,49 @@ function SupplierDetails() {
       };
     });
 
+  const repairPurchases = assetMovements
+    .filter((movement) => {
+      const repairResult = movement.repairResult || {};
+      const supplierKey = String(supplier?.id || supplierName || "");
+
+      return (
+        repairResult.supplierRecordId || repairResult.supplierName
+      ) && (
+        String(repairResult.supplierRecordId || "") === supplierKey ||
+        repairResult.supplierName === supplierName
+      );
+    })
+    .map((movement) => {
+      const relatedAsset = assets.find(
+        (asset) =>
+          String(asset.id || asset.assetId) ===
+            String(movement.assetRecordId || movement.assetId) ||
+          String(asset.assetId || "") === String(movement.assetId || "")
+      );
+      const repairResult = movement.repairResult || {};
+      const repairCost = Number(repairResult.repairCost || 0);
+      const paidAmount = Number(repairResult.paidAmount || 0);
+
+      return {
+        ...movement,
+        source: "asset-repair",
+        purchaseDate: repairResult.repairDate || movement.date || "",
+        invoiceNumber: movement.referenceNumber || "",
+        assetId: relatedAsset?.assetId || movement.assetId || "-",
+        deviceName: `Repair - ${relatedAsset?.deviceName || movement.deviceName || "-"}`,
+        category: relatedAsset?.category || movement.category || "-",
+        brand: relatedAsset?.brand || movement.brand || "-",
+        model: relatedAsset?.model || movement.model || "-",
+        macAddress: relatedAsset?.macAddress || movement.macAddress || "-",
+        serialNumber: relatedAsset?.serialNumber || movement.serialNumber || "-",
+        quantity: 1,
+        totalPurchaseValue: repairCost,
+        paidAmount,
+        remainAmount: Math.max(repairCost - paidAmount, 0),
+        status: repairCost - paidAmount <= 0 ? "Paid" : paidAmount > 0 ? "Partial" : "Unpaid",
+      };
+    });
+
   const legacyPurchases = supplierPurchases
     .filter(
       (purchase) =>
@@ -196,7 +270,7 @@ function SupplierDetails() {
       source: "legacy-supplier-purchase",
     }));
 
-  const purchases = [...movementPurchases, ...legacyPurchases];
+  const purchases = [...movementPurchases, ...repairPurchases, ...legacyPurchases];
 
   const supplierPaymentRecords = supplierPayments.filter(
     (payment) =>
@@ -230,7 +304,18 @@ function SupplierDetails() {
   );
 
   const supplierPaymentTotal = payments.reduce(
-    (sum, payment) => sum + Number(payment.amount || 0),
+    (sum, payment) =>
+      payment.direction === "supplier_pays_us"
+        ? sum
+        : sum + Number(payment.amount || 0),
+    0
+  );
+
+  const supplierPaidUsTotal = payments.reduce(
+    (sum, payment) =>
+      payment.direction === "supplier_pays_us"
+        ? sum + Number(payment.amount || 0)
+        : sum,
     0
   );
 
@@ -252,7 +337,11 @@ function SupplierDetails() {
 
   const totalPaidToSupplier = purchasePaidTotal + supplierPaymentTotal;
   const supplierBalance =
-    totalPurchaseValue + openingWeOweSupplier - totalPaidToSupplier - openingSupplierOwesUs;
+    totalPurchaseValue +
+    openingWeOweSupplier +
+    supplierPaidUsTotal -
+    totalPaidToSupplier -
+    openingSupplierOwesUs;
   const weOweSupplier = supplierBalance > 0 ? supplierBalance : 0;
   const supplierOwesUs = supplierBalance < 0 ? Math.abs(supplierBalance) : 0;
   const averagePurchaseValue =
@@ -300,8 +389,12 @@ function SupplierDetails() {
       date: payment.paymentDate || payment.createdAt?.slice(0, 10) || "-",
       timeSource: payment.createdAt || payment.updatedAt || "",
       description: payment.notes || "Supplier payment",
-      debit: 0,
-      credit: Number(payment.amount || 0),
+      direction:
+        payment.direction === "supplier_pays_us"
+          ? "Supplier Pays Us"
+          : "We Pay Supplier",
+      debit: payment.direction === "supplier_pays_us" ? Number(payment.amount || 0) : 0,
+      credit: payment.direction === "supplier_pays_us" ? 0 : Number(payment.amount || 0),
       status: payment.method || "Cash",
       record: payment,
       recordType: "payment",
@@ -619,6 +712,56 @@ const handlePaymentChange = (event) => {
   }));
 };
 
+const upsertSupplierPaymentTransaction = async (payment) => {
+  const createdAt = payment.createdAt || new Date().toISOString();
+  const supplierPaysUs = payment.direction === "supplier_pays_us";
+  const transaction = {
+    id: `supplier-payment-${supplierPaysUs ? "income" : "expense"}-${payment.id}`,
+    type: supplierPaysUs ? "income" : "expense",
+    title: supplierPaysUs
+      ? `Supplier Payment Received - ${payment.supplierName || "Supplier"}`
+      : `Supplier Payment - ${payment.supplierName || "Supplier"}`,
+    category: supplierPaysUs ? "Supplier Payment Received" : "Supplier Payment",
+    amount: Number(payment.amount || 0),
+    date: payment.paymentDate,
+    description: [
+      supplierPaysUs ? "Direction: Supplier Pays Us" : "Direction: We Pay Supplier",
+      payment.method ? `Method: ${payment.method}` : "",
+      payment.notes || "",
+    ]
+      .filter(Boolean)
+      .join(" | "),
+    source: "supplier-payment",
+    referenceId: payment.id,
+    supplierRecordId: payment.supplierRecordId || "",
+    supplierName: payment.supplierName || "",
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return setTransactions((previousTransactions) => [
+    ...previousTransactions.filter(
+      (transaction) =>
+        !(
+          transaction.source === "supplier-payment" &&
+          String(transaction.referenceId || "") === String(payment.id)
+        )
+    ),
+    transaction,
+  ]);
+};
+
+const removeSupplierPaymentExpense = async (paymentId) =>
+  setTransactions((previousTransactions) =>
+    previousTransactions.filter(
+      (transaction) =>
+        !(
+          transaction.source === "supplier-payment" &&
+          String(transaction.referenceId || "") === String(paymentId)
+        )
+    )
+  );
+
 const handleBalanceChange = (event) => {
   const { name, value } = event.target;
   setBalanceForm((previous) => ({
@@ -687,6 +830,7 @@ const saveSupplierPayment = async (event) => {
     supplierRecordId: supplier?.id || "",
     supplierName,
     paymentDate: paymentForm.paymentDate,
+    direction: paymentForm.direction || "we_pay_supplier",
     amount,
     method: paymentForm.method,
     notes: paymentForm.notes.trim(),
@@ -704,6 +848,13 @@ const saveSupplierPayment = async (event) => {
 
   if (!saved) return;
 
+  const transactionSaved = await upsertSupplierPaymentTransaction(cleanPayment);
+
+  if (!transactionSaved) {
+    notify("Payment saved, but its Financial transaction could not be linked.", "error");
+    return;
+  }
+
   notify(editPayment ? "Payment updated successfully." : "Payment saved successfully.");
   closePaymentModal();
 };
@@ -712,6 +863,7 @@ const openEditPaymentModal = (payment) => {
   setEditPayment(payment);
   setPaymentForm({
     paymentDate: payment.paymentDate || "",
+    direction: payment.direction || "we_pay_supplier",
     amount: String(payment.amount || ""),
     method: payment.method || "Cash",
     notes: payment.notes || "",
@@ -738,6 +890,13 @@ const confirmDeletePayment = async () => {
   );
 
   if (!saved) return;
+
+  const expenseRemoved = await removeSupplierPaymentExpense(deletePayment.id);
+
+  if (!expenseRemoved) {
+    notify("Payment deleted, but its expense could not be removed from Financial.", "error");
+    return;
+  }
 
   notify("Payment deleted successfully.");
   setDeletePayment(null);
@@ -777,6 +936,73 @@ const confirmDeleteBalance = async () => {
     });
   };
 
+const upsertPurchaseExpense = async (purchase, source = "supplier-purchase") => {
+  const referenceId = purchase.id;
+  const totalAmount = Number(
+    purchase.totalPurchaseValue ?? purchase.totalAmount ?? 0
+  );
+  const paidAmount = Number(purchase.paidAmount || 0);
+  const remainingAmount = Number(
+    purchase.remainAmount ?? purchase.remainingAmount ?? Math.max(totalAmount - paidAmount, 0)
+  );
+  const date = purchase.purchaseDate || purchase.date || new Date().toISOString().slice(0, 10);
+  const createdAt = purchase.createdAt || new Date().toISOString();
+
+  if (paidAmount <= 0) {
+    return removePurchaseExpense(source, referenceId);
+  }
+
+  const expense = {
+    id: `${source}-expense-${referenceId}`,
+    type: "expense",
+    title: `Asset Purchase - ${purchase.deviceName || purchase.assetName || "Asset"}`,
+    category: "Purchases",
+    amount: paidAmount,
+    date,
+    description: [
+      purchase.supplierName ? `Supplier: ${purchase.supplierName}` : "",
+      purchase.invoiceNumber || purchase.billNumber
+        ? `Bill: ${purchase.invoiceNumber || purchase.billNumber}`
+        : "",
+      `Quantity: ${purchase.quantity || 0}`,
+      `Unit Price: ${money(purchase.unitPrice)} AFN`,
+      `Paid: ${money(paidAmount)} AFN`,
+      `Remaining: ${money(remainingAmount)} AFN`,
+      purchase.notes || "",
+    ]
+      .filter(Boolean)
+      .join(" | "),
+    source,
+    referenceId,
+    assetId: purchase.assetId || "",
+    supplierName: purchase.supplierName || "",
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return setTransactions((previousTransactions) => [
+    ...previousTransactions.filter(
+      (transaction) =>
+        !(
+          transaction.source === source &&
+          String(transaction.referenceId || "") === String(referenceId)
+        )
+    ),
+    expense,
+  ]);
+};
+
+const removePurchaseExpense = async (source, referenceId) =>
+  setTransactions((previousTransactions) =>
+    previousTransactions.filter(
+      (transaction) =>
+        !(
+          transaction.source === source &&
+          String(transaction.referenceId || "") === String(referenceId)
+        )
+    )
+  );
+
 const savePurchase = async (event) => {
   event.preventDefault();
 
@@ -791,6 +1017,7 @@ const savePurchase = async (event) => {
     supplierIndex,
     supplierName,
     purchaseDate: purchaseForm.purchaseDate,
+    referenceNumber: purchaseForm.referenceNumber.trim() || generateNextPurchaseReference(),
     invoiceNumber: purchaseForm.invoiceNumber.trim(),
     assetId: purchaseForm.assetId.trim(),
     deviceName: purchaseForm.deviceName.trim(),
@@ -874,6 +1101,12 @@ const savePurchase = async (event) => {
   const assetsSaved = await setAssets(nextAssets);
 
   if (purchasesSaved && assetsSaved) {
+    const financeSaved = await upsertPurchaseExpense(cleanPurchase);
+
+    if (!financeSaved) {
+      notify("Purchase saved, but its expense could not be linked to Financial.", "error");
+    }
+
     notify(
       editPurchaseId
         ? "Purchase updated successfully."
@@ -891,6 +1124,7 @@ const savePurchase = async (event) => {
   setPurchaseForm({
     ...emptyPurchaseForm,
     assetId: generateNextAssetId(),
+    referenceNumber: generateNextPurchaseReference(),
   });
   setCategoryMode("select");
   setNewCategory("");
@@ -915,6 +1149,7 @@ const openEditPurchaseModal = (purchase) => {
 
   setPurchaseForm({
     purchaseDate: purchase.purchaseDate || "",
+    referenceNumber: purchase.referenceNumber || purchase.purchaseCode || "",
     invoiceNumber: purchase.invoiceNumber || "",
     assetId: purchase.assetId || "",
     deviceName: purchase.deviceName || "",
@@ -966,33 +1201,44 @@ const saveEditedLedgerPurchase = async (event) => {
     return;
   }
 
+  const updatedMovement = {
+    ...editLedgerPurchase,
+    date: editLedgerPurchaseForm.purchaseDate,
+    purchaseDate: editLedgerPurchaseForm.purchaseDate,
+    invoiceNumber: editLedgerPurchaseForm.invoiceNumber.trim(),
+    billNumber: editLedgerPurchaseForm.invoiceNumber.trim(),
+    quantity,
+    unitPrice,
+    totalAmount,
+    totalPurchaseValue: totalAmount,
+    paidAmount,
+    remainingAmount,
+    remainAmount: remainingAmount,
+    paymentStatus:
+      remainingAmount === 0
+        ? "Paid"
+        : paidAmount > 0
+          ? "Partial"
+          : "Unpaid",
+    notes: editLedgerPurchaseForm.notes.trim(),
+    updatedAt: new Date().toISOString(),
+  };
+
   const saved = await setAssetMovements(
     assetMovements.map((movement) =>
       movement.id === editLedgerPurchase.id
-        ? {
-            ...movement,
-            date: editLedgerPurchaseForm.purchaseDate,
-            invoiceNumber: editLedgerPurchaseForm.invoiceNumber.trim(),
-            billNumber: editLedgerPurchaseForm.invoiceNumber.trim(),
-            quantity,
-            unitPrice,
-            totalAmount,
-            paidAmount,
-            remainingAmount,
-            paymentStatus:
-              remainingAmount === 0
-                ? "Paid"
-                : paidAmount > 0
-                  ? "Partial"
-                  : "Unpaid",
-            notes: editLedgerPurchaseForm.notes.trim(),
-            updatedAt: new Date().toISOString(),
-          }
+        ? updatedMovement
         : movement
     )
   );
 
   if (!saved) return;
+
+  const financeSaved = await upsertPurchaseExpense(updatedMovement, "asset-purchase");
+
+  if (!financeSaved) {
+    notify("Purchase updated, but its expense could not be updated in Financial.", "error");
+  }
 
   notify("Purchase record updated successfully.");
   setEditLedgerPurchase(null);
@@ -1047,6 +1293,7 @@ const confirmDeletePurchase = async () => {
     );
 
     if (saved) {
+      await removePurchaseExpense("asset-purchase", deletePurchaseId);
       notify("Purchase record deleted successfully.");
       setDeletePurchaseId(null);
     }
@@ -1066,6 +1313,7 @@ const confirmDeletePurchase = async () => {
   const assetsSaved = await setAssets(nextAssets);
 
   if (purchasesSaved && assetsSaved) {
+    await removePurchaseExpense("supplier-purchase", deletePurchaseId);
     notify("Purchase deleted successfully.");
     setDeletePurchaseId(null);
   }
@@ -1260,6 +1508,7 @@ const confirmDeletePurchase = async () => {
               <tr>
                 <th>Purchase Date</th>
                 <th>Type</th>
+                <th>Direction</th>
                 <th>Invoice No</th>
                 <th>Asset ID</th>
                 <th>Device Name</th>
@@ -1296,6 +1545,7 @@ const confirmDeletePurchase = async () => {
                       {row.type}
                     </span>
                   </td>
+                  <td>{row.direction || "-"}</td>
                   <td>{purchase?.invoiceNumber || "-"}</td>
                   <td>{purchase?.assetId || "-"}</td>
                   <td>
@@ -1466,7 +1716,7 @@ const confirmDeletePurchase = async () => {
 
               {ledgerRows.length === 0 && (
                 <tr>
-                  <td colSpan="13" className="supplier-empty-message">
+                  <td colSpan="14" className="supplier-empty-message">
                     No purchase, payment, or balance has been recorded for this supplier yet.
                   </td>
                 </tr>
@@ -1507,13 +1757,23 @@ const confirmDeletePurchase = async () => {
                 </div>
 
                 <div className="supplier-form-group">
-                  <label>Invoice / Reference Number</label>
+                  <label>Reference Number</label>
+                  <input
+                    name="referenceNumber"
+                    value={purchaseForm.referenceNumber}
+                    onChange={handlePurchaseChange}
+                    placeholder="Example: REF-0001"
+                    required
+                  />
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Invoice Number</label>
                   <input
                     name="invoiceNumber"
                     value={purchaseForm.invoiceNumber}
                     onChange={handlePurchaseChange}
                     placeholder="Example: INV-1001"
-                    required
                   />
                 </div>
 
@@ -1893,6 +2153,18 @@ const confirmDeletePurchase = async () => {
                 </div>
 
                 <div className="supplier-form-group">
+                  <label>Payment Direction</label>
+                  <select
+                    name="direction"
+                    value={paymentForm.direction}
+                    onChange={handlePaymentChange}
+                  >
+                    <option value="we_pay_supplier">We Pay Supplier</option>
+                    <option value="supplier_pays_us">Supplier Pays Us</option>
+                  </select>
+                </div>
+
+                <div className="supplier-form-group">
                   <label>Amount</label>
                   <input
                     type="number"
@@ -1978,7 +2250,7 @@ const confirmDeletePurchase = async () => {
                 </div>
 
                 <div className="supplier-form-group">
-                  <label>Bill / Invoice Number</label>
+                  <label>Invoice Number</label>
                   <input
                     name="invoiceNumber"
                     value={editLedgerPurchaseForm.invoiceNumber || ""}

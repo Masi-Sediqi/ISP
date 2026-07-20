@@ -82,7 +82,7 @@ function TravelReport() {
   const filteredDestinations = destinationStats.filter((destination) =>
     destination.name.includes(search) || destination.description.includes(search)
   );
-  const { page, setPage, totalPages, pageItems, pageSize } = useTablePagination(filteredDestinations, search);
+  const { page, setPage, totalPages, pageItems, pageSize, setPageSize } = useTablePagination(filteredDestinations, search);
 
   return (
     <div className="reports-page">
@@ -186,7 +186,7 @@ function TravelReport() {
             {destinationStats.length === 0 && <tr><td colSpan="6" className="report-empty">در بازه انتخاب‌شده سفری ثبت نشده است</td></tr>}
           </tbody>
         </table>
-        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filteredDestinations.length} pageSize={pageSize} />
+        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={filteredDestinations.length} pageSize={pageSize} setPageSize={setPageSize} />
       </div>
     </div>
   );

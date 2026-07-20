@@ -1163,3 +1163,69 @@ body.dark-mode .tower-detail-assets-table td {
   font-size: 12px;
   font-weight: 800;
 }
+
+.tower-asset-filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.tower-asset-filter-tabs button {
+  height: 34px;
+  border: 1px solid #eeeae2;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #334155;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tower-asset-filter-tabs button.active {
+  border-color: #4f46e5;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.tower-asset-picker table {
+  min-width: 1420px;
+}
+
+.tower-tracking-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.tower-tracking-badge.single {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.tower-tracking-badge.individual {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.tower-inline-quantity {
+  width: 96px;
+  height: 32px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  padding: 0 8px;
+  background: #ffffff;
+  font-family: inherit;
+}
+
+body.dark-mode .tower-asset-filter-tabs button,
+body.dark-mode .tower-inline-quantity {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}

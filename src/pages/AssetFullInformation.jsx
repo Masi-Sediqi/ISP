@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Eye,
   Info,
@@ -9,20 +9,22 @@ import {
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
-import { formatDateTime } from "../utils/afghanDate";
+import { formatDateTime, todayDateValue } from "../utils/afghanDate";
 import "./AssetFullInformation.css";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayDateValue();
 
 const emptyPurchaseForm = {
     quantity: "",
     unitPrice: "",
+    salePrice: "",
     location: "Main Stock",
     identityRecords: [],
 };
 
 const emptyPurchaseRecordForm = {
     purchaseCode: "",
+    invoiceNumber: "",
     supplierRecordId: "",
     supplierName: "",
     purchaseDate: today(),
@@ -67,6 +69,7 @@ const emptyTransferForm = {
     securityDepositPerDevice: "",
     salePricePerDevice: "",
     paidAmountPerDevice: "",
+    totalAmount: "",
     trustAmount: "",
     paidAmount: "",
     salePrices: {},
@@ -100,6 +103,7 @@ function syncIdentityRecords(quantity, existingRecords = []) {
 function AssetFullInformation() {
     const { assetId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [assets, setAssets, , assetsLoaded] =
         useJsonCollection("assets");
@@ -116,11 +120,17 @@ function AssetFullInformation() {
     const [movements, setMovements, , movementsLoaded] =
         useJsonCollection("assetMovements");
 
+    const [supplierPurchases] =
+        useJsonCollection("supplierPurchases");
+
     const [deviceTransfers, setDeviceTransfers] =
         useJsonCollection("deviceTransfers");
 
     const [towerAssetTransfers, setTowerAssetTransfers] =
         useJsonCollection("towerAssetTransfers");
+
+    const [, setTransactions] =
+        useJsonCollection("transactions");
 
     const [modalType, setModalType] = useState("");
     const [openMovementAction, setOpenMovementAction] = useState("");
@@ -150,6 +160,9 @@ function AssetFullInformation() {
         useState(emptyPurchaseForm);
     const [purchaseRecordForm, setPurchaseRecordForm] =
         useState(emptyPurchaseRecordForm);
+    const [salePriceForm, setSalePriceForm] = useState({
+        salePrice: "",
+    });
 
     const [wasteForm, setWasteForm] =
         useState(emptyWasteForm);
@@ -174,6 +187,48 @@ function AssetFullInformation() {
     );
 
     const assetKey = String(asset?.id || asset?.assetId || "");
+    const purchaseUsageUnit =
+        asset?.purchaseUsageUnit ||
+        asset?.purchaseUnit ||
+        asset?.usageUnit ||
+        "Piece";
+    const getDefaultSalePrice = (record = {}) =>
+        record.salePrice ??
+        asset?.salePrice ??
+        record.unitPrice ??
+        asset?.unitPrice ??
+        "";
+
+    const saveAssetSalePrice = async (event) => {
+        event.preventDefault();
+        const salePrice = Number(salePriceForm.salePrice || 0);
+
+        if (!Number.isFinite(salePrice) || salePrice < 0) {
+            notify("Sale price cannot be negative.", "error");
+            return;
+        }
+
+        const saved = await setAssets((previousAssets) =>
+            previousAssets.map((item) => {
+                const sameAsset =
+                    String(item.id || "") === String(asset?.id || "") ||
+                    String(item.assetId || "") === String(asset?.assetId || "");
+
+                if (!sameAsset) return item;
+
+                return {
+                    ...item,
+                    salePrice,
+                    defaultSalePrice: salePrice,
+                    updatedAt: new Date().toISOString(),
+                };
+            })
+        );
+
+        if (!saved) return;
+        notify("Sale price saved successfully.");
+        setModalType("");
+    };
 
     const repairSupplierOptions = suppliers.filter((supplier) => {
         const supplierTypes = supplier.supplierTypes || [];
@@ -230,6 +285,12 @@ function AssetFullInformation() {
         movement?.assetDeviceName ||
         asset?.deviceName ||
         "-";
+    const getMovementImage = (movement) =>
+        (movement?.identityRecords || []).find((record) => record?.image)?.image ||
+        movement?.assetImage ||
+        movement?.image ||
+        asset?.assetImage ||
+        "";
 const getMovementRowClass = (movement) => {
     const movementType = String(
         movement?.movementType || ""
@@ -260,6 +321,17 @@ const getMovementRowClass = (movement) => {
     }
 
     return "";
+};
+
+const canManageMovementRecord = (movement) => {
+    const movementType = String(movement?.movementType || "").trim();
+    const sourceName = String(movement?.sourceName || "").trim().toLowerCase();
+
+    if (movementType === "Transfer" && sourceName && sourceName !== "main stock") {
+        return false;
+    }
+
+    return true;
 };
     const totalBalanceAdded = assetMovements
         .filter((item) => item.movementType === "Balance")
@@ -360,20 +432,29 @@ const getMovementRowClass = (movement) => {
         (editMovementForm.selectedIdentityIds || []).includes(record.id)
     );
 
+    const editMovementQuantity = Number(editMovementForm.quantity || 0);
+    const editMovementSalePricePerQuantity = Number(
+        editMovementForm.salePricePerDevice ||
+            editMovementForm.securityDepositPerDevice ||
+            getDefaultSalePrice() ||
+            0
+    );
+
     const editTransferSaleTotal = isIndividualAsset
         ? selectedEditMovementRecords.reduce(
             (sum, record) =>
                 sum +
                 Number(
                     editMovementForm.salePrices?.[record.id] ||
-                    record.unitPrice ||
-                    asset?.unitPrice ||
+                    getDefaultSalePrice(record) ||
                     0
                 ),
             0
         )
-        : Number(editMovementForm.quantity || 0) *
-        Number(editMovementForm.salePricePerDevice || 0);
+        : editMovementForm.transferType === "To Customer" &&
+            editMovementForm.dealType === "Sold"
+            ? editMovementQuantity * editMovementSalePricePerQuantity
+            : Number(editMovementForm.totalAmount || 0);
 
     const editTransferDepositTotal = isIndividualAsset
         ? selectedEditMovementRecords.reduce(
@@ -383,25 +464,54 @@ const getMovementRowClass = (movement) => {
                     editMovementForm.depositPrices?.[record.id] ||
                     editMovementForm.securityDepositPerDevice ||
                     0
-                ),
+            ),
             0
         )
-        : Number(editMovementForm.quantity || 0) *
-        Number(editMovementForm.securityDepositPerDevice || 0);
+        : editMovementForm.transferType === "To Customer" &&
+            editMovementForm.dealType === "Loaned / Deposit"
+            ? editMovementQuantity * editMovementSalePricePerQuantity
+            : Number(editMovementForm.totalAmount || editMovementForm.trustAmount || 0);
 
     const editTransferPaidTotal =
         editMovementForm.transferType === "To Customer" &&
             editMovementForm.dealType === "Sold"
             ? isIndividualAsset
                 ? Number(editMovementForm.paidAmount || 0)
-                : Number(editMovementForm.quantity || 0) *
-                Number(editMovementForm.paidAmountPerDevice || 0)
+                : Number(editMovementForm.paidAmount || 0)
             : 0;
 
     const editTransferRemainingTotal = Math.max(
         editTransferSaleTotal - editTransferPaidTotal,
         0
     );
+
+    const editDepositPaidTotal =
+        editMovementForm.transferType === "To Customer" &&
+            editMovementForm.dealType === "Loaned / Deposit"
+            ? Number(editMovementForm.paidAmount || 0)
+            : 0;
+
+    const editDepositRemainingTotal = Math.max(
+        editTransferDepositTotal - editDepositPaidTotal,
+        0
+    );
+
+    const editWasteMaxQuantity =
+        editMovement?.movementType === "Waste"
+            ? currentQuantity + Number(editMovement?.quantity || 0)
+            : currentQuantity;
+
+    const editWasteLossAmount =
+        editMovement?.movementType === "Waste" && isIndividualAsset
+            ? selectedEditMovementRecords.reduce(
+                (sum, record) =>
+                    sum + Number(record.unitPrice || asset?.unitPrice || 0),
+                0
+            )
+            : editMovement?.movementType === "Waste"
+                ? Number(editMovementForm.quantity || 0) *
+                  Number(asset?.unitPrice || 0)
+                : 0;
 
     const wasteCategoryOptions = [
         "All",
@@ -469,8 +579,7 @@ const getMovementRowClass = (movement) => {
             sum +
             Number(
                 transferForm.salePrices[record.id] ||
-                record.unitPrice ||
-                asset?.unitPrice ||
+                getDefaultSalePrice(record) ||
                 0
             ),
         0
@@ -494,15 +603,6 @@ const getMovementRowClass = (movement) => {
         0
     );
 
-    const transferSaleTotal = isIndividualAsset
-        ? selectedTransferSaleTotal
-        : Number(transferForm.quantity || 0) * Number(asset?.unitPrice || 0);
-
-    const transferRemainingAmount = Math.max(
-        transferSaleTotal - transferPaidAmount,
-        0
-    );
-
     const isCustomerTransfer =
         transferForm.transferType === "To Customer";
 
@@ -516,32 +616,53 @@ const getMovementRowClass = (movement) => {
 
     const customerDepositTotal = isIndividualAsset
         ? selectedTransferDepositTotal
-        : customerTransferQuantity * securityDepositPerDevice;
+        : customerTransferQuantity *
+            Number(
+                transferForm.salePricePerDevice ||
+                getDefaultSalePrice() ||
+                0
+            );
 
-    const salePricePerDevice = Number(
-        transferForm.salePricePerDevice || 0
-    );
+    const customerDepositPaidTotal =
+        isCustomerTransfer && transferForm.dealType === "Loaned / Deposit"
+            ? Number(transferForm.paidAmount || 0)
+            : 0;
 
-    const paidAmountPerDevice = Number(
-        transferForm.paidAmountPerDevice || 0
-    );
-
-    const remainingAmountPerDevice = Math.max(
-        salePricePerDevice - paidAmountPerDevice,
+    const customerDepositRemainingTotal = Math.max(
+        customerDepositTotal - customerDepositPaidTotal,
         0
     );
 
+    const defaultBulkCustomerSaleTotal =
+        customerTransferQuantity * Number(getDefaultSalePrice() || 0);
+    const bulkCustomerSaleTotal = Number(
+        transferForm.totalAmount || defaultBulkCustomerSaleTotal || 0
+    );
+    const bulkCustomerPaidTotal = Number(transferForm.paidAmount || 0);
+    const bulkSalePricePerDevice =
+        customerTransferQuantity > 0
+            ? bulkCustomerSaleTotal / customerTransferQuantity
+            : 0;
+
     const customerSaleTotal = isIndividualAsset
         ? selectedTransferSaleTotal
-        : customerTransferQuantity * salePricePerDevice;
+        : bulkCustomerSaleTotal;
 
     const customerPaidTotal = isIndividualAsset
         ? transferPaidAmount
-        : customerTransferQuantity * paidAmountPerDevice;
+        : bulkCustomerPaidTotal;
 
     const customerRemainingTotal = isIndividualAsset
         ? selectedTransferRemainingTotal
-        : customerTransferQuantity * remainingAmountPerDevice;
+        : Math.max(customerSaleTotal - customerPaidTotal, 0);
+
+    const transferQuantityValue = isIndividualAsset
+        ? selectedTransferIdentityRecords.reduce(
+            (sum, record) =>
+                sum + Number(record.unitPrice || asset?.unitPrice || 0),
+            0
+        )
+        : Number(transferForm.quantity || 0) * Number(asset?.unitPrice || 0);
 
     const limitQuantityToCurrentStock = (
   value,
@@ -602,10 +723,10 @@ const getMovementRowClass = (movement) => {
             : null;
 
     const generateNextPurchaseCode = () => {
-        const maxNumber = movements.reduce((max, movement) => {
-            const match = String(movement.purchaseCode || "").match(
-                /^PUR-(\d+)$/i
-            );
+        const maxNumber = [...movements, ...supplierPurchases].reduce((max, movement) => {
+            const match = String(
+                movement.referenceNumber || movement.purchaseCode || movement.invoiceNumber || ""
+            ).match(/^(?:REF|PUR)-(\d+)$/i);
 
             if (!match) return max;
 
@@ -613,7 +734,7 @@ const getMovementRowClass = (movement) => {
             return number > max ? number : max;
         }, 0);
 
-        return `PUR-${String(maxNumber + 1).padStart(4, "0")}`;
+        return `REF-${String(maxNumber + 1).padStart(4, "0")}`;
     };
 
     useEffect(() => {
@@ -635,6 +756,30 @@ const getMovementRowClass = (movement) => {
             window.removeEventListener("scroll", closeMenu, true);
         };
     }, [openMovementAction]);
+
+    useEffect(() => {
+        const requestedModal = location.state?.openAssetModal;
+
+        if (!asset || !requestedModal) {
+            return;
+        }
+
+        if (requestedModal === "waste") {
+            setWasteForm(emptyWasteForm);
+            setModalType("waste");
+        }
+
+        if (requestedModal === "transfer") {
+            setTransferForm({
+                ...emptyTransferForm,
+                sourceName: "Main Stock",
+                destinationType: "Tower",
+            });
+            setModalType("transfer");
+        }
+
+        navigate(location.pathname, { replace: true, state: {} });
+    }, [asset, location.pathname, location.state, navigate]);
 
     const toggleMovementActionMenu = (event, movementId) => {
         event.stopPropagation();
@@ -692,19 +837,24 @@ const getMovementRowClass = (movement) => {
     };
 
     const saveMovement = async (movement) => {
-        return setMovements([
+        const createdAt = new Date().toISOString();
+        const movementRecord = {
+            id: `asset-movement-${Date.now()}`,
+            assetRecordId: asset.id || "",
+            assetId: asset.assetId || "",
+            deviceName: asset.deviceName || "",
+            category: asset.category || "",
+            assetImage: asset.assetImage || "",
+            ...movement,
+            createdAt,
+            updatedAt: createdAt,
+        };
+        const saved = await setMovements([
             ...movements,
-            {
-                id: `asset-movement-${Date.now()}`,
-                assetRecordId: asset.id || "",
-                assetId: asset.assetId || "",
-                deviceName: asset.deviceName || "",
-                category: asset.category || "",
-                ...movement,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-            },
+            movementRecord,
         ]);
+
+        return saved ? movementRecord : false;
     };
 
     const hasDuplicateSerialNumbers = (identityRecords) => {
@@ -920,6 +1070,7 @@ const handleEditPurchaseBillImageChange = (event) => {
 
         const quantity = Number(purchaseForm.quantity || 0);
         const unitPrice = Number(purchaseForm.unitPrice || 0);
+        const salePrice = Number(purchaseForm.salePrice || 0);
         const totalAmount = quantity * unitPrice;
         const location = "Main Stock";
         const identityRecords = isIndividualAsset
@@ -994,11 +1145,17 @@ const handleEditPurchaseBillImageChange = (event) => {
             return;
         }
 
+        if (!Number.isFinite(salePrice) || salePrice < 0) {
+            notify("Sale price cannot be negative.", "error");
+            return;
+        }
+
         const nextQuantity = currentQuantity + quantity;
 
         const assetSaved = await updateAssetQuantity(nextQuantity, {
-            purchaseUnit: "Piece",
+            purchaseUnit: purchaseUsageUnit,
             unitPrice,
+            salePrice,
             location,
             status: getStatusForLocation(location),
             identityRecords: isIndividualAsset
@@ -1008,6 +1165,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                         ...record,
                         category: asset.category || "",
                         unitPrice,
+                        salePrice,
                         addedAt: new Date().toISOString(),
                     })),
                 ]
@@ -1021,11 +1179,28 @@ const handleEditPurchaseBillImageChange = (event) => {
             date: today(),
             quantity,
             unitPrice,
+            salePrice,
             totalAmount,
             sourceName: "Balance",
             destinationName: location,
             paymentStatus: "Added",
-            identityRecords,
+            identityRecords: isIndividualAsset
+                ? identityRecords
+                : asset?.assetImage
+                    ? [
+                        {
+                            id: `single-identity-${assetKey}`,
+                            model: asset?.model || "",
+                            macAddress: asset?.macAddress || "",
+                            serialNumber: asset?.serialNumber || "",
+                            image: asset.assetImage,
+                            category: asset.category || "",
+                            unitPrice,
+                            salePrice,
+                        },
+                    ]
+                    : [],
+            assetImage: asset?.assetImage || "",
             notes: "",
         });
 
@@ -1047,6 +1222,7 @@ const handleEditPurchaseBillImageChange = (event) => {
     paidAmount,
     remainingAmount,
     billNumber,
+    invoiceNumber,
     notes,
 }) => {
     const createdAt = new Date().toISOString();
@@ -1057,20 +1233,20 @@ const handleEditPurchaseBillImageChange = (event) => {
         type: "expense",
         title: `Asset Purchase - ${asset?.deviceName || "Asset"}`,
         category: "Purchases",
-        amount: Number(totalAmount || 0),
+        amount: Number(paidAmount || 0),
         date: purchaseDate,
 
         description: [
             purchaseCode
-                ? `Purchase Code: ${purchaseCode}`
+                ? `Reference Number: ${purchaseCode}`
                 : "",
             supplierName
                 ? `Supplier: ${supplierName}`
                 : "",
             `Quantity: ${quantity}`,
             `Unit Price: ${money(unitPrice)} AFN`,
-            billNumber
-                ? `Bill Number: ${billNumber}`
+            invoiceNumber || billNumber
+                ? `Invoice Number: ${invoiceNumber || billNumber}`
                 : "",
             `Paid: ${money(paidAmount)} AFN`,
             `Remaining: ${money(remainingAmount)} AFN`,
@@ -1082,10 +1258,12 @@ const handleEditPurchaseBillImageChange = (event) => {
         source: "asset-purchase",
         referenceId: movementId,
         purchaseCode: purchaseCode || "",
+        referenceNumber: purchaseCode || "",
         assetRecordId: asset?.id || "",
         assetId: asset?.assetId || "",
         supplierName: supplierName || "",
         billNumber: billNumber || "",
+        invoiceNumber: invoiceNumber || billNumber || "",
 
         createdAt,
         updatedAt: createdAt,
@@ -1103,6 +1281,195 @@ const handleEditPurchaseBillImageChange = (event) => {
         expenseRecord,
     ]);
 };
+
+    const removePurchaseExpense = async (movementId) =>
+        setTransactions((previousTransactions) =>
+            previousTransactions.filter(
+                (transaction) =>
+                    !(
+                        transaction.source === "asset-purchase" &&
+                        String(transaction.referenceId || "") ===
+                            String(movementId)
+                )
+            )
+        );
+
+    const saveWasteExpense = async (movement) => {
+        const amount = Number(movement?.estimatedLoss || 0);
+
+        if (!movement?.id || amount <= 0) {
+            return setTransactions((previousTransactions) =>
+                previousTransactions.filter(
+                    (transaction) =>
+                        !(
+                            transaction.source === "asset-waste" &&
+                            String(transaction.referenceId || "") ===
+                                String(movement?.id || "")
+                        )
+                )
+            );
+        }
+
+        const updatedAt = new Date().toISOString();
+        const expenseRecord = {
+            id: `asset-waste-expense-${movement.id}`,
+            type: "expense",
+            title: `Asset Waste - ${movement.deviceName || asset?.deviceName || "Asset"}`,
+            category: "Asset Waste",
+            amount,
+            date: movement.date,
+            description: [
+                movement.wasteReason ? `Reason: ${movement.wasteReason}` : "",
+                `Quantity: ${movement.quantity || 0}`,
+                `Unit Price: ${money(movement.unitPrice || asset?.unitPrice || 0)} AFN`,
+                `Loss: ${money(amount)} AFN`,
+                movement.notes || "",
+            ]
+                .filter(Boolean)
+                .join(" | "),
+            source: "asset-waste",
+            referenceId: movement.id,
+            assetRecordId: movement.assetRecordId || asset?.id || "",
+            assetId: movement.assetId || asset?.assetId || "",
+            createdAt: movement.createdAt || updatedAt,
+            updatedAt,
+        };
+
+        return setTransactions((previousTransactions) => [
+            ...previousTransactions.filter(
+                (transaction) =>
+                    !(
+                        transaction.source === "asset-waste" &&
+                        String(transaction.referenceId || "") ===
+                            String(movement.id)
+                    )
+            ),
+            expenseRecord,
+        ]);
+    };
+
+    const saveRepairExpense = async (movement) => {
+        const repairResult = movement?.repairResult || {};
+        const amount = Number(repairResult.repairCost || 0);
+
+        if (!movement?.id || amount <= 0) {
+            return setTransactions((previousTransactions) =>
+                previousTransactions.filter(
+                    (transaction) =>
+                        !(
+                            transaction.source === "asset-repair" &&
+                            String(transaction.referenceId || "") ===
+                                String(movement?.id || "")
+                        )
+                )
+            );
+        }
+
+        const updatedAt = new Date().toISOString();
+        const expenseRecord = {
+            id: `asset-repair-expense-${movement.id}`,
+            type: "expense",
+            title: `Asset Repair - ${movement.deviceName || asset?.deviceName || "Asset"}`,
+            category: "Repairs",
+            amount,
+            date: repairResult.repairDate || movement.date,
+            description: [
+                repairResult.repairStatus ? `Status: ${repairResult.repairStatus}` : "",
+                repairResult.supplierName ? `Supplier: ${repairResult.supplierName}` : "",
+                `Cost: ${money(repairResult.repairCost || 0)} AFN`,
+                `Paid: ${money(amount)} AFN`,
+                `Remaining: ${money(repairResult.remainingAmount || 0)} AFN`,
+                repairResult.notes || "",
+            ]
+                .filter(Boolean)
+                .join(" | "),
+            source: "asset-repair",
+            referenceId: movement.id,
+            assetRecordId: movement.assetRecordId || asset?.id || "",
+            assetId: movement.assetId || asset?.assetId || "",
+            supplierRecordId: repairResult.supplierRecordId || "",
+            supplierName: repairResult.supplierName || "",
+            createdAt: movement.createdAt || updatedAt,
+            updatedAt,
+        };
+
+        return setTransactions((previousTransactions) => [
+            ...previousTransactions.filter(
+                (transaction) =>
+                    !(
+                        transaction.source === "asset-repair" &&
+                        String(transaction.referenceId || "") ===
+                            String(movement.id)
+                    )
+            ),
+            expenseRecord,
+        ]);
+    };
+
+    const saveCustomerSaleIncome = async (movement) => {
+        const isCustomerSale =
+            movement?.movementType === "Transfer" &&
+            movement?.transferType === "To Customer" &&
+            movement?.dealType === "Sold";
+        const paidAmount = Number(movement?.paidAmount || 0);
+
+        if (!isCustomerSale || paidAmount <= 0) {
+            return setTransactions((previousTransactions) =>
+                previousTransactions.filter(
+                    (transaction) =>
+                        !(
+                            transaction.source === "customer-device-sale" &&
+                            String(transaction.referenceId || "") ===
+                                String(movement?.id || "")
+                        )
+                )
+            );
+        }
+
+        const updatedAt = new Date().toISOString();
+        const incomeRecord = {
+            id: `customer-device-sale-income-${movement.id}`,
+            type: "income",
+            title: `Device Sale - ${movement.deviceName || asset?.deviceName || "Asset"}`,
+            category: "Customer Payment",
+            amount: paidAmount,
+            date: movement.date,
+            description: [
+                movement.destinationName
+                    ? `Customer: ${movement.destinationName}`
+                    : "",
+                `Total: ${money(movement.totalAmount || 0)} AFN`,
+                `Paid: ${money(paidAmount)} AFN`,
+                `Remaining: ${money(movement.remainingAmount || 0)} AFN`,
+                movement.referenceNumber
+                    ? `Reference: ${movement.referenceNumber}`
+                    : "",
+                movement.notes || "",
+            ]
+                .filter(Boolean)
+                .join(" | "),
+            source: "customer-device-sale",
+            referenceId: movement.id,
+            assetRecordId: movement.assetRecordId || asset?.id || "",
+            assetId: movement.assetId || asset?.assetId || "",
+            customerRecordId: movement.destinationRecordId || "",
+            customerName: movement.destinationName || "",
+            createdAt: movement.createdAt || updatedAt,
+            updatedAt,
+        };
+
+        return setTransactions((previousTransactions) => [
+            ...previousTransactions.filter(
+                (transaction) =>
+                    !(
+                        transaction.source === "customer-device-sale" &&
+                        String(transaction.referenceId || "") ===
+                            String(movement.id)
+                    )
+            ),
+            incomeRecord,
+        ]);
+    };
 
    const savePurchaseRecord = async (event) => {
     event.preventDefault();
@@ -1186,6 +1553,11 @@ const handleEditPurchaseBillImageChange = (event) => {
         return;
     }
 
+    if (!purchaseRecordForm.purchasedBy.trim()) {
+        notify("Purchased By is required.", "error");
+        return;
+    }
+
     if (paidAmount > totalAmount) {
         notify(
             "Paid amount cannot be greater than total amount.",
@@ -1194,12 +1566,27 @@ const handleEditPurchaseBillImageChange = (event) => {
         return;
     }
 
+    const referenceNumber =
+        purchaseRecordForm.purchaseCode.trim() || generateNextPurchaseCode();
+
+    const duplicateReference = [...movements, ...supplierPurchases].some(
+        (movement) =>
+            String(movement.referenceNumber || movement.purchaseCode || "")
+                .trim()
+                .toLowerCase() === referenceNumber.toLowerCase()
+    );
+
+    if (duplicateReference) {
+        notify("Reference Number must be unique for every purchase.", "error");
+        return;
+    }
+
     const nextQuantity =
         currentQuantity + quantity;
 
     const assetSaved =
         await updateAssetQuantity(nextQuantity, {
-            purchaseUnit: "Piece",
+            purchaseUnit: purchaseUsageUnit,
             unitPrice,
             location: "Main Stock",
             status: "In Stock",
@@ -1217,8 +1604,8 @@ const handleEditPurchaseBillImageChange = (event) => {
                               addedAt:
                                   new Date().toISOString(),
                               sourceType: "Purchase",
-                              purchaseCode:
-                                  purchaseRecordForm.purchaseCode,
+                              purchaseCode: referenceNumber,
+                              referenceNumber,
                           })
                       ),
                   ]
@@ -1240,10 +1627,11 @@ const handleEditPurchaseBillImageChange = (event) => {
         assetId: asset?.assetId || "",
         deviceName: asset?.deviceName || "",
         category: asset?.category || "",
+        assetImage: asset?.assetImage || "",
 
         movementType: "Purchase",
-        purchaseCode:
-            purchaseRecordForm.purchaseCode,
+        purchaseCode: referenceNumber,
+        referenceNumber,
 
         date:
             purchaseRecordForm.purchaseDate,
@@ -1261,10 +1649,10 @@ const handleEditPurchaseBillImageChange = (event) => {
             purchaseRecordForm.supplierRecordId,
 
         billNumber:
-            purchaseRecordForm.billNumber.trim(),
+            purchaseRecordForm.invoiceNumber.trim(),
 
         invoiceNumber:
-            purchaseRecordForm.billNumber.trim(),
+            purchaseRecordForm.invoiceNumber.trim(),
 
         billImage:
             purchaseRecordForm.billImage,
@@ -1306,8 +1694,8 @@ const handleEditPurchaseBillImageChange = (event) => {
         await savePurchaseExpense({
             movementId,
 
-            purchaseCode:
-                purchaseRecordForm.purchaseCode,
+            purchaseCode: referenceNumber,
+            referenceNumber,
 
             purchaseDate:
                 purchaseRecordForm.purchaseDate,
@@ -1322,7 +1710,10 @@ const handleEditPurchaseBillImageChange = (event) => {
             remainingAmount,
 
             billNumber:
-                purchaseRecordForm.billNumber.trim(),
+                purchaseRecordForm.invoiceNumber.trim(),
+
+            invoiceNumber:
+                purchaseRecordForm.invoiceNumber.trim(),
 
             notes:
                 purchaseRecordForm.notes.trim(),
@@ -1394,6 +1785,7 @@ const handleEditPurchaseBillImageChange = (event) => {
             movementType: "Waste",
             date: wasteForm.wasteDate,
             quantity,
+            unitPrice: asset?.unitPrice || 0,
             wasteReason: wasteForm.wasteReason.trim(),
             responsiblePerson: wasteForm.reportedBy.trim(),
             estimatedLoss,
@@ -1404,6 +1796,16 @@ const handleEditPurchaseBillImageChange = (event) => {
         });
 
         if (!movementSaved) return;
+
+        const expenseSaved = await saveWasteExpense(movementSaved);
+
+        if (!expenseSaved) {
+            notify(
+                "Waste was recorded, but its expense could not be saved.",
+                "error"
+            );
+            return;
+        }
 
         notify("Asset waste recorded successfully.");
         setWasteForm(emptyWasteForm);
@@ -1659,18 +2061,21 @@ const handleEditPurchaseBillImageChange = (event) => {
             const nextRecords = units.map((unit, index) => {
                 const salePrice =
                     movement.dealType === "Sold"
-                        ? Number(
-                            movement.unitSalePrices?.[unit.id] ||
-                            movement.salePricePerDevice ||
-                            unit.unitPrice ||
-                            asset?.unitPrice ||
-                            0
-                        )
+                        ? !isIndividualAsset
+                            ? Number(movement.totalAmount || 0)
+                            : Number(
+                                movement.unitSalePrices?.[unit.id] ||
+                                movement.salePricePerDevice ||
+                                getDefaultSalePrice(unit) ||
+                                0
+                            )
                         : 0;
                 let paidAmount = 0;
 
                 if (movement.dealType === "Sold") {
-                    if (movement.unitPaidPrices?.[unit.id]) {
+                    if (!isIndividualAsset) {
+                        paidAmount = Number(movement.paidAmount || 0);
+                    } else if (movement.unitPaidPrices?.[unit.id]) {
                         paidAmount = Number(movement.unitPaidPrices[unit.id]);
                     } else if (movement.paidAmountPerDevice) {
                         paidAmount = Number(movement.paidAmountPerDevice);
@@ -1726,14 +2131,28 @@ const handleEditPurchaseBillImageChange = (event) => {
                     remainAmount: Math.max(salePrice - paidAmount, 0),
                     depositAmount:
                         movement.dealType === "Loaned / Deposit"
-                            ? Number(
-                                movement.unitDepositPrices?.[unit.id] ||
-                                movement.securityDepositPerDevice ||
-                                0
-                            )
+                            ? !isIndividualAsset
+                                ? Number(movement.trustAmount || movement.totalAmount || 0)
+                                : Number(
+                                    movement.unitDepositPrices?.[unit.id] ||
+                                    movement.securityDepositPerDevice ||
+                                    0
+                                )
+                            : 0,
+                    depositPaidAmount:
+                        movement.dealType === "Loaned / Deposit"
+                            ? Number(movement.paidAmount || 0)
+                            : 0,
+                    depositRemainingAmount:
+                        movement.dealType === "Loaned / Deposit"
+                            ? Number(movement.remainingAmount || 0)
                             : 0,
                     depositStatus:
-                        movement.dealType === "Loaned / Deposit" ? "Held" : "",
+                        movement.dealType === "Loaned / Deposit"
+                            ? Number(movement.remainingAmount || 0) > 0
+                                ? "Partial"
+                                : "Held"
+                            : "",
                     notes: movement.notes || "",
                     createdAt: movement.createdAt || updatedAt,
                     updatedAt,
@@ -1797,6 +2216,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                 id: `${movement.id || Date.now()}-tower-${index}`,
                 batchId: movement.batchId || movement.id || "",
                 batchSize: units.length,
+                sourcePage: "asset-full-information",
                 transferType: "Main Stock to Tower",
                 referenceNumber: movement.referenceNumber || "",
                 quantity: Number(unit.quantity || 1),
@@ -1914,8 +2334,7 @@ const handleEditPurchaseBillImageChange = (event) => {
             (record) => {
                 const saleAmount = Number(
                     transferForm.salePrices[record.id] ||
-                    record.unitPrice ||
-                    asset?.unitPrice ||
+                    getDefaultSalePrice(record) ||
                     0
                 );
 
@@ -1928,10 +2347,21 @@ const handleEditPurchaseBillImageChange = (event) => {
             transferForm.dealType === "Loaned / Deposit" &&
             ((isIndividualAsset && hasInvalidRecordDeposit) ||
                 (!isIndividualAsset &&
-                    (!Number.isFinite(securityDepositPerDevice) ||
-                        securityDepositPerDevice < 0)))
+                    (!Number.isFinite(customerDepositTotal) ||
+                        customerDepositTotal < 0 ||
+                        !Number.isFinite(customerDepositPaidTotal) ||
+                        customerDepositPaidTotal < 0)))
         ) {
-            notify("Security deposit per device cannot be negative.", "error");
+            notify("Total deposit and paid amounts cannot be negative.", "error");
+            return;
+        }
+
+        if (
+            isCustomerTransfer &&
+            transferForm.dealType === "Loaned / Deposit" &&
+            customerDepositPaidTotal > customerDepositTotal
+        ) {
+            notify("Total paid amount cannot be greater than total deposit.", "error");
             return;
         }
 
@@ -1940,12 +2370,12 @@ const handleEditPurchaseBillImageChange = (event) => {
             transferForm.dealType === "Sold" &&
             ((isIndividualAsset && hasInvalidRecordSale) ||
                 (!isIndividualAsset &&
-                    (!Number.isFinite(salePricePerDevice) ||
-                        salePricePerDevice < 0 ||
-                        !Number.isFinite(paidAmountPerDevice) ||
-                        paidAmountPerDevice < 0)))
+                    (!Number.isFinite(customerSaleTotal) ||
+                        customerSaleTotal < 0 ||
+                        !Number.isFinite(customerPaidTotal) ||
+                        customerPaidTotal < 0)))
         ) {
-            notify("Sale and paid amounts per device cannot be negative.", "error");
+            notify("Total sale and paid amounts cannot be negative.", "error");
             return;
         }
 
@@ -1964,16 +2394,6 @@ const handleEditPurchaseBillImageChange = (event) => {
             customerPaidTotal > customerSaleTotal
         ) {
             notify("Total paid amount cannot be greater than total amount.", "error");
-            return;
-        }
-
-        if (
-            isCustomerTransfer &&
-            transferForm.dealType === "Sold" &&
-            !isIndividualAsset &&
-            paidAmountPerDevice > salePricePerDevice
-        ) {
-            notify("Paid amount per device cannot be greater than sale price per device.", "error");
             return;
         }
 
@@ -2077,25 +2497,31 @@ const handleEditPurchaseBillImageChange = (event) => {
                 isCustomerTransfer &&
                     transferForm.dealType === "Loaned / Deposit" &&
                     !isIndividualAsset
-                    ? securityDepositPerDevice
+                    ? customerTransferQuantity > 0
+                        ? customerDepositTotal / customerTransferQuantity
+                        : 0
                     : 0,
             salePricePerDevice:
                 isCustomerTransfer &&
                     transferForm.dealType === "Sold" &&
                     !isIndividualAsset
-                    ? salePricePerDevice
+                    ? bulkSalePricePerDevice
                     : 0,
             paidAmountPerDevice:
                 isCustomerTransfer &&
                     transferForm.dealType === "Sold" &&
                     !isIndividualAsset
-                    ? paidAmountPerDevice
+                    ? customerTransferQuantity > 0
+                        ? customerPaidTotal / customerTransferQuantity
+                        : 0
                     : 0,
             remainingAmountPerDevice:
                 isCustomerTransfer &&
                     transferForm.dealType === "Sold" &&
                     !isIndividualAsset
-                    ? remainingAmountPerDevice
+                    ? customerTransferQuantity > 0
+                        ? customerRemainingTotal / customerTransferQuantity
+                        : 0
                     : 0,
             totalAmount:
                 isCustomerTransfer && transferForm.dealType === "Sold"
@@ -2107,11 +2533,17 @@ const handleEditPurchaseBillImageChange = (event) => {
             paidAmount:
                 isCustomerTransfer && transferForm.dealType === "Sold"
                     ? customerPaidTotal
-                    : 0,
+                    : isCustomerTransfer &&
+                        transferForm.dealType === "Loaned / Deposit"
+                        ? customerDepositPaidTotal
+                        : 0,
             remainingAmount:
                 isCustomerTransfer && transferForm.dealType === "Sold"
                     ? customerRemainingTotal
-                    : 0,
+                    : isCustomerTransfer &&
+                        transferForm.dealType === "Loaned / Deposit"
+                        ? customerDepositRemainingTotal
+                        : 0,
             trustAmount:
                 isCustomerTransfer &&
                     transferForm.dealType === "Loaned / Deposit"
@@ -2137,6 +2569,16 @@ const handleEditPurchaseBillImageChange = (event) => {
 
         if (!movementSaved) return;
 
+        const saleIncomeSaved = await saveCustomerSaleIncome(movementSaved);
+
+        if (!saleIncomeSaved) {
+            notify(
+                "Transfer was saved, but paid amount could not be linked to Financial.",
+                "error"
+            );
+            return;
+        }
+
         const destinationUnitAssets = buildTransferredUnitAssets(quantity);
 
         if (transferForm.transferType === "To Tower" && selectedTower) {
@@ -2144,6 +2586,7 @@ const handleEditPurchaseBillImageChange = (event) => {
     id: `${transferTimestamp}-tower-${index}`,
     batchId: destinationBatchId,
     batchSize: destinationUnitAssets.length,
+    sourcePage: "asset-full-information",
     transferType: "Main Stock to Tower",
     referenceNumber,
     quantity: Number(unit.quantity || 1),
@@ -2236,10 +2679,9 @@ const handleEditPurchaseBillImageChange = (event) => {
             isIndividualAsset
               ? transferForm.salePrices[unitKey] ||
                   transferForm.salePrices[unit.id] ||
-                  unit.unitPrice ||
-                  asset?.unitPrice ||
+                  getDefaultSalePrice(unit) ||
                   0
-              : salePricePerDevice
+              : customerSaleTotal
           )
         : 0;
 
@@ -2250,7 +2692,7 @@ const handleEditPurchaseBillImageChange = (event) => {
               salePrice,
               Math.max(remainingCustomerPaidAmount, 0)
             )
-          : paidAmountPerDevice
+          : customerPaidTotal
         : 0;
 
     if (transferForm.dealType === "Sold" && isIndividualAsset) {
@@ -2268,7 +2710,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                   transferForm.depositPrices[unit.id] ||
                   securityDepositPerDevice ||
                   0
-              : securityDepositPerDevice
+              : customerDepositTotal
           )
         : 0;
 
@@ -2321,11 +2763,26 @@ const handleEditPurchaseBillImageChange = (event) => {
 
       salePrice,
       paidAmount,
-      remainAmount: Math.max(salePrice - paidAmount, 0),
+      remainAmount:
+        transferForm.dealType === "Loaned / Deposit"
+          ? customerDepositRemainingTotal
+          : Math.max(salePrice - paidAmount, 0),
 
       depositAmount,
+      depositPaidAmount:
+        transferForm.dealType === "Loaned / Deposit"
+          ? customerDepositPaidTotal
+          : 0,
+      depositRemainingAmount:
+        transferForm.dealType === "Loaned / Deposit"
+          ? customerDepositRemainingTotal
+          : 0,
       depositStatus:
-        transferForm.dealType === "Loaned / Deposit" ? "Held" : "",
+        transferForm.dealType === "Loaned / Deposit"
+          ? customerDepositRemainingTotal > 0
+            ? "Partial"
+            : "Held"
+          : "",
 
       notes: transferForm.notes.trim(),
       createdAt,
@@ -2347,6 +2804,14 @@ const handleEditPurchaseBillImageChange = (event) => {
     };
 
     const openEditMovement = (movement) => {
+    if (!canManageMovementRecord(movement)) {
+        notify(
+            "This movement can only be edited from the page that created it.",
+            "error"
+        );
+        return;
+    }
+
     const normalizedIdentityRecords = (
         movement.identityRecords || []
     ).map((record, index) => ({
@@ -2394,6 +2859,17 @@ const handleEditPurchaseBillImageChange = (event) => {
         identityRecords: normalizedIdentityRecords,
     });
 
+    const movementQuantity = Number(movement.quantity || 0);
+    const inferredSalePricePerDevice =
+        movement.salePricePerDevice ||
+        movement.securityDepositPerDevice ||
+        (movementQuantity > 0
+            ? Number(movement.totalAmount || movement.trustAmount || 0) /
+              movementQuantity
+            : "") ||
+        getDefaultSalePrice() ||
+        "";
+
     setEditMovementForm({
         date: movement.date || "",
         purchaseDate: movement.date || today(),
@@ -2402,6 +2878,7 @@ const handleEditPurchaseBillImageChange = (event) => {
         dealType: movement.dealType || "Loaned / Deposit",
 
         purchaseCode: movement.purchaseCode || "",
+        referenceNumber: movement.referenceNumber || movement.purchaseCode || "",
         supplierRecordId: movement.supplierRecordId || "",
         supplierName:
             movement.supplierName ||
@@ -2410,11 +2887,17 @@ const handleEditPurchaseBillImageChange = (event) => {
 
         quantity: movement.quantity || "",
         unitPrice: movement.unitPrice || "",
+        salePrice: movement.salePrice || getDefaultSalePrice() || "",
+        billNumber:
+            movement.invoiceNumber ||
+            movement.billNumber ||
+            "",
         paidAmount: movement.paidAmount || "",
-        salePricePerDevice: movement.salePricePerDevice || "",
+        salePricePerDevice: inferredSalePricePerDevice,
         paidAmountPerDevice: movement.paidAmountPerDevice || "",
         remainingAmountPerDevice: movement.remainingAmountPerDevice || "",
-        securityDepositPerDevice: movement.securityDepositPerDevice || "",
+        securityDepositPerDevice:
+            movement.securityDepositPerDevice || inferredSalePricePerDevice,
         salePrices: movement.unitSalePrices || {},
         paidPrices: movement.unitPaidPrices || {},
         depositPrices: movement.unitDepositPrices || {},
@@ -2492,9 +2975,7 @@ const handleEditPurchaseBillImageChange = (event) => {
 
         const repairCost = Number(repairResultForm.repairCost || 0);
         const isNotFixed = repairResultForm.repairStatus === "Not Fixed";
-        const paidAmount = isNotFixed
-            ? 0
-            : Number(repairResultForm.paidAmount || 0);
+        const paidAmount = Number(repairResultForm.paidAmount || 0);
         const nextDestination = isNotFixed
             ? "Damaged / Lost"
             : repairResultForm.nextDestination;
@@ -2545,22 +3026,23 @@ const handleEditPurchaseBillImageChange = (event) => {
             nextDestination === "Main Stock";
         const wasAlreadyRestored =
             repairResultMovement?.repairResult?.stockRestored === true;
+        const repairResultQuantity = Number(repairResultMovement?.quantity || 0);
+        const restoredIdentityRecords = (
+            repairResultMovement?.identityRecords || []
+        ).map((record, index) => ({
+            ...record,
+            id:
+                record.id ||
+                record.serialNumber ||
+                record.macAddress ||
+                `repair-return-${repairResultMovement?.id || "record"}-${index}`,
+            category: record.category || asset?.category || "",
+            unitPrice: record.unitPrice || asset?.unitPrice || 0,
+            addedAt: new Date().toISOString(),
+            sourceType: "Repair Return",
+        }));
 
         if (shouldRestoreToStock && !wasAlreadyRestored) {
-            const restoredIdentityRecords = (
-                repairResultMovement?.identityRecords || []
-            ).map((record, index) => ({
-                ...record,
-                id:
-                    record.id ||
-                    record.serialNumber ||
-                    record.macAddress ||
-                    `repair-return-${repairResultMovement?.id || "record"}-${index}`,
-                category: record.category || asset?.category || "",
-                unitPrice: record.unitPrice || asset?.unitPrice || 0,
-                addedAt: new Date().toISOString(),
-                sourceType: "Repair Return",
-            }));
             const existingKeys = new Set(
                 availableIdentityRecords.map(getAssetKey)
             );
@@ -2574,13 +3056,43 @@ const handleEditPurchaseBillImageChange = (event) => {
                 : availableIdentityRecords;
 
             const assetSaved = await updateAssetQuantity(
-                currentQuantity + Number(repairResultMovement?.quantity || 0),
+                currentQuantity + repairResultQuantity,
                 {
                     location: "Main Stock",
                     status: "In Stock",
                     identityRecords: nextIdentityRecords,
                 }
             );
+
+            if (!assetSaved) return;
+        }
+
+        if (wasAlreadyRestored && !shouldRestoreToStock) {
+            const restoredKeys = new Set(restoredIdentityRecords.map(getAssetKey));
+            const nextIdentityRecords = isIndividualAsset
+                ? availableIdentityRecords.filter(
+                    (record) => !restoredKeys.has(getAssetKey(record))
+                )
+                : availableIdentityRecords;
+            const nextQuantity = Math.max(currentQuantity - repairResultQuantity, 0);
+            const nextLocation =
+                nextQuantity > 0
+                    ? asset.location
+                    : nextDestination === "Damaged / Lost"
+                        ? "Damaged / Lost"
+                        : nextDestination;
+            const nextStatus =
+                nextQuantity > 0
+                    ? asset.status
+                    : nextDestination === "Damaged / Lost"
+                        ? "Damaged"
+                        : asset.status;
+
+            const assetSaved = await updateAssetQuantity(nextQuantity, {
+                location: nextLocation,
+                status: nextStatus,
+                identityRecords: nextIdentityRecords,
+            });
 
             if (!assetSaved) return;
         }
@@ -2741,53 +3253,63 @@ const handleEditPurchaseBillImageChange = (event) => {
             if (!transfersSaved) return;
         }
 
+        const repairResultRecord = {
+            repairStatus: repairResultForm.repairStatus,
+            supplierRecordId: repairResultForm.supplierRecordId,
+            supplierName: repairResultForm.supplierName,
+            repairCost,
+            paidAmount,
+            remainingAmount: Math.max(repairCost - paidAmount, 0),
+            repairDate: repairResultForm.repairDate,
+            nextDestination,
+            destinationRecordId:
+                nextDestination === "Tower" || nextDestination === "Customer"
+                    ? repairResultForm.destinationRecordId
+                    : "",
+            destinationName:
+                nextDestination === "Tower"
+                    ? selectedRepairTower?.towerName || ""
+                    : nextDestination === "Customer"
+                        ? getCustomerName(selectedRepairCustomer)
+                        : "",
+            destinationBatchId: repairDestinationBatchId,
+            destinationSynced:
+                repairResultForm.repairStatus === "Fixed" &&
+                (nextDestination === "Tower" || nextDestination === "Customer"),
+            stockRestored: shouldRestoreToStock,
+            notes: repairResultForm.notes.trim(),
+            recordedAt: new Date().toISOString(),
+        };
+
+        const updatedRepairMovement = {
+            ...repairResultMovement,
+            repairResult: repairResultRecord,
+            transferStatus:
+                repairResultForm.repairStatus === "Fixed"
+                    ? "Repair Completed"
+                    : "Repair Failed",
+            updatedAt: new Date().toISOString(),
+        };
+
         const saved = await setMovements(
             movements.map((movement) =>
                 String(movement.id) === String(repairResultMovement?.id)
-                    ? {
-                        ...movement,
-                        repairResult: {
-                            repairStatus: repairResultForm.repairStatus,
-                            supplierRecordId: repairResultForm.supplierRecordId,
-                            supplierName: repairResultForm.supplierName,
-                            repairCost,
-                            paidAmount,
-                            remainingAmount: isNotFixed
-                                ? 0
-                                : Math.max(repairCost - paidAmount, 0),
-                            repairDate: repairResultForm.repairDate,
-                            nextDestination,
-                            destinationRecordId:
-                                nextDestination === "Tower" || nextDestination === "Customer"
-                                    ? repairResultForm.destinationRecordId
-                                    : "",
-                            destinationName:
-                                nextDestination === "Tower"
-                                    ? selectedRepairTower?.towerName || ""
-                                    : nextDestination === "Customer"
-                                        ? getCustomerName(selectedRepairCustomer)
-                                        : "",
-                            destinationBatchId: repairDestinationBatchId,
-                            destinationSynced:
-                                repairResultForm.repairStatus === "Fixed" &&
-                                (nextDestination === "Tower" || nextDestination === "Customer"),
-                            stockRestored:
-                                movement.repairResult?.stockRestored ||
-                                shouldRestoreToStock,
-                            notes: repairResultForm.notes.trim(),
-                            recordedAt: new Date().toISOString(),
-                        },
-                        transferStatus:
-                            repairResultForm.repairStatus === "Fixed"
-                                ? "Repair Completed"
-                                : "Repair Failed",
-                        updatedAt: new Date().toISOString(),
-                    }
+                    ? updatedRepairMovement
                     : movement
             )
         );
 
         if (!saved) return;
+
+        const repairExpenseSaved = await saveRepairExpense(updatedRepairMovement);
+
+        if (!repairExpenseSaved) {
+            notify(
+                "Repair result was saved, but its expense could not be updated.",
+                "error"
+            );
+            return;
+        }
 
         notify("Repair result saved successfully.");
         setRepairResultMovement(null);
@@ -2879,6 +3401,11 @@ const handleEditPurchaseBillImageChange = (event) => {
             "Paid amount cannot be greater than total amount.",
             "error"
         );
+        return;
+    }
+
+    if (!String(editMovementForm.purchasedBy || "").trim()) {
+        notify("Purchased By is required.", "error");
         return;
     }
 
@@ -2978,6 +3505,67 @@ const handleEditPurchaseBillImageChange = (event) => {
 
     const updatedAt = new Date().toISOString();
 
+        const updatedPurchaseMovement = {
+        ...editMovement,
+        purchaseCode:
+            editMovementForm.purchaseCode ||
+            editMovement.purchaseCode ||
+            "",
+        referenceNumber:
+            editMovementForm.referenceNumber ||
+            editMovementForm.purchaseCode ||
+            editMovement.referenceNumber ||
+            editMovement.purchaseCode ||
+            "",
+
+        date:
+            editMovementForm.purchaseDate ||
+            editMovementForm.date,
+
+        quantity,
+        unitPrice,
+        totalAmount,
+        paidAmount,
+        remainingAmount,
+
+        supplierRecordId:
+            editMovementForm.supplierRecordId,
+
+        supplierName:
+            editMovementForm.supplierName.trim(),
+
+        sourceName:
+            editMovementForm.supplierName.trim() ||
+            "Supplier",
+
+        destinationName: "Main Stock",
+
+        billNumber:
+            editMovementForm.billNumber.trim(),
+
+        invoiceNumber:
+            editMovementForm.billNumber.trim(),
+
+        billImage:
+            editMovementForm.billImage || "",
+
+        responsiblePerson:
+            editMovementForm.purchasedBy.trim(),
+
+        paymentStatus:
+            remainingAmount === 0
+                ? "Paid"
+                : paidAmount > 0
+                    ? "Partial"
+                    : "Unpaid",
+
+        identityRecords,
+        notes:
+            editMovementForm.notes.trim(),
+
+        updatedAt,
+    };
+
     const saved = await setMovements(
         movements.map((movement) => {
             if (
@@ -2987,64 +3575,33 @@ const handleEditPurchaseBillImageChange = (event) => {
                 return movement;
             }
 
-            return {
-                ...movement,
-                purchaseCode:
-                    editMovementForm.purchaseCode ||
-                    movement.purchaseCode ||
-                    "",
-
-                date:
-                    editMovementForm.purchaseDate ||
-                    editMovementForm.date,
-
-                quantity,
-                unitPrice,
-                totalAmount,
-                paidAmount,
-                remainingAmount,
-
-                supplierRecordId:
-                    editMovementForm.supplierRecordId,
-
-                supplierName:
-                    editMovementForm.supplierName.trim(),
-
-                sourceName:
-                    editMovementForm.supplierName.trim() ||
-                    "Supplier",
-
-                destinationName: "Main Stock",
-
-                billNumber:
-                    editMovementForm.billNumber.trim(),
-
-                invoiceNumber:
-                    editMovementForm.billNumber.trim(),
-
-                billImage:
-                    editMovementForm.billImage || "",
-
-                responsiblePerson:
-                    editMovementForm.purchasedBy.trim(),
-
-                paymentStatus:
-                    remainingAmount === 0
-                        ? "Paid"
-                        : paidAmount > 0
-                            ? "Partial"
-                            : "Unpaid",
-
-                identityRecords,
-                notes:
-                    editMovementForm.notes.trim(),
-
-                updatedAt,
-            };
+            return updatedPurchaseMovement;
         })
     );
 
     if (!saved) return;
+
+    const expenseSaved = await savePurchaseExpense({
+        movementId: updatedPurchaseMovement.id,
+        purchaseCode: updatedPurchaseMovement.purchaseCode,
+        purchaseDate: updatedPurchaseMovement.date,
+        supplierName: updatedPurchaseMovement.supplierName,
+        quantity,
+        unitPrice,
+        totalAmount,
+        paidAmount,
+        remainingAmount,
+        billNumber: updatedPurchaseMovement.billNumber,
+        notes: updatedPurchaseMovement.notes,
+    });
+
+    if (!expenseSaved) {
+        notify(
+            "Purchase was updated, but its expense could not be updated.",
+            "error"
+        );
+        return;
+    }
 
     notify(
         "Purchase record updated successfully."
@@ -3055,6 +3612,197 @@ const handleEditPurchaseBillImageChange = (event) => {
 
     return;
 }
+
+        if (editMovement?.movementType === "Balance") {
+            const quantity = Number(editMovementForm.quantity || 0);
+            const unitPrice = Number(editMovementForm.unitPrice || 0);
+            const salePrice = Number(editMovementForm.salePrice || 0);
+            const totalAmount = quantity * unitPrice;
+
+            const identityRecords = isIndividualAsset
+                ? syncIdentityRecords(
+                      quantity,
+                      editMovementForm.identityRecords || []
+                  ).map((record) => ({
+                      ...record,
+                      model: String(record.model || "").trim(),
+                      macAddress: String(record.macAddress || "").trim(),
+                      serialNumber: String(record.serialNumber || "").trim(),
+                      image: record.image || "",
+                      category: asset?.category || record.category || "",
+                      unitPrice,
+                      salePrice,
+                  }))
+                : [];
+
+            if (!Number.isFinite(quantity) || quantity <= 0) {
+                notify("Balance quantity must be greater than zero.", "error");
+                return;
+            }
+
+            if (
+                isIndividualAsset &&
+                (!Number.isInteger(quantity) || identityRecords.length !== quantity)
+            ) {
+                notify("Individual balance quantity must be a whole number.", "error");
+                return;
+            }
+
+            if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+                notify("Unit price cannot be negative.", "error");
+                return;
+            }
+
+            if (!Number.isFinite(salePrice) || salePrice < 0) {
+                notify("Sale price cannot be negative.", "error");
+                return;
+            }
+
+            if (
+                isIndividualAsset &&
+                identityRecords.some(
+                    (record) =>
+                        !record.model || !record.macAddress || !record.serialNumber
+                )
+            ) {
+                notify(
+                    "Model, MAC Address, and Serial Number are required for every individual record.",
+                    "error"
+                );
+                return;
+            }
+
+            if (isIndividualAsset && hasDuplicateSerialNumbers(identityRecords)) {
+                notify("Serial Number must be unique for every individual record.", "error");
+                return;
+            }
+
+            if (isIndividualAsset) {
+                const originalRecordIds = new Set(
+                    (editMovement.identityRecords || []).map((record) =>
+                        String(record.id || "")
+                    )
+                );
+                const otherSerials = new Set(
+                    (asset.identityRecords || [])
+                        .filter((record) => !originalRecordIds.has(String(record.id || "")))
+                        .map((record) =>
+                            String(record.serialNumber || "")
+                                .trim()
+                                .toLowerCase()
+                        )
+                        .filter(Boolean)
+                );
+
+                if (
+                    identityRecords.some((record) =>
+                        otherSerials.has(
+                            String(record.serialNumber || "")
+                                .trim()
+                                .toLowerCase()
+                        )
+                    )
+                ) {
+                    notify("Serial Number already exists for this asset.", "error");
+                    return;
+                }
+            }
+
+            const originalQuantity = Number(editMovement.quantity || 0);
+            const quantityDifference = quantity - originalQuantity;
+
+            const originalRecordIds = new Set(
+                (editMovement.identityRecords || []).map((record) =>
+                    String(record.id || "")
+                )
+            );
+            const editedRecordsById = new Map(
+                identityRecords.map((record) => [String(record.id || ""), record])
+            );
+            const assetRecordIds = new Set(
+                (asset.identityRecords || []).map((record) => String(record.id || ""))
+            );
+
+            const updatedExistingAssetRecords = (asset.identityRecords || [])
+                .filter((record) => {
+                    const recordId = String(record.id || "");
+                    return !originalRecordIds.has(recordId) || editedRecordsById.has(recordId);
+                })
+                .map((record) => {
+                    const editedRecord = editedRecordsById.get(String(record.id || ""));
+                    return editedRecord
+                        ? {
+                              ...record,
+                              ...editedRecord,
+                              unitPrice,
+                              salePrice,
+                              updatedAt: new Date().toISOString(),
+                          }
+                        : record;
+                });
+
+            const newAssetRecords = isIndividualAsset
+                ? identityRecords
+                      .filter((record) => !assetRecordIds.has(String(record.id || "")))
+                      .map((record) => ({
+                          ...record,
+                          category: asset?.category || "",
+                          unitPrice,
+                          salePrice,
+                          addedAt: new Date().toISOString(),
+                      }))
+                : [];
+
+            const nextAssetQuantity = currentQuantity + quantityDifference;
+
+            if (nextAssetQuantity < 0) {
+                notify("Edited quantity would make stock negative.", "error");
+                return;
+            }
+
+            const assetSaved = await updateAssetQuantity(nextAssetQuantity, {
+                unitPrice,
+                salePrice,
+                location: "Main Stock",
+                status: getStatusForLocation("Main Stock"),
+                identityRecords: isIndividualAsset
+                    ? [...updatedExistingAssetRecords, ...newAssetRecords]
+                    : asset.identityRecords || [],
+            });
+
+            if (!assetSaved) return;
+
+            const updatedBalanceMovement = {
+                ...editMovement,
+                date: editMovementForm.date,
+                quantity,
+                unitPrice,
+                salePrice,
+                totalAmount,
+                identityRecords: isIndividualAsset
+                    ? identityRecords
+                    : editMovement.identityRecords || [],
+                paymentStatus: editMovementForm.status || "Added",
+                responsiblePerson: editMovementForm.responsiblePerson || "",
+                notes: editMovementForm.notes || "",
+                updatedAt: new Date().toISOString(),
+            };
+
+            const saved = await setMovements(
+                movements.map((movement) =>
+                    String(movement.id) === String(editMovement.id)
+                        ? updatedBalanceMovement
+                        : movement
+                )
+            );
+
+            if (!saved) return;
+
+            notify("Balance record updated successfully.");
+            setEditMovement(null);
+            setEditMovementForm({});
+            return;
+        }
 
         const canEditUnits =
             editMovementUnitOptions.length > 0 &&
@@ -3112,6 +3860,18 @@ const handleEditPurchaseBillImageChange = (event) => {
         }
 
         if (
+            editMovement?.movementType === "Waste" &&
+            !canEditUnits &&
+            editedQuantity > editWasteMaxQuantity
+        ) {
+            notify(
+                `Waste quantity cannot be greater than available stock (${editWasteMaxQuantity}).`,
+                "error"
+            );
+            return;
+        }
+
+        if (
             editMovement?.movementType === "Transfer" &&
             ["To Customer", "To Tower"].includes(editMovementForm.transferType) &&
             !editMovementForm.destinationRecordId
@@ -3138,15 +3898,10 @@ const handleEditPurchaseBillImageChange = (event) => {
         if (
             editMovement?.movementType === "Transfer" &&
             editMovementForm.transferType === "To Customer" &&
-            editMovementForm.dealType === "Sold" &&
-            !isIndividualAsset &&
-            Number(editMovementForm.paidAmountPerDevice || 0) >
-            Number(editMovementForm.salePricePerDevice || 0)
+            editMovementForm.dealType === "Loaned / Deposit" &&
+            editDepositPaidTotal > editTransferDepositTotal
         ) {
-            notify(
-                "Paid amount per device cannot be greater than sale price per device.",
-                "error"
-            );
+            notify("Paid amount cannot be greater than total deposit.", "error");
             return;
         }
 
@@ -3211,8 +3966,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 Number(
                                     editMovementForm.salePrices?.[record.id] ||
                                     editMovementForm.salePricePerDevice ||
-                                    record.unitPrice ||
-                                    asset?.unitPrice ||
+                                    getDefaultSalePrice(record) ||
                                     0
                                 ),
                             0
@@ -3239,9 +3993,11 @@ const handleEditPurchaseBillImageChange = (event) => {
                                     editMovementForm.transferType === "To Customer" &&
                                     editMovementForm.dealType === "Loaned / Deposit"
                                     ? editTransferDepositTotal
-                                    : movement.movementType === "Transfer"
-                                        ? 0
-                            : movement.totalAmount;
+                            : movement.movementType === "Transfer"
+                                ? 0
+                            : movement.movementType === "Waste"
+                                ? editWasteLossAmount
+                                : movement.totalAmount;
 
             const editedTotalAmount = Number(editMovementForm.totalAmount || 0);
             const nextPaidAmount =
@@ -3249,6 +4005,10 @@ const handleEditPurchaseBillImageChange = (event) => {
                     editMovementForm.transferType === "To Customer" &&
                     editMovementForm.dealType === "Sold"
                     ? editTransferPaidTotal
+                    : movement.movementType === "Transfer" &&
+                        editMovementForm.transferType === "To Customer" &&
+                        editMovementForm.dealType === "Loaned / Deposit"
+                        ? editDepositPaidTotal
                     : movement.paidAmount;
 
             updatedMovementRecord = {
@@ -3266,24 +4026,27 @@ const handleEditPurchaseBillImageChange = (event) => {
                 totalAmount:
                     movement.movementType === "Transfer"
                         ? nextTotalAmount
+                        : movement.movementType === "Waste"
+                            ? nextTotalAmount
                         : canEditUnits
                             ? nextTotalAmount
                             : Number.isFinite(editedTotalAmount)
                                 ? editedTotalAmount
                                 : movement.totalAmount,
                 estimatedLoss:
-                    canEditUnits && movement.movementType === "Waste"
+                    movement.movementType === "Waste"
                         ? nextTotalAmount
-                        : movement.movementType === "Waste" &&
-                            Number.isFinite(editedTotalAmount)
-                            ? editedTotalAmount
-                            : movement.estimatedLoss,
+                        : movement.estimatedLoss,
                 paidAmount: nextPaidAmount,
                 remainingAmount:
                     movement.movementType === "Transfer" &&
                         editMovementForm.transferType === "To Customer" &&
                         editMovementForm.dealType === "Sold"
                         ? Math.max(nextTotalAmount - nextPaidAmount, 0)
+                        : movement.movementType === "Transfer" &&
+                            editMovementForm.transferType === "To Customer" &&
+                            editMovementForm.dealType === "Loaned / Deposit"
+                            ? editDepositRemainingTotal
                         : movement.movementType === "Transfer"
                             ? 0
                             : movement.remainingAmount,
@@ -3317,32 +4080,36 @@ const handleEditPurchaseBillImageChange = (event) => {
                         editMovementForm.transferType === "To Customer" &&
                         editMovementForm.dealType === "Loaned / Deposit" &&
                         !isIndividualAsset
-                        ? Number(editMovementForm.securityDepositPerDevice || 0)
+                        ? editedQuantity > 0
+                            ? editTransferDepositTotal / editedQuantity
+                            : 0
                         : 0,
                 salePricePerDevice:
                     movement.movementType === "Transfer" &&
                         editMovementForm.transferType === "To Customer" &&
                         editMovementForm.dealType === "Sold" &&
                         !isIndividualAsset
-                        ? Number(editMovementForm.salePricePerDevice || 0)
+                        ? editedQuantity > 0
+                            ? editTransferSaleTotal / editedQuantity
+                            : 0
                         : 0,
                 paidAmountPerDevice:
                     movement.movementType === "Transfer" &&
                         editMovementForm.transferType === "To Customer" &&
                         editMovementForm.dealType === "Sold" &&
                         !isIndividualAsset
-                        ? Number(editMovementForm.paidAmountPerDevice || 0)
+                        ? editedQuantity > 0
+                            ? editTransferPaidTotal / editedQuantity
+                            : 0
                         : 0,
                 remainingAmountPerDevice:
                     movement.movementType === "Transfer" &&
                         editMovementForm.transferType === "To Customer" &&
                         editMovementForm.dealType === "Sold" &&
                         !isIndividualAsset
-                        ? Math.max(
-                            Number(editMovementForm.salePricePerDevice || 0) -
-                            Number(editMovementForm.paidAmountPerDevice || 0),
-                            0
-                        )
+                        ? editedQuantity > 0
+                            ? editTransferRemainingTotal / editedQuantity
+                            : 0
                         : 0,
                 sourceName:
                     editMovementForm.sourceName || movement.sourceName || "",
@@ -3408,6 +4175,28 @@ const handleEditPurchaseBillImageChange = (event) => {
 
         if (!counterpartsSaved) return;
 
+        const saleIncomeSaved = await saveCustomerSaleIncome(updatedMovementRecord);
+
+        if (!saleIncomeSaved) {
+            notify(
+                "Movement was updated, but paid amount could not be updated in Financial.",
+                "error"
+            );
+            return;
+        }
+
+        if (updatedMovementRecord.movementType === "Waste") {
+            const wasteExpenseSaved = await saveWasteExpense(updatedMovementRecord);
+
+            if (!wasteExpenseSaved) {
+                notify(
+                    "Movement was updated, but waste expense could not be updated in Financial.",
+                    "error"
+                );
+                return;
+            }
+        }
+
         notify("Movement updated successfully.");
         setEditMovement(null);
         setEditMovementForm({});
@@ -3420,9 +4209,24 @@ const handleEditPurchaseBillImageChange = (event) => {
 
         if (!movementToDelete) return;
 
+        if (!canManageMovementRecord(movementToDelete)) {
+            notify(
+                "This movement can only be deleted from the page that created it.",
+                "error"
+            );
+            setDeleteMovementRecord(null);
+            return;
+        }
+
         const quantity = Number(movementToDelete.quantity || 0);
         const direction = getMovementStockDirection(movementToDelete);
-        const nextQuantity = currentQuantity - direction * quantity;
+        const restoredRepairQuantity =
+            movementToDelete.transferType === "To Repair" &&
+            movementToDelete.repairResult?.stockRestored === true
+                ? quantity
+                : 0;
+        const nextQuantity =
+            currentQuantity - direction * quantity - restoredRepairQuantity;
 
         if (nextQuantity < 0) {
             notify("Deleting this movement would make stock negative.", "error");
@@ -3489,6 +4293,70 @@ const handleEditPurchaseBillImageChange = (event) => {
         );
 
         if (!saved) return;
+
+        if (movementToDelete.movementType === "Purchase") {
+            const expenseRemoved = await removePurchaseExpense(movementToDelete.id);
+
+            if (!expenseRemoved) {
+                notify(
+                    "Movement deleted, but its expense could not be removed.",
+                    "error"
+                );
+                return;
+            }
+        }
+
+        if (movementToDelete.movementType === "Waste") {
+            const expenseRemoved = await saveWasteExpense({
+                ...movementToDelete,
+                estimatedLoss: 0,
+            });
+
+            if (!expenseRemoved) {
+                notify(
+                    "Movement deleted, but its waste expense could not be removed.",
+                    "error"
+                );
+                return;
+            }
+        }
+
+        if (movementToDelete.repairResult) {
+            const repairExpenseRemoved = await saveRepairExpense({
+                ...movementToDelete,
+                repairResult: {
+                    ...movementToDelete.repairResult,
+                    paidAmount: 0,
+                },
+            });
+
+            if (!repairExpenseRemoved) {
+                notify(
+                    "Movement deleted, but its repair expense could not be removed.",
+                    "error"
+                );
+                return;
+            }
+        }
+
+        if (
+            movementToDelete.movementType === "Transfer" &&
+            movementToDelete.transferType === "To Customer" &&
+            movementToDelete.dealType === "Sold"
+        ) {
+            const incomeRemoved = await saveCustomerSaleIncome({
+                ...movementToDelete,
+                paidAmount: 0,
+            });
+
+            if (!incomeRemoved) {
+                notify(
+                    "Movement deleted, but its sale income could not be removed.",
+                    "error"
+                );
+                return;
+            }
+        }
 
         notify("Movement deleted successfully.");
         setOpenMovementAction("");
@@ -3575,6 +4443,23 @@ const handleEditPurchaseBillImageChange = (event) => {
 
                     <button
                         type="button"
+                        className="sale-price"
+                        onClick={() => {
+                            setSalePriceForm({
+                                salePrice:
+                                    asset.salePrice ??
+                                    asset.defaultSalePrice ??
+                                    asset.unitPrice ??
+                                    "",
+                            });
+                            setModalType("sale-price");
+                        }}
+                    >
+                        Sale Price
+                    </button>
+
+                    <button
+                        type="button"
                         className="purchase"
                         onClick={() => {
                             setPurchaseRecordForm({
@@ -3588,36 +4473,10 @@ const handleEditPurchaseBillImageChange = (event) => {
                         + Purchase
                     </button>
 
-                    <button
-                        type="button"
-                        className="waste"
-                        onClick={() => {
-                            setWasteForm(emptyWasteForm);
-                            setModalType("waste");
-                        }}
-                    >
-                        + Waste
-                    </button>
-
-                    <button
-                        type="button"
-                        className="transfer"
-                        onClick={() => {
-  setTransferForm({
-    ...emptyTransferForm,
-    sourceName: "Main Stock",
-    destinationType: "Tower",
-  });
-
-  setModalType("transfer");
-}}
-                    >
-                        + Transfer
-                    </button>
                 </div>
             </div>
 
-            <div className="asset-detail-stats">
+            {false && <div className="asset-detail-stats">
                 <article
                     onClick={() =>
                         navigate(`/assets/${asset.assetId || asset.id}/details/insights/current`)
@@ -3687,7 +4546,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                     <strong>{money(totalPurchaseValue)} AFN</strong>
                     <p>Total value of recorded purchases</p>
                 </article>
-            </div>
+            </div>}
 
             <div className="asset-detail-table-card">
                 <div className="asset-detail-table-header">
@@ -3726,12 +4585,15 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 <th>Date</th>
                                 <th>Movement</th>
                                 <th>Device Name</th>
+                                <th>Image</th>
                                 <th>Type</th>
                                 <th>Source</th>
                                 <th className="asset-route-arrow-head"></th>
                                 <th>Destination</th>
                                 <th>Quantity</th>
-                                <th>Amount</th>
+                                <th>Total Amount</th>
+                                <th>Paid Amount</th>
+                                <th>Remaining</th>
                                 <th>Responsible Person</th>
                                 <th>Status</th>
                                 <th>Notes</th>
@@ -3743,7 +4605,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                             {assetMovements.map((movement) => (
                                 <Fragment key={movement.id}>
                                 <tr className={getMovementRowClass(movement)}>
-                                    <td>
+                                    <td className="asset-movement-date-cell">
                                         {formatDateTime(
                                             movement.date,
                                             movement.createdAt ||
@@ -3763,6 +4625,17 @@ const handleEditPurchaseBillImageChange = (event) => {
 
                                     <td className="asset-device-name-cell">
                                         {getMovementDeviceName(movement)}
+                                    </td>
+
+                                    <td className="asset-movement-image-cell">
+                                        {getMovementImage(movement) ? (
+                                            <img
+                                                src={getMovementImage(movement)}
+                                                alt={getMovementDeviceName(movement)}
+                                            />
+                                        ) : (
+                                            <span>-</span>
+                                        )}
                                     </td>
 
                                     <td className="asset-type-soft">
@@ -3789,6 +4662,18 @@ const handleEditPurchaseBillImageChange = (event) => {
                                             0
                                         )}{" "}
                                         AFN
+                                    </td>
+
+                                    <td>
+                                        {movement.movementType === "Purchase"
+                                            ? `${money(movement.paidAmount || 0)} AFN`
+                                            : "-"}
+                                    </td>
+
+                                    <td>
+                                        {movement.movementType === "Purchase"
+                                            ? `${money(movement.remainingAmount || 0)} AFN`
+                                            : "-"}
                                     </td>
 
                                     <td>{movement.responsiblePerson || "-"}</td>
@@ -3870,41 +4755,42 @@ const handleEditPurchaseBillImageChange = (event) => {
     Full Information
   </button>
 
-  <button
-    type="button"
-    onClick={() => {
-      openEditMovement(movement);
-      setOpenMovementAction("");
-    }}
-  >
-    <Pencil size={14} />
-    Edit
-  </button>
-
-  {movement.transferType === "To Repair" && (
+  {canManageMovementRecord(movement) && (
     <>
       <button
         type="button"
-        onClick={() => openRepairResult(movement)}
+        onClick={() => {
+          openEditMovement(movement);
+          setOpenMovementAction("");
+        }}
       >
         <Pencil size={14} />
-        Repair Result
+        Edit
       </button>
 
+      {movement.transferType === "To Repair" && (
+        <button
+          type="button"
+          onClick={() => openRepairResult(movement)}
+        >
+          <Pencil size={14} />
+          Repair Result
+        </button>
+      )}
+
+      <button
+        type="button"
+        className="danger"
+        onClick={() => {
+          setDeleteMovementRecord(movement);
+          setOpenMovementAction("");
+        }}
+      >
+        <Trash2 size={14} />
+        Delete
+      </button>
     </>
   )}
-
-  <button
-    type="button"
-    className="danger"
-    onClick={() => {
-      setDeleteMovementRecord(movement);
-      setOpenMovementAction("");
-    }}
-  >
-    <Trash2 size={14} />
-    Delete
-  </button>
 </div>
                                             )}
                                         </div>
@@ -3913,8 +4799,15 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 {movement.repairResult &&
                                     String(openRepairResultDetailId) ===
                                     String(movement.id) && (
-                                    <tr className="asset-repair-result-row">
-                                        <td colSpan="13" className="asset-detail-empty">
+                                    <tr
+                                        className={`asset-repair-result-row ${
+                                            movement.repairResult.repairStatus ===
+                                            "Not Fixed"
+                                                ? "not-fixed"
+                                                : "fixed"
+                                        }`}
+                                    >
+                                        <td colSpan="16" className="asset-detail-empty">
                                             <div className="asset-repair-result-content">
                                                 <strong>
                                                     Repair Result:{" "}
@@ -3935,16 +4828,12 @@ const handleEditPurchaseBillImageChange = (event) => {
                                                 <span>
                                                     Cost: {money(movement.repairResult.repairCost || 0)} AFN
                                                 </span>
-                                                {movement.repairResult.repairStatus !== "Not Fixed" && (
-                                                    <>
-                                                        <span>
-                                                            Paid: {money(movement.repairResult.paidAmount || 0)} AFN
-                                                        </span>
-                                                        <span>
-                                                            Remaining: {money(movement.repairResult.remainingAmount || 0)} AFN
-                                                        </span>
-                                                    </>
-                                                )}
+                                                <span>
+                                                    Paid: {money(movement.repairResult.paidAmount || 0)} AFN
+                                                </span>
+                                                <span>
+                                                    Remaining: {money(movement.repairResult.remainingAmount || 0)} AFN
+                                                </span>
                                                 <span>
                                                     Next Destination: {movement.repairResult.nextDestination || "-"}
                                                 </span>
@@ -3965,7 +4854,7 @@ const handleEditPurchaseBillImageChange = (event) => {
 
                             {assetMovements.length === 0 && (
                                 <tr>
-                                    <td colSpan="12" className="asset-detail-empty">
+                                    <td colSpan="16" className="asset-detail-empty">
                                         No balance, purchase, waste, or transfer record has been added
                                         for this asset yet.
                                     </td>
@@ -3975,6 +4864,60 @@ const handleEditPurchaseBillImageChange = (event) => {
                     </table>
                 </div>
             </div>
+
+            {modalType === "sale-price" && (
+                <div
+                    className="asset-detail-modal-backdrop"
+                    onClick={() => setModalType("")}
+                >
+                    <div
+                        className="asset-detail-modal compact"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="asset-detail-modal-header">
+                            <div>
+                                <h3>Sale Price</h3>
+                                <p>Set the default sale price used in New Device Transfer.</p>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="asset-detail-modal-close"
+                                aria-label="Close sale price modal"
+                                onClick={() => setModalType("")}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <form onSubmit={saveAssetSalePrice}>
+                            <div className="asset-detail-form-grid">
+                                <label>
+                                    Sale Price Per Quantity ({purchaseUsageUnit})
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={salePriceForm.salePrice}
+                                        onChange={(event) =>
+                                            setSalePriceForm({
+                                                salePrice: event.target.value,
+                                            })
+                                        }
+                                        placeholder="Example: 100"
+                                    />
+                                </label>
+                            </div>
+
+                            <div className="asset-detail-modal-actions">
+                                <button type="button" onClick={() => setModalType("")}>
+                                    Cancel
+                                </button>
+                                <button type="submit">Save Sale Price</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {modalType === "balance" && (
                 <div
@@ -4004,7 +4947,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                         <form onSubmit={saveBalance}>
                             <div className="asset-detail-form-grid">
                                 <label>
-                                    Quantity (Piece)
+                                    Quantity ({purchaseUsageUnit})
                                     <input
                                         type="number"
                                         min="1"
@@ -4050,6 +4993,22 @@ const handleEditPurchaseBillImageChange = (event) => {
                                             setPurchaseForm((previous) => ({
                                                 ...previous,
                                                 unitPrice: event.target.value,
+                                            }))
+                                        }
+                                        required
+                                    />
+                                </label>
+
+                                <label>
+                                    Sale Price
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={purchaseForm.salePrice}
+                                        onChange={(event) =>
+                                            setPurchaseForm((previous) => ({
+                                                ...previous,
+                                                salePrice: event.target.value,
                                             }))
                                         }
                                         required
@@ -4219,7 +5178,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                         <form onSubmit={savePurchaseRecord}>
                             <div className="asset-detail-form-grid">
                                 <label>
-                                    Purchase Code
+                                    Reference Number
                                     <input
                                         value={purchaseRecordForm.purchaseCode}
                                         readOnly
@@ -4228,7 +5187,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 </label>
 
                                 <label>
-                                    Quantity (Piece)
+                                    Quantity ({purchaseUsageUnit})
                                     <input
                                         type="number"
                                         min="1"
@@ -4421,13 +5380,13 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 </label>
 
                                 <label>
-                                    Purchase Bill Number
+                                    Invoice Number
                                     <input
-                                        value={purchaseRecordForm.billNumber}
+                                        value={purchaseRecordForm.invoiceNumber}
                                         onChange={(event) =>
                                             setPurchaseRecordForm((previous) => ({
                                                 ...previous,
-                                                billNumber: event.target.value,
+                                                invoiceNumber: event.target.value,
                                             }))
                                         }
                                     />
@@ -4479,6 +5438,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                                                 purchasedBy: event.target.value,
                                             }))
                                         }
+                                        required
                                     />
                                 </label>
 
@@ -4672,7 +5632,7 @@ const handleEditPurchaseBillImageChange = (event) => {
 
                                 {!isIndividualAsset && (
                                     <label>
-                                      Quantity
+                                      Quantity ({purchaseUsageUnit})
 
                                       <input
                                         type="number"
@@ -4753,8 +5713,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                                                 );
                                                 const rowSalePrice =
                                                     transferForm.salePrices[record.id] ??
-                                                    record.unitPrice ??
-                                                    asset.unitPrice ??
+                                                    getDefaultSalePrice(record) ??
                                                     "";
                                                 const rowDepositPrice =
                                                     transferForm.depositPrices[record.id] ??
@@ -4967,6 +5926,7 @@ const handleEditPurchaseBillImageChange = (event) => {
         securityDepositPerDevice: "",
         salePricePerDevice: "",
         paidAmountPerDevice: "",
+        totalAmount: "",
         paidAmount: "",
         trustAmount: "",
         salePrices: {},
@@ -5122,6 +6082,9 @@ const handleEditPurchaseBillImageChange = (event) => {
                                                         securityDepositPerDevice: "",
                                                         salePricePerDevice: "",
                                                         paidAmountPerDevice: "",
+                                                        totalAmount: "",
+                                                        paidAmount: "",
+                                                        trustAmount: "",
                                                         salePrices: {},
                                                         paidPrices: {},
                                                         depositPrices: {},
@@ -5135,29 +6098,12 @@ const handleEditPurchaseBillImageChange = (event) => {
                                             </select>
                                         </label>
 
-                                        {transferForm.dealType === "Loaned / Deposit" &&
-                                            !isIndividualAsset && (
-                                            <label>
-                                                Security Deposit per Device
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    value={transferForm.securityDepositPerDevice}
-                                                    onChange={(event) =>
-                                                        setTransferForm((previous) => ({
-                                                            ...previous,
-                                                            securityDepositPerDevice: event.target.value,
-                                                        }))
-                                                    }
-                                                />
-                                            </label>
-                                        )}
                                     </>
                                 )}
 
                                 {!isIndividualAsset && (
                                     <label>
-                                        Quantity
+                                        Quantity ({purchaseUsageUnit})
 
                                         <input
                                             type="number"
@@ -5177,8 +6123,44 @@ const handleEditPurchaseBillImageChange = (event) => {
                                         <small className="asset-detail-stock-hint">
                                             Available stock: {currentStock}
                                         </small>
+
+                                        <small className="asset-detail-value-hint">
+                                            Value: {money(transferQuantityValue)} AFN
+                                        </small>
                                     </label>
                                 )}
+
+                                {transferForm.transferType === "To Customer" &&
+                                    transferForm.dealType === "Loaned / Deposit" &&
+                                    !isIndividualAsset && (
+                                        <label>
+                                            Sale Price Per Quantity
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={
+                                                    transferForm.salePricePerDevice === ""
+                                                        ? getDefaultSalePrice()
+                                                        : transferForm.salePricePerDevice
+                                                }
+                                                onChange={(event) =>
+                                                    setTransferForm((previous) => ({
+                                                        ...previous,
+                                                        salePricePerDevice: event.target.value,
+                                                        paidAmount:
+                                                            Number(previous.paidAmount || 0) >
+                                                            Number(transferForm.quantity || 0) *
+                                                                Number(event.target.value || 0)
+                                                                ? String(
+                                                                    Number(transferForm.quantity || 0) *
+                                                                    Number(event.target.value || 0)
+                                                                )
+                                                                : previous.paidAmount,
+                                                    }))
+                                                }
+                                            />
+                                        </label>
+                                    )}
 
                                 {isIndividualAsset && (
                                     <div className="asset-waste-picker">
@@ -5238,8 +6220,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                                                 );
                                                 const rowSalePrice =
                                                     transferForm.salePrices[record.id] ??
-                                                    record.unitPrice ??
-                                                    asset.unitPrice ??
+                                                    getDefaultSalePrice(record) ??
                                                     "";
                                                 const rowDepositPrice =
                                                     transferForm.depositPrices[record.id] ??
@@ -5354,60 +6335,47 @@ const handleEditPurchaseBillImageChange = (event) => {
                                     transferForm.dealType === "Sold" && (
                                         <div className="asset-transfer-sale-panel">
                                             <label>
-                                                Sale Price per Device
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    value={transferForm.salePricePerDevice}
-                                                    onChange={(event) =>
-                                                        setTransferForm((previous) => ({
-                                                            ...previous,
-                                                            salePricePerDevice: event.target.value,
-                                                        }))
-                                                    }
-                                                />
-                                            </label>
-
-                                            <label>
-                                                Paid Amount per Device
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    max={salePricePerDevice}
-                                                    value={transferForm.paidAmountPerDevice}
-                                                    onChange={(event) =>
-                                                        setTransferForm((previous) => ({
-                                                            ...previous,
-                                                            paidAmountPerDevice: event.target.value,
-                                                        }))
-                                                    }
-                                                />
-                                            </label>
-
-                                            <label>
-                                                Remaining Amount per Device
-                                                <input
-                                                    value={`${money(remainingAmountPerDevice)} AFN`}
-                                                    readOnly
-                                                    className="asset-detail-calculated-input"
-                                                />
-                                            </label>
-
-                                            <label>
                                                 Total Amount
                                                 <input
-                                                    value={`${money(customerSaleTotal)} AFN`}
-                                                    readOnly
-                                                    className="asset-detail-calculated-input"
+                                                    type="number"
+                                                    min="0"
+                                                    value={
+                                                        transferForm.totalAmount === ""
+                                                            ? defaultBulkCustomerSaleTotal || ""
+                                                            : transferForm.totalAmount
+                                                    }
+                                                    onChange={(event) =>
+                                                        setTransferForm((previous) => ({
+                                                            ...previous,
+                                                            totalAmount: event.target.value,
+                                                            paidAmount:
+                                                                Number(previous.paidAmount || 0) >
+                                                                Number(event.target.value || 0)
+                                                                    ? event.target.value
+                                                                    : previous.paidAmount,
+                                                        }))
+                                                    }
                                                 />
                                             </label>
 
                                             <label>
                                                 Total Paid
                                                 <input
-                                                    value={`${money(customerPaidTotal)} AFN`}
-                                                    readOnly
-                                                    className="asset-detail-calculated-input"
+                                                    type="number"
+                                                    min="0"
+                                                    max={customerSaleTotal}
+                                                    value={transferForm.paidAmount}
+                                                    onChange={(event) => {
+                                                        const paidAmount = Math.min(
+                                                            Number(event.target.value || 0),
+                                                            customerSaleTotal
+                                                        );
+
+                                                        setTransferForm((previous) => ({
+                                                            ...previous,
+                                                            paidAmount: String(paidAmount || ""),
+                                                        }));
+                                                    }}
                                                 />
                                             </label>
 
@@ -5442,12 +6410,17 @@ const handleEditPurchaseBillImageChange = (event) => {
                                                     min="0"
                                                     max={customerSaleTotal}
                                                     value={transferForm.paidAmount}
-                                                    onChange={(event) =>
+                                                    onChange={(event) => {
+                                                        const paidAmount = Math.min(
+                                                            Number(event.target.value || 0),
+                                                            customerSaleTotal
+                                                        );
+
                                                         setTransferForm((previous) => ({
                                                             ...previous,
-                                                            paidAmount: event.target.value,
-                                                        }))
-                                                    }
+                                                            paidAmount: String(paidAmount || ""),
+                                                        }));
+                                                    }}
                                                 />
                                             </label>
 
@@ -5465,14 +6438,57 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 {transferForm.transferType === "To Customer" &&
                                     transferForm.dealType === "Loaned / Deposit" && (
                                         <div className="asset-transfer-sale-panel">
-                                            <label>
-                                                Total Security Deposit
-                                                <input
-                                                    value={`${money(customerDepositTotal)} AFN`}
-                                                    readOnly
-                                                    className="asset-detail-calculated-input"
-                                                />
-                                            </label>
+                                            {!isIndividualAsset ? (
+                                                <>
+                                                    <label>
+                                                        Total Deposit
+                                                        <input
+                                                            value={`${money(customerDepositTotal)} AFN`}
+                                                            readOnly
+                                                            className="asset-detail-calculated-input"
+                                                        />
+                                                    </label>
+
+                                                    <label>
+                                                        Total Paid
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            max={customerDepositTotal}
+                                                            value={transferForm.paidAmount}
+                                                            onChange={(event) => {
+                                                                const paidAmount = Math.min(
+                                                                    Number(event.target.value || 0),
+                                                                    customerDepositTotal
+                                                                );
+
+                                                                setTransferForm((previous) => ({
+                                                                    ...previous,
+                                                                    paidAmount: String(paidAmount || ""),
+                                                                }));
+                                                            }}
+                                                        />
+                                                    </label>
+
+                                                    <label>
+                                                        Total Remaining
+                                                        <input
+                                                            value={`${money(customerDepositRemainingTotal)} AFN`}
+                                                            readOnly
+                                                            className="asset-detail-calculated-input"
+                                                        />
+                                                    </label>
+                                                </>
+                                            ) : (
+                                                <label>
+                                                    Total Security Deposit
+                                                    <input
+                                                        value={`${money(customerDepositTotal)} AFN`}
+                                                        readOnly
+                                                        className="asset-detail-calculated-input"
+                                                    />
+                                                </label>
+                                            )}
                                         </div>
                                     )}
 
@@ -5632,12 +6648,16 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 <>
                                     <div><span>Transfer Deal</span><strong>{viewMovement.dealType || "-"}</strong></div>
                                     {viewMovement.dealType === "Loaned / Deposit" ? (
-                                        <div><span>Security Deposit per Device</span><strong>{money(viewMovement.securityDepositPerDevice || 0)} AFN</strong></div>
+                                        <>
+                                            <div><span>Total Deposit</span><strong>{money(viewMovement.trustAmount || viewMovement.totalAmount || 0)} AFN</strong></div>
+                                            <div><span>Total Paid</span><strong>{money(viewMovement.paidAmount || 0)} AFN</strong></div>
+                                            <div><span>Total Remaining</span><strong>{money(viewMovement.remainingAmount || 0)} AFN</strong></div>
+                                        </>
                                     ) : (
                                         <>
-                                            <div><span>Sale Price per Device</span><strong>{money(viewMovement.salePricePerDevice || 0)} AFN</strong></div>
-                                            <div><span>Paid Amount per Device</span><strong>{money(viewMovement.paidAmountPerDevice || 0)} AFN</strong></div>
-                                            <div><span>Remaining Amount per Device</span><strong>{money(viewMovement.remainingAmountPerDevice || 0)} AFN</strong></div>
+                                            <div><span>Total Amount</span><strong>{money(viewMovement.totalAmount || 0)} AFN</strong></div>
+                                            <div><span>Total Paid</span><strong>{money(viewMovement.paidAmount || 0)} AFN</strong></div>
+                                            <div><span>Total Remaining</span><strong>{money(viewMovement.remainingAmount || 0)} AFN</strong></div>
                                         </>
                                     )}
                                 </>
@@ -5886,23 +6906,37 @@ const handleEditPurchaseBillImageChange = (event) => {
                                     />
                                 </label>
 
-                                {repairResultForm.repairStatus !== "Not Fixed" && (
-                                    <label>
-                                        Paid Amount
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="any"
-                                            value={repairResultForm.paidAmount}
-                                            onChange={(event) =>
-                                                setRepairResultForm((previous) => ({
-                                                    ...previous,
-                                                    paidAmount: event.target.value,
-                                                }))
-                                            }
-                                        />
-                                    </label>
-                                )}
+                                <label>
+                                    Paid Amount
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max={Number(repairResultForm.repairCost || 0)}
+                                        step="any"
+                                        value={repairResultForm.paidAmount}
+                                        onChange={(event) =>
+                                            setRepairResultForm((previous) => ({
+                                                ...previous,
+                                                paidAmount: event.target.value,
+                                            }))
+                                        }
+                                    />
+                                </label>
+
+                                <label>
+                                    Remaining Amount
+                                    <input
+                                        value={`${money(
+                                            Math.max(
+                                                Number(repairResultForm.repairCost || 0) -
+                                                    Number(repairResultForm.paidAmount || 0),
+                                                0
+                                            )
+                                        )} AFN`}
+                                        readOnly
+                                        className="asset-detail-calculated-input"
+                                    />
+                                </label>
 
                                 <label>
                                     Result Date
@@ -6078,7 +7112,7 @@ const handleEditPurchaseBillImageChange = (event) => {
         <div className="asset-purchase-edit-content">
             <div className="asset-detail-form-grid">
                 <label>
-                    Purchase Code
+                    Reference Number
                     <input
                         value={
                             editMovementForm.purchaseCode || ""
@@ -6171,12 +7205,11 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 })
                             )
                         }
-                        required
                     />
                 </label>
 
                 <label>
-                    Quantity
+                    Quantity ({purchaseUsageUnit})
                     <input
                         type="number"
                         min="1"
@@ -6337,7 +7370,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                 </label>
 
                 <label>
-                    Bill / Invoice Number
+                    Invoice Number
                     <input
                         value={
                             editMovementForm.billNumber || ""
@@ -6371,6 +7404,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 })
                             )
                         }
+                        required
                     />
                 </label>
 
@@ -6563,6 +7597,451 @@ const handleEditPurchaseBillImageChange = (event) => {
                 />
             </label>
         </div>
+    ) : editMovement?.movementType === "Balance" ? (
+        <div className="asset-purchase-edit-content">
+            <div className="asset-detail-form-grid">
+                <label>
+                    Balance Date
+                    <input
+                        type="date"
+                        value={editMovementForm.date || ""}
+                        onChange={(event) =>
+                            setEditMovementForm((previous) => ({
+                                ...previous,
+                                date: event.target.value,
+                            }))
+                        }
+                        required
+                    />
+                </label>
+
+                <label>
+                    Quantity ({purchaseUsageUnit})
+                    <input
+                        type="number"
+                        min="1"
+                        step={isIndividualAsset ? "1" : "any"}
+                        value={editMovementForm.quantity || ""}
+                        onChange={(event) => {
+                            const value = event.target.value;
+
+                            setEditMovementForm((previous) => ({
+                                ...previous,
+                                quantity: value,
+                                identityRecords: isIndividualAsset
+                                    ? syncIdentityRecords(
+                                          value,
+                                          previous.identityRecords || []
+                                      )
+                                    : previous.identityRecords || [],
+                            }));
+                        }}
+                        required
+                    />
+                </label>
+
+                <label>
+                    Unit Price
+                    <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={editMovementForm.unitPrice || ""}
+                        onChange={(event) =>
+                            setEditMovementForm((previous) => ({
+                                ...previous,
+                                unitPrice: event.target.value,
+                            }))
+                        }
+                        required
+                    />
+                </label>
+
+                <label>
+                    Total Amount
+                    <input
+                        value={`${money(
+                            Number(editMovementForm.quantity || 0) *
+                                Number(editMovementForm.unitPrice || 0)
+                        )} AFN`}
+                        readOnly
+                    />
+                </label>
+
+                <label>
+                    Sale Price
+                    <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={editMovementForm.salePrice || ""}
+                        onChange={(event) =>
+                            setEditMovementForm((previous) => ({
+                                ...previous,
+                                salePrice: event.target.value,
+                            }))
+                        }
+                    />
+                </label>
+
+                <label>
+                    Status
+                    <input
+                        value={editMovementForm.status || ""}
+                        onChange={(event) =>
+                            setEditMovementForm((previous) => ({
+                                ...previous,
+                                status: event.target.value,
+                            }))
+                        }
+                    />
+                </label>
+
+                <label>
+                    Responsible Person
+                    <input
+                        value={editMovementForm.responsiblePerson || ""}
+                        onChange={(event) =>
+                            setEditMovementForm((previous) => ({
+                                ...previous,
+                                responsiblePerson: event.target.value,
+                            }))
+                        }
+                    />
+                </label>
+            </div>
+
+            {isIndividualAsset && (
+                <div className="asset-edit-individual-records">
+                    <div className="asset-edit-unit-section-header">
+                        <div>
+                            <h4>Individual Unit Records</h4>
+                            <p>
+                                Edit Model, MAC Address, Serial Number and Image for every balance unit.
+                            </p>
+                        </div>
+
+                        <span>
+                            {(editMovementForm.identityRecords || []).length} record(s)
+                        </span>
+                    </div>
+
+                    {(editMovementForm.identityRecords || []).map((record, index) => (
+                        <article className="asset-purchase-identity-card" key={record.id}>
+                            <div className="asset-purchase-identity-card-header">
+                                <strong>Record {index + 1}</strong>
+                                <span>Balance</span>
+                            </div>
+
+                            <div className="asset-detail-form-grid">
+                                <label>
+                                    Model
+                                    <input
+                                        value={record.model || ""}
+                                        onChange={(event) =>
+                                            updateEditPurchaseIdentityRecord(
+                                                index,
+                                                "model",
+                                                event.target.value
+                                            )
+                                        }
+                                        required
+                                    />
+                                </label>
+
+                                <label>
+                                    MAC Address
+                                    <input
+                                        value={record.macAddress || ""}
+                                        onChange={(event) =>
+                                            updateEditPurchaseIdentityRecord(
+                                                index,
+                                                "macAddress",
+                                                event.target.value
+                                            )
+                                        }
+                                        required
+                                    />
+                                </label>
+
+                                <label>
+                                    Serial Number
+                                    <input
+                                        value={record.serialNumber || ""}
+                                        onChange={(event) =>
+                                            updateEditPurchaseIdentityRecord(
+                                                index,
+                                                "serialNumber",
+                                                event.target.value
+                                            )
+                                        }
+                                        required
+                                    />
+                                </label>
+
+                                <label>
+                                    Image
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(event) =>
+                                            handleEditPurchaseRecordImageChange(index, event)
+                                        }
+                                    />
+                                </label>
+                            </div>
+
+                            {record.image && (
+                                <div className="asset-edit-image-preview">
+                                    <img src={record.image} alt={`Record ${index + 1}`} />
+
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            updateEditPurchaseIdentityRecord(index, "image", "")
+                                        }
+                                    >
+                                        Remove Image
+                                    </button>
+                                </div>
+                            )}
+                        </article>
+                    ))}
+                </div>
+            )}
+
+            <label className="asset-detail-form-full">
+                Notes
+                <textarea
+                    rows="4"
+                    value={editMovementForm.notes || ""}
+                    onChange={(event) =>
+                        setEditMovementForm((previous) => ({
+                            ...previous,
+                            notes: event.target.value,
+                        }))
+                    }
+                />
+            </label>
+        </div>
+    ) : editMovement?.movementType === "Waste" ? (
+        <div className="asset-purchase-edit-content">
+            <div className="asset-detail-form-grid">
+                <label>
+                    Waste Date
+                    <input
+                        type="date"
+                        value={editMovementForm.date || ""}
+                        onChange={(event) =>
+                            setEditMovementForm((previous) => ({
+                                ...previous,
+                                date: event.target.value,
+                            }))
+                        }
+                        required
+                    />
+                </label>
+
+                {!isIndividualAsset && (
+                    <label>
+                        Quantity ({purchaseUsageUnit})
+                        <input
+                            type="number"
+                            min="1"
+                            max={editWasteMaxQuantity}
+                            value={editMovementForm.quantity || ""}
+                            onChange={(event) => {
+                                const quantity = Math.min(
+                                    Math.max(Number(event.target.value || 1), 1),
+                                    Math.max(editWasteMaxQuantity, 1)
+                                );
+                                const lossAmount =
+                                    quantity * Number(asset?.unitPrice || 0);
+
+                                setEditMovementForm((previous) => ({
+                                    ...previous,
+                                    quantity: String(quantity),
+                                    estimatedLoss: String(lossAmount),
+                                    totalAmount: String(lossAmount),
+                                }));
+                            }}
+                            required
+                        />
+                        <small className="asset-detail-stock-hint">
+                            Available stock: {editWasteMaxQuantity}
+                        </small>
+                    </label>
+                )}
+
+                {isIndividualAsset && (
+                    <div className="asset-waste-picker asset-detail-form-full">
+                        <div className="asset-waste-tools">
+                            <label>
+                                Search Units
+                                <input
+                                    value={editMovementForm.transferSearch || ""}
+                                    onChange={(event) =>
+                                        setEditMovementForm((previous) => ({
+                                            ...previous,
+                                            transferSearch: event.target.value,
+                                        }))
+                                    }
+                                    placeholder="Search model, MAC, or serial..."
+                                />
+                            </label>
+
+                            <label>
+                                Category
+                                <select
+                                    value={editMovementForm.transferCategory || "All"}
+                                    onChange={(event) =>
+                                        setEditMovementForm((previous) => ({
+                                            ...previous,
+                                            transferCategory: event.target.value,
+                                        }))
+                                    }
+                                >
+                                    {editMovementCategoryOptions.map((category) => (
+                                        <option key={category} value={category}>
+                                            {category}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        </div>
+
+                        <div className="asset-waste-summary">
+                            <span>
+                                Selected: {selectedEditMovementRecords.length}
+                            </span>
+                            <strong>
+                                Loss: {money(editWasteLossAmount)} AFN
+                            </strong>
+                        </div>
+
+                        <div className="asset-waste-unit-list">
+                            {filteredEditMovementUnitOptions.map((record) => {
+                                const selected = (
+                                    editMovementForm.selectedIdentityIds || []
+                                ).includes(record.id);
+                                const unitValue = Number(
+                                    record.unitPrice || asset?.unitPrice || 0
+                                );
+
+                                return (
+                                    <label
+                                        key={record.id}
+                                        className={
+                                            selected
+                                                ? "asset-waste-unit selected"
+                                                : "asset-waste-unit"
+                                        }
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selected}
+                                            onChange={(event) =>
+                                                setEditMovementForm((previous) => ({
+                                                    ...previous,
+                                                    selectedIdentityIds:
+                                                        event.target.checked
+                                                            ? [
+                                                                  ...(previous.selectedIdentityIds ||
+                                                                      []),
+                                                                  record.id,
+                                                              ]
+                                                            : (
+                                                                  previous.selectedIdentityIds ||
+                                                                  []
+                                                              ).filter(
+                                                                  (id) => id !== record.id
+                                                              ),
+                                                }))
+                                            }
+                                        />
+
+                                        <div>
+                                            <strong>
+                                                {record.serialNumber || "No Serial"}
+                                            </strong>
+                                            <span>
+                                                {record.model || "-"} /{" "}
+                                                {record.macAddress || "-"}
+                                            </span>
+                                        </div>
+
+                                        <em>{record.category || asset?.category || "-"}</em>
+                                        <b>{money(unitValue)} AFN</b>
+                                    </label>
+                                );
+                            })}
+
+                            {filteredEditMovementUnitOptions.length === 0 && (
+                                <div className="asset-waste-empty">
+                                    No individual unit was found.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                <label>
+                    Waste Reason
+                    <select
+                        value={editMovementForm.wasteReason || ""}
+                        onChange={(event) =>
+                            setEditMovementForm((previous) => ({
+                                ...previous,
+                                wasteReason: event.target.value,
+                                transferType: event.target.value,
+                            }))
+                        }
+                    >
+                        <option value="">Select Reason</option>
+                        <option value="Damaged">Damaged</option>
+                        <option value="Lost">Lost</option>
+                        <option value="Expired">Expired</option>
+                        <option value="Disposed">Disposed</option>
+                    </select>
+                </label>
+
+                <label>
+                    Loss Amount
+                    <input
+                        value={`${money(editWasteLossAmount)} AFN`}
+                        readOnly
+                        className="asset-detail-calculated-input"
+                    />
+                </label>
+
+                <label>
+                    Responsible Person
+                    <input
+                        value={editMovementForm.responsiblePerson || ""}
+                        onChange={(event) =>
+                            setEditMovementForm((previous) => ({
+                                ...previous,
+                                responsiblePerson: event.target.value,
+                            }))
+                        }
+                    />
+                </label>
+
+                <label className="asset-detail-form-full">
+                    Notes
+                    <textarea
+                        rows="4"
+                        value={editMovementForm.notes || ""}
+                        onChange={(event) =>
+                            setEditMovementForm((previous) => ({
+                                ...previous,
+                                notes: event.target.value,
+                            }))
+                        }
+                    />
+                </label>
+            </div>
+        </div>
     ) : editMovement?.movementType === "Transfer" ? (
         <div className="asset-purchase-edit-content">
             <div className="asset-detail-form-grid">
@@ -6625,38 +8104,21 @@ const handleEditPurchaseBillImageChange = (event) => {
                         <select
                             value={editMovementForm.destinationRecordId || ""}
                             onChange={(event) => {
-    const value = event.target.value;
+                                const selectedCustomer = customers.find(
+                                    (customer) =>
+                                        String(customer.id) ===
+                                        String(event.target.value)
+                                );
 
-    setEditMovementForm((previous) => ({
-        ...previous,
-
-        transferType: value,
-        destinationRecordId: "",
-
-        destinationName:
-            value === "To Repair"
-                ? "Repair / Maintenance"
-                : "",
-
-        destinationType:
-            value === "To Customer"
-                ? "Customer"
-                : value === "To Tower"
-                    ? "Tower"
-                    : "Repair",
-
-        status:
-            value === "To Repair"
-                ? "In Repair"
-                : "Completed",
-
-        dealType:
-            value === "To Customer"
-                ? previous.dealType ||
-                  "Loaned / Deposit"
-                : "",
-    }));
-}}
+                                setEditMovementForm((previous) => ({
+                                    ...previous,
+                                    destinationType: "Customer",
+                                    destinationRecordId: event.target.value,
+                                    destinationName: selectedCustomer
+                                        ? getCustomerName(selectedCustomer)
+                                        : "",
+                                }));
+                            }}
                             required
                         >
                             <option value="">Select Customer</option>
@@ -6723,9 +8185,19 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 setEditMovementForm((previous) => ({
                                     ...previous,
                                     dealType: event.target.value,
-                                    salePricePerDevice: "",
+                                    salePricePerDevice:
+                                        previous.salePricePerDevice ||
+                                        previous.securityDepositPerDevice ||
+                                        getDefaultSalePrice() ||
+                                        "",
                                     paidAmountPerDevice: "",
-                                    securityDepositPerDevice: "",
+                                    securityDepositPerDevice:
+                                        previous.securityDepositPerDevice ||
+                                        previous.salePricePerDevice ||
+                                        getDefaultSalePrice() ||
+                                        "",
+                                    totalAmount: "",
+                                    trustAmount: "",
                                     paidAmount: "",
                                     salePrices: {},
                                     paidPrices: {},
@@ -6743,16 +8215,39 @@ const handleEditPurchaseBillImageChange = (event) => {
 
                 {!isIndividualAsset && (
                     <label>
-                        Quantity
+                        Quantity ({purchaseUsageUnit})
                         <input
                             type="number"
                             min="1"
                             value={editMovementForm.quantity || ""}
                             onChange={(event) =>
-                                setEditMovementForm((previous) => ({
-                                    ...previous,
-                                    quantity: event.target.value,
-                                }))
+                                setEditMovementForm((previous) => {
+                                    const quantity = Number(event.target.value || 0);
+                                    const price = Number(
+                                        previous.salePricePerDevice ||
+                                            previous.securityDepositPerDevice ||
+                                            0
+                                    );
+                                    const total = quantity * price;
+
+                                    return {
+                                        ...previous,
+                                        quantity: event.target.value,
+                                        totalAmount:
+                                            previous.transferType === "To Customer"
+                                                ? String(total || "")
+                                                : previous.totalAmount,
+                                        trustAmount:
+                                            previous.transferType === "To Customer" &&
+                                            previous.dealType === "Loaned / Deposit"
+                                                ? String(total || "")
+                                                : previous.trustAmount,
+                                        paidAmount:
+                                            Number(previous.paidAmount || 0) > total
+                                                ? String(total || "")
+                                                : previous.paidAmount,
+                                    };
+                                })
                             }
                             required
                         />
@@ -6827,8 +8322,7 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 );
                                 const rowSalePrice =
                                     editMovementForm.salePrices?.[record.id] ??
-                                    record.unitPrice ??
-                                    asset?.unitPrice ??
+                                    getDefaultSalePrice(record) ??
                                     "";
                                 const rowDepositPrice =
                                     editMovementForm.depositPrices?.[
@@ -6985,37 +8479,86 @@ const handleEditPurchaseBillImageChange = (event) => {
                 {editMovementForm.transferType === "To Customer" &&
                     editMovementForm.dealType === "Loaned / Deposit" && (
                         <div className="asset-transfer-sale-panel">
-                            {!isIndividualAsset && (
-                                <label>
-                                    Security Deposit per Device
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={
-                                            editMovementForm.securityDepositPerDevice ||
-                                            ""
-                                        }
-                                        onChange={(event) =>
-                                            setEditMovementForm(
-                                                (previous) => ({
-                                                    ...previous,
-                                                    securityDepositPerDevice:
-                                                        event.target.value,
+                            {!isIndividualAsset ? (
+                                <>
+                                    <label>
+                                        Sale Price Per Quantity
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={editMovementForm.salePricePerDevice || ""}
+                                            onChange={(event) =>
+                                                setEditMovementForm((previous) => {
+                                                    const price = Number(event.target.value || 0);
+                                                    const total =
+                                                        Number(previous.quantity || 0) * price;
+
+                                                    return {
+                                                        ...previous,
+                                                        salePricePerDevice: event.target.value,
+                                                        securityDepositPerDevice:
+                                                            event.target.value,
+                                                        totalAmount: String(total || ""),
+                                                        trustAmount: String(total || ""),
+                                                        paidAmount:
+                                                            Number(previous.paidAmount || 0) > total
+                                                                ? String(total || "")
+                                                                : previous.paidAmount,
+                                                    };
                                                 })
-                                            )
-                                        }
+                                            }
+                                        />
+                                    </label>
+
+                                    <label>
+                                        Total Deposit
+                                        <input
+                                            value={`${money(editTransferDepositTotal)} AFN`}
+                                            readOnly
+                                            className="asset-detail-calculated-input"
+                                        />
+                                    </label>
+
+                                    <label>
+                                        Total Paid
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max={editTransferDepositTotal}
+                                            value={editMovementForm.paidAmount || ""}
+                                            onChange={(event) => {
+                                                const paidAmount = Math.min(
+                                                    Number(event.target.value || 0),
+                                                    editTransferDepositTotal
+                                                );
+
+                                                setEditMovementForm((previous) => ({
+                                                    ...previous,
+                                                    paidAmount: paidAmount || "",
+                                                }));
+                                            }}
+                                        />
+                                    </label>
+
+                                    <label>
+                                        Total Remaining
+                                        <input
+                                            value={`${money(editDepositRemainingTotal)} AFN`}
+                                            readOnly
+                                            className="asset-detail-calculated-input"
+                                        />
+                                    </label>
+                                </>
+                            ) : (
+                                <label>
+                                    Total Security Deposit
+                                    <input
+                                        value={`${money(editTransferDepositTotal)} AFN`}
+                                        readOnly
+                                        className="asset-detail-calculated-input"
                                     />
                                 </label>
                             )}
-
-                            <label>
-                                Total Security Deposit
-                                <input
-                                    value={`${money(editTransferDepositTotal)} AFN`}
-                                    readOnly
-                                    className="asset-detail-calculated-input"
-                                />
-                            </label>
                         </div>
                     )}
 
@@ -7025,55 +8568,62 @@ const handleEditPurchaseBillImageChange = (event) => {
                             {!isIndividualAsset && (
                                 <>
                                     <label>
-                                        Sale Price per Device
+                                        Sale Price Per Quantity
                                         <input
                                             type="number"
                                             min="0"
-                                            value={
-                                                editMovementForm.salePricePerDevice ||
-                                                ""
-                                            }
+                                            value={editMovementForm.salePricePerDevice || ""}
                                             onChange={(event) =>
-                                                setEditMovementForm(
-                                                    (previous) => ({
+                                                setEditMovementForm((previous) => {
+                                                    const price = Number(event.target.value || 0);
+                                                    const total =
+                                                        Number(previous.quantity || 0) * price;
+
+                                                    return {
                                                         ...previous,
-                                                        salePricePerDevice:
-                                                            event.target.value,
-                                                    })
-                                                )
+                                                        salePricePerDevice: event.target.value,
+                                                        totalAmount: String(total || ""),
+                                                        paidAmount:
+                                                            Number(previous.paidAmount || 0) > total
+                                                                ? String(total || "")
+                                                                : previous.paidAmount,
+                                                    };
+                                                })
                                             }
                                         />
                                     </label>
 
                                     <label>
-                                        Paid Amount per Device
+                                        Total Amount
+                                        <input
+                                            value={`${money(editTransferSaleTotal)} AFN`}
+                                            readOnly
+                                            className="asset-detail-calculated-input"
+                                        />
+                                    </label>
+
+                                    <label>
+                                        Total Paid
                                         <input
                                             type="number"
                                             min="0"
-                                            max={
-                                                editMovementForm.salePricePerDevice ||
-                                                0
-                                            }
+                                            max={editTransferSaleTotal}
                                             value={
-                                                editMovementForm.paidAmountPerDevice ||
+                                                editMovementForm.paidAmount ||
                                                 ""
                                             }
                                             onChange={(event) => {
-                                                const salePrice = Number(
-                                                    editMovementForm.salePricePerDevice ||
-                                                        0
-                                                );
                                                 const paidAmount = Math.min(
                                                     Number(
                                                         event.target.value || 0
                                                     ),
-                                                    salePrice
+                                                    editTransferSaleTotal
                                                 );
 
                                                 setEditMovementForm(
                                                     (previous) => ({
                                                         ...previous,
-                                                        paidAmountPerDevice:
+                                                        paidAmount:
                                                             paidAmount || "",
                                                     })
                                                 );
@@ -7083,51 +8633,39 @@ const handleEditPurchaseBillImageChange = (event) => {
                                 </>
                             )}
 
-                            <label>
-                                Total Amount
-                                <input
-                                    value={`${money(editTransferSaleTotal)} AFN`}
-                                    readOnly
-                                    className="asset-detail-calculated-input"
-                                />
-                            </label>
+                            {isIndividualAsset && (
+                                <>
+                                    <label>
+                                        Total Amount
+                                        <input
+                                            value={`${money(editTransferSaleTotal)} AFN`}
+                                            readOnly
+                                            className="asset-detail-calculated-input"
+                                        />
+                                    </label>
 
-                            <label>
-                                Total Paid
-                                <input
-                                    type={isIndividualAsset ? "number" : "text"}
-                                    min={isIndividualAsset ? "0" : undefined}
-                                    max={
-                                        isIndividualAsset
-                                            ? editTransferSaleTotal
-                                            : undefined
-                                    }
-                                    value={
-                                        isIndividualAsset
-                                            ? editMovementForm.paidAmount || ""
-                                            : `${money(editTransferPaidTotal)} AFN`
-                                    }
-                                    readOnly={!isIndividualAsset}
-                                    className={
-                                        !isIndividualAsset
-                                            ? "asset-detail-calculated-input"
-                                            : undefined
-                                    }
-                                    onChange={(event) => {
-                                        if (!isIndividualAsset) return;
+                                    <label>
+                                        Total Paid
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max={editTransferSaleTotal}
+                                            value={editMovementForm.paidAmount || ""}
+                                            onChange={(event) => {
+                                                const paidAmount = Math.min(
+                                                    Number(event.target.value || 0),
+                                                    editTransferSaleTotal
+                                                );
 
-                                        const paidAmount = Math.min(
-                                            Number(event.target.value || 0),
-                                            editTransferSaleTotal
-                                        );
-
-                                        setEditMovementForm((previous) => ({
-                                            ...previous,
-                                            paidAmount: paidAmount || "",
-                                        }));
-                                    }}
-                                />
-                            </label>
+                                                setEditMovementForm((previous) => ({
+                                                    ...previous,
+                                                    paidAmount: paidAmount || "",
+                                                }));
+                                            }}
+                                        />
+                                    </label>
+                                </>
+                            )}
 
                             <label>
                                 Total Remaining

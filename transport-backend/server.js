@@ -16,6 +16,7 @@ const writeQueues = new Map();
 const COLLECTIONS = new Set([
   "settings",
   "accounts",
+  "userRoles",
 
   "suppliers",
   "supplierPurchases",
@@ -31,7 +32,13 @@ const COLLECTIONS = new Set([
   "customerDevices",
 
   "customerPayments",
+  "customerTravels",
   "customerDeviceBuybacks",
+
+  "employeeTypes",
+  "employeePayrolls",
+  "employeeEarnings",
+  "employeePayments",
 
   "towerAssets",
   "towerLinks",
@@ -46,6 +53,11 @@ const COLLECTIONS = new Set([
   "financeCategories",
   "financeBudgets",
   "reports",
+
+  "travels",
+  "travelExpenses",
+  "cars",
+  "carRepairs",
 ]);
 
 app.use(cors());
@@ -147,7 +159,13 @@ async function readOperationalData() {
     "customerDevices",
 
     "customerPayments",
+    "customerTravels",
     "customerDeviceBuybacks",
+
+    "employeeTypes",
+    "employeePayrolls",
+    "employeeEarnings",
+    "employeePayments",
 
     "towerAssets",
     "towerLinks",
@@ -322,22 +340,47 @@ function startServer(options = {}) {
   activeDataDir = options.dataDir || activeDataDir;
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+
     const server = app.listen(port, host, () => {
       const address = server.address();
+      const resolvedPort =
+        address && typeof address === "object" ? address.port : Number(port);
+
+      if (!resolvedPort) {
+        const error = new Error("Unable to determine the backend server port.");
+
+        if (!settled) {
+          settled = true;
+          reject(error);
+        }
+
+        server.close();
+        return;
+      }
 
       console.log(
-        `ISP server running on http://${host}:${address.port}; data directory: ${activeDataDir}`
+        `ISP server running on http://${host}:${resolvedPort}; data directory: ${activeDataDir}`
       );
 
+      settled = true;
       resolve({
         server,
-        port: address.port,
+        port: resolvedPort,
         host,
         dataDir: activeDataDir,
       });
     });
 
-    server.on("error", reject);
+    server.on("error", (error) => {
+      if (!settled) {
+        settled = true;
+        reject(error);
+        return;
+      }
+
+      console.error("ISP server runtime error:", error);
+    });
   });
 }
 

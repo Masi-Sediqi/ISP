@@ -166,37 +166,37 @@
 
 .asset-table-card th:nth-child(2),
 .asset-table-card td:nth-child(2) {
-  width: 190px;
+  width: 90px;
 }
 
 .asset-table-card th:nth-child(3),
 .asset-table-card td:nth-child(3) {
-  width: 130px;
+  width: 190px;
 }
 
 .asset-table-card th:nth-child(4),
 .asset-table-card td:nth-child(4) {
-  width: 190px;
+  width: 130px;
 }
 
 .asset-table-card th:nth-child(5),
 .asset-table-card td:nth-child(5) {
-  width: 180px;
+  width: 130px;
 }
 
 .asset-table-card th:nth-child(6),
 .asset-table-card td:nth-child(6) {
-  width: 80px;
+  width: 190px;
 }
 
 .asset-table-card th:nth-child(7),
 .asset-table-card td:nth-child(7) {
-  width: 130px;
+  width: 180px;
 }
 
 .asset-table-card th:nth-child(8),
 .asset-table-card td:nth-child(8) {
-  width: 140px;
+  width: 80px;
 }
 
 .asset-table-card th:nth-child(9),
@@ -209,6 +209,35 @@
   width: 90px;
   text-align: center;
   overflow: visible;
+}
+
+.asset-table-thumb {
+  width: 44px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.asset-tracking-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.asset-tracking-badge.single {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.asset-tracking-badge.individual {
+  background: #fef3c7;
+  color: #b45309;
 }
 
 .asset-strong {
@@ -476,6 +505,57 @@
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
+}
+
+.asset-custom-category-list {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.asset-custom-category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 34px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 5px 6px 5px 10px;
+  font-size: 12px;
+}
+
+.asset-custom-category-chip span {
+  font-weight: 700;
+  color: #334155;
+}
+
+.asset-custom-category-chip input {
+  width: 150px;
+  min-height: 28px;
+  border-radius: 8px;
+}
+
+.asset-custom-category-chip button {
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 9px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.asset-custom-category-chip button.danger {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .asset-form-group input:focus,

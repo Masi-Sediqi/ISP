@@ -9,11 +9,15 @@ function money(value) {
   return Number(value || 0).toLocaleString("en-US");
 }
 
+function getPaymentDirection(payment) {
+  return payment?.direction || payment?.paymentDirection || "customer-to-us";
+}
+
 function CustomerDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [customers, , , customersLoaded] = useJsonCollection("customers");
+  const [customers, setCustomers, , customersLoaded] = useJsonCollection("customers");
   const [customerPackages, setCustomerPackages, , packagesLoaded] =
     useJsonCollection("customerPackages");
   const [customerPayments, setCustomerPayments, , paymentsLoaded] =
@@ -22,10 +26,15 @@ function CustomerDetails() {
     useJsonCollection("deviceTransfers");
   const [customerDeviceBuybacks, setCustomerDeviceBuybacks, , buybacksLoaded] =
     useJsonCollection("customerDeviceBuybacks");
+  const [customerDisconnections, setCustomerDisconnections] =
+    useJsonCollection("disconnections");
+  const [, setTransactions] = useJsonCollection("transactions");
 
   const [showCustomerInfo, setShowCustomerInfo] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showBuybackModal, setShowBuybackModal] = useState(false);
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [highlightActivePackages, setHighlightActivePackages] = useState(false);
   const [buybackForm, setBuybackForm] = useState({
     purchaseDate: new Date().toISOString().slice(0, 10),
     selectedTransferIds: [],
@@ -67,9 +76,17 @@ function CustomerDetails() {
 
   const [paymentForm, setPaymentForm] = useState({
     paymentDate: new Date().toISOString().slice(0, 10),
+    direction: "customer-to-us",
     amount: "",
     method: "Cash",
     notes: "",
+  });
+
+  const [disconnectForm, setDisconnectForm] = useState({
+    disconnectionDate: new Date().toISOString().slice(0, 10),
+    disconnectionReason: "",
+    notes: "",
+    devices: {},
   });
 
   const customer = customers.find(
@@ -86,6 +103,14 @@ function CustomerDetails() {
       )
     : [];
 
+  const today = new Date().toISOString().slice(0, 10);
+  const activePackages = packages.filter(
+    (item) => String(item.status || "").toLowerCase() === "active"
+  );
+  const expiredActivePackages = activePackages.filter(
+    (item) => item.endDate && String(item.endDate) < today
+  );
+
   const customerPaymentRecords = customer
     ? customerPayments.filter(
         (item) =>
@@ -100,6 +125,31 @@ function CustomerDetails() {
           item.ownershipType === "Sold" &&
           (String(item.toCustomerId || "") === String(customer.customerId) ||
             String(item.toCustomerRecordId || "") === String(customer.id))
+      )
+    : [];
+
+  const customerDamageTransfers = customer
+    ? deviceTransfers.filter(
+        (item) =>
+          item.sourceType === "Customer" &&
+          item.destinationType === "Waste" &&
+          Number(item.customerDamageAmount || 0) > 0 &&
+          (String(item.fromCustomerId || "") === String(customer.customerId) ||
+            String(item.fromCustomerRecordId || "") === String(customer.id) ||
+            String(item.sourceRecordId || "") === String(customer.id) ||
+            String(item.sourceRecordId || "") === String(customer.customerId))
+      )
+    : [];
+
+  const companyPayableDeviceTransfers = customer
+    ? deviceTransfers.filter(
+        (item) =>
+          Number(item.customerPayableAmount || item.remainingDeposit || 0) > 0 &&
+          (item.companyOwesCustomer || Number(item.customerPayableAmount || 0) > 0) &&
+          (String(item.fromCustomerId || "") === String(customer.customerId) ||
+            String(item.fromCustomerRecordId || "") === String(customer.id) ||
+            String(item.sourceRecordId || "") === String(customer.id) ||
+            String(item.sourceRecordId || "") === String(customer.customerId))
       )
     : [];
 
@@ -122,6 +172,165 @@ function CustomerDetails() {
   const buybackAvailableDevices = soldDeviceTransfers.filter(
     (item) => !boughtBackTransferIds.has(String(item.id || ""))
   );
+
+  const customerCurrentDevices = customer
+    ? deviceTransfers
+        .filter((item) => {
+          const belongsToCustomer =
+            String(item.toCustomerId || "") === String(customer.customerId) ||
+            String(item.toCustomerRecordId || "") === String(customer.id) ||
+            String(item.customerId || "") === String(customer.customerId) ||
+            String(item.customerRecordId || "") === String(customer.id);
+          const returned =
+            String(item.status || item.transferStatus || "").toLowerCase().includes("return") ||
+            String(item.direction || "").toLowerCase().includes("customer-to-us") ||
+            String(item.destinationLocation || "").toLowerCase().includes("main stock");
+
+          return belongsToCustomer && !returned;
+        })
+        .map((item) => ({
+          id: item.id,
+          transferId: item.id,
+          assetId: item.assetId || "",
+          deviceName: item.deviceName || item.assetName || "",
+          macAddress: item.macAddress || "",
+          serialNumber: item.serialNumber || "",
+          quantity: Number(item.quantity || 1),
+          ownershipType: item.ownershipType || item.dealType || "-",
+          status: item.status || item.transferStatus || "Issued",
+        }))
+    : [];
+
+  const resetDisconnectForm = () => {
+    const devices = {};
+    customerCurrentDevices.forEach((device) => {
+      devices[String(device.id)] = {
+        recoveryStatus: "Pending Collection",
+        collectionDate: "",
+        collectedBy: "",
+        deviceCondition: "",
+        pendingDevices: device.deviceName || device.assetId || "",
+        notes: "",
+      };
+    });
+
+    setDisconnectForm({
+      disconnectionDate: new Date().toISOString().slice(0, 10),
+      disconnectionReason: "",
+      notes: "",
+      devices,
+    });
+  };
+
+  const updateDisconnectDevice = (deviceId, field, value) => {
+    setDisconnectForm((previous) => ({
+      ...previous,
+      devices: {
+        ...previous.devices,
+        [String(deviceId)]: {
+          ...(previous.devices[String(deviceId)] || {}),
+          [field]: value,
+        },
+      },
+    }));
+  };
+
+  const saveDisconnect = async (event) => {
+    event.preventDefault();
+
+    if (!customer) return;
+
+    if (!activePackages.length) {
+      notify("This customer has no active package.", "error");
+      return;
+    }
+
+    const devices = customerCurrentDevices.map((device) => {
+      const deviceForm = disconnectForm.devices[String(device.id)] || {};
+      return {
+        ...device,
+        recoveryStatus: deviceForm.recoveryStatus || "Pending Collection",
+        collectionDate: deviceForm.collectionDate || "",
+        collectedBy: (deviceForm.collectedBy || "").trim(),
+        deviceCondition: (deviceForm.deviceCondition || "").trim(),
+        pendingDevices: (deviceForm.pendingDevices || "").trim(),
+        notes: (deviceForm.notes || "").trim(),
+      };
+    });
+
+    const fullyCollected =
+      devices.length > 0 &&
+      devices.every((device) => device.recoveryStatus === "Fully Collected");
+
+    const partiallyCollected =
+      devices.some((device) => device.recoveryStatus === "Fully Collected") &&
+      !fullyCollected;
+
+    const recoveryGroup = fullyCollected
+      ? "Devices Collected"
+      : "Devices Pending Collection";
+
+    const record = {
+      id: `disconnect-${Date.now()}`,
+      customerRecordId: customer.id || "",
+      customerId: customer.customerId || "",
+      customerName: customer.customerName || "",
+      disconnectionDate: disconnectForm.disconnectionDate,
+      disconnectionReason: disconnectForm.disconnectionReason.trim(),
+      recoveryGroup,
+      recoverySummary: fullyCollected
+        ? "Fully Collected"
+        : partiallyCollected
+          ? "Partially Collected"
+          : "Pending Collection",
+      deviceDetails: devices,
+      notes: disconnectForm.notes.trim(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const disconnectionSaved = await setCustomerDisconnections([
+      ...customerDisconnections,
+      record,
+    ]);
+
+    if (!disconnectionSaved) return;
+
+    const customersSaved = await setCustomers(
+      customers.map((item) =>
+        String(item.id || item.customerId) === String(customer.id || customer.customerId)
+          ? {
+              ...item,
+              status: "Disconnected",
+              disconnectionStatus: recoveryGroup,
+              disconnectionDate: disconnectForm.disconnectionDate,
+              updatedAt: new Date().toISOString(),
+            }
+          : item
+      )
+    );
+
+    if (!customersSaved) return;
+
+    const packageSaved = await setCustomerPackages(
+      customerPackages.map((item) =>
+        activePackages.some((activePackage) => String(activePackage.id) === String(item.id))
+          ? {
+              ...item,
+              status: "Disconnect",
+              disconnectRecordId: record.id,
+              disconnectDate: disconnectForm.disconnectionDate,
+              updatedAt: new Date().toISOString(),
+            }
+          : item
+      )
+    );
+
+    if (!packageSaved) return;
+
+    notify("Customer disconnected and active packages were marked as Disconnect.");
+    setShowDisconnectModal(false);
+  };
 
   const selectedBuybackDevices = buybackAvailableDevices.filter((item) =>
     buybackForm.selectedTransferIds.includes(String(item.id || ""))
@@ -155,6 +364,7 @@ function CustomerDetails() {
   );
 
   const allocatedPaymentTotal = customerPaymentRecords.reduce((sum, payment) => {
+    if (getPaymentDirection(payment) !== "customer-to-us") return sum;
     if (!Array.isArray(payment.allocations)) return sum;
 
     return (
@@ -192,15 +402,30 @@ function CustomerDetails() {
     0
   );
 
-  const totalAccountValue = totalPrice + totalDeviceSaleValue;
+  const totalDamageChargeValue = customerDamageTransfers.reduce(
+    (sum, item) => sum + Number(item.customerDamageAmount || 0),
+    0
+  );
+
+  const totalAccountValue = totalPrice + totalDeviceSaleValue + totalDamageChargeValue;
 
   const deviceSalePaidTotal = soldDeviceTransfers.reduce(
     (sum, item) => sum + Number(item.paidAmount || 0),
     0
   );
 
+  const damagePaidTotal = customerDamageTransfers.reduce(
+    (sum, item) => sum + Number(item.customerDamagePaidAmount || item.paidAmount || 0),
+    0
+  );
+
   const buybackTotalValue = customerBuybackRecords.reduce(
     (sum, item) => sum + Number(item.totalAmount || 0),
+    0
+  );
+
+  const companyPayableDeviceTotal = companyPayableDeviceTransfers.reduce(
+    (sum, item) => sum + Number(item.customerPayableAmount || item.remainingDeposit || 0),
     0
   );
 
@@ -213,13 +438,30 @@ function CustomerDetails() {
     initialPaidTotal +
     legacyPaymentTotal +
     deviceSalePaidTotal +
+    damagePaidTotal +
     customerPaymentRecords.reduce(
-      (sum, item) => sum + Number(item.amount || 0),
+      (sum, item) =>
+        getPaymentDirection(item) === "customer-to-us"
+          ? sum + Number(item.amount || 0)
+          : sum,
       0
     );
 
+  const totalPaidToCustomer = customerPaymentRecords.reduce(
+    (sum, item) =>
+      getPaymentDirection(item) === "us-to-customer"
+        ? sum + Number(item.amount || 0)
+        : sum,
+    0
+  );
+
   const balance =
-    totalAccountValue - totalPaid - buybackTotalValue + buybackPaidTotal;
+    totalAccountValue -
+    totalPaid -
+    buybackTotalValue +
+    buybackPaidTotal +
+    totalPaidToCustomer -
+    companyPayableDeviceTotal;
   const customerOwes = balance > 0 ? balance : 0;
   const weOwe = balance < 0 ? Math.abs(balance) : 0;
 
@@ -268,6 +510,30 @@ function CustomerDetails() {
       record: item,
     })),
 
+    ...customerDamageTransfers.map((item) => ({
+      id: `customer-damage-${item.id}`,
+      type: "Customer Damage",
+      date: item.transferDate || item.date || item.createdAt?.slice(0, 10) || "-",
+      timeSource: item.createdAt || item.updatedAt || "",
+      description: `${item.assetId || "-"} - ${item.deviceName || "Asset"} damage / waste charge`,
+      debit: Number(item.customerDamageAmount || 0),
+      credit: Number(item.customerDamagePaidAmount || item.paidAmount || 0),
+      status: Number(item.customerDamageRemainingAmount || item.remainingAmount || 0) > 0 ? "Partial" : "Paid",
+      record: item,
+    })),
+
+    ...companyPayableDeviceTransfers.map((item) => ({
+      id: `company-payable-${item.id}`,
+      type: "Deposit Payable",
+      date: item.transferDate || item.date || item.createdAt?.slice(0, 10) || "-",
+      timeSource: item.createdAt || item.updatedAt || "",
+      description: `${item.assetId || "-"} - ${item.deviceName || "Asset"} return amount payable to customer`,
+      debit: 0,
+      credit: Number(item.customerPayableAmount || item.remainingDeposit || 0),
+      status: "Company Owes",
+      record: item,
+    })),
+
     ...customerBuybackRecords.map((item) => ({
       id: `customer-buyback-${item.id}`,
       type: "Customer Purchase",
@@ -280,6 +546,24 @@ function CustomerDetails() {
       record: item,
     })),
 
+    ...customerDisconnections
+      .filter(
+        (item) =>
+          String(item.customerId || "") === String(customer?.customerId || "") ||
+          String(item.customerRecordId || "") === String(customer?.id || "")
+      )
+      .map((item) => ({
+        id: `disconnect-ledger-${item.id}`,
+        type: "Disconnect",
+        date: item.disconnectionDate || item.createdAt?.slice(0, 10) || "-",
+        timeSource: item.createdAt || item.updatedAt || "",
+        description: `Customer package deactivated. Reason: ${item.disconnectionReason || "-"}`,
+        debit: 0,
+        credit: 0,
+        status: "Disconnect",
+        record: item,
+      })),
+
     ...legacyPackagePayments.map((item) => ({
       id: `legacy-payment-${item.id}`,
       type: "Payment",
@@ -291,18 +575,24 @@ function CustomerDetails() {
       status: item.method || "Cash",
     })),
 
-    ...customerPaymentRecords.map((item) => ({
-  id: `payment-${item.id}`,
-  type: "Payment",
-  date: item.paymentDate || item.createdAt?.slice(0, 10) || "-",
-  timeSource: item.createdAt || item.updatedAt || "",
-  description: item.notes || "Customer payment",
-  debit: 0,
-  credit: Number(item.amount || 0),
-  status: item.method || "Cash",
-  record: item,
-  editablePayment: true,
-})),
+    ...customerPaymentRecords.map((item) => {
+      const isPaidToCustomer = getPaymentDirection(item) === "us-to-customer";
+
+      return {
+        id: `payment-${item.id}`,
+        type: isPaidToCustomer ? "Customer Payout" : "Payment",
+        date: item.paymentDate || item.createdAt?.slice(0, 10) || "-",
+        timeSource: item.createdAt || item.updatedAt || "",
+        description:
+          item.notes ||
+          (isPaidToCustomer ? "Paid to customer" : "Customer payment"),
+        debit: isPaidToCustomer ? Number(item.amount || 0) : 0,
+        credit: isPaidToCustomer ? 0 : Number(item.amount || 0),
+        status: item.method || "Cash",
+        record: item,
+        editablePayment: true,
+      };
+    }),
  ].sort((a, b) =>
   String(b.date || "").localeCompare(String(a.date || ""))
 );
@@ -387,6 +677,111 @@ const applyPaymentToCustomerPackages = (basePackages, amount) => {
   };
 };
 
+const saveCustomerPaymentTransaction = async (payment) => {
+  const direction = getPaymentDirection(payment);
+  const isPaidToCustomer = direction === "us-to-customer";
+  const updatedAt = new Date().toISOString();
+
+  const transactionRecord = {
+    id: `customer-payment-${payment.id}`,
+    type: isPaidToCustomer ? "expense" : "income",
+    title: isPaidToCustomer
+      ? `Paid to Customer - ${payment.customerName || customer?.customerName || "Customer"}`
+      : `Customer Payment - ${payment.customerName || customer?.customerName || "Customer"}`,
+    category: isPaidToCustomer ? "Customer Refund" : "Customer Payment",
+    amount: Number(payment.amount || 0),
+    date: payment.paymentDate,
+    description:
+      payment.notes ||
+      (isPaidToCustomer
+        ? "Money paid to customer account"
+        : "Money received from customer account"),
+    source: "customer-payment",
+    referenceId: payment.id,
+    customerRecordId: payment.customerRecordId || customer?.id || "",
+    customerId: payment.customerId || customer?.customerId || "",
+    customerName: payment.customerName || customer?.customerName || "",
+    createdAt: payment.createdAt || updatedAt,
+    updatedAt,
+  };
+
+  return setTransactions((previousTransactions) => [
+    ...previousTransactions.filter(
+      (transaction) =>
+        !(
+          transaction.source === "customer-payment" &&
+          String(transaction.referenceId || "") === String(payment.id)
+        )
+    ),
+    transactionRecord,
+  ]);
+};
+
+const removeCustomerPaymentTransaction = async (paymentId) =>
+  setTransactions((previousTransactions) =>
+    previousTransactions.filter(
+      (transaction) =>
+        !(
+          transaction.source === "customer-payment" &&
+          String(transaction.referenceId || "") === String(paymentId)
+        )
+    )
+  );
+
+const upsertCustomerPackageIncome = async (packageRecord) => {
+  const amount = Number(packageRecord.paidAmount || 0);
+
+  return setTransactions((previousTransactions) => [
+    ...previousTransactions.filter(
+      (transaction) =>
+        !(
+          transaction.source === "customer-package" &&
+          String(transaction.referenceId || "") === String(packageRecord.id)
+        )
+    ),
+    ...(amount > 0
+      ? [
+          {
+            id: `customer-package-income-${packageRecord.id}`,
+            type: "income",
+            title: `Package Payment - ${packageRecord.customerName || customer?.customerName || "Customer"}`,
+            category: "Package Payment",
+            amount,
+            date: packageRecord.startDate,
+            description: [
+              packageRecord.packageName ? `Package: ${packageRecord.packageName}` : "",
+              packageRecord.speed ? `Speed: ${packageRecord.speed}` : "",
+              `Package Price: ${money(packageRecord.packagePrice)} AFN`,
+              `Paid: ${money(packageRecord.paidAmount)} AFN`,
+              `Remaining: ${money(packageRecord.remainAmount)} AFN`,
+              packageRecord.notes || "",
+            ]
+              .filter(Boolean)
+              .join(" | "),
+            source: "customer-package",
+            referenceId: packageRecord.id,
+            customerRecordId: packageRecord.customerRecordId || customer?.id || "",
+            customerId: packageRecord.customerId || customer?.customerId || "",
+            customerName: packageRecord.customerName || customer?.customerName || "",
+            createdAt: packageRecord.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ]
+      : []),
+  ]);
+};
+
+const removeCustomerPackageIncome = async (packageId) =>
+  setTransactions((previousTransactions) =>
+    previousTransactions.filter(
+      (transaction) =>
+        !(
+          transaction.source === "customer-package" &&
+          String(transaction.referenceId || "") === String(packageId)
+        )
+    )
+  );
+
   const getActionMenuPosition = (event) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const menuWidth = 150;
@@ -464,6 +859,11 @@ const applyPaymentToCustomerPackages = (basePackages, amount) => {
       return;
     }
 
+    if (!buybackForm.purchasedBy.trim()) {
+      notify("Purchased By is required.", "error");
+      return;
+    }
+
     if (buybackPaid > buybackTotal) {
       notify("Paid amount cannot be greater than total purchase amount.", "error");
       return;
@@ -533,6 +933,7 @@ const applyPaymentToCustomerPackages = (basePackages, amount) => {
   setEditPayment(payment);
   setPaymentForm({
     paymentDate: payment.paymentDate || new Date().toISOString().slice(0, 10),
+    direction: getPaymentDirection(payment),
     amount: String(payment.amount || ""),
     method: payment.method || "Cash",
     notes: payment.notes || "",
@@ -557,11 +958,17 @@ const saveEditedPayment = async (event) => {
     customerPackages
   );
 
-  const {
-    nextPackages,
-    allocations,
-    unappliedAmount,
-  } = applyPaymentToCustomerPackages(reversedPackages, amount);
+  const direction = paymentForm.direction || "customer-to-us";
+  const paymentApplication =
+    direction === "customer-to-us"
+      ? applyPaymentToCustomerPackages(reversedPackages, amount)
+      : {
+          nextPackages: reversedPackages,
+          allocations: [],
+          unappliedAmount: amount,
+        };
+
+  const { nextPackages, allocations, unappliedAmount } = paymentApplication;
 
   const nextPayments = customerPayments.map((payment) => {
     if (String(payment.id) !== String(editPayment.id)) return payment;
@@ -569,6 +976,7 @@ const saveEditedPayment = async (event) => {
     return {
       ...payment,
       paymentDate: paymentForm.paymentDate,
+      direction,
       amount,
       method: paymentForm.method,
       notes: paymentForm.notes.trim(),
@@ -583,10 +991,20 @@ const saveEditedPayment = async (event) => {
 
   const paymentsSaved = await setCustomerPayments(nextPayments);
 
-  if (paymentsSaved) {
-    notify("Payment updated successfully.");
-    closePaymentModal();
+  if (!paymentsSaved) return;
+
+  const updatedPayment = nextPayments.find(
+    (payment) => String(payment.id) === String(editPayment.id)
+  );
+  const transactionSaved = await saveCustomerPaymentTransaction(updatedPayment);
+
+  if (!transactionSaved) {
+    notify("Payment was updated, but Financial could not be updated.", "error");
+    return;
   }
+
+  notify("Payment updated successfully.");
+  closePaymentModal();
 };
 
 const confirmDeletePayment = async () => {
@@ -606,10 +1024,19 @@ const confirmDeletePayment = async () => {
     )
   );
 
-  if (paymentsSaved) {
-    notify("Payment deleted successfully.");
-    setDeletePayment(null);
+  if (!paymentsSaved) return;
+
+  const transactionRemoved = await removeCustomerPaymentTransaction(
+    deletePayment.id
+  );
+
+  if (!transactionRemoved) {
+    notify("Payment deleted, but Financial could not be updated.", "error");
+    return;
   }
+
+  notify("Payment deleted successfully.");
+  setDeletePayment(null);
 };
 
   const handleEditPackageChange = (event) => {
@@ -667,6 +1094,16 @@ const confirmDeletePayment = async () => {
     const saved = await setCustomerPackages(nextPackages);
 
     if (saved) {
+      const updatedPackage = nextPackages.find(
+        (item) => String(item.id) === String(editPackage.id)
+      );
+      const incomeSaved = await upsertCustomerPackageIncome(updatedPackage);
+
+      if (!incomeSaved) {
+        notify("Package updated, but its income could not be updated in Financial.", "error");
+        return;
+      }
+
       notify("Package updated successfully.");
       setEditPackage(null);
     }
@@ -682,6 +1119,13 @@ const confirmDeletePayment = async () => {
     );
 
     if (saved) {
+      const incomeRemoved = await removeCustomerPackageIncome(deletePackage.id);
+
+      if (!incomeRemoved) {
+        notify("Package deleted, but its income could not be removed from Financial.", "error");
+        return;
+      }
+
       notify("Package deleted successfully.");
       setDeletePackage(null);
     }
@@ -691,6 +1135,7 @@ const openPaymentModal = () => {
   setEditPayment(null);
   setPaymentForm({
     paymentDate: new Date().toISOString().slice(0, 10),
+    direction: "customer-to-us",
     amount: "",
     method: "Cash",
     notes: "",
@@ -704,6 +1149,7 @@ const closePaymentModal = () => {
   setShowPaymentModal(false);
   setPaymentForm({
     paymentDate: new Date().toISOString().slice(0, 10),
+    direction: "customer-to-us",
     amount: "",
     method: "Cash",
     notes: "",
@@ -731,11 +1177,17 @@ const saveCustomerPayment = async (event) => {
     return;
   }
 
-  const {
-    nextPackages,
-    allocations,
-    unappliedAmount,
-  } = applyPaymentToCustomerPackages(customerPackages, amount);
+  const direction = paymentForm.direction || "customer-to-us";
+  const paymentApplication =
+    direction === "customer-to-us"
+      ? applyPaymentToCustomerPackages(customerPackages, amount)
+      : {
+          nextPackages: customerPackages,
+          allocations: [],
+          unappliedAmount: amount,
+        };
+
+  const { nextPackages, allocations, unappliedAmount } = paymentApplication;
 
   const paymentRecord = {
     id: Date.now(),
@@ -743,6 +1195,7 @@ const saveCustomerPayment = async (event) => {
     customerId: customer.customerId,
     customerName: customer.customerName,
     paymentDate: paymentForm.paymentDate,
+    direction,
     amount,
     method: paymentForm.method,
     notes: paymentForm.notes.trim(),
@@ -761,10 +1214,17 @@ const saveCustomerPayment = async (event) => {
     paymentRecord,
   ]);
 
-  if (paymentsSaved) {
-    notify("Payment saved successfully.");
-    closePaymentModal();
+  if (!paymentsSaved) return;
+
+  const transactionSaved = await saveCustomerPaymentTransaction(paymentRecord);
+
+  if (!transactionSaved) {
+    notify("Payment was saved, but Financial could not be updated.", "error");
+    return;
   }
+
+  notify("Payment saved successfully.");
+  closePaymentModal();
 };
 
   if (
@@ -804,6 +1264,21 @@ const saveCustomerPayment = async (event) => {
         </div>
 
         <div className="customer-details-header-actions">
+          <button
+            type="button"
+            className="customer-details-disconnect-btn"
+            onClick={() => {
+              if (!activePackages.length) {
+                notify("This customer has no active package.", "error");
+                return;
+              }
+              resetDisconnectForm();
+              setShowDisconnectModal(true);
+            }}
+          >
+            Disconnect
+          </button>
+
           <button
             type="button"
             className="customer-details-payment-btn"
@@ -904,6 +1379,7 @@ const saveCustomerPayment = async (event) => {
         </div>
       </div>
 
+      {false && (
       <div className="customer-details-card">
         <div className="customer-details-card-header customer-details-card-header-row">
           <div>
@@ -966,13 +1442,40 @@ const saveCustomerPayment = async (event) => {
           </table>
         </div>
       </div>
+      )}
 
       <div className="customer-details-card">
-        <div className="customer-details-card-header">
+        <div className="customer-details-card-header customer-details-card-header-row">
           <div>
             <h3>Customer Account Ledger</h3>
             <p>Packages, sold devices, and payments in one account history.</p>
           </div>
+          <button
+            type="button"
+            className="customer-details-payment-btn"
+            onClick={() => {
+              if (!activePackages.length) {
+                notify("This customer has no active package.", "error");
+                return;
+              }
+
+              setHighlightActivePackages(true);
+
+              if (expiredActivePackages.length) {
+                notify(
+                  `${expiredActivePackages
+                    .map((item) => item.packageName || item.packageCode || "Package")
+                    .join(", ")} is active, but its end date has expired and it has not been disconnected yet.`,
+                  "warning"
+                );
+                return;
+              }
+
+              notify("Active customer packages are highlighted.");
+            }}
+          >
+            Customer Active Packages
+          </button>
         </div>
 
         <div className="customer-details-table-wrap">
@@ -990,8 +1493,26 @@ const saveCustomerPayment = async (event) => {
             </thead>
 
             <tbody>
-              {ledgerRows.map((row) => (
-                <tr key={row.id}>
+              {ledgerRows.map((row) => {
+                const isHighlightedActivePackage =
+                  highlightActivePackages &&
+                  row.type === "Package Purchase" &&
+                  activePackages.some((item) => String(item.id) === String(row.record?.id));
+                const isExpiredActivePackage =
+                  isHighlightedActivePackage &&
+                  expiredActivePackages.some((item) => String(item.id) === String(row.record?.id));
+
+                return (
+                <tr
+                  key={row.id}
+                  className={
+                    isExpiredActivePackage
+                      ? "customer-ledger-highlight-expired"
+                      : isHighlightedActivePackage
+                        ? "customer-ledger-highlight-active"
+                        : ""
+                  }
+                >
                   <td>{formatDateTime(row.date, row.timeSource)}</td>
                   <td>
                     <span
@@ -1099,7 +1620,8 @@ const saveCustomerPayment = async (event) => {
   )}
 </td>
                 </tr>
-              ))}
+              );
+              })}
 
               {ledgerRows.length === 0 && (
                 <tr>
@@ -1133,9 +1655,9 @@ const saveCustomerPayment = async (event) => {
               </button>
             </div>
 
-            <form onSubmit={saveBuyback}>
+            <form onSubmit={saveBuyback} className="customer-buyback-form">
               <div className="customer-details-form-grid">
-                <label>
+                <label className="customer-buyback-field">
                   Purchase Date
                   <input
                     type="date"
@@ -1150,7 +1672,7 @@ const saveCustomerPayment = async (event) => {
                   />
                 </label>
 
-                <label>
+                <label className="customer-buyback-field">
                   Purchased By
                   <input
                     value={buybackForm.purchasedBy}
@@ -1160,10 +1682,17 @@ const saveCustomerPayment = async (event) => {
                         purchasedBy: event.target.value,
                       }))
                     }
+                    required
                   />
                 </label>
 
-                <div className="customer-buyback-device-list full">
+                <div className="customer-buyback-section full">
+                  <div className="customer-buyback-section-title">
+                    <h4>Select Sold Devices</h4>
+                    <span>{selectedBuybackDevices.length} selected</span>
+                  </div>
+
+                <div className="customer-buyback-device-list">
                   {buybackAvailableDevices.map((item) => {
                     const id = String(item.id || "");
                     const selected = buybackForm.selectedTransferIds.includes(id);
@@ -1183,7 +1712,7 @@ const saveCustomerPayment = async (event) => {
                           onChange={() => toggleBuybackDevice(item)}
                         />
 
-                        <div>
+                        <div className="customer-buyback-device-info">
                           <strong>
                             {item.assetId || "-"} - {item.deviceName || "Device"}
                           </strong>
@@ -1193,6 +1722,8 @@ const saveCustomerPayment = async (event) => {
                           </span>
                         </div>
 
+                        <label className="customer-buyback-price-field">
+                          <span>Purchase Price</span>
                         <input
                           type="number"
                           min="0"
@@ -1213,6 +1744,7 @@ const saveCustomerPayment = async (event) => {
                           onClick={(event) => event.stopPropagation()}
                           placeholder="Purchase price"
                         />
+                        </label>
                       </label>
                     );
                   })}
@@ -1223,13 +1755,14 @@ const saveCustomerPayment = async (event) => {
                     </div>
                   )}
                 </div>
+                </div>
 
-                <label>
+                <label className="customer-buyback-field">
                   Total Amount
                   <input value={`${money(buybackTotal)} AFN`} readOnly />
                 </label>
 
-                <label>
+                <label className="customer-buyback-field">
                   Paid Amount
                   <input
                     type="number"
@@ -1239,18 +1772,23 @@ const saveCustomerPayment = async (event) => {
                     onChange={(event) =>
                       setBuybackForm((previous) => ({
                         ...previous,
-                        paidAmount: event.target.value,
+                        paidAmount: String(
+                          Math.min(
+                            Number(event.target.value || 0),
+                            buybackTotal
+                          )
+                        ),
                       }))
                     }
                   />
                 </label>
 
-                <label>
+                <label className="customer-buyback-field">
                   Remaining Amount
                   <input value={`${money(buybackRemaining)} AFN`} readOnly />
                 </label>
 
-                <label className="full">
+                <label className="customer-buyback-field full">
                   Notes
                   <textarea
                     value={buybackForm.notes}
@@ -1410,7 +1948,8 @@ const saveCustomerPayment = async (event) => {
               <div>
                 <h3>{editPayment ? "Edit Payment" : "Add Payment"}</h3>
                 <p>
-                  Customer current balance: {money(customerOwes)} AFN receivable.
+                  Customer owes us: {money(customerOwes)} AFN. We owe customer:{" "}
+                  {money(weOwe)} AFN.
                 </p>
               </div>
 
@@ -1430,6 +1969,18 @@ const saveCustomerPayment = async (event) => {
                     onChange={handlePaymentChange}
                     required
                   />
+                </div>
+
+                <div>
+                  <label>Payment Direction</label>
+                  <select
+                    name="direction"
+                    value={paymentForm.direction}
+                    onChange={handlePaymentChange}
+                  >
+                    <option value="customer-to-us">Customer pays us</option>
+                    <option value="us-to-customer">We pay customer</option>
+                  </select>
                 </div>
 
                 <div>
@@ -1482,6 +2033,121 @@ const saveCustomerPayment = async (event) => {
           </div>
         </div>
       )}
+
+      {showDisconnectModal && (
+  <div
+    className="customer-details-modal-backdrop"
+    onClick={() => setShowDisconnectModal(false)}
+  >
+    <div
+      className="customer-details-modal customer-disconnect-modal"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="customer-details-modal-header">
+        <div>
+          <h3>Disconnect Customer</h3>
+          <p>
+            Record the disconnection details and manage the recovery status
+            of customer devices.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowDisconnectModal(false)}
+          aria-label="Close disconnect form"
+        >
+          ×
+        </button>
+      </div>
+
+      <form onSubmit={saveDisconnect}>
+        <div className="customer-details-form-grid customer-disconnect-form-grid">
+          <div>
+            <label>Customer Name</label>
+            <input
+              value={customer.customerName || ""}
+              readOnly
+              className="customer-disconnect-readonly"
+            />
+          </div>
+
+          <div>
+            <label>Customer ID</label>
+            <input
+              value={customer.customerId || ""}
+              readOnly
+              className="customer-disconnect-readonly"
+            />
+          </div>
+
+          <div>
+            <label>Disconnection Date</label>
+            <input
+              type="date"
+              value={disconnectForm.disconnectionDate}
+              onChange={(event) =>
+                setDisconnectForm((previous) => ({
+                  ...previous,
+                  disconnectionDate: event.target.value,
+                }))
+              }
+              required
+            />
+          </div>
+
+          <div>
+            <label>Disconnection Reason</label>
+            <input
+              type="text"
+              value={disconnectForm.disconnectionReason}
+              onChange={(event) =>
+                setDisconnectForm((previous) => ({
+                  ...previous,
+                  disconnectionReason: event.target.value,
+                }))
+              }
+              placeholder="Enter the reason for disconnection"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="customer-disconnect-notes-field">
+          <label>Additional Notes</label>
+
+          <textarea
+            value={disconnectForm.notes}
+            onChange={(event) =>
+              setDisconnectForm((previous) => ({
+                ...previous,
+                notes: event.target.value,
+              }))
+            }
+            placeholder="Enter any additional notes about this disconnection..."
+          />
+        </div>
+
+        <div className="customer-details-modal-actions">
+          <button
+            type="button"
+            className="customer-details-cancel-btn"
+            onClick={() => setShowDisconnectModal(false)}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="customer-details-save-btn"
+          >
+            Save Disconnection
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
 
       {deletePackage && (
         <div

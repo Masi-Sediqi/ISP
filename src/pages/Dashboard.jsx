@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   CartesianGrid,
   Line,
@@ -16,6 +16,7 @@ const money = (value) => Number(value || 0).toLocaleString("en-US");
 const today = todayDateValue;
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [assets] = useJsonCollection("assets");
   const [purchases] = useJsonCollection("supplierPurchases");
   const [customers] = useJsonCollection("customers");
@@ -23,19 +24,149 @@ function Dashboard() {
   const [transactions] = useJsonCollection("transactions");
   const [deviceTransfers] = useJsonCollection("deviceTransfers");
   const [securityDeposits] = useJsonCollection("securityDeposits");
+  const [assetMovements] = useJsonCollection("assetMovements");
+  const [disconnections] = useJsonCollection("disconnections");
 
   const totalAssets = assets.length;
-  const inStock = assets.filter((item) =>
-    ["in stock", "available", "فعال", "موجود"].includes(String(item.status || "").toLowerCase())
+  const activeTransfers = deviceTransfers.filter(
+    (transfer) => String(transfer.approvalStatus || "Approved") !== "Rejected"
+  );
+
+  const transferQuantityByDestination = (destinationType) =>
+    activeTransfers
+      .filter(
+        (transfer) =>
+          String(transfer.destinationType || "").toLowerCase() === destinationType
+      )
+      .reduce((sum, transfer) => sum + Number(transfer.quantity || 0), 0);
+
+  const transferQuantityBySource = (sourceType) =>
+    activeTransfers
+      .filter(
+        (transfer) => String(transfer.sourceType || "").toLowerCase() === sourceType
+      )
+      .reduce((sum, transfer) => sum + Number(transfer.quantity || 0), 0);
+
+  const countAssetUnits = (predicate) =>
+    assets.reduce((sum, asset) => {
+      const units = Array.isArray(asset.identityRecords) ? asset.identityRecords : [];
+
+      if (units.length) {
+        return sum + units.filter((unit) => predicate(unit, asset)).length;
+      }
+
+      return sum + (predicate(asset, asset) ? Number(asset.quantity || 0) : 0);
+    }, 0);
+
+  const mainStockAssets = assets.filter((asset) => Number(asset.quantity || 0) > 0).length;
+  const mainStockQuantity = assets.reduce((sum, asset) => sum + Number(asset.quantity || 0), 0);
+
+  const assetsAtTowers = Math.max(
+    transferQuantityByDestination("tower") - transferQuantityBySource("tower"),
+    countAssetUnits((unit) => String(unit.location || "").toLowerCase().includes("tower"))
+  );
+
+  const assetsWithCustomers = Math.max(
+    transferQuantityByDestination("customer") - transferQuantityBySource("customer"),
+    countAssetUnits((unit) => String(unit.location || "").toLowerCase().includes("customer"))
+  );
+
+  const damagedAssets = Math.max(
+    transferQuantityByDestination("damaged"),
+    countAssetUnits((unit, asset) => /damaged|damage/i.test(`${unit.status || ""} ${asset.status || ""}`))
+  );
+
+  const lostAssets = Math.max(
+    transferQuantityByDestination("lost"),
+    countAssetUnits((unit, asset) => /lost/i.test(`${unit.status || ""} ${asset.status || ""}`))
+  );
+
+  const underRepairAssets = Math.max(
+    transferQuantityByDestination("repair") - transferQuantityBySource("repair"),
+    countAssetUnits((unit, asset) =>
+      /repair/i.test(`${unit.status || ""} ${unit.location || ""} ${asset.status || ""}`)
+    )
+  );
+
+  const inactiveCustomers = customers.filter((customer) =>
+    /inactive|disabled|disconnected/i.test(`${customer.status || ""}`)
   ).length;
 
-  const issuedAssets = assets.filter((item) =>
-    ["issued", "installed", "assigned", "توزیع شده", "نصب شده"].includes(String(item.status || "").toLowerCase())
-  ).length;
+  const devicesPendingCollection = disconnections.reduce((sum, record) => {
+    const devices = record.deviceDetails || record.devices || record.pendingDevices || [];
 
-  const damagedAssets = assets.filter((item) =>
-    ["damaged", "lost", "returned", "خراب", "گم شده"].includes(String(item.status || "").toLowerCase())
-  ).length;
+    if (Array.isArray(devices) && devices.length) {
+      return (
+        sum +
+        devices.filter((device) =>
+          /pending|partially|unreachable/i.test(`${device.recoveryStatus || device.status || ""}`)
+        ).length
+      );
+    }
+
+    return sum + (/pending/i.test(`${record.recoveryStatus || ""}`) ? 1 : 0);
+  }, 0);
+
+  const depositSources = [
+    ...securityDeposits,
+    ...activeTransfers.filter(
+      (transfer) =>
+        Number(transfer.depositAmount || transfer.depositReceivedAmount || transfer.remainingDeposit || 0) > 0
+    ),
+  ];
+
+  const totalDepositsHeld = depositSources
+    .filter((deposit) =>
+      /held|partial|outstanding|not received/i.test(`${deposit.status || deposit.depositStatus || ""}`)
+    )
+    .reduce(
+      (sum, deposit) =>
+        sum +
+        Math.max(
+          Number(deposit.amount || deposit.depositAmount || deposit.depositReceivedAmount || 0) -
+            Number(deposit.refundAmount || deposit.refundedAmount || 0),
+          0
+        ),
+      0
+    );
+
+  const depositsRefunded = depositSources.reduce(
+    (sum, deposit) => sum + Number(deposit.refundAmount || deposit.refundedAmount || 0),
+    0
+  );
+
+  const outstandingDeposits = depositSources.reduce(
+    (sum, deposit) =>
+      sum +
+      Number(
+        deposit.remainingDeposit ||
+          deposit.outstandingAmount ||
+          deposit.remainingAmount ||
+          0
+      ),
+    0
+  );
+
+  const totalPurchaseValue = Math.max(
+    purchases.reduce(
+      (sum, purchase) =>
+        sum +
+        Number(
+          purchase.totalPurchaseValue ||
+            purchase.totalAmount ||
+            purchase.amount ||
+            0
+        ),
+      0
+    ),
+    assetMovements
+      .filter((movement) => /purchase/i.test(`${movement.movement || ""} ${movement.type || ""}`))
+      .reduce((sum, movement) => sum + Number(movement.totalAmount || movement.amount || 0), 0),
+    assets.reduce((sum, asset) => sum + Number(asset.quantity || 0) * Number(asset.unitPrice || 0), 0)
+  );
+
+  const inStock = mainStockQuantity;
+  const issuedAssets = assetsAtTowers + assetsWithCustomers;
 
   const income = transactions
     .filter((item) => item.type === "income")
@@ -60,10 +191,16 @@ function Dashboard() {
     purchases: purchases.filter((item) =>
   String(item.purchaseDate || "").startsWith(month)
 ).length,
-    transfers: deviceTransfers.filter((item) => String(item.date || "").startsWith(month)).length,
+    transfers: deviceTransfers.filter((item) =>
+      String(item.transferDate || item.date || "").startsWith(month)
+    ).length,
   }));
 
-  const totalForDonut = Math.max(totalAssets, 1);
+  const totalForDonut = Math.max(
+    inStock + issuedAssets + damagedAssets + lostAssets + underRepairAssets,
+    totalAssets,
+    1
+  );
   const stockPercent = (inStock / totalForDonut) * 100;
   const issuedPercent = (issuedAssets / totalForDonut) * 100;
 
@@ -91,7 +228,9 @@ function Dashboard() {
   const todayPurchases = purchases.filter(
   (item) => item.purchaseDate === today()
 ).length;
-  const todayTransfers = deviceTransfers.filter((item) => item.date === today()).length;
+  const todayTransfers = deviceTransfers.filter(
+    (item) => (item.transferDate || item.date) === today()
+  ).length;
 
   const todayIncome = transactions
     .filter((item) => item.type === "income" && item.date === today())
@@ -103,30 +242,33 @@ function Dashboard() {
 
   return (
     <div className="dashboard-page">
-      <section className="stats">
-        <div className="stat">
-          <span>Total Assets</span>
-          <h2>{totalAssets}</h2>
-          <p>{inStock} in stock and {issuedAssets} issued</p>
-        </div>
-
-        <div className="stat">
-          <span>Customers</span>
-          <h2>{customers.length}</h2>
-          <p>Registered customer records</p>
-        </div>
-
-        <div className="stat">
-          <span>Suppliers</span>
-          <h2>{suppliers.length}</h2>
-          <p>Active supplier records</p>
-        </div>
-
-        <div className="stat">
-          <span>Net Balance</span>
-          <h2>{money(income - expense)}</h2>
-          <p>{money(expense)} total expenses</p>
-        </div>
+      <section className="stats dashboard-stats-expanded">
+        {[
+          ["Total Assets", totalAssets, "Registered asset definitions", "/assets"],
+          ["Main Stock Assets", mainStockAssets, `${money(mainStockQuantity)} units in stock`, "/main-stock"],
+          ["Assets at Towers", assetsAtTowers, "Current tower-held quantity", "/tower-assets"],
+          ["Assets with Customers", assetsWithCustomers, "Current customer-held quantity", "/customers"],
+          ["Damaged Assets", damagedAssets, "Assets marked damaged", "/device-transfer-management"],
+          ["Lost Assets", lostAssets, "Assets marked lost", "/device-transfer-management"],
+          ["Under Repair Assets", underRepairAssets, "Assets currently in repair", "/device-transfer-management"],
+          ["Inactive Customers", inactiveCustomers, "Inactive or disconnected customers", "/customers"],
+          ["Devices Pending Collection", devicesPendingCollection, "Disconnected devices not fully collected", "/customers"],
+          ["Total Deposits Held", `${money(totalDepositsHeld)} AFN`, "Held or partially held deposits", "/reports"],
+          ["Deposits Refunded", `${money(depositsRefunded)} AFN`, "Refunded deposit amount", "/reports"],
+          ["Outstanding Deposits", `${money(outstandingDeposits)} AFN`, "Remaining deposit balance", "/reports"],
+          ["Total Purchase Value", `${money(totalPurchaseValue)} AFN`, "Recorded asset purchase value", "/reports"],
+        ].map(([label, value, description, path]) => (
+          <button
+            type="button"
+            className="stat dashboard-stat-button"
+            key={label}
+            onClick={() => navigate(path)}
+          >
+            <span>{label}</span>
+            <h2>{value}</h2>
+            <p>{description}</p>
+          </button>
+        ))}
       </section>
 
       <section className="charts-grid">

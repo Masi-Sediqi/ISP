@@ -178,7 +178,7 @@ function CarReport() {
     .sort((a, b) => b.tripCount - a.tripCount || b.receivedIncome - a.receivedIncome)
     .slice(0, 8);
   const topCar = chartCars[0];
-  const { page, setPage, totalPages, pageItems, pageSize } = useTablePagination(
+  const { page, setPage, totalPages, pageItems, pageSize, setPageSize } = useTablePagination(
     searchedCars,
     `${search}-${status}-${period}-${activeDate}`
   );
@@ -353,7 +353,7 @@ function CarReport() {
             </tbody>
           </table>
         </div>
-        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={searchedCars.length} pageSize={pageSize} />
+        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={searchedCars.length} pageSize={pageSize} setPageSize={setPageSize} />
       </div>
     </div>
   );

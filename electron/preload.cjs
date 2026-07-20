@@ -1,9 +1,14 @@
-const { contextBridge } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 
-const portArg = process.argv.find((arg) => arg.startsWith("--transport-api-port="));
-const apiPort = portArg ? portArg.split("=")[1] : process.env.TRANSPORT_API_PORT || "5000";
+const portArg = process.argv.find((arg) => arg.startsWith("--isp-api-port="));
+const apiPort = portArg ? portArg.split("=")[1] : "5000";
 
-contextBridge.exposeInMainWorld("transportDesktop", {
+const desktopApi = Object.freeze({
   apiRoot: `http://127.0.0.1:${apiPort}/api`,
   isDesktop: true,
+  getAppVersion: () => ipcRenderer.invoke("app:getVersion"),
+  getUserDataPath: () => ipcRenderer.invoke("app:getUserDataPath"),
 });
+
+contextBridge.exposeInMainWorld("ispDesktop", desktopApi);
+contextBridge.exposeInMainWorld("transportDesktop", desktopApi);

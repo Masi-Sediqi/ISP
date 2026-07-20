@@ -288,7 +288,7 @@ function TravelDetails() {
             </tbody>
           </table>
         </div>
-        <TablePagination page={customerPagination.page} totalPages={customerPagination.totalPages} setPage={customerPagination.setPage} totalItems={customerRows.length} pageSize={customerPagination.pageSize} />
+        <TablePagination page={customerPagination.page} totalPages={customerPagination.totalPages} setPage={customerPagination.setPage} totalItems={customerRows.length} pageSize={customerPagination.pageSize} setPageSize={customerPagination.setPageSize} />
       </div>
 
       <div className="record-card">
@@ -315,7 +315,7 @@ function TravelDetails() {
             </tbody>
           </table>
         </div>
-        <TablePagination page={expensePagination.page} totalPages={expensePagination.totalPages} setPage={expensePagination.setPage} totalItems={expenses.length} pageSize={expensePagination.pageSize} />
+        <TablePagination page={expensePagination.page} totalPages={expensePagination.totalPages} setPage={expensePagination.setPage} totalItems={expenses.length} pageSize={expensePagination.pageSize} setPageSize={expensePagination.setPageSize} />
       </div>
 
       {showExpenseModal && (

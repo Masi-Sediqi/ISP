@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useMemo, useState } from "react";
+import { Eye, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -10,10 +11,10 @@ import {
   YAxis,
 } from "recharts";
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { formatDateTime } from "../utils/afghanDate";
+import { formatDateTime, todayDateValue } from "../utils/afghanDate";
 import "./AssetFullInformation.css";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayDateValue();
 
 function money(value) {
   return Number(value || 0).toLocaleString("en-US");
@@ -21,13 +22,17 @@ function money(value) {
 
 function AssetInsightDetails() {
   const { assetId, insightType } = useParams();
-  const [assets, , , assetsLoaded] = useJsonCollection("assets");
-  const [movements, , , movementsLoaded] = useJsonCollection("assetMovements");
+  const [assets, setAssets, , assetsLoaded] = useJsonCollection("assets");
+  const [movements, setMovements, , movementsLoaded] = useJsonCollection("assetMovements");
   const [filter, setFilter] = useState("All");
   const [customRange, setCustomRange] = useState({
     from: today(),
     to: today(),
   });
+  const [openActionRow, setOpenActionRow] = useState("");
+  const [viewRow, setViewRow] = useState(null);
+  const [editRow, setEditRow] = useState(null);
+  const [deleteRow, setDeleteRow] = useState(null);
 
   const asset = assets.find(
     (item) =>
@@ -51,6 +56,130 @@ function AssetInsightDetails() {
       id: record.id || `identity-existing-${assetKey}-${index}`,
     })
   );
+
+  const getRowImage = (record = {}, movement = {}) =>
+    record.image || movement.assetImage || movement.image || asset?.assetImage || "";
+
+  const handleEditRowImageChange = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEditRow((previous) => ({
+        ...previous,
+        image: String(reader.result || ""),
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const saveEditedRow = async (event) => {
+    event.preventDefault();
+
+    if (!editRow) return;
+
+    if (editRow.identityRecordId) {
+      const saved = await setAssets((previousAssets) =>
+        previousAssets.map((item) => {
+          const matches =
+            String(item.id || item.assetId) === String(assetKey) ||
+            String(item.assetId || "") === String(asset?.assetId || "");
+
+          if (!matches) return item;
+
+          const nextRecords = (item.identityRecords || []).map((record) =>
+            String(record.id || "") === String(editRow.identityRecordId)
+              ? {
+                  ...record,
+                  model: editRow.model.trim(),
+                  macAddress: editRow.macAddress.trim(),
+                  serialNumber: editRow.serialNumber.trim(),
+                  image: editRow.image || "",
+                  unitPrice: Number(editRow.amount || 0),
+                  updatedAt: new Date().toISOString(),
+                }
+              : record
+          );
+
+          return {
+            ...item,
+            identityRecords: nextRecords,
+            updatedAt: new Date().toISOString(),
+          };
+        })
+      );
+
+      if (saved) setEditRow(null);
+      return;
+    }
+
+    if (editRow.movementId) {
+      const saved = await setMovements((previousMovements) =>
+        previousMovements.map((movement) =>
+          String(movement.id || "") === String(editRow.movementId)
+            ? {
+                ...movement,
+                date: editRow.date,
+                destinationName: editRow.destination,
+                sourceName: editRow.source,
+                transferStatus: editRow.status,
+                paymentStatus: editRow.status,
+                totalAmount: Number(editRow.amount || 0),
+                updatedAt: new Date().toISOString(),
+              }
+            : movement
+        )
+      );
+
+      if (saved) setEditRow(null);
+    }
+  };
+
+  const deleteSelectedRow = async () => {
+    if (!deleteRow) return;
+
+    if (deleteRow.identityRecordId) {
+      const saved = await setAssets((previousAssets) =>
+        previousAssets.map((item) => {
+          const matches =
+            String(item.id || item.assetId) === String(assetKey) ||
+            String(item.assetId || "") === String(asset?.assetId || "");
+
+          if (!matches) return item;
+
+          const nextRecords = (item.identityRecords || []).filter(
+            (record) => String(record.id || "") !== String(deleteRow.identityRecordId)
+          );
+
+          return {
+            ...item,
+            quantity: Math.max(Number(item.quantity || 0) - Number(deleteRow.quantity || 1), 0),
+            identityRecords: nextRecords,
+            updatedAt: new Date().toISOString(),
+          };
+        })
+      );
+
+      if (saved) setDeleteRow(null);
+      return;
+    }
+
+    if (deleteRow.movementId) {
+      const saved = await setMovements((previousMovements) =>
+        previousMovements.filter(
+          (movement) => String(movement.id || "") !== String(deleteRow.movementId)
+        )
+      );
+
+      if (saved) setDeleteRow(null);
+    }
+  };
 
   const assetMovements = useMemo(() => {
     return movements
@@ -167,6 +296,8 @@ function AssetInsightDetails() {
     if (isIndividualAsset && records.length > 0) {
       return records.map((record, index) => ({
         id: `${movement.id}-${record.id || index}`,
+        movementId: movement.id,
+        identityRecordId: record.id || "",
         date: movement.date || "",
         timeSource: movement.createdAt || movement.updatedAt || movement.date,
         movementType: movement.movementType || "",
@@ -175,6 +306,7 @@ function AssetInsightDetails() {
         destination: movement.destinationName || "-",
         quantity: 1,
         amount: Number(record.unitPrice || movement.unitPrice || asset?.unitPrice || 0),
+        image: getRowImage(record, movement),
         model: record.model || "-",
         macAddress: record.macAddress || "-",
         serialNumber: record.serialNumber || "-",
@@ -185,6 +317,8 @@ function AssetInsightDetails() {
     return [
       {
         id: movement.id,
+        movementId: movement.id,
+        identityRecordId: "",
         date: movement.date || "",
         timeSource: movement.createdAt || movement.updatedAt || movement.date,
         movementType: movement.movementType || "",
@@ -198,6 +332,7 @@ function AssetInsightDetails() {
             movement.trustAmount ||
             Number(movement.quantity || 0) * Number(movement.unitPrice || asset?.unitPrice || 0)
         ),
+        image: getRowImage({}, movement),
         model: asset?.model || "-",
         macAddress: asset?.macAddress || "-",
         serialNumber: asset?.serialNumber || "-",
@@ -222,6 +357,8 @@ function AssetInsightDetails() {
     availableIdentityRecords.length > 0
       ? availableIdentityRecords.map((record, index) => ({
           id: record.id || index,
+          movementId: "",
+          identityRecordId: record.id || "",
           date: record.addedAt || "-",
           timeSource: record.addedAt || "",
           movementType: insightType === "main-stock" ? "Main Stock" : "Current",
@@ -230,6 +367,7 @@ function AssetInsightDetails() {
           destination: asset?.location || "Main Stock",
           quantity: 1,
           amount: Number(record.unitPrice || asset?.unitPrice || 0),
+          image: getRowImage(record),
           model: record.model || "-",
           macAddress: record.macAddress || "-",
           serialNumber: record.serialNumber || "-",
@@ -355,6 +493,7 @@ function AssetInsightDetails() {
               <tr>
                 <th>Date</th>
                 <th>Movement</th>
+                <th>Image</th>
                 <th>Type</th>
                 <th>Model</th>
                 <th>MAC Address</th>
@@ -364,6 +503,7 @@ function AssetInsightDetails() {
                 <th>Quantity</th>
                 <th>Amount</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -371,6 +511,13 @@ function AssetInsightDetails() {
                 <tr key={row.id}>
                   <td>{formatDateTime(row.date, row.timeSource)}</td>
                   <td>{row.movementType || "-"}</td>
+                  <td className="asset-insight-image-cell">
+                    {row.image ? (
+                      <img src={row.image} alt={row.model || "Asset"} />
+                    ) : (
+                      <span>-</span>
+                    )}
+                  </td>
                   <td>{row.type || "-"}</td>
                   <td>{row.model || "-"}</td>
                   <td>{row.macAddress || "-"}</td>
@@ -380,11 +527,77 @@ function AssetInsightDetails() {
                   <td>{row.quantity || 0}</td>
                   <td>{money(row.amount || 0)} AFN</td>
                   <td>{row.status || "-"}</td>
+                  <td>
+                    <div className="asset-movement-actions">
+                      <button
+                        type="button"
+                        className="asset-movement-action-toggle"
+                        aria-label="Open row actions"
+                        aria-expanded={String(openActionRow) === String(row.id)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setOpenActionRow((previous) =>
+                            String(previous) === String(row.id) ? "" : row.id
+                          );
+                        }}
+                      >
+                        <MoreVertical size={18} strokeWidth={2} />
+                      </button>
+
+                      {String(openActionRow) === String(row.id) && (
+                        <div className="asset-insight-action-menu">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setViewRow(row);
+                              setOpenActionRow("");
+                            }}
+                          >
+                            <Eye size={14} />
+                            Full Information
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditRow({
+                                ...row,
+                                model: row.model === "-" ? "" : row.model,
+                                macAddress: row.macAddress === "-" ? "" : row.macAddress,
+                                serialNumber:
+                                  row.serialNumber === "-" ? "" : row.serialNumber,
+                                source: row.source === "-" ? "" : row.source,
+                                destination:
+                                  row.destination === "-" ? "" : row.destination,
+                                status: row.status === "-" ? "" : row.status,
+                              });
+                              setOpenActionRow("");
+                            }}
+                          >
+                            <Pencil size={14} />
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            className="danger"
+                            onClick={() => {
+                              setDeleteRow(row);
+                              setOpenActionRow("");
+                            }}
+                          >
+                            <Trash2 size={14} />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan="11" className="asset-detail-empty">
+                  <td colSpan="13" className="asset-detail-empty">
                     No records found for this card.
                   </td>
                 </tr>
@@ -393,6 +606,206 @@ function AssetInsightDetails() {
           </table>
         </div>
       </div>
+
+      {viewRow && (
+        <div className="asset-detail-modal-backdrop" onClick={() => setViewRow(null)}>
+          <div className="asset-detail-modal compact" onClick={(event) => event.stopPropagation()}>
+            <div className="asset-detail-modal-header">
+              <div>
+                <h3>Record Full Information</h3>
+                <p>{formatDateTime(viewRow.date, viewRow.timeSource)}</p>
+              </div>
+              <button type="button" onClick={() => setViewRow(null)}>
+                ×
+              </button>
+            </div>
+
+            <div className="asset-movement-detail-grid">
+              <div><span>Movement</span><strong>{viewRow.movementType || "-"}</strong></div>
+              <div><span>Type</span><strong>{viewRow.type || "-"}</strong></div>
+              <div><span>Model</span><strong>{viewRow.model || "-"}</strong></div>
+              <div><span>MAC Address</span><strong>{viewRow.macAddress || "-"}</strong></div>
+              <div><span>Serial Number</span><strong>{viewRow.serialNumber || "-"}</strong></div>
+              <div><span>Source</span><strong>{viewRow.source || "-"}</strong></div>
+              <div><span>Destination</span><strong>{viewRow.destination || "-"}</strong></div>
+              <div><span>Quantity</span><strong>{viewRow.quantity || 0}</strong></div>
+              <div><span>Amount</span><strong>{money(viewRow.amount || 0)} AFN</strong></div>
+              <div><span>Status</span><strong>{viewRow.status || "-"}</strong></div>
+            </div>
+
+            {viewRow.image && (
+              <div className="asset-unit-image-preview">
+                <img src={viewRow.image} alt="Asset record" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {editRow && (
+        <div className="asset-detail-modal-backdrop" onClick={() => setEditRow(null)}>
+          <div className="asset-detail-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="asset-detail-modal-header">
+              <div>
+                <h3>Edit Record</h3>
+                <p>{editRow.movementType || "Current"} record</p>
+              </div>
+              <button type="button" onClick={() => setEditRow(null)}>
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={saveEditedRow}>
+              <div className="asset-detail-form-grid">
+                <label>
+                  Date
+                  <input
+                    type="date"
+                    value={String(editRow.date || "").slice(0, 10)}
+                    onChange={(event) =>
+                      setEditRow((previous) => ({ ...previous, date: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  Model
+                  <input
+                    value={editRow.model || ""}
+                    onChange={(event) =>
+                      setEditRow((previous) => ({ ...previous, model: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  MAC Address
+                  <input
+                    value={editRow.macAddress || ""}
+                    onChange={(event) =>
+                      setEditRow((previous) => ({ ...previous, macAddress: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  Serial Number
+                  <input
+                    value={editRow.serialNumber || ""}
+                    onChange={(event) =>
+                      setEditRow((previous) => ({ ...previous, serialNumber: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  Source
+                  <input
+                    value={editRow.source || ""}
+                    onChange={(event) =>
+                      setEditRow((previous) => ({ ...previous, source: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  Destination
+                  <input
+                    value={editRow.destination || ""}
+                    onChange={(event) =>
+                      setEditRow((previous) => ({ ...previous, destination: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  Amount
+                  <input
+                    type="number"
+                    min="0"
+                    value={editRow.amount || ""}
+                    onChange={(event) =>
+                      setEditRow((previous) => ({ ...previous, amount: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  Status
+                  <input
+                    value={editRow.status || ""}
+                    onChange={(event) =>
+                      setEditRow((previous) => ({ ...previous, status: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <label>
+                  Image
+                  <div className="asset-balance-image-field">
+                    <div>
+                      {editRow.image ? <img src={editRow.image} alt="Preview" /> : <span>No Image</span>}
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleEditRowImageChange}
+                    />
+                    {editRow.image && (
+                      <button
+                        type="button"
+                        onClick={() => setEditRow((previous) => ({ ...previous, image: "" }))}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </label>
+              </div>
+
+              <div className="asset-detail-modal-actions">
+                <button type="button" onClick={() => setEditRow(null)}>
+                  Cancel
+                </button>
+                <button type="submit">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {deleteRow && (
+        <div className="asset-detail-modal-backdrop" onClick={() => setDeleteRow(null)}>
+          <div className="asset-detail-modal compact" onClick={(event) => event.stopPropagation()}>
+            <div className="asset-detail-modal-header">
+              <div>
+                <h3>Delete Record</h3>
+                <p>This record will be removed.</p>
+              </div>
+              <button type="button" onClick={() => setDeleteRow(null)}>
+                ×
+              </button>
+            </div>
+
+            <div className="asset-delete-warning">
+              <strong>Are you sure you want to delete this record?</strong>
+              <span>
+                {deleteRow.movementType || "-"} / {deleteRow.model || "-"} / Quantity:{" "}
+                {deleteRow.quantity || 0}
+              </span>
+            </div>
+
+            <div className="asset-detail-modal-actions">
+              <button type="button" onClick={() => setDeleteRow(null)}>
+                Cancel
+              </button>
+              <button type="button" className="danger" onClick={deleteSelectedRow}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -108,6 +108,7 @@ export function getAllTransactions(transactions, customerTravels, customerPaymen
     }));
   const legacyCustomerPayments = customerPayments
     .filter((payment) =>
+      payment.source !== "deposit-refund-offset" &&
       !transactions.some((item) => item.source === "customer-payment" && Number(item.referenceId) === Number(payment.id))
     )
     .map((payment) => ({

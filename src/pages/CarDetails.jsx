@@ -201,7 +201,7 @@ function CarDetails() {
             </tbody>
           </table>
         </div>
-        <TablePagination page={recordsPagination.page} totalPages={recordsPagination.totalPages} setPage={recordsPagination.setPage} totalItems={records.length} pageSize={recordsPagination.pageSize} />
+        <TablePagination page={recordsPagination.page} totalPages={recordsPagination.totalPages} setPage={recordsPagination.setPage} totalItems={records.length} pageSize={recordsPagination.pageSize} setPageSize={recordsPagination.setPageSize} />
       </div>
 
       {showRepairModal && (

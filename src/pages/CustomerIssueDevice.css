@@ -99,6 +99,7 @@
 }
 
 .customer-issue-stats > div,
+.customer-issue-current-device-card,
 .customer-issue-card,
 .customer-issue-selected-card,
 .customer-issue-not-found {
@@ -109,6 +110,21 @@
 
 .customer-issue-stats > div {
   padding: 18px;
+}
+
+.customer-issue-current-device-card {
+  display: block;
+  width: 100%;
+  padding: 18px;
+  text-align: left;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.customer-issue-current-device-card:hover {
+  border-color: #c7d2fe;
+  background: #f8fafc;
 }
 
 .customer-issue-stats span {
@@ -130,6 +146,73 @@
   margin: 0;
   color: #888888;
   font-size: 12px;
+}
+
+.customer-current-devices-modal {
+  width: min(980px, 100%);
+}
+
+.customer-current-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.customer-current-summary div {
+  padding: 14px;
+  border: 1px solid #eeeae2;
+  border-radius: 12px;
+  background: #faf9f6;
+}
+
+.customer-current-summary span {
+  display: block;
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.customer-current-summary strong {
+  color: #111827;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.customer-current-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #eeeae2;
+  border-radius: 14px;
+}
+
+.customer-current-table-wrap table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.customer-current-table-wrap th,
+.customer-current-table-wrap td {
+  height: 48px;
+  padding: 0 12px;
+  text-align: left;
+  border-top: 1px solid #eeeae2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.customer-current-table-wrap th {
+  background: #faf9f6;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.customer-issue-table-wrap td:has(.customer-issue-action-cell) {
+  display: none;
 }
 
 .customer-issue-card {
@@ -558,6 +641,7 @@
 }
 
 .customer-issue-device-content {
+  flex: 1;
   min-width: 0;
   display: block;
 }
@@ -571,8 +655,35 @@
 }
 
 .customer-issue-device-content small {
+  display: block;
   color: #64748b;
   font-size: 12px;
+  line-height: 1.45;
+}
+
+.customer-issue-quantity-inline {
+  flex: 0 0 104px;
+  display: grid;
+  gap: 5px;
+}
+
+.customer-issue-quantity-inline small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.customer-issue-quantity-inline input {
+  width: 100%;
+  height: 34px;
+  border: 1px solid #d8dee9;
+  border-radius: 9px;
+  background: #ffffff;
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 12px;
+  color: #111827;
+  box-sizing: border-box;
 }
 
 .customer-issue-selected-card {
@@ -1189,11 +1300,6 @@ body.dark-mode .customer-asset-detail-header > button {
   border-left: 4px solid #f59e0b;
 }
 
-.customer-issue-card tbody tr.customer-issue-row-source-other:hover td,
-.customer-issue-card tbody tr.customer-issue-row-source-current:hover td {
-  filter: saturate(1.08);
-}
-
 /* Dark mode */
 body.dark-mode .customer-issue-current-device-card {
   background: linear-gradient(
@@ -1240,6 +1346,231 @@ body.dark-mode
   ) !important;
   border-top-color: rgba(245, 158, 11, 0.32) !important;
   color: #f8fafc;
+}
+
+.customer-issue-buyback-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.customer-issue-buyback-modal {
+  width: min(880px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #eeeae2;
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.25);
+}
+
+.customer-issue-buyback-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.customer-issue-buyback-header h3 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.customer-issue-buyback-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.customer-issue-buyback-header button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 11px;
+  background: #f1f0eb;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.customer-issue-buyback-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.customer-issue-buyback-grid label {
+  display: grid;
+  gap: 7px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.customer-issue-buyback-grid .full {
+  grid-column: 1 / -1;
+}
+
+.customer-issue-buyback-grid input,
+.customer-issue-buyback-grid textarea {
+  min-height: 44px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #faf9f6;
+  padding: 0 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.customer-issue-buyback-grid textarea {
+  height: 88px;
+  padding-top: 10px;
+  resize: none;
+}
+
+.customer-issue-buyback-section {
+  padding: 10px;
+  border: 1px solid #eeeae2;
+  border-radius: 16px;
+  background: #fcfbf8;
+}
+
+.customer-issue-buyback-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.customer-issue-buyback-section-title h4 {
+  margin: 0;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.customer-issue-buyback-section-title span {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.customer-issue-buyback-device-list {
+  display: grid;
+  gap: 9px;
+  max-height: 290px;
+  overflow-y: auto;
+}
+
+.customer-issue-buyback-device {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) minmax(190px, 240px);
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #eeeae2;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.customer-issue-buyback-device.selected {
+  border-color: #4f46e5;
+  background: #eef2ff;
+}
+
+.customer-issue-buyback-device input[type="checkbox"] {
+  width: 18px;
+  min-height: 18px;
+}
+
+.customer-issue-buyback-device strong,
+.customer-issue-buyback-device span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-issue-buyback-device strong {
+  color: #111827;
+  font-size: 12px;
+}
+
+.customer-issue-buyback-device span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.customer-issue-buyback-price {
+  color: #64748b !important;
+  font-size: 10px !important;
+  min-width: 0;
+  width: 100%;
+}
+
+.customer-issue-buyback-price input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.customer-issue-buyback-row-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.customer-issue-buyback-row-actions button {
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.customer-issue-buyback-row-actions button.danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.customer-issue-buyback-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.customer-issue-buyback-actions button {
+  height: 40px;
+  border: 0;
+  border-radius: 11px;
+  padding: 0 18px;
+  font-family: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.customer-issue-buyback-actions button:first-child {
+  background: #f1f0eb;
+  color: #333333;
+}
+
+.customer-issue-buyback-actions button:last-child {
+  background: #252525;
+  color: #ffffff;
 }
 
 @media (max-width: 1200px) {

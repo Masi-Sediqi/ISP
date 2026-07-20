@@ -79,8 +79,9 @@ import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
+import { hasPermission } from "../utils/permissions";
 
-function Suppliers() {
+function Suppliers({ currentUser }) {
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState("");
   const [editIndex, setEditIndex] = useState(null);
@@ -122,6 +123,9 @@ function Suppliers() {
 
   const [suppliers, setSuppliers] = useJsonCollection("suppliers");
   const [formData, setFormData] = useState(emptyForm);
+  const canCreateSupplier = hasPermission(currentUser, "suppliers", "create");
+  const canEditSupplier = hasPermission(currentUser, "suppliers", "edit");
+  const canDeleteSupplier = hasPermission(currentUser, "suppliers", "delete");
 
   const filteredSuppliers = suppliers
     .map((supplier, originalIndex) => ({ ...supplier, originalIndex }))
@@ -198,6 +202,10 @@ function Suppliers() {
   };
 
   const openCreateModal = () => {
+    if (!canCreateSupplier) {
+      notify("You do not have permission to create supplier records.", "error");
+      return;
+    }
     resetForm();
     setShowModal(true);
   };
@@ -223,6 +231,10 @@ function Suppliers() {
     delete cleanData.customSupplierType;
 
     if (editIndex !== null) {
+  if (!canEditSupplier) {
+    notify("You do not have permission to edit supplier records.", "error");
+    return;
+  }
   const updatedSuppliers = [...suppliers];
   updatedSuppliers[editIndex] = cleanData;
 
@@ -234,6 +246,11 @@ function Suppliers() {
     setShowModal(false);
   }
 
+  return;
+}
+
+if (!canCreateSupplier) {
+  notify("You do not have permission to create supplier records.", "error");
   return;
 }
 
@@ -250,6 +267,10 @@ if (saved) {
   };
 
   const editSupplier = (index) => {
+    if (!canEditSupplier) {
+      notify("You do not have permission to edit supplier records.", "error");
+      return;
+    }
     setEditIndex(index);
     setFormData({
       ...emptyForm,
@@ -262,6 +283,10 @@ if (saved) {
   };
 
   const openDeleteModal = (index) => {
+  if (!canDeleteSupplier) {
+    notify("You do not have permission to delete supplier records.", "error");
+    return;
+  }
   setDeleteIndex(index);
   setDeleteModalOpen(true);
   setOpenAction(null);
@@ -274,6 +299,10 @@ const cancelDelete = () => {
 
 const confirmDelete = () => {
   if (deleteIndex === null) return;
+  if (!canDeleteSupplier) {
+    notify("You do not have permission to delete supplier records.", "error");
+    return;
+  }
 
   setSuppliers(suppliers.filter((_, supplierIndex) => supplierIndex !== deleteIndex));
   setDeleteIndex(null);
@@ -289,9 +318,11 @@ const confirmDelete = () => {
           <p>Save, edit, delete, and manage all supplier records.</p>
         </div>
 
-        <button className="driver-add-btn" onClick={openCreateModal}>
-          + Add Supplier
-        </button>
+        {canCreateSupplier && (
+          <button className="driver-add-btn" onClick={openCreateModal}>
+            + Add Supplier
+          </button>
+        )}
       </div>
 
       <div className="drivers-stats">
@@ -390,7 +421,7 @@ const confirmDelete = () => {
           left: `${actionMenuPosition.left}px`,
         }}
       >
-        <Link
+<Link
   className="supplier-menu-link"
   to={`/suppliers/${index}`}
   onClick={() => setOpenAction(null)}
@@ -399,19 +430,32 @@ const confirmDelete = () => {
   <span>Full Detail</span>
 </Link>
 
-<button type="button" onClick={() => editSupplier(index)}>
-  <EditIcon />
-  <span>Edit</span>
-</button>
-
-<button
-  type="button"
-  className="danger-action"
-  onClick={() => openDeleteModal(index)}
+<Link
+  className="supplier-menu-link"
+  to={`/suppliers/${index}/analysis`}
+  onClick={() => setOpenAction(null)}
 >
-  <TrashIcon />
-  <span>Delete</span>
-</button>
+  <InfoIcon />
+  <span>Analyze</span>
+</Link>
+
+{canEditSupplier && (
+  <button type="button" onClick={() => editSupplier(index)}>
+    <EditIcon />
+    <span>Edit</span>
+  </button>
+)}
+
+{canDeleteSupplier && (
+  <button
+    type="button"
+    className="danger-action"
+    onClick={() => openDeleteModal(index)}
+  >
+    <TrashIcon />
+    <span>Delete</span>
+  </button>
+)}
       </div>
     )}
   </div>
@@ -437,6 +481,7 @@ const confirmDelete = () => {
           setPage={supplierPagination.setPage}
           totalItems={filteredSuppliers.length}
           pageSize={supplierPagination.pageSize}
+          setPageSize={supplierPagination.setPageSize}
         />
       </div>
 
@@ -522,18 +567,6 @@ const confirmDelete = () => {
                     value={formData.taxNumber}
                     onChange={handleChange}
                     placeholder="Optional"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Opening Balance</label>
-                  <input
-                    type="number"
-                    min="0"
-                    name="openingBalance"
-                    value={formData.openingBalance}
-                    onChange={handleChange}
-                    placeholder="Example: 5000"
                   />
                 </div>
 
