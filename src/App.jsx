@@ -9,17 +9,35 @@ import {
 import {
   Routes,
   Route,
+  Link,
   NavLink,
+  useLocation,
 } from "react-router-dom";
 
 import {
   BookOpen,
+  Bot,
+  BriefcaseBusiness,
+  Building2,
+  Clapperboard,
   CircleHelp,
   Code2,
+  Cpu,
+  ChevronDown,
+  FileBarChart,
   FileText,
+  FolderKanban,
   HelpCircle,
   Info,
+  LayoutDashboard,
+  Plane,
+  ReceiptText,
+  Settings as SettingsIcon,
   ShieldCheck,
+  Trash2,
+  Users,
+  UserRoundCog,
+  WalletCards,
 } from "lucide-react";
 import Header from "./components/Header";
 import GlobalTableEnhancer from "./components/GlobalTableEnhancer";
@@ -37,6 +55,7 @@ const MainStock = lazy(() => import("./pages/MainStock"));
 const DeviceTransferManagement = lazy(() => import("./pages/DeviceTransferManagement"));
 const TowerAssets = lazy(() => import("./pages/TowerAssets"));
 const Customers = lazy(() => import("./pages/Customers"));
+const ConsultantCustomers = lazy(() => import("./pages/ConsultantCustomers"));
 const CustomerDetails = lazy(() => import("./pages/CustomerDetails"));
 const Packages = lazy(() => import("./pages/Packages"));
 const PackageFullDetail = lazy(() => import("./pages/PackageFullDetail"));
@@ -47,6 +66,7 @@ const Repair = lazy(() => import("./pages/Repair"));
 const Settings = lazy(() => import("./pages/Settings"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const Agent = lazy(() => import("./pages/Agent"));
+const Employees = lazy(() => import("./pages/Employees"));
 const Login = lazy(() => import("./pages/Login"));
 const AssetFullInformation = lazy(() => import("./pages/AssetFullInformation"));
 const AssetAuditTrail = lazy(() => import("./pages/AssetAuditTrail"));
@@ -119,9 +139,11 @@ function ProtectedModule({ currentUser, moduleKey, children }) {
 }
 
 function App() {
+  const location = useLocation();
   const [settings, , loadSettings] = useJsonCollection("settings");
   const [accounts, setAccounts, , accountsLoaded] = useJsonCollection("accounts");
     const [sidebarInfoOpen, setSidebarInfoOpen] = useState(false);
+  const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
   const sidebarInfoRef = useRef(null);
   const [sessionId, setSessionId] = useState(() =>
     localStorage.getItem("isp-system-session")
@@ -191,26 +213,24 @@ function App() {
   };
 
   const menuItems = [
-    { to: "/", label: "Dashboard", moduleKey: "dashboard" },
-    { to: "/suppliers", label: "Suppliers", moduleKey: "suppliers" },
-    { to: "/assets", label: "Asset & Inventory", moduleKey: "assets" },
-    { to: "/main-stock", label: "Main Stock", moduleKey: "mainStock" },
-    { to: "/device-transfer-management", label: "Device Transfer Management", moduleKey: "deviceTransfer" },
-    { to: "/customers", label: "Customers", moduleKey: "customers" },
-    { to: "/packages", label: "Packages", moduleKey: "packages" },
-    { to: "/tower-assets", label: "Tower Assets", moduleKey: "towerAssets" },
-    { to: "/finance", label: "Financial", moduleKey: "finance" },
-    { to: "/reports", label: "Reports", moduleKey: "reports" },
-    { to: "/repair", label: "Repair", moduleKey: "repair" },
-    { to: "/user-management", label: "User Management", moduleKey: "userManagement" },
-    { to: "/settings", label: "Settings", moduleKey: "settings" },
-    { to: "/agent", label: "Agent / AI", moduleKey: "agent" },
-    // { to: "/tower-links", label: "Tower Links" },
-    // { to: "/device-transfers", label: "Device Transfers" },
-    // { to: "/device-history", label: "Device History" },
-    // { to: "/disconnections", label: "Disconnections" },
-    // { to: "/security-deposits", label: "Security Deposits" },
-    // { to: "/employees", label: "Employees" },
+    { to: "/", label: "Dashboard", moduleKey: "dashboard", icon: LayoutDashboard },
+    { to: "/projects", label: "Projects", moduleKey: "dashboard", icon: FolderKanban },
+    { to: "/employees", label: "Employees", moduleKey: "dashboard", icon: UserRoundCog },
+    { to: "/suppliers", label: "Suppliers", moduleKey: "suppliers", icon: Building2 },
+    { to: "/expenses", label: "Expenses", moduleKey: "finance", icon: ReceiptText },
+    { to: "/finance", label: "Finances", moduleKey: "finance", icon: WalletCards },
+    { to: "/project-license", label: "Project License", moduleKey: "dashboard", icon: FileText },
+    { to: "/reports", label: "Reports", moduleKey: "reports", icon: FileBarChart },
+    { to: "/settings", label: "Settings", moduleKey: "settings", icon: SettingsIcon },
+    { to: "/agent", label: "AI Agent", moduleKey: "agent", icon: Bot },
+    { to: "/recycle-bin", label: "Recycle Bin", moduleKey: "dashboard", icon: Trash2 },
+  ];
+
+  const customerMenuItems = [
+    { to: "/customers/consultants", label: "Consultant Customers", icon: BriefcaseBusiness },
+    { to: "/customers/travel", label: "Travel Customers", icon: Plane },
+    { to: "/customers?type=technology", label: "Technology Customers", icon: Cpu },
+    { to: "/customers?type=media", label: "Media Customers", icon: Clapperboard },
   ];
 
     const sidebarInfoLinks = [
@@ -289,11 +309,57 @@ function App() {
         </div>
 
         <nav className="menu">
-          {menuItems.filter((item) => canViewModule(currentUser, item.moduleKey)).map((item) => (
-            <NavLink key={item.to} to={item.to}>
-              {item.label}
-            </NavLink>
-          ))}
+          <NavLink to="/">
+            <LayoutDashboard size={17} />
+            <span>Dashboard</span>
+          </NavLink>
+
+          {canViewModule(currentUser, "customers") && (
+            <div className={`sidebar-customer-menu ${customerMenuOpen ? "open" : ""}`}>
+              <button
+                type="button"
+                className="sidebar-customer-trigger"
+                onClick={() => setCustomerMenuOpen((open) => !open)}
+                aria-expanded={customerMenuOpen}
+              >
+                <span className="sidebar-menu-label">
+                  <Users size={17} />
+                  <span>Customers</span>
+                </span>
+                <ChevronDown className="sidebar-menu-chevron" size={15} />
+              </button>
+
+              {customerMenuOpen && (
+                <div className="sidebar-customer-submenu">
+                  {customerMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className={`${location.pathname}${location.search}` === item.to ? "active" : ""}
+                    >
+                      <Icon size={14} />
+                      <span>{item.label}</span>
+                    </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {menuItems
+            .filter((item) => item.to !== "/" && canViewModule(currentUser, item.moduleKey))
+            .map((item) => {
+              const Icon = item.icon;
+              return (
+              <NavLink key={item.to} to={item.to}>
+                <Icon size={17} />
+                <span>{item.label}</span>
+              </NavLink>
+              );
+            })}
         </nav>
         <div
   className="sidebar-version-area"
@@ -350,6 +416,23 @@ function App() {
           <Suspense fallback={<div className="page-loading">Loading...</div>}>
             <Routes>
               <Route path="/" element={protect("dashboard", <Dashboard />)} />
+              <Route
+                path="/projects"
+                element={<ModulePlaceholder title="Projects" description="Manage and monitor all company projects." items={["Project overview", "Progress tracking", "Project assignments"]} />}
+              />
+              <Route path="/employees" element={<Employees />} />
+              <Route
+                path="/expenses"
+                element={protect("finance", <ModulePlaceholder title="Expenses" description="Review and manage project and business expenses." items={["Expense records", "Expense categories", "Cost summaries"]} />)}
+              />
+              <Route
+                path="/project-license"
+                element={<ModulePlaceholder title="Project License" description="Manage project licenses, validity periods, and related documents." items={["Active licenses", "Expiry monitoring", "License documents"]} />}
+              />
+              <Route
+                path="/recycle-bin"
+                element={<ModulePlaceholder title="Recycle Bin" description="Review recently removed records and restore them when needed." items={["Deleted records", "Restore items", "Permanent cleanup"]} />}
+              />
 
               <Route path="/suppliers" element={protect("suppliers", <Suppliers currentUser={currentUser} />)} />
               <Route path="/suppliers/:id/analysis" element={protect("suppliers", <SupplierAnalysis />)} />
@@ -363,6 +446,8 @@ function App() {
               <Route path="/device-transfer-management" element={protect("deviceTransfer", <DeviceTransferManagement />)} />
 
               <Route path="/customers" element={protect("customers", <Customers />)} />
+              <Route path="/customers/consultants" element={protect("customers", <ConsultantCustomers />)} />
+              <Route path="/customers/travel" element={protect("customers", <ConsultantCustomers mode="travel" />)} />
               <Route path="/customers/:id" element={protect("customers", <CustomerDetails />)} />
 
               <Route path="/tower-assets" element={protect("towerAssets", <TowerAssets />)} />

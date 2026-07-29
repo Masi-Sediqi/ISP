@@ -2,13 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bell,
+  Banknote,
   Box,
   CalendarClock,
   CheckCheck,
   ChevronDown,
   CreditCard,
   LogOut,
+  Languages,
   Moon,
+  Palette,
   Search,
   Settings,
   Sun,
@@ -20,6 +23,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { todayDateValue } from "../utils/afghanDate";
+import { applyInterfaceLanguage } from "../utils/interfaceLanguage";
 
 const normalize = (value) => String(value || "").toLowerCase().trim();
 const compact = (value) => normalize(value).replace(/[^a-z0-9]/g, "");
@@ -43,9 +47,13 @@ const formatLocationName = (record) =>
 
 function HeaderActions({ currentUser, onLogout, compact = false }) {
   const [openMenu, setOpenMenu] = useState(null);
-  const [darkMode, setDarkMode] = useState(
-    document.body.classList.contains("dark-mode")
+  const [selectedCurrency, setSelectedCurrency] = useState(
+    () => localStorage.getItem("isp-currency") || "AFN"
   );
+  const [selectedTheme, setSelectedTheme] = useState(
+    () => localStorage.getItem("isp-theme") || "light"
+  );
+  const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem("isp-language") || "en");
 
   const [assets] = useJsonCollection("assets");
   const [towerAssets] = useJsonCollection("towerAssets");
@@ -141,10 +149,41 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
     outstandingDeposits.length +
     expiredCustomerPackages.length;
 
-  function toggleDarkMode() {
-    setDarkMode((value) => !value);
-    document.body.classList.toggle("dark-mode");
+  const themes = [
+    { key: "light", label: "Light", color: "#f7f5f1" },
+    { key: "dark", label: "Dark", color: "#0f172a" },
+    { key: "ocean", label: "Ocean", color: "#0ea5e9" },
+    { key: "warm", label: "Warm", color: "#f59e0b" },
+  ];
+
+  const currencies = ["AFN", "USD", "EUR"];
+
+  function applyTheme(theme) {
+    setSelectedTheme(theme);
+    localStorage.setItem("isp-theme", theme);
+    document.body.classList.remove("dark-mode", "theme-ocean", "theme-warm");
+    if (theme === "dark") document.body.classList.add("dark-mode");
+    if (theme === "ocean") document.body.classList.add("theme-ocean");
+    if (theme === "warm") document.body.classList.add("theme-warm");
   }
+
+  function toggleDarkMode() {
+    applyTheme(selectedTheme === "dark" ? "light" : "dark");
+  }
+
+  useEffect(() => {
+    applyTheme(selectedTheme);
+    applyInterfaceLanguage(selectedLanguage);
+  }, []);
+
+  useEffect(() => {
+    const syncLanguage = (event) => {
+      const language = event.detail;
+      if (language && language !== selectedLanguage) setSelectedLanguage(language);
+    };
+    window.addEventListener("isp-language-changed", syncLanguage);
+    return () => window.removeEventListener("isp-language-changed", syncLanguage);
+  }, [selectedLanguage]);
 
   if (compact) {
     return (
@@ -176,8 +215,8 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
               Settings
             </Link>
             <button className="dropdown-action" type="button" onClick={toggleDarkMode}>
-              {darkMode ? <Sun size={15} /> : <Moon size={15} />}
-              {darkMode ? "Light mode" : "Dark mode"}
+              {selectedTheme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+              {selectedTheme === "dark" ? "Light mode" : "Dark mode"}
             </button>
 
             <div className="dropdown-alerts">
@@ -205,10 +244,88 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
 
   return (
     <div className="top-actions">
-        <Link className="header-account-link" to="/accounts">
-          <Users size={19} strokeWidth={1.9} />
-          Accounts
-        </Link>
+        <div className="header-menu">
+          <button
+            type="button"
+            className="header-control-btn"
+            onClick={() => setOpenMenu(openMenu === "currency" ? null : "currency")}
+            aria-expanded={openMenu === "currency"}
+          >
+            <Banknote size={18} />
+            <span>{selectedCurrency}</span>
+            <ChevronDown size={14} />
+          </button>
+
+          {openMenu === "currency" && (
+            <div className="dropdown header-picker-dropdown currency-picker-dropdown">
+              <div className="header-picker-title">
+                <strong>Currency Exchange</strong>
+                <span>Display currency</span>
+              </div>
+              {currencies.map((currency) => (
+                <button
+                  type="button"
+                  key={currency}
+                  className={`header-picker-option currency-code-option ${selectedCurrency === currency ? "active" : ""}`}
+                  onClick={() => {
+                    setSelectedCurrency(currency);
+                    localStorage.setItem("isp-currency", currency);
+                    setOpenMenu(null);
+                  }}
+                >
+                  <strong>{currency}</strong>
+                  {selectedCurrency === currency && <CheckCheck size={15} />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="header-menu">
+          <button type="button" className="header-control-btn" onClick={() => setOpenMenu(openMenu === "language" ? null : "language")} aria-expanded={openMenu === "language"}>
+            <Languages size={18} /><span>{selectedLanguage === "en" ? "EN" : selectedLanguage === "dr" ? "دری" : "PS"}</span><ChevronDown size={14} />
+          </button>
+          {openMenu === "language" && <div className="dropdown header-picker-dropdown language-picker-dropdown"><div className="header-picker-title"><strong>Language</strong><span>Interface language</span></div>{[["en","English","English"],["dr","Dari","دری"],["ps","Pashto","پښتو"]].map(([code,label,native])=><button type="button" key={code} className={`header-picker-option language-picker-option ${selectedLanguage===code?"active":""}`} onClick={()=>{setSelectedLanguage(code);applyInterfaceLanguage(code);setOpenMenu(null)}}><b data-no-translate>{code.toUpperCase()}</b><span><strong>{label}</strong><small data-no-translate>{native}</small></span>{selectedLanguage===code&&<CheckCheck size={15}/>}</button>)}</div>}
+        </div>
+
+        <div className="header-menu">
+          <button
+            type="button"
+            className="header-control-btn"
+            onClick={() => setOpenMenu(openMenu === "themes" ? null : "themes")}
+            aria-expanded={openMenu === "themes"}
+          >
+            <Palette size={18} />
+            <span>Themes</span>
+            <ChevronDown size={14} />
+          </button>
+
+          {openMenu === "themes" && (
+            <div className="dropdown header-picker-dropdown theme-picker-dropdown">
+              <div className="header-picker-title">
+                <strong>Choose Theme</strong>
+                <span>Interface appearance</span>
+              </div>
+              <div className="theme-picker-grid">
+                {themes.map((theme) => (
+                  <button
+                    type="button"
+                    key={theme.key}
+                    className={`theme-picker-option ${selectedTheme === theme.key ? "active" : ""}`}
+                    onClick={() => {
+                      applyTheme(theme.key);
+                      setOpenMenu(null);
+                    }}
+                  >
+                    <i style={{ background: theme.color }}></i>
+                    <span>{theme.label}</span>
+                    {selectedTheme === theme.key && <CheckCheck size={14} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="header-menu">
           <button
@@ -302,28 +419,6 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
             </div>
           )}
         </div>
-
-        <button
-  type="button"
-  className="icon-btn header-theme-btn"
-  onClick={toggleDarkMode}
-  aria-label={
-    darkMode
-      ? "Switch to light mode"
-      : "Switch to dark mode"
-  }
-  title={
-    darkMode
-      ? "Light mode"
-      : "Dark mode"
-  }
->
-  {darkMode ? (
-    <Sun size={21} strokeWidth={1.9} />
-  ) : (
-    <Moon size={21} strokeWidth={1.9} />
-  )}
-</button>
 
         <div className="header-menu profile-menu">
           <button

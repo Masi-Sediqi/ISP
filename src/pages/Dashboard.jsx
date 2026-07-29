@@ -1,5 +1,11 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { CalendarDays, Check, ChevronDown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -17,6 +23,10 @@ const today = todayDateValue;
 
 function Dashboard() {
   const navigate = useNavigate();
+  const [dateFilter, setDateFilter] = useState("all");
+  const [dateFilterOpen, setDateFilterOpen] = useState(false);
+  const [customDates, setCustomDates] = useState({ from: "", to: "" });
+  const dateFilterRef = useRef(null);
   const [assets] = useJsonCollection("assets");
   const [purchases] = useJsonCollection("supplierPurchases");
   const [customers] = useJsonCollection("customers");
@@ -26,6 +36,27 @@ function Dashboard() {
   const [securityDeposits] = useJsonCollection("securityDeposits");
   const [assetMovements] = useJsonCollection("assetMovements");
   const [disconnections] = useJsonCollection("disconnections");
+
+  useEffect(() => {
+    const closeFilter = (event) => {
+      if (dateFilterRef.current && !dateFilterRef.current.contains(event.target)) {
+        setDateFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", closeFilter);
+    return () => document.removeEventListener("mousedown", closeFilter);
+  }, []);
+
+  const dateFilterOptions = [
+    ["all", "All time"],
+    ["today", "Today"],
+    ["week", "This Week"],
+    ["month", "This Month"],
+    ["year", "This Year"],
+    ["custom", "Custom range"],
+  ];
+  const selectedDateLabel =
+    dateFilterOptions.find(([key]) => key === dateFilter)?.[1] || "All time";
 
   const totalAssets = assets.length;
   const activeTransfers = deviceTransfers.filter(
@@ -176,6 +207,27 @@ function Dashboard() {
     .filter((item) => item.type === "expense")
     .reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
+  const customerCategory = (customer) =>
+    String(
+      customer.customerType ||
+        customer.type ||
+        customer.category ||
+        customer.sector ||
+        customer.businessType ||
+        ""
+    ).toLowerCase();
+
+  const countCustomersByCategory = (patterns) =>
+    customers.filter((customer) =>
+      patterns.some((pattern) => customerCategory(customer).includes(pattern))
+    ).length;
+
+  const consultantCustomers = countCustomersByCategory(["consult", "مشاور"]);
+  const travelCustomers = countCustomersByCategory(["travel", "سفر", "ترانسپورت"]);
+  const technologyCustomers = countCustomersByCategory(["technology", "tech", "تکنالوژی"]);
+  const mediaCustomers = countCustomersByCategory(["media", "رسانه"]);
+  const profit = income - expense;
+
   const depositHeld = securityDeposits
     .filter((item) => String(item.status || "").toLowerCase() !== "refunded")
     .reduce((sum, item) => sum + Number(item.amount || 0), 0);
@@ -186,14 +238,62 @@ function Dashboard() {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
   });
 
-  const monthlyStock = monthKeys.map((month) => ({
-    month,
-    purchases: purchases.filter((item) =>
-  String(item.purchaseDate || "").startsWith(month)
-).length,
-    transfers: deviceTransfers.filter((item) =>
-      String(item.transferDate || item.date || "").startsWith(month)
-    ).length,
+  const customerMonth = (customer) =>
+    String(
+      customer.registrationDate ||
+        customer.createdAt ||
+        customer.date ||
+        ""
+    ).slice(0, 7);
+
+  const customerTrend = (patterns = null) =>
+    monthKeys.map(
+      (month) =>
+        customers.filter(
+          (customer) =>
+            customerMonth(customer) === month &&
+            (!patterns ||
+              patterns.some((pattern) =>
+                customerCategory(customer).includes(pattern)
+              ))
+        ).length
+    );
+
+  const transactionTrend = (type) =>
+    monthKeys.map((month) =>
+      transactions
+        .filter(
+          (item) =>
+            item.type === type &&
+            String(item.date || item.createdAt || "").startsWith(month)
+        )
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    );
+
+  const incomeTrend = transactionTrend("income");
+  const expenseTrend = transactionTrend("expense");
+  const profitTrend = incomeTrend.map(
+    (amount, index) => amount - expenseTrend[index]
+  );
+
+  const dashboardTrendCharts = [
+    { title: "Total Customers", color: "#4f46e5", values: customerTrend(), type: "area", fallback: [1, 2, 2, 3, 4, 5] },
+    { title: "Consultant Customers", color: "#8b5cf6", values: customerTrend(["consult", "مشاور"]), type: "bar", fallback: [3, 2, 4, 3, 5, 4] },
+    { title: "Travel Customers", color: "#0ea5e9", values: customerTrend(["travel", "سفر", "ترانسپورت"]), type: "line", fallback: [2, 4, 1, 3, 2, 5] },
+    { title: "Technology Customers", color: "#06b6d4", values: customerTrend(["technology", "tech", "تکنالوژی"]), type: "area", fallback: [4, 2, 3, 5, 3, 4] },
+    { title: "Media Customers", color: "#ec4899", values: customerTrend(["media", "رسانه"]), type: "bar", fallback: [2, 3, 1, 4, 3, 5] },
+    { title: "Total Expenses", color: "#ef4444", values: expenseTrend, currency: true, type: "area", fallback: [3200, 2100, 3800, 2900, 4100, 2600] },
+    { title: "Total Income", color: "#22c55e", values: incomeTrend, currency: true, type: "bar", fallback: [4200, 5100, 3900, 6200, 5400, 7100] },
+    { title: "Profit", color: profit >= 0 ? "#f59e0b" : "#ef4444", values: profitTrend, currency: true, type: "line", fallback: [1000, 3000, 100, 3300, 1300, 4500] },
+  ].map((chart) => ({
+    ...chart,
+    isPreview: chart.values.every((value) => Number(value || 0) === 0),
+    data: monthKeys.map((month, index) => ({
+      month,
+      value: chart.values.every((value) => Number(value || 0) === 0)
+        ? chart.fallback[index]
+        : chart.values[index] || 0,
+    })),
   }));
 
   const totalForDonut = Math.max(
@@ -244,23 +344,18 @@ function Dashboard() {
     <div className="dashboard-page">
       <section className="stats dashboard-stats-expanded">
         {[
-          ["Total Assets", totalAssets, "Registered asset definitions", "/assets"],
-          ["Main Stock Assets", mainStockAssets, `${money(mainStockQuantity)} units in stock`, "/main-stock"],
-          ["Assets at Towers", assetsAtTowers, "Current tower-held quantity", "/tower-assets"],
-          ["Assets with Customers", assetsWithCustomers, "Current customer-held quantity", "/customers"],
-          ["Damaged Assets", damagedAssets, "Assets marked damaged", "/device-transfer-management"],
-          ["Lost Assets", lostAssets, "Assets marked lost", "/device-transfer-management"],
-          ["Under Repair Assets", underRepairAssets, "Assets currently in repair", "/device-transfer-management"],
-          ["Inactive Customers", inactiveCustomers, "Inactive or disconnected customers", "/customers"],
-          ["Devices Pending Collection", devicesPendingCollection, "Disconnected devices not fully collected", "/customers"],
-          ["Total Deposits Held", `${money(totalDepositsHeld)} AFN`, "Held or partially held deposits", "/reports"],
-          ["Deposits Refunded", `${money(depositsRefunded)} AFN`, "Refunded deposit amount", "/reports"],
-          ["Outstanding Deposits", `${money(outstandingDeposits)} AFN`, "Remaining deposit balance", "/reports"],
-          ["Total Purchase Value", `${money(totalPurchaseValue)} AFN`, "Recorded asset purchase value", "/reports"],
-        ].map(([label, value, description, path]) => (
+          ["Total Customers", customers.length, "All registered customers", "/customers", "customers"],
+          ["Consultant Customers", consultantCustomers, "Customers in consulting services", "/customers", "consultant"],
+          ["Travel Customers", travelCustomers, "Customers in travel services", "/customers", "travel"],
+          ["Technology Customers", technologyCustomers, "Customers in technology services", "/customers", "technology"],
+          ["Media Customers", mediaCustomers, "Customers in media services", "/customers", "media"],
+          ["Total Expenses", `${money(expense)} AFN`, "Total recorded business expenses", "/finance", "expense"],
+          ["Total Income", `${money(income)} AFN`, "Total recorded business income", "/finance", "revenue"],
+          ["Profit", `${money(profit)} AFN`, "Income minus total expenses", "/finance", profit >= 0 ? "profit" : "loss"],
+        ].map(([label, value, description, path, tone]) => (
           <button
             type="button"
-            className="stat dashboard-stat-button"
+            className={`stat dashboard-stat-button dashboard-stat-${tone}`}
             key={label}
             onClick={() => navigate(path)}
           >
@@ -271,174 +366,128 @@ function Dashboard() {
         ))}
       </section>
 
-      <section className="charts-grid">
-        <div className="card large">
-          <div className="card-title">
-            <h3>Stock Movement - Last 6 Months</h3>
-            <span>Dynamic</span>
+      <section className="dashboard-trends-section">
+        <div className="dashboard-trends-heading">
+          <div>
+            <span>Analytics</span>
+            <h2>Performance Trends</h2>
           </div>
-
-          <div className="real-chart">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyStock}>
-                <CartesianGrid strokeDasharray="4 4" vertical={false} />
-                <XAxis dataKey="month" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="purchases"
-                  name="Purchases"
-                  stroke="#5b3df5"
-                  strokeWidth={3}
-                  dot={{ r: 5 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="transfers"
-                  name="Transfers"
-                  stroke="#22c55e"
-                  strokeWidth={3}
-                  dot={{ r: 5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">
-            <h3>Asset Status</h3>
-          </div>
-
-          <div className="donut">
-            <div
-              className="donut-circle"
-              style={{
-                background: `conic-gradient(#22c55e 0 ${stockPercent}%, #3b82f6 ${stockPercent}% ${
-                  stockPercent + issuedPercent
-                }%, #ef4444 ${stockPercent + issuedPercent}% 100%)`,
-              }}
+          <div className="dashboard-date-filter" ref={dateFilterRef}>
+            <button
+              type="button"
+              className={`dashboard-date-trigger ${dateFilter !== "all" ? "active" : ""}`}
+              onClick={() => setDateFilterOpen((current) => !current)}
+              aria-expanded={dateFilterOpen}
             >
-              <h2>{totalAssets}</h2>
-              <p>Assets</p>
-            </div>
-          </div>
-
-          <div className="legend">
-            <span><b className="green"></b>In Stock: {inStock}</span>
-            <span><b className="blue"></b>Issued / Installed: {issuedAssets}</span>
-            <span><b className="red-dot"></b>Damaged / Lost: {damagedAssets}</span>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">
-            <h3>Supplier Purchases</h3>
-          </div>
-
-          <div className="bar-chart">
-            {supplierPurchases.map((item) => (
-              <div key={item.name}>
-                <span
-                  style={{
-                    height: `${Math.max((item.amount / maxSupplierPurchase) * 100, 6)}%`,
-                  }}
-                ></span>
-                <p>{item.name}</p>
-                <small>{money(item.amount)}</small>
+              <CalendarDays size={16} />
+              <span><small>Date filter</small><strong>{selectedDateLabel}</strong></span>
+              <ChevronDown size={15} />
+            </button>
+            {dateFilterOpen && (
+              <div className="dashboard-date-menu">
+                <div className="dashboard-date-menu-title">
+                  <span>Filter dashboard</span>
+                  <small>Select a reporting period</small>
+                </div>
+                <div className="dashboard-date-options">
+                  {dateFilterOptions.map(([key, label]) => (
+                    <button
+                      type="button"
+                      key={key}
+                      className={dateFilter === key ? "selected" : ""}
+                      onClick={() => {
+                        setDateFilter(key);
+                        if (key !== "custom") setDateFilterOpen(false);
+                      }}
+                    >
+                      <span>{label}</span>
+                      {dateFilter === key && <Check size={15} />}
+                    </button>
+                  ))}
+                </div>
+                {dateFilter === "custom" && (
+                  <div className="dashboard-custom-dates">
+                    <label><span>From date</span><input type="date" value={customDates.from} onChange={(event) => setCustomDates((current) => ({ ...current, from: event.target.value }))} /></label>
+                    <label><span>To date</span><input type="date" value={customDates.to} min={customDates.from} onChange={(event) => setCustomDates((current) => ({ ...current, to: event.target.value }))} /></label>
+                    <button type="button" disabled={!customDates.from || !customDates.to} onClick={() => setDateFilterOpen(false)}>Apply filter</button>
+                  </div>
+                )}
               </div>
-            ))}
-
-            {!supplierPurchases.length && (
-              <p className="dashboard-empty">No supplier purchase data has been recorded yet.</p>
             )}
           </div>
         </div>
-      </section>
 
-      <section className="bottom-grid">
-        <div className="card table-card">
-          <div className="card-title">
-            <h3>Recent Assets</h3>
-            <Link to="/assets">View All</Link>
-          </div>
-
-          <div className="dashboard-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Asset ID</th>
-                  <th>Device</th>
-                  <th>MAC Address</th>
-                  <th>Serial Number</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {recentAssets.map((asset) => (
-                  <tr key={asset.id || asset.originalIndex}>
-                    <td>{asset.assetId || asset.plate || "-"}</td>
-                    <td>{asset.deviceName || asset.name || asset.model || "-"}</td>
-                    <td>{asset.macAddress || "-"}</td>
-                    <td>{asset.serialNumber || asset.vin || "-"}</td>
-                    <td>
-                      <span className="badge info">
-                        {asset.status || "Unknown"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-
-                {!recentAssets.length && (
-                  <tr>
-                    <td colSpan="5" className="dashboard-empty">
-                      No asset records have been registered yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">
-            <h3>Today Summary</h3>
-          </div>
-
-          <div className="summary">
-            <div>
-              <span>Purchases Today</span>
-              <b>{todayPurchases}</b>
-            </div>
-
-            <div>
-              <span>Transfers Today</span>
-              <b>{todayTransfers}</b>
-            </div>
-
-            <div>
-              <span>Income Today</span>
-              <b>{money(todayIncome)}</b>
-            </div>
-
-            <div>
-              <span>Expenses Today</span>
-              <b>{money(todayExpense)}</b>
-            </div>
-
-            <div>
-              <span>Security Deposits Held</span>
-              <b>{money(depositHeld)}</b>
-            </div>
-
-            <div className="profit">
-              <span>Net Today</span>
-              <b>{money(todayIncome - todayExpense)}</b>
-            </div>
-          </div>
+        <div className="dashboard-trends-grid">
+          {dashboardTrendCharts.map((chart) => (
+            <article className="card dashboard-trend-card" key={chart.title}>
+              <div className="card-title">
+                <div>
+                  <span className="dashboard-trend-accent" style={{ background: chart.color }}></span>
+                  <h3>{chart.title}</h3>
+                </div>
+                <span>{chart.isPreview ? "Preview trend" : "Last 6 months"}</span>
+              </div>
+              <div className="dashboard-trend-chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  {(() => {
+                    const ChartComponent =
+                      chart.type === "area" ? AreaChart : chart.type === "bar" ? BarChart : LineChart;
+                    return (
+                      <ChartComponent data={chart.data} margin={{ top: 12, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id={`fill-${chart.color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={chart.color} stopOpacity={0.38} />
+                            <stop offset="100%" stopColor={chart.color} stopOpacity={0.03} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="4 5" vertical={false} stroke="#e5e7eb" />
+                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
+                        <YAxis
+                          allowDecimals={false}
+                          axisLine={false}
+                          tickLine={false}
+                          width={48}
+                          tick={{ fontSize: 11, fill: "#94a3b8" }}
+                          tickFormatter={(value) => chart.currency ? money(value) : value}
+                        />
+                        <Tooltip
+                          formatter={(value) => [
+                            chart.currency ? `${money(value)} AFN` : value,
+                            chart.isPreview ? `${chart.title} (Preview)` : chart.title,
+                          ]}
+                          cursor={{ fill: `${chart.color}0c` }}
+                          contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 12px 30px rgba(15,23,42,.1)" }}
+                        />
+                        {chart.type === "area" && (
+                          <Area
+                            type="monotone"
+                            dataKey="value"
+                            stroke={chart.color}
+                            strokeWidth={3}
+                            fill={`url(#fill-${chart.color.replace("#", "")})`}
+                            activeDot={{ r: 6, fill: chart.color, stroke: "#fff", strokeWidth: 3 }}
+                          />
+                        )}
+                        {chart.type === "bar" && (
+                          <Bar dataKey="value" fill={chart.color} radius={[8, 8, 3, 3]} maxBarSize={42} />
+                        )}
+                        {chart.type === "line" && (
+                          <Line
+                            type="monotone"
+                            dataKey="value"
+                            stroke={chart.color}
+                            strokeWidth={3}
+                            dot={{ r: 4, fill: "#fff", stroke: chart.color, strokeWidth: 2 }}
+                            activeDot={{ r: 6, fill: chart.color, stroke: "#fff", strokeWidth: 3 }}
+                          />
+                        )}
+                      </ChartComponent>
+                    );
+                  })()}
+                </ResponsiveContainer>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
     </div>

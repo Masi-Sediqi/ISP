@@ -36,6 +36,7 @@ const COLLECTIONS = new Set([
   "customerDeviceBuybacks",
 
   "employeeTypes",
+  "employees",
   "employeePayrolls",
   "employeeEarnings",
   "employeePayments",
