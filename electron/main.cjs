@@ -1,17 +1,24 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const crypto = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { startServer } = require("../transport-backend/server");
+const {
+  validateLicenseCode,
+} = require("./license/licenseValidator.cjs");
 
-const APP_NAME = "ISP";
+const APP_NAME = "ISP Smart";
+const DEFAULT_DATA_DIR = "C:/ISP Smart";
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
 const LOAD_BUILT_RENDERER = app.isPackaged || process.env.ELECTRON_LOAD_BUILT === "1";
+const USE_EXTERNAL_BACKEND = process.env.ISP_USE_EXTERNAL_BACKEND === "1";
 
 app.setName(APP_NAME);
 
 let apiServer = null;
 let mainWindow = null;
+let cachedDeviceId = null;
 
 function existingPath(...segments) {
   const candidate = path.join(...segments);
@@ -27,7 +34,95 @@ function getIconPath() {
 }
 
 function getDataDir() {
-  return path.join(app.getPath("userData"), "data");
+  return process.env.ISP_DATA_DIR || DEFAULT_DATA_DIR;
+}
+
+function getLicenseStatePath() {
+  return path.join(app.getPath("userData"), "license-state.json");
+}
+
+function readLicenseState() {
+  try {
+    const filePath = getLicenseStatePath();
+    if (!fs.existsSync(filePath)) return {};
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeLicenseState(state) {
+  const filePath = getLicenseStatePath();
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(state, null, 2));
+}
+
+function formatDeviceId(buffer) {
+  return buffer
+    .toString("hex")
+    .toUpperCase()
+    .match(/.{1,4}/g)
+    .join("-");
+}
+
+function getDeviceId() {
+  if (cachedDeviceId) return cachedDeviceId;
+
+  const state = readLicenseState();
+  if (state.deviceId) {
+    cachedDeviceId = String(state.deviceId).trim().toUpperCase();
+    return cachedDeviceId;
+  }
+
+  cachedDeviceId = formatDeviceId(crypto.randomBytes(16));
+  writeLicenseState({ ...state, deviceId: cachedDeviceId });
+  return cachedDeviceId;
+}
+
+function getLicenseStatus() {
+  const deviceId = getDeviceId();
+  const state = readLicenseState();
+
+  if (!state.licenseCode) {
+    return {
+      valid: false,
+      status: "missing",
+      deviceId,
+    };
+  }
+
+  const result = validateLicenseCode(state.licenseCode, deviceId);
+  return {
+    ...result,
+    deviceId,
+  };
+}
+
+function activateLicense(licenseCode) {
+  const deviceId = getDeviceId();
+  const result = validateLicenseCode(licenseCode, deviceId);
+
+  if (!result.valid) {
+    return {
+      ...result,
+      deviceId,
+    };
+  }
+
+  const state = readLicenseState();
+  writeLicenseState({
+    ...state,
+    deviceId,
+    licenseCode: String(licenseCode || "").trim(),
+    activatedAt: new Date().toISOString(),
+    licenseId: result.payload.licenseId,
+    expiresAt: result.payload.expiresAt,
+  });
+
+  return {
+    ...result,
+    deviceId,
+  };
 }
 
 function copyJsonFilesIfMissing(sourceDir, targetDir) {
@@ -91,7 +186,7 @@ function waitForUrl(url, timeoutMs = 30000) {
 function showStartupError(error) {
   const message = error?.message || String(error);
   dialog.showErrorBox(
-    "Unable to start ISP",
+    "Unable to start ISP Smart",
     `The application could not start correctly.\n\n${message}`
   );
 }
@@ -187,19 +282,32 @@ async function loadRenderer(win) {
 
 async function boot() {
   const dataDir = prepareUserDataDirectory();
-  const api = await startServer({
-    host: "127.0.0.1",
-    port: 0,
-    dataDir,
-  });
+  let apiPort = Number(process.env.ISP_API_PORT || 0);
 
-  apiServer = api.server;
-  mainWindow = createWindow(api.port);
+  if (USE_EXTERNAL_BACKEND) {
+    if (!apiPort) {
+      throw new Error("External backend port is not configured.");
+    }
+    await waitForUrl(`http://127.0.0.1:${apiPort}/api/health`);
+  } else {
+    const api = await startServer({
+      host: "127.0.0.1",
+      port: 0,
+      dataDir,
+    });
+
+    apiServer = api.server;
+    apiPort = api.port;
+  }
+
+  mainWindow = createWindow(apiPort);
   await loadRenderer(mainWindow);
 }
 
 ipcMain.handle("app:getVersion", () => app.getVersion());
 ipcMain.handle("app:getUserDataPath", () => app.getPath("userData"));
+ipcMain.handle("license:getStatus", () => getLicenseStatus());
+ipcMain.handle("license:activate", (_event, licenseCode) => activateLicense(licenseCode));
 
 app.whenReady().then(boot).catch((error) => {
   console.error("Unable to start desktop app:", error);

@@ -6,7 +6,7 @@ import { apiUrl } from "../utils/api";
 import { notify } from "../utils/notify";
 import "./Settings.css";
 
-const defaultSystemName = "ISP Assets";
+const defaultSystemName = "ISP Smart";
 const defaultSystemSubtitle = "Asset & Inventory Management";
 
 function Settings() {
@@ -80,7 +80,7 @@ function Settings() {
         })
       );
       const payload = {
-        app: "ISP Assets",
+        app: "ISP Smart",
         exportedAt: new Date().toISOString(),
         collections: Object.fromEntries(entries),
       };

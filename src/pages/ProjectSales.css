@@ -1,0 +1,790 @@
+@import "./Projects.css";
+
+.project-sales-page {
+  padding: 26px 28px 34px;
+}
+
+.project-sales-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.project-sales-heading span,
+.project-sale-modal-header span,
+.project-sale-form-title span,
+.project-sale-preview > span {
+  color: #4f46e5;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.project-sales-heading h1 {
+  margin: 5px 0;
+  font-size: 27px;
+}
+
+.project-sales-heading p {
+  max-width: 760px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.project-sales-heading > button {
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid #18181b;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #18181b;
+  color: #fff;
+  font-family: inherit;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.project-sales-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.project-sales-stats > div,
+.project-sale-form,
+.project-sale-preview,
+.project-sale-list {
+  border: 1px solid #e8e3d9;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.project-sales-stats > div {
+  position: relative;
+  min-height: 112px;
+  padding: 16px;
+}
+
+.project-sales-stats svg {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 20px;
+  color: #4f46e5;
+}
+
+.project-sales-stats span,
+.project-sales-stats small {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.project-sales-stats strong {
+  display: block;
+  margin: 12px 0 4px;
+  font-size: 24px;
+}
+
+.project-sales-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.project-sales-workspace.in-modal {
+  margin: 0;
+}
+
+.project-sale-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  padding: 22px;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, .56);
+  backdrop-filter: blur(8px);
+}
+
+body.project-modal-open {
+  overflow: hidden;
+}
+
+.project-sale-modal {
+  width: min(1180px, 100%);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+  border: 1px solid #e8e3d9;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #172033;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
+}
+
+.project-license-modal {
+  width: min(900px, 100%);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+  border: 1px solid #e8e3d9;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #172033;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
+}
+
+.project-sale-modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 17px 18px;
+  border-bottom: 1px solid #e8e3d9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: inherit;
+}
+
+.project-sale-modal-header h2 {
+  margin-top: 4px;
+  font-size: 22px;
+}
+
+.project-sale-modal-header button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #e9eef6;
+  color: #172033;
+  cursor: pointer;
+}
+
+.project-sale-modal .project-sales-workspace {
+  padding: 18px;
+}
+
+.project-license-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 18px;
+}
+
+.project-license-summary {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.project-license-summary > div {
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid #edf0f5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.project-license-summary span,
+.project-license-field > span,
+.project-license-output > span,
+.project-license-date-grid label > span {
+  display: block;
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.project-license-summary strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.project-license-field small {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.project-license-field,
+.project-license-output {
+  display: flex;
+  flex-direction: column;
+}
+
+.project-license-field input,
+.project-license-field textarea,
+.project-license-output input,
+.project-license-date-grid input,
+.project-license-date-grid select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  font-family: inherit;
+  outline: 0;
+}
+
+.project-license-field input,
+.project-license-output input {
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.project-license-output > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  gap: 8px;
+}
+
+.project-license-output button,
+.project-license-share button {
+  min-height: 44px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #fff;
+  color: #172033;
+  font-family: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.project-license-output button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.project-license-error {
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.project-license-share {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.project-license-share button:first-child {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.project-license-share button:nth-child(2) {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.project-license-share button:nth-child(3) {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+  color: #0369a1;
+}
+
+.project-license-types {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.project-license-types button {
+  min-height: 72px;
+  padding: 10px;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: #fff;
+  color: #475569;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.project-license-types button.active {
+  border-color: #a5b4fc;
+  background: #eef2ff;
+  color: #4338ca;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, .1);
+}
+
+.project-license-date-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.project-sale-form,
+.project-sale-preview {
+  padding: 17px;
+}
+
+.project-sale-form-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.project-sale-form-title span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.project-sale-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.project-sale-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.project-sale-grid label > span,
+.project-sale-customer-card small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.project-sale-grid input,
+.project-sale-grid select,
+.project-sale-grid textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  font-family: inherit;
+  outline: 0;
+}
+
+.project-sale-full {
+  grid-column: 1 / -1;
+}
+
+.project-sale-customer-card {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid #dbe4ff;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.project-sale-customer-card > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-sale-customer-card span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.project-sale-customer-card strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.project-sale-type {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.project-sale-type button {
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  color: #172033;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-sale-type button.active {
+  border-color: #a5b4fc;
+  background: #eef2ff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, .1);
+}
+
+.project-sale-type span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.project-sale-type small,
+.project-sale-preview p,
+.project-sale-preview small {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.project-sale-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.project-sale-actions button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #fff;
+  font-family: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.project-sale-actions button:last-child {
+  border-color: #18181b;
+  background: #18181b;
+  color: #fff;
+}
+
+.project-sale-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.project-sale-preview h2 {
+  font-size: 20px;
+}
+
+.project-sale-preview > div {
+  padding: 12px;
+  border: 1px solid #edf0f5;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.project-sale-preview strong {
+  display: block;
+  margin-top: 4px;
+}
+
+.project-sale-list {
+  overflow: hidden;
+}
+
+.project-sale-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 17px;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.project-sale-list-header p {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.project-sale-list-header > div:last-child {
+  width: min(300px, 100%);
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #94a3b8;
+}
+
+.project-sale-list-header input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: inherit;
+}
+
+.project-sale-table-wrap {
+  overflow: auto;
+}
+
+.project-sale-table-wrap table {
+  width: 100%;
+  min-width: 980px;
+}
+
+.project-sale-table-wrap td small {
+  display: block;
+  margin-top: 3px;
+  color: #94a3b8;
+}
+
+.project-sale-pill {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.project-sale-pill.forever {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.project-sale-row-actions {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.project-sale-row-actions button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #eef2ff;
+  color: #4f46e5;
+  cursor: pointer;
+}
+
+.project-sale-row-actions .danger {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.project-sale-empty {
+  padding: 34px !important;
+  color: #94a3b8;
+  text-align: center !important;
+}
+
+.lang-rtl .project-sales-page,
+.lang-rtl .project-sale-grid,
+.lang-rtl .project-sale-customer-card {
+  direction: rtl;
+}
+
+.lang-rtl .project-sale-type button {
+  text-align: right;
+}
+
+body.dark-mode .project-sales-stats > div,
+body.dark-mode .project-sale-modal,
+body.dark-mode .project-license-modal,
+body.dark-mode .project-sale-form,
+body.dark-mode .project-sale-preview,
+body.dark-mode .project-sale-list,
+body.dark-mode .project-sale-preview > div,
+body.dark-mode .project-license-summary > div,
+body.dark-mode .project-sale-customer-card {
+  border-color: #334155;
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+body.dark-mode .project-sale-grid input,
+body.dark-mode .project-sale-grid select,
+body.dark-mode .project-sale-grid textarea,
+body.dark-mode .project-license-field input,
+body.dark-mode .project-license-field textarea,
+body.dark-mode .project-license-output input,
+body.dark-mode .project-license-date-grid input,
+body.dark-mode .project-license-date-grid select,
+body.dark-mode .project-license-types button,
+body.dark-mode .project-license-output button,
+body.dark-mode .project-sale-type button,
+body.dark-mode .project-sale-modal-header button,
+body.dark-mode .project-sale-list-header > div:last-child {
+  border-color: #334155;
+  background: #111827;
+  color: #f8fafc;
+  color-scheme: dark;
+}
+
+body.dark-mode .project-sale-type button.active {
+  border-color: #818cf8;
+  background: #312e81;
+}
+
+body.dark-mode .project-license-types button.active {
+  border-color: #818cf8;
+  background: #312e81;
+  color: #e0e7ff;
+}
+
+body.dark-mode .project-license-error {
+  border-color: #7f1d1d;
+  background: rgba(127, 29, 29, 0.25);
+  color: #fecaca;
+}
+
+body.dark-mode .project-sale-list-header {
+  border-color: #334155;
+}
+
+body.dark-mode .project-sale-modal-header {
+  border-color: #334155;
+}
+
+body.theme-ocean .project-sale-type button.active,
+body.theme-ocean .project-license-types button.active,
+body.theme-ocean .project-sale-row-actions button,
+body.theme-ocean .project-sales-heading > button,
+body.theme-ocean .project-sale-actions button:last-child {
+  border-color: #7dd3fc;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+body.theme-warm .project-sale-type button.active,
+body.theme-warm .project-license-types button.active,
+body.theme-warm .project-sale-row-actions button,
+body.theme-warm .project-sales-heading > button,
+body.theme-warm .project-sale-actions button:last-child {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #9a5411;
+}
+
+@media (max-width: 1100px) {
+  .project-sales-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-sales-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .project-sale-customer-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-license-summary,
+  .project-license-types {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .project-sales-page {
+    padding: 18px 14px 26px;
+  }
+
+  .project-sales-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .project-sales-heading > button {
+    width: 100%;
+  }
+
+  .project-sale-modal-backdrop {
+    padding: 10px;
+    align-items: start;
+  }
+
+  .project-sale-modal {
+    max-height: calc(100vh - 20px);
+  }
+
+  .project-sale-modal .project-sales-workspace {
+    padding: 12px;
+  }
+
+  .project-sales-stats,
+  .project-sale-grid,
+  .project-sale-type,
+  .project-sale-customer-card,
+  .project-license-form,
+  .project-license-summary,
+  .project-license-types,
+  .project-license-share,
+  .project-license-date-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-sale-full {
+    grid-column: auto;
+  }
+
+  .project-sale-list-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .project-sale-list-header > div:last-child {
+    width: 100%;
+  }
+
+  .project-sale-actions {
+    flex-direction: column;
+  }
+}

@@ -26,6 +26,16 @@ body {
   letter-spacing: -0.01em;
 }
 
+.lang-rtl,
+.lang-rtl body,
+body.lang-rtl,
+.lang-rtl input,
+.lang-rtl textarea,
+.lang-rtl select,
+.lang-rtl button {
+  font-family: "Vazirmatn", "Inter", "Segoe UI", Arial, sans-serif;
+}
+
 .app {
   height: 100vh;
   display: flex;

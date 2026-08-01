@@ -16,7 +16,7 @@ function CustomerReceipt() {
   const [customerTravels] = useJsonCollection("customerTravels");
   const [customerPayments] = useJsonCollection("customerPayments");
   const company = settings[0] || {};
-  const systemName = company.companyName || "ISP Assets";
+  const systemName = company.companyName || "ISP Smart";
   const customer = customers[customerIndex];
   const record =
     type === "travel"

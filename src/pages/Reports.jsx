@@ -155,7 +155,7 @@ function Reports() {
   const [disconnections] = useJsonCollection("disconnections");
 
   const company = settings[0] || {};
-  const systemName = company.companyName || "ISP Assets";
+  const systemName = company.companyName || "ISP Smart";
   const logo = company.logo || "";
 
   const assetById = useMemo(() => {

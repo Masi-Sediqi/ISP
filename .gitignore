@@ -27,4 +27,7 @@ node_modules/
 dist/
 release/
 .env
+secure-keys/
+**/private-key.pem
 .vscode/
+electron/license/private-key.pem

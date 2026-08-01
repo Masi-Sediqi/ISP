@@ -67,6 +67,9 @@ const Settings = lazy(() => import("./pages/Settings"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const Agent = lazy(() => import("./pages/Agent"));
 const Employees = lazy(() => import("./pages/Employees"));
+const Projects = lazy(() => import("./pages/Projects"));
+const ProjectLicense = lazy(() => import("./pages/ProjectLicense"));
+const ProjectSales = lazy(() => import("./pages/ProjectSales"));
 const Login = lazy(() => import("./pages/Login"));
 const AssetFullInformation = lazy(() => import("./pages/AssetFullInformation"));
 const AssetAuditTrail = lazy(() => import("./pages/AssetAuditTrail"));
@@ -144,13 +147,14 @@ function App() {
   const [accounts, setAccounts, , accountsLoaded] = useJsonCollection("accounts");
     const [sidebarInfoOpen, setSidebarInfoOpen] = useState(false);
   const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const sidebarInfoRef = useRef(null);
   const [sessionId, setSessionId] = useState(() =>
     localStorage.getItem("isp-system-session")
   );
 
   const company = settings[0] || {};
-  const systemName = company.companyName || "ISP Assets";
+  const systemName = company.companyName || "ISP Smart";
   const systemSubtitle = company.systemSubtitle || "Asset & Inventory Management";
   const effectiveAccounts = accounts.some((account) => String(account.id) === "default-admin")
     ? accounts
@@ -214,12 +218,10 @@ function App() {
 
   const menuItems = [
     { to: "/", label: "Dashboard", moduleKey: "dashboard", icon: LayoutDashboard },
-    { to: "/projects", label: "Projects", moduleKey: "dashboard", icon: FolderKanban },
     { to: "/employees", label: "Employees", moduleKey: "dashboard", icon: UserRoundCog },
     { to: "/suppliers", label: "Suppliers", moduleKey: "suppliers", icon: Building2 },
     { to: "/expenses", label: "Expenses", moduleKey: "finance", icon: ReceiptText },
     { to: "/finance", label: "Finances", moduleKey: "finance", icon: WalletCards },
-    { to: "/project-license", label: "Project License", moduleKey: "dashboard", icon: FileText },
     { to: "/reports", label: "Reports", moduleKey: "reports", icon: FileBarChart },
     { to: "/settings", label: "Settings", moduleKey: "settings", icon: SettingsIcon },
     { to: "/agent", label: "AI Agent", moduleKey: "agent", icon: Bot },
@@ -231,6 +233,12 @@ function App() {
     { to: "/customers/travel", label: "Travel Customers", icon: Plane },
     { to: "/customers?type=technology", label: "Technology Customers", icon: Cpu },
     { to: "/customers?type=media", label: "Media Customers", icon: Clapperboard },
+  ];
+
+  const projectMenuItems = [
+    { to: "/projects", label: "Projects", icon: FolderKanban },
+    { to: "/project-sales", label: "Project Sales", icon: ReceiptText },
+    { to: "/project-license", label: "Project License", icon: FileText },
   ];
 
     const sidebarInfoLinks = [
@@ -349,6 +357,41 @@ function App() {
             </div>
           )}
 
+          {canViewModule(currentUser, "dashboard") && (
+            <div className={`sidebar-customer-menu ${projectMenuOpen ? "open" : ""}`}>
+              <button
+                type="button"
+                className="sidebar-customer-trigger"
+                onClick={() => setProjectMenuOpen((open) => !open)}
+                aria-expanded={projectMenuOpen}
+              >
+                <span className="sidebar-menu-label">
+                  <FolderKanban size={17} />
+                  <span>Projects</span>
+                </span>
+                <ChevronDown className="sidebar-menu-chevron" size={15} />
+              </button>
+
+              {projectMenuOpen && (
+                <div className="sidebar-customer-submenu">
+                  {projectMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.to}
+                        to={item.to}
+                        className={location.pathname === item.to ? "active" : ""}
+                      >
+                        <Icon size={14} />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {menuItems
             .filter((item) => item.to !== "/" && canViewModule(currentUser, item.moduleKey))
             .map((item) => {
@@ -367,7 +410,7 @@ function App() {
 >
   <div className="sidebar-version-row">
    <span className="sidebar-version-label">
-  v0.0.1 • ISP Asset Inventory
+  v0.0.1 • ISP Smart
 </span>
 
     <button
@@ -418,7 +461,7 @@ function App() {
               <Route path="/" element={protect("dashboard", <Dashboard />)} />
               <Route
                 path="/projects"
-                element={<ModulePlaceholder title="Projects" description="Manage and monitor all company projects." items={["Project overview", "Progress tracking", "Project assignments"]} />}
+                element={protect("dashboard", <Projects />)}
               />
               <Route path="/employees" element={<Employees />} />
               <Route
@@ -427,7 +470,11 @@ function App() {
               />
               <Route
                 path="/project-license"
-                element={<ModulePlaceholder title="Project License" description="Manage project licenses, validity periods, and related documents." items={["Active licenses", "Expiry monitoring", "License documents"]} />}
+                element={protect("dashboard", <ProjectLicense />)}
+              />
+              <Route
+                path="/project-sales"
+                element={protect("dashboard", <ProjectSales />)}
               />
               <Route
                 path="/recycle-bin"

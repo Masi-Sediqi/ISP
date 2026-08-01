@@ -3,15 +3,30 @@ const cors = require("cors");
 const fs = require("fs-extra");
 const path = require("path");
 const { answerAdvancedReport } = require("./advancedReport");
+const {
+  ALLOWED_LICENSE_TYPES,
+  calculateEndDate,
+  createLicenseCode,
+} = require("./services/licenseGenerator");
 
 const app = express();
 
 const DEFAULT_PORT = Number(process.env.ISP_API_PORT || 5000);
 const DEFAULT_HOST = process.env.ISP_API_HOST || "127.0.0.1";
-const DEFAULT_DATA_DIR = "C:/ISP";
+const DEFAULT_DATA_DIR = "C:/ISP Smart";
+const LEGACY_DATA_DIR = "C:/ISP";
+const DEFAULT_ADMIN_ACCOUNT = {
+  id: "default-admin",
+  email: "admin@gmail.com",
+  role: "Admin",
+  fullName: "System Administrator",
+  status: "Active",
+};
 
 let activeDataDir = process.env.ISP_DATA_DIR || DEFAULT_DATA_DIR;
+let dataDirectoryPrepared = false;
 const writeQueues = new Map();
+const licenseRateLimits = new Map();
 
 const COLLECTIONS = new Set([
   "settings",
@@ -54,6 +69,9 @@ const COLLECTIONS = new Set([
   "financeCategories",
   "financeBudgets",
   "reports",
+  "projects",
+  "projectSales",
+  "projectLicenses",
 
   "travels",
   "travelExpenses",
@@ -61,7 +79,45 @@ const COLLECTIONS = new Set([
   "carRepairs",
 ]);
 
-app.use(cors());
+app.disable("x-powered-by");
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    const protocol = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+    if (req.path.startsWith("/api") && protocol !== "https" && !req.secure) {
+      return res.status(403).json({ success: false, error: "HTTPS is required in production." });
+    }
+  }
+
+  next();
+});
+app.use(
+  cors({
+    credentials: true,
+    origin(origin, callback) {
+      if (process.env.NODE_ENV !== "production") {
+        callback(null, true);
+        return;
+      }
+
+      const allowedOrigins = String(process.env.GENERATOR_ALLOWED_ORIGINS || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("CORS origin is not allowed."));
+    },
+  })
+);
 app.use(express.json({ limit: "10mb" }));
 
 function dataFile(collection) {
@@ -70,6 +126,39 @@ function dataFile(collection) {
 
 async function ensureDataDirectory() {
   await fs.ensureDir(activeDataDir);
+
+  if (!dataDirectoryPrepared) {
+    dataDirectoryPrepared = true;
+    await copyJsonFilesIfMissing(LEGACY_DATA_DIR, activeDataDir);
+  }
+}
+
+async function copyJsonFilesIfMissing(sourceDir, targetDir) {
+  if (
+    !sourceDir ||
+    path.resolve(sourceDir).toLowerCase() === path.resolve(targetDir).toLowerCase() ||
+    !(await fs.pathExists(sourceDir))
+  ) {
+    return;
+  }
+
+  const entries = await fs.readdir(sourceDir, { withFileTypes: true });
+
+  await Promise.all(
+    entries
+      .filter(
+        (entry) =>
+          entry.isFile() && path.extname(entry.name).toLowerCase() === ".json"
+      )
+      .map(async (entry) => {
+        const sourceFile = path.join(sourceDir, entry.name);
+        const targetFile = path.join(targetDir, entry.name);
+
+        if (!(await fs.pathExists(targetFile))) {
+          await fs.copy(sourceFile, targetFile);
+        }
+      })
+  );
 }
 
 async function ensureCollectionFile(collection) {
@@ -144,6 +233,190 @@ async function readCollection(collection) {
   }
 }
 
+function isInactiveAccount(account) {
+  const status = String(account?.status || account?.accountStatus || "Active").toLowerCase();
+  return ["inactive", "disabled", "blocked", "suspended"].includes(status);
+}
+
+function isAdminAccount(account) {
+  const role = String(account?.role || account?.roleName || account?.accountType || "").toLowerCase();
+  return ["admin", "administrator", "super admin", "full admin", "full administrator"].includes(role);
+}
+
+async function requireAuthentication(req, res, next) {
+  try {
+    const sessionId = String(req.headers["x-isp-session-id"] || "").trim();
+    if (!sessionId) {
+      return res.status(401).json({ success: false, error: "Authentication is required." });
+    }
+
+    if (sessionId === DEFAULT_ADMIN_ACCOUNT.id) {
+      req.user = DEFAULT_ADMIN_ACCOUNT;
+      return next();
+    }
+
+    const accounts = await readCollection("accounts");
+    const account = accounts.find((item) => String(item.id) === sessionId);
+
+    if (!account || isInactiveAccount(account)) {
+      return res.status(401).json({ success: false, error: "Authentication is invalid." });
+    }
+
+    req.user = account;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+function requireAdminRole(req, res, next) {
+  if (!isAdminAccount(req.user)) {
+    return res.status(403).json({ success: false, error: "Admin access is required." });
+  }
+  return next();
+}
+
+function isValidDateOnly(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function validateLicenseRequest(req, res, next) {
+  try {
+    const body = req.body;
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return res.status(400).json({ success: false, error: "License request is invalid." });
+    }
+
+    if (Buffer.byteLength(JSON.stringify(body), "utf8") > 16 * 1024) {
+      return res.status(413).json({ success: false, error: "License request is too large." });
+    }
+
+    const request = {
+      projectId: String(body.projectId || "").trim(),
+      projectName: String(body.projectName || "").trim(),
+      customerId: String(body.customerId || "").trim(),
+      customerName: String(body.customerName || "").trim(),
+      deviceId: String(body.deviceId || "").trim().toUpperCase(),
+      licenseType: String(body.licenseType || "").trim(),
+      startDate: String(body.startDate || "").trim(),
+      endDate: String(body.endDate || "").trim(),
+      status: "Active",
+      features: body.features === undefined ? ["all"] : body.features,
+    };
+
+    if (!request.projectName) return res.status(400).json({ success: false, error: "Project name is required." });
+    if (!request.customerName) return res.status(400).json({ success: false, error: "Customer name is required." });
+    if (!request.deviceId) return res.status(400).json({ success: false, error: "Device ID is required." });
+    if (request.deviceId.startsWith("WEB-")) {
+      return res.status(400).json({
+        success: false,
+        error: "Browser Device IDs cannot be used for production licenses. Copy the Device ID from the installed Electron customer application.",
+      });
+    }
+    if (!ALLOWED_LICENSE_TYPES.has(request.licenseType)) {
+      return res.status(400).json({ success: false, error: "License type is invalid." });
+    }
+    if (!isValidDateOnly(request.startDate)) {
+      return res.status(400).json({ success: false, error: "License start date is invalid." });
+    }
+    if (request.licenseType !== "forever" && !isValidDateOnly(request.endDate)) {
+      return res.status(400).json({ success: false, error: "License end date is invalid." });
+    }
+
+    const trustedEndDate = calculateEndDate(request.startDate, request.licenseType, request.endDate);
+    if (request.licenseType !== "forever" && trustedEndDate < request.startDate) {
+      return res.status(400).json({ success: false, error: "License end date cannot be before the start date." });
+    }
+
+    if (!Array.isArray(request.features) || request.features.length > 50) {
+      return res.status(400).json({ success: false, error: "License features are invalid." });
+    }
+
+    for (const feature of request.features) {
+      const value = String(feature || "").trim();
+      if (!value || value.length > 80 || !/^[A-Za-z0-9._:-]+$/.test(value)) {
+        return res.status(400).json({ success: false, error: "License features are invalid." });
+      }
+    }
+
+    req.licenseRequest = {
+      ...request,
+      endDate: request.licenseType === "forever" ? "" : trustedEndDate,
+      features: request.features.map((feature) => String(feature).trim()),
+    };
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+function rateLimitLicenseGeneration(req, res, next) {
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxRequests = 20;
+  const key = `${req.user?.id || "anonymous"}:${req.ip}`;
+  const timestamps = (licenseRateLimits.get(key) || []).filter((timestamp) => now - timestamp < windowMs);
+
+  if (timestamps.length >= maxRequests) {
+    return res.status(429).json({ success: false, error: "Too many license generation requests. Please try again later." });
+  }
+
+  timestamps.push(now);
+  licenseRateLimits.set(key, timestamps);
+  return next();
+}
+
+function auditFile() {
+  return path.join(activeDataDir, "licenseGenerationAudit.json");
+}
+
+function getRequestIp(req) {
+  return String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || req.ip || "";
+}
+
+async function appendLicenseAuditLog(entry) {
+  await ensureDataDirectory();
+  const file = auditFile();
+  let rows = [];
+
+  try {
+    if (await fs.pathExists(file)) {
+      const data = await fs.readJson(file);
+      rows = Array.isArray(data) ? data : [];
+    }
+  } catch {
+    rows = [];
+  }
+
+  rows.push(entry);
+  await fs.writeJson(file, rows.slice(-5000), { spaces: 2 });
+}
+
+function auditLicenseGeneration(req, _res, next) {
+  req.auditLicenseGeneration = async (result) => {
+    const payload = result?.certificate?.payload;
+    if (!payload) return;
+
+    await appendLicenseAuditLog({
+      licenseId: payload.licenseId,
+      customerId: payload.customerId,
+      customerName: payload.customerName,
+      projectId: payload.projectId,
+      projectName: payload.projectName,
+      deviceId: payload.deviceId,
+      licenseType: payload.licenseType,
+      startsAt: payload.startsAt,
+      expiresAt: payload.expiresAt,
+      generatedBy: req.user?.id || "",
+      generatedAt: new Date().toISOString(),
+      requestIp: getRequestIp(req),
+    });
+  };
+  next();
+}
+
 async function readOperationalData() {
   const names = [
     "suppliers",
@@ -193,7 +466,7 @@ async function readOperationalData() {
 app.get("/api/health", (req, res) => {
   res.json({
     ready: true,
-    app: "ISP Asset & Inventory Management",
+    app: "ISP Smart Asset & Inventory Management",
     dataDirectory: activeDataDir,
   });
 });
@@ -229,6 +502,31 @@ app.post("/api/advanced-report/chat", async (req, res) => {
     res.status(500).json({ error: "Unable to analyze system data" });
   }
 });
+
+app.post(
+  "/api/license/generate",
+  requireAuthentication,
+  requireAdminRole,
+  validateLicenseRequest,
+  rateLimitLicenseGeneration,
+  auditLicenseGeneration,
+  async (req, res) => {
+    try {
+      const result = createLicenseCode(req.licenseRequest);
+      await req.auditLicenseGeneration?.(result);
+
+      res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        error: error?.message || "License generation failed.",
+      });
+    }
+  }
+);
 
 app.param("collection", (req, res, next, collection) => {
   if (!COLLECTIONS.has(collection)) {
@@ -339,50 +637,54 @@ function startServer(options = {}) {
   const host = options.host ?? DEFAULT_HOST;
 
   activeDataDir = options.dataDir || activeDataDir;
+  dataDirectoryPrepared = false;
 
-  return new Promise((resolve, reject) => {
-    let settled = false;
+  return ensureDataDirectory().then(
+    () =>
+      new Promise((resolve, reject) => {
+        let settled = false;
 
-    const server = app.listen(port, host, () => {
-      const address = server.address();
-      const resolvedPort =
-        address && typeof address === "object" ? address.port : Number(port);
+        const server = app.listen(port, host, () => {
+          const address = server.address();
+          const resolvedPort =
+            address && typeof address === "object" ? address.port : Number(port);
 
-      if (!resolvedPort) {
-        const error = new Error("Unable to determine the backend server port.");
+          if (!resolvedPort) {
+            const error = new Error("Unable to determine the backend server port.");
 
-        if (!settled) {
+            if (!settled) {
+              settled = true;
+              reject(error);
+            }
+
+            server.close();
+            return;
+          }
+
+          console.log(
+            `ISP server running on http://${host}:${resolvedPort}; data directory: ${activeDataDir}`
+          );
+
           settled = true;
-          reject(error);
-        }
+          resolve({
+            server,
+            port: resolvedPort,
+            host,
+            dataDir: activeDataDir,
+          });
+        });
 
-        server.close();
-        return;
-      }
+        server.on("error", (error) => {
+          if (!settled) {
+            settled = true;
+            reject(error);
+            return;
+          }
 
-      console.log(
-        `ISP server running on http://${host}:${resolvedPort}; data directory: ${activeDataDir}`
-      );
-
-      settled = true;
-      resolve({
-        server,
-        port: resolvedPort,
-        host,
-        dataDir: activeDataDir,
-      });
-    });
-
-    server.on("error", (error) => {
-      if (!settled) {
-        settled = true;
-        reject(error);
-        return;
-      }
-
-      console.error("ISP server runtime error:", error);
-    });
-  });
+          console.error("ISP server runtime error:", error);
+        });
+      })
+  );
 }
 
 if (require.main === module) {

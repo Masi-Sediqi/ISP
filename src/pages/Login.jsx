@@ -10,7 +10,7 @@ function Login({ accounts, setAccounts, onLogin, company }) {
     password: "",
   });
 
-  const systemName = company.companyName || "ISP Assets";
+  const systemName = company.companyName || "ISP Smart";
   const systemSubtitle =
     company.systemSubtitle || "Asset & Inventory Management";
 

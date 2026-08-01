@@ -1,5 +1,5 @@
 const fallbackApiRoot =
-  import.meta.env.VITE_API_ROOT || "http://127.0.0.1:5000/api";
+  import.meta.env.VITE_API_ROOT || "http://127.0.0.1:5050/api";
 
 export const API_ROOT = window.ispDesktop?.apiRoot || fallbackApiRoot;
 
