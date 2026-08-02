@@ -60,6 +60,11 @@ const COLLECTIONS = new Set([
   "travelCustomers",
   "technologyCustomers",
 
+
+  "officeAssets",
+  "officeAssetItems",
+  "officeAssetCategories",
+
   "towerAssets",
   "towerLinks",
   "deviceTransfers",
