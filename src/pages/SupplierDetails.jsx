@@ -1,5 +1,12 @@
 import { useMemo, useState } from "react";
 import {
+  ShoppingCart,
+  Banknote,
+  Boxes,
+  PackageCheck,
+  Calculator,
+} from "lucide-react";
+import {
   Bar,
   BarChart,
   CartesianGrid,
@@ -452,113 +459,326 @@ const togglePurchaseActionMenu = (event, purchaseId) => {
 };
 
 const printPurchaseDetail = (purchase) => {
-  const printWindow = window.open("", "_blank", "width=900,height=700");
+  const printWindow = window.open("", "_blank", "width=950,height=750");
 
   if (!printWindow) {
     notify("Unable to open print window. Please allow pop-ups.", "error");
     return;
   }
 
+  const total = Number(purchase.totalPurchaseValue || 0);
+  const paid = Number(purchase.paidAmount || 0);
+  const remain = Number(purchase.remainAmount || 0);
+
   printWindow.document.write(`
     <!doctype html>
     <html>
       <head>
-        <title>Purchase Detail</title>
+        <meta charset="UTF-8" />
+        <title>Purchase Receipt</title>
+
         <style>
+          * {
+            box-sizing: border-box;
+          }
+
           body {
-            font-family: Arial, sans-serif;
-            color: #111827;
-            padding: 28px;
-          }
-
-          .header {
-            border-bottom: 2px solid #111827;
-            padding-bottom: 14px;
-            margin-bottom: 20px;
-          }
-
-          h1 {
-            margin: 0 0 6px;
-            font-size: 24px;
-          }
-
-          p {
             margin: 0;
+            padding: 28px;
+            font-family: Arial, sans-serif;
+            color: #172033;
+            background: #ffffff;
+          }
+
+          .receipt {
+            width: 100%;
+            max-width: 820px;
+            margin: 0 auto;
+            border: 1px solid #dfe3ea;
+            border-radius: 16px;
+            overflow: hidden;
+          }
+
+          .receipt-header {
+            padding: 24px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            border-bottom: 2px solid #172033;
+          }
+
+          .receipt-header h1 {
+            margin: 0 0 7px;
+            font-size: 25px;
+          }
+
+          .receipt-header p {
+            margin: 3px 0;
             color: #64748b;
+            font-size: 12px;
+          }
+
+          .receipt-number {
+            text-align: right;
+          }
+
+          .receipt-number span {
+            display: block;
+            color: #64748b;
+            font-size: 11px;
+          }
+
+          .receipt-number strong {
+            display: block;
+            margin-top: 5px;
+            font-size: 16px;
+          }
+
+          .receipt-grid {
+            padding: 20px 24px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 11px;
+          }
+
+          .receipt-item {
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 11px;
+            background: #fafafa;
+          }
+
+          .receipt-item span {
+            display: block;
+            margin-bottom: 5px;
+            color: #64748b;
+            font-size: 10px;
+          }
+
+          .receipt-item strong {
+            font-size: 13px;
+            word-break: break-word;
+          }
+
+          .summary {
+            margin: 0 24px 20px;
+            padding: 15px;
+            border: 1px solid #dbeafe;
+            border-radius: 12px;
+            background: #eff6ff;
+          }
+
+          .summary-row {
+            min-height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            border-bottom: 1px dashed #bfdbfe;
             font-size: 13px;
           }
 
-          .grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+          .summary-row:last-child {
+            border-bottom: 0;
           }
 
-          .item {
+          .summary-row.total {
+            font-size: 16px;
+            font-weight: 800;
+          }
+
+          .summary-row.remain strong {
+            color: ${remain > 0 ? "#dc2626" : "#15803d"};
+          }
+
+          .bill-image {
+            margin: 0 24px 20px;
+            padding: 14px;
             border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 12px;
+            border-radius: 12px;
           }
 
-          .item span {
+          .bill-image span {
             display: block;
+            margin-bottom: 9px;
             color: #64748b;
-            font-size: 12px;
-            margin-bottom: 5px;
+            font-size: 11px;
           }
 
-          .item strong {
-            font-size: 14px;
+          .bill-image img {
+            width: 100%;
+            max-height: 310px;
+            object-fit: contain;
+            border-radius: 10px;
           }
 
           .notes {
-            margin-top: 12px;
+            margin: 0 24px 20px;
+            padding: 14px;
             border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 12px;
+            border-radius: 12px;
+          }
+
+          .notes span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 11px;
+          }
+
+          .notes p {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.6;
+          }
+
+          .receipt-footer {
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #64748b;
+            font-size: 10px;
           }
 
           @media print {
             body {
-              padding: 18px;
+              padding: 0;
+            }
+
+            .receipt {
+              max-width: none;
+              border: 0;
+              border-radius: 0;
+            }
+
+            @page {
+              size: A4;
+              margin: 12mm;
             }
           }
         </style>
       </head>
 
       <body>
-        <div class="header">
-          <h1>Purchase Full Detail</h1>
-          <p>Supplier: ${supplierName || "-"}</p>
-        </div>
+        <div class="receipt">
+          <div class="receipt-header">
+            <div>
+              <h1>Purchase Receipt</h1>
+              <p>Supplier: ${supplierName || "-"}</p>
+              <p>Purchase Date: ${
+                formatDateTime(
+                  purchase.purchaseDate,
+                  purchase.createdAt || purchase.updatedAt
+                )
+              }</p>
+            </div>
 
-        <div class="grid">
-          <div class="item"><span>Purchase Date</span><strong>${formatDateTime(purchase.purchaseDate, purchase.createdAt || purchase.updatedAt)}</strong></div>
-          <div class="item"><span>Invoice No</span><strong>${purchase.invoiceNumber || "-"}</strong></div>
-          <div class="item"><span>Asset ID</span><strong>${purchase.assetId || "-"}</strong></div>
-          <div class="item"><span>Device Name</span><strong>${purchase.deviceName || "-"}</strong></div>
-          <div class="item"><span>Category</span><strong>${purchase.category || "-"}</strong></div>
-          <div class="item"><span>Brand</span><strong>${purchase.brand || "-"}</strong></div>
-          <div class="item"><span>Model</span><strong>${purchase.model || "-"}</strong></div>
-          <div class="item"><span>MAC Address</span><strong>${purchase.macAddress || "-"}</strong></div>
-          <div class="item"><span>Serial Number</span><strong>${purchase.serialNumber || "-"}</strong></div>
-          <div class="item"><span>Quantity</span><strong>${purchase.quantity || 1}</strong></div>
-          <div class="item"><span>Unit Price</span><strong>${money(purchase.unitPrice)} AFN</strong></div>
-          <div class="item"><span>Total Value</span><strong>${money(purchase.totalPurchaseValue)} AFN</strong></div>
-          <div class="item"><span>Paid Amount</span><strong>${money(purchase.paidAmount)} AFN</strong></div>
-          <div class="item"><span>Remain Amount</span><strong>${money(purchase.remainAmount)} AFN</strong></div>
-          <div class="item"><span>Location</span><strong>${purchase.location || "-"}</strong></div>
-          <div class="item"><span>Status</span><strong>${purchase.status || "-"}</strong></div>
-        </div>
+            <div class="receipt-number">
+              <span>Bill Number</span>
+              <strong>${
+                purchase.billNumber ||
+                purchase.invoiceNumber ||
+                "-"
+              }</strong>
+            </div>
+          </div>
 
-        <div class="notes">
-          <span>Notes</span>
-          <p>${purchase.notes || "No notes have been added for this purchase."}</p>
+          <div class="receipt-grid">
+            <div class="receipt-item">
+              <span>Product Name</span>
+              <strong>${
+                purchase.productName ||
+                purchase.deviceName ||
+                "-"
+              }</strong>
+            </div>
+
+            <div class="receipt-item">
+              <span>Product Code</span>
+              <strong>${purchase.productCode || "-"}</strong>
+            </div>
+
+            <div class="receipt-item">
+              <span>Category</span>
+              <strong>${purchase.category || "-"}</strong>
+            </div>
+
+            <div class="receipt-item">
+              <span>Unit</span>
+              <strong>${purchase.unit || "-"}</strong>
+            </div>
+
+            <div class="receipt-item">
+              <span>Quantity</span>
+              <strong>${purchase.quantity || 0}</strong>
+            </div>
+
+            <div class="receipt-item">
+              <span>Purchase Price</span>
+              <strong>${money(purchase.unitPrice)} AFN</strong>
+            </div>
+
+            <div class="receipt-item">
+              <span>Status</span>
+              <strong>${purchase.status || "-"}</strong>
+            </div>
+
+            <div class="receipt-item">
+              <span>Supplier</span>
+              <strong>${supplierName || "-"}</strong>
+            </div>
+          </div>
+
+          <div class="summary">
+            <div class="summary-row total">
+              <span>Total</span>
+              <strong>${money(total)} AFN</strong>
+            </div>
+
+            <div class="summary-row">
+              <span>Paid Amount</span>
+              <strong>${money(paid)} AFN</strong>
+            </div>
+
+            <div class="summary-row remain">
+              <span>Remain Amount</span>
+              <strong>${money(remain)} AFN</strong>
+            </div>
+          </div>
+
+          ${
+            purchase.billImage
+              ? `
+                <div class="bill-image">
+                  <span>Bill Image</span>
+                  <img src="${purchase.billImage}" alt="Bill Image" />
+                </div>
+              `
+              : ""
+          }
+
+          <div class="notes">
+            <span>Notes</span>
+            <p>${
+              purchase.notes ||
+              "No notes have been added for this purchase."
+            }</p>
+          </div>
+
+          <div class="receipt-footer">
+            <span>Generated by ISP Smart</span>
+            <span>${new Date().toLocaleString()}</span>
+          </div>
         </div>
 
         <script>
           window.onload = function () {
-            window.print();
+            setTimeout(function () {
+              window.print();
+            }, 300);
           };
         </script>
       </body>
@@ -1433,21 +1653,7 @@ const confirmDeletePurchase = async () => {
           <strong>{money(supplierOwesUs)} AFN</strong>
           <p>Overpaid supplier balance</p>
         </div>
-        <div className="supplier-dashboard-card">
-  <span>Latest Opening Balance</span>
 
-  <strong>
-    {money(latestOpeningBalance)} AFN
-  </strong>
-
-  <p>
-    {latestOpeningBalance < 0
-      ? "We Owe Supplier"
-      : latestOpeningBalance > 0
-        ? "Supplier Owes Us"
-        : "No opening balance recorded"}
-  </p>
-</div>
 
         <div className="supplier-dashboard-card">
           <span>Total Paid</span>
@@ -1456,37 +1662,75 @@ const confirmDeletePurchase = async () => {
         </div>
       </div>
 
-      <div className="supplier-dashboard-stats">
-        <div className="supplier-dashboard-card">
-          <span>Total Purchases</span>
-          <strong>{purchases.length}</strong>
-          <p>Purchase records from this supplier</p>
-        </div>
+      <div className="supplier-mini-stats">
+  <div className="supplier-mini-card">
+    <div className="supplier-mini-icon">
+      <ShoppingCart size={18} />
+    </div>
 
-        <div className="supplier-dashboard-card">
-          <span>Total Purchase Value</span>
-          <strong>{money(totalPurchaseValue)} AFN</strong>
-          <p>Quantity × unit price</p>
-        </div>
+    <div>
+      <span>Total Purchases</span>
+      <strong>{purchases.length}</strong>
+      <small>Purchase records</small>
+    </div>
+  </div>
 
-        <div className="supplier-dashboard-card">
-          <span>Total Quantity</span>
-          <strong>{totalQuantity}</strong>
-          <p>Total purchased device quantity</p>
-        </div>
+  <div className="supplier-mini-card">
+    <div className="supplier-mini-icon">
+      <Banknote size={18} />
+    </div>
 
-        <div className="supplier-dashboard-card">
-          <span>Inventory Items</span>
-          <strong>{supplierAssets.length}</strong>
-          <p>Assets added to inventory</p>
-        </div>
+    <div>
+      <span>Purchase Value</span>
+      <strong>{money(totalPurchaseValue)} AFN</strong>
+      <small>Total purchase amount</small>
+    </div>
+  </div>
 
-        <div className="supplier-dashboard-card">
-          <span>Average Purchase</span>
-          <strong>{money(averagePurchaseValue)} AFN</strong>
-          <p>Average value per purchase</p>
-        </div>
-      </div>
+  <div className="supplier-mini-card">
+    <div className="supplier-mini-icon">
+      <Boxes size={18} />
+    </div>
+
+    <div>
+      <span>Total Quantity</span>
+      <strong>{totalQuantity}</strong>
+      <small>All purchased units</small>
+    </div>
+  </div>
+
+  <div className="supplier-mini-card">
+    <div className="supplier-mini-icon">
+      <PackageCheck size={18} />
+    </div>
+
+    <div>
+      <span>Total Remaining</span>
+      <strong>
+        {money(
+          purchases.reduce(
+            (sum, purchase) =>
+              sum + Number(purchase.remainAmount || 0),
+            0
+          )
+        )} AFN
+      </strong>
+      <small>Unpaid purchase amount</small>
+    </div>
+  </div>
+
+  <div className="supplier-mini-card">
+    <div className="supplier-mini-icon">
+      <Calculator size={18} />
+    </div>
+
+    <div>
+      <span>Average Purchase</span>
+      <strong>{money(averagePurchaseValue)} AFN</strong>
+      <small>Average per purchase</small>
+    </div>
+  </div>
+</div>
 
       {showSupplierInfo && <div className="supplier-analysis-grid">
         <div className="supplier-analysis-card">
@@ -1534,226 +1778,285 @@ const confirmDeletePurchase = async () => {
         </div>
 
         <div className="supplier-purchase-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Purchase Date</th>
-                <th>Type</th>
-                <th>Direction</th>
-                <th>Invoice No</th>
-                <th>Asset ID</th>
-                <th>Device Name</th>
-                <th>Category</th>
-                <th>Qty</th>
-                <th>Unit Price</th>
-                <th>Total Value</th>
-                <th>Paid Amount</th>
-                <th>Remain Amount</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
+        <table>
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Type</th>
+      <th>Product / Description</th>
+      <th>Code</th>
+      <th>Bill Number</th>
+      <th>Unit</th>
+      <th>Quantity</th>
+      <th>Purchase Price</th>
+      <th>Total</th>
+      <th>Paid</th>
+      <th>Remain</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
 
-            <tbody>
-              {ledgerRows.map((row) => {
-                const purchase = row.recordType === "purchase" ? row.record : null;
-                const payment = row.recordType === "payment" ? row.record : null;
-                const balance = row.recordType === "balance" ? row.record : null;
+  <tbody>
+    {ledgerRows.map((row) => {
+      const purchase =
+        row.recordType === "purchase" ? row.record : null;
 
-                return (
-                <tr key={row.id}>
-                  <td>{formatDateTime(row.date, row.timeSource)}</td>
-                  <td>
-                    <span
-                      className={
-                        row.recordType === "payment"
-                          ? "supplier-ledger-type payment"
-                          : row.recordType === "balance"
-                            ? "supplier-ledger-type balance"
-                            : "supplier-ledger-type purchase"
-                      }
-                    >
-                      {row.type}
-                    </span>
-                  </td>
-                  <td>{row.direction || "-"}</td>
-                  <td>{purchase?.invoiceNumber || "-"}</td>
-                  <td>{purchase?.assetId || "-"}</td>
-                  <td>
-                    {purchase?.deviceName ||
-                      payment?.notes ||
-                      balance?.notes ||
-                      (balance ? "Opening Balance" : "-")}
-                  </td>
-                  <td>{purchase?.category || "-"}</td>
-                  <td>{purchase?.quantity || "-"}</td>
-                  <td>{purchase ? `${money(purchase.unitPrice)} AFN` : "-"}</td>
-                  <td>
-                    {purchase
-                      ? `${money(purchase.totalPurchaseValue)} AFN`
-                      : row.debit
-                        ? `${money(row.debit)} AFN`
-                        : "-"}
-                  </td>
-                  <td>
-  {row.credit ? (
-    <span className="supplier-amount-badge paid">
-      {money(row.credit)} AFN
-    </span>
-  ) : (
-    "-"
-  )}
-</td>
+      const payment =
+        row.recordType === "payment" ? row.record : null;
 
-<td>
-  {purchase ? (
-    <span
-      className={`supplier-amount-badge ${
-        Number(purchase.remainAmount || 0) > 0
-          ? "remaining"
-          : "cleared"
-      }`}
-    >
-      {money(purchase.remainAmount)} AFN
-    </span>
-  ) : (
-    balance ? `${money(balance.amount)} AFN` : "-"
-  )}
-</td>
-                  <td>{row.status || "-"}</td>
-                  <td>
-  <div className="supplier-purchase-action-cell">
-  <button
-    type="button"
-    className="supplier-purchase-action-btn"
-    onClick={(event) => togglePurchaseActionMenu(event, row.id)}
-  >
-    ⋮
-  </button>
+      const balance =
+        row.recordType === "balance" ? row.record : null;
 
-  {openPurchaseAction === row.id && (
-    <div
-      className="supplier-purchase-action-menu"
-      style={{
-        top: `${purchaseActionPosition.top}px`,
-        left: `${purchaseActionPosition.left}px`,
-      }}
-    >
-      {row.recordType === "purchase" ? (
-        <>
-          <button
-            type="button"
-            onClick={() => {
-              setDetailPurchase(purchase);
-              setOpenPurchaseAction(null);
-            }}
-          >
-            <InfoIcon />
-            <span>Full Detail</span>
-          </button>
+      const description =
+        purchase?.productName ||
+        purchase?.deviceName ||
+        payment?.notes ||
+        balance?.notes ||
+        (balance ? "Opening Balance" : "-");
 
-          <button
-            type="button"
-            onClick={() => {
-              openEditPurchaseModal(purchase);
-              setOpenPurchaseAction(null);
-            }}
-          >
-            <EditIcon />
-            <span>Edit</span>
-          </button>
+      const paidValue = purchase
+        ? Number(purchase.paidAmount || 0)
+        : Number(row.credit || 0);
 
-          <button
-            type="button"
-            onClick={() => {
-              printPurchaseDetail(purchase);
-              setOpenPurchaseAction(null);
-            }}
-          >
-            <PrintIcon />
-            <span>Receipt</span>
-          </button>
+      const remainValue = purchase
+        ? Number(purchase.remainAmount || 0)
+        : balance
+          ? Number(balance.amount || 0)
+          : 0;
 
-          <button
-            type="button"
-            className="danger-action"
-            onClick={() => {
-              openDeletePurchaseModal(purchase.id);
-              setOpenPurchaseAction(null);
-            }}
-          >
-            <TrashIcon />
-            <span>Delete</span>
-          </button>
-        </>
-      ) : row.recordType === "balance" ? (
-        <>
-          <button
-            type="button"
-            onClick={() => {
-              openEditBalanceModal(balance);
-              setOpenPurchaseAction(null);
-            }}
-          >
-            <EditIcon />
-            <span>Edit</span>
-          </button>
+      return (
+        <tr key={row.id}>
+          <td>
+            {formatDateTime(row.date, row.timeSource)}
+          </td>
 
-          <button
-            type="button"
-            className="danger-action"
-            onClick={() => {
-              setDeleteBalance(balance);
-              setOpenPurchaseAction(null);
-            }}
-          >
-            <TrashIcon />
-            <span>Delete</span>
-          </button>
-        </>
-      ) : (
-        <>
-          <button
-            type="button"
-            onClick={() => {
-              openEditPaymentModal(payment);
-              setOpenPurchaseAction(null);
-            }}
-          >
-            <EditIcon />
-            <span>Edit</span>
-          </button>
+          <td>
+            <span
+              className={
+                row.recordType === "payment"
+                  ? "supplier-ledger-type payment"
+                  : row.recordType === "balance"
+                    ? "supplier-ledger-type balance"
+                    : "supplier-ledger-type purchase"
+              }
+            >
+              {row.type}
+            </span>
+          </td>
 
-          <button
-            type="button"
-            className="danger-action"
-            onClick={() => {
-              setDeletePayment(payment);
-              setOpenPurchaseAction(null);
-            }}
-          >
-            <TrashIcon />
-            <span>Delete</span>
-          </button>
-        </>
-      )}
-    </div>
-  )}
-</div>
-</td>
-                </tr>
-              );
-              })}
+          <td>{description}</td>
 
-              {ledgerRows.length === 0 && (
-                <tr>
-                  <td colSpan="14" className="supplier-empty-message">
-                    No purchase, payment, or balance has been recorded for this supplier yet.
-                  </td>
-                </tr>
+          <td>
+            {purchase?.productCode || "-"}
+          </td>
+
+          <td>
+            {purchase?.billNumber ||
+              purchase?.invoiceNumber ||
+              "-"}
+          </td>
+
+          <td>
+            {purchase?.unit || "-"}
+          </td>
+
+          <td>
+            {purchase?.quantity || "-"}
+          </td>
+
+          <td>
+            {purchase
+              ? `${money(purchase.unitPrice)} AFN`
+              : "-"}
+          </td>
+
+          <td>
+            {purchase
+              ? `${money(
+                  purchase.totalPurchaseValue
+                )} AFN`
+              : row.debit
+                ? `${money(row.debit)} AFN`
+                : "-"}
+          </td>
+
+          <td>
+            {paidValue > 0 ? (
+              <span className="supplier-amount-badge paid">
+                {money(paidValue)} AFN
+              </span>
+            ) : (
+              "-"
+            )}
+          </td>
+
+          <td>
+            {purchase ? (
+              <span
+                className={`supplier-amount-badge ${
+                  remainValue > 0
+                    ? "remaining"
+                    : "cleared"
+                }`}
+              >
+                {money(remainValue)} AFN
+              </span>
+            ) : balance ? (
+              `${money(remainValue)} AFN`
+            ) : (
+              "-"
+            )}
+          </td>
+
+          <td>
+            {row.status || "-"}
+          </td>
+
+          <td>
+            <div className="supplier-purchase-action-cell">
+              <button
+                type="button"
+                className="supplier-purchase-action-btn"
+                onClick={(event) =>
+                  togglePurchaseActionMenu(
+                    event,
+                    row.id
+                  )
+                }
+              >
+                ⋮
+              </button>
+
+              {openPurchaseAction === row.id && (
+                <div
+                  className="supplier-purchase-action-menu"
+                  style={{
+                    top: `${purchaseActionPosition.top}px`,
+                    left: `${purchaseActionPosition.left}px`,
+                  }}
+                >
+                  {row.recordType === "purchase" ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDetailPurchase(purchase);
+                          setOpenPurchaseAction(null);
+                        }}
+                      >
+                        <InfoIcon />
+                        <span>Full Detail</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openEditPurchaseModal(purchase);
+                          setOpenPurchaseAction(null);
+                        }}
+                      >
+                        <EditIcon />
+                        <span>Edit</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          printPurchaseDetail(purchase);
+                          setOpenPurchaseAction(null);
+                        }}
+                      >
+                        <PrintIcon />
+                        <span>Receipt</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="danger-action"
+                        onClick={() => {
+                          openDeletePurchaseModal(
+                            purchase.id
+                          );
+                          setOpenPurchaseAction(null);
+                        }}
+                      >
+                        <TrashIcon />
+                        <span>Delete</span>
+                      </button>
+                    </>
+                  ) : row.recordType === "balance" ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openEditBalanceModal(balance);
+                          setOpenPurchaseAction(null);
+                        }}
+                      >
+                        <EditIcon />
+                        <span>Edit</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="danger-action"
+                        onClick={() => {
+                          setDeleteBalance(balance);
+                          setOpenPurchaseAction(null);
+                        }}
+                      >
+                        <TrashIcon />
+                        <span>Delete</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openEditPaymentModal(payment);
+                          setOpenPurchaseAction(null);
+                        }}
+                      >
+                        <EditIcon />
+                        <span>Edit</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="danger-action"
+                        onClick={() => {
+                          setDeletePayment(payment);
+                          setOpenPurchaseAction(null);
+                        }}
+                      >
+                        <TrashIcon />
+                        <span>Delete</span>
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
-            </tbody>
-          </table>
+            </div>
+          </td>
+        </tr>
+      );
+    })}
+
+    {ledgerRows.length === 0 && (
+      <tr>
+        <td
+          colSpan="13"
+          className="supplier-empty-message"
+        >
+          No purchase, payment, or balance has been recorded
+          for this supplier yet.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
         </div>
       </div>
 
@@ -2325,33 +2628,100 @@ const confirmDeletePurchase = async () => {
           ×
         </button>
       </div>
-
       <div className="supplier-detail-grid">
-        <div>
-          <span>Purchase Date</span>
-          <strong>
-            {formatDateTime(
-              detailPurchase.purchaseDate,
-              detailPurchase.createdAt || detailPurchase.updatedAt
-            )}
-          </strong>
-        </div>
-        <div><span>Invoice No</span><strong>{detailPurchase.invoiceNumber || "-"}</strong></div>
-        <div><span>Asset ID</span><strong>{detailPurchase.assetId || "-"}</strong></div>
-        <div><span>Device Name</span><strong>{detailPurchase.deviceName || "-"}</strong></div>
-        <div><span>Category</span><strong>{detailPurchase.category || "-"}</strong></div>
-        <div><span>Brand</span><strong>{detailPurchase.brand || "-"}</strong></div>
-        <div><span>Model</span><strong>{detailPurchase.model || "-"}</strong></div>
-        <div><span>MAC Address</span><strong>{detailPurchase.macAddress || "-"}</strong></div>
-        <div><span>Serial Number</span><strong>{detailPurchase.serialNumber || "-"}</strong></div>
-        <div><span>Quantity</span><strong>{detailPurchase.quantity || 1}</strong></div>
-        <div><span>Unit Price</span><strong>{money(detailPurchase.unitPrice)} AFN</strong></div>
-        <div><span>Total Value</span><strong>{money(detailPurchase.totalPurchaseValue)} AFN</strong></div>
-        <div><span>Paid Amount</span><strong>{money(detailPurchase.paidAmount)} AFN</strong></div>
-        <div><span>Remain Amount</span><strong>{money(detailPurchase.remainAmount)} AFN</strong></div>
-        <div><span>Location</span><strong>{detailPurchase.location || "-"}</strong></div>
-        <div><span>Status</span><strong>{detailPurchase.status || "-"}</strong></div>
-      </div>
+  <div>
+    <span>Purchase Date</span>
+    <strong>
+      {formatDateTime(
+        detailPurchase.purchaseDate,
+        detailPurchase.createdAt || detailPurchase.updatedAt
+      )}
+    </strong>
+  </div>
+
+  <div>
+    <span>Product Name</span>
+    <strong>
+      {detailPurchase.productName ||
+        detailPurchase.deviceName ||
+        "-"}
+    </strong>
+  </div>
+
+  <div>
+    <span>Product Code</span>
+    <strong>{detailPurchase.productCode || "-"}</strong>
+  </div>
+
+  <div>
+    <span>Bill Number</span>
+    <strong>
+      {detailPurchase.billNumber ||
+        detailPurchase.invoiceNumber ||
+        "-"}
+    </strong>
+  </div>
+
+  <div>
+    <span>Category</span>
+    <strong>{detailPurchase.category || "-"}</strong>
+  </div>
+
+  <div>
+    <span>Unit</span>
+    <strong>{detailPurchase.unit || "-"}</strong>
+  </div>
+
+  <div>
+    <span>Quantity</span>
+    <strong>{detailPurchase.quantity || 0}</strong>
+  </div>
+
+  <div>
+    <span>Purchase Price</span>
+    <strong>{money(detailPurchase.unitPrice)} AFN</strong>
+  </div>
+
+  <div>
+    <span>Total</span>
+    <strong>
+      {money(detailPurchase.totalPurchaseValue)} AFN
+    </strong>
+  </div>
+
+  <div>
+    <span>Paid Amount</span>
+    <strong>{money(detailPurchase.paidAmount)} AFN</strong>
+  </div>
+
+  <div>
+    <span>Remain Amount</span>
+    <strong>{money(detailPurchase.remainAmount)} AFN</strong>
+  </div>
+
+  <div>
+    <span>Status</span>
+    <strong>{detailPurchase.status || "-"}</strong>
+  </div>
+
+  {detailPurchase.billImage && (
+    <div className="supplier-detail-full">
+      <span>Bill Image</span>
+
+      <img
+        src={detailPurchase.billImage}
+        alt="Bill"
+        style={{
+          width: "180px",
+          maxHeight: "140px",
+          objectFit: "cover",
+          borderRadius: "12px",
+          marginTop: "8px",
+        }}
+      />
+    </div>
+  )}
+</div>
 
       <div className="supplier-detail-notes">
         <span>Notes</span>
