@@ -1,0 +1,174 @@
+
+/* Dark-mode corrections for ISP Smart
+   Import this file AFTER App.css and page-level CSS files. */
+
+/* 1) Do not force every span, paragraph, link, or SVG to white.
+   Keep inherited/component-specific colors working. */
+   body.dark-mode {
+    color: #f8fafc;
+  }
+  
+  /* Base text */
+  body.dark-mode h1,
+  body.dark-mode h2,
+  body.dark-mode h3 {
+    color: #f8fafc;
+  }
+  
+  body.dark-mode p {
+    color: #94a3b8;
+  }
+  
+  /* Lucide icons should inherit their component color */
+  body.dark-mode svg {
+    stroke: currentColor;
+  }
+  
+  /* Sidebar */
+  body.dark-mode .menu a,
+  body.dark-mode .sidebar-customer-trigger {
+    color: #cbd5e1 !important;
+  }
+  
+  body.dark-mode .menu a > svg,
+  body.dark-mode .sidebar-menu-label > svg {
+    color: #94a3b8 !important;
+  }
+  
+  body.dark-mode .menu a:hover,
+  body.dark-mode .menu a.active,
+  body.dark-mode .menu .active,
+  body.dark-mode .sidebar-customer-trigger:hover,
+  body.dark-mode .sidebar-customer-menu.open > .sidebar-customer-trigger {
+    background: #334155 !important;
+    color: #ffffff !important;
+  }
+  
+  body.dark-mode .menu a:hover > svg,
+  body.dark-mode .menu a.active > svg,
+  body.dark-mode .menu .active > svg,
+  body.dark-mode .sidebar-customer-trigger:hover .sidebar-menu-label > svg,
+  body.dark-mode .sidebar-customer-menu.open .sidebar-menu-label > svg {
+    color: currentColor !important;
+  }
+  
+  body.dark-mode .sidebar-customer-submenu::before {
+    background: #475569;
+  }
+  
+  /* Header controls */
+  body.dark-mode .icon-btn,
+  body.dark-mode .profile-btn,
+  body.dark-mode .header-control-btn {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+  }
+  
+  body.dark-mode .icon-btn svg,
+  body.dark-mode .profile-btn svg,
+  body.dark-mode .header-control-btn svg {
+    color: inherit !important;
+  }
+  
+  /* Consultant cards */
+  body.dark-mode .consultant-stats > div,
+  body.dark-mode .consultant-list-card {
+    background: #111c31 !important;
+    border-color: #334155 !important;
+  }
+  
+  body.dark-mode .consultant-stats span,
+  body.dark-mode .consultant-stats small,
+  body.dark-mode .consultant-list-header p,
+  body.dark-mode .consultant-contact span,
+  body.dark-mode .consultant-table-wrap td > small,
+  body.dark-mode .consultant-name-copy small {
+    color: #94a3b8 !important;
+  }
+  
+  body.dark-mode .consultant-stats strong,
+  body.dark-mode .consultant-list-header h2,
+  body.dark-mode .consultant-table-wrap td {
+    color: #f8fafc;
+  }
+  
+  body.dark-mode .consultant-stats svg {
+    color: #a78bfa !important;
+  }
+  
+  /* Assigned badge: prevent global span styles from making it unreadable */
+  body.dark-mode .consultant-assigned {
+    background: #312e81 !important;
+    color: #ddd6fe !important;
+  }
+  
+  /* Customer name preview */
+  body.dark-mode .consultant-table-wrap td > .consultant-name-preview {
+    color: #f8fafc !important;
+  }
+  
+  body.dark-mode .consultant-name-copy strong {
+    color: inherit !important;
+  }
+  
+  /* Action buttons */
+  .consultant-row-actions button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+  }
+  
+  .consultant-row-actions button svg {
+    stroke: currentColor;
+  }
+  
+  body.dark-mode .consultant-row-actions .view {
+    background: rgba(37, 99, 235, .18) !important;
+    border-color: rgba(96, 165, 250, .35) !important;
+    color: #93c5fd !important;
+  }
+  
+  body.dark-mode .consultant-row-actions .edit {
+    background: rgba(124, 58, 237, .18) !important;
+    border-color: rgba(167, 139, 250, .35) !important;
+    color: #c4b5fd !important;
+  }
+  
+  body.dark-mode .consultant-row-actions .delete {
+    background: rgba(220, 38, 38, .16) !important;
+    border-color: rgba(248, 113, 113, .35) !important;
+    color: #fca5a5 !important;
+  }
+  
+  body.dark-mode .consultant-row-actions button:hover {
+    filter: brightness(1.18);
+  }
+  
+  /* Search field */
+  body.dark-mode .consultant-list-header > div:last-child {
+    background: #0f172a;
+    border-color: #475569;
+    color: #94a3b8;
+  }
+  
+  body.dark-mode .consultant-list-header input {
+    background: transparent !important;
+    color: #f8fafc !important;
+  }
+  
+  /* Pagination */
+  body.dark-mode .table-pagination {
+    color: #94a3b8;
+  }
+  
+  body.dark-mode .table-pagination span,
+  body.dark-mode .table-pagination strong {
+    color: inherit !important;
+  }
+  
