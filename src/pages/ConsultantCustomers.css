@@ -281,6 +281,126 @@ body.dark-mode .consultant-modal-actions button[type="submit"] {
   }
 }
 
+.consultant-form-grid .followup-switch {
+  width: 92px;
+  height: 42px;
+  padding: 5px;
+  border: 1px solid #dfe3e9;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #eef1f5;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.consultant-form-grid .followup-switch span {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.2);
+}
+
+.consultant-form-grid .followup-switch b {
+  padding: 0 7px;
+  font-size: 10px;
+}
+
+.consultant-form-grid .followup-switch.on {
+  flex-direction: row-reverse;
+  border-color: #22c55e;
+  background: #22c55e;
+  color: #fff;
+}
+
+.consultant-table-wrap td > .consultant-name-preview {
+  width: auto;
+  min-width: 150px;
+  height: auto;
+  padding: 5px 8px 5px 5px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: transparent;
+  color: #111827;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.consultant-table-wrap td > .consultant-name-preview:hover {
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+  color: #5b21b6;
+  transform: translateY(-1px);
+}
+
+.consultant-name-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+  color: #6d28d9;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.consultant-name-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.consultant-name-copy strong {
+  max-width: 180px;
+  overflow: hidden;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.consultant-name-copy small {
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+body.dark-mode .consultant-table-wrap td > .consultant-name-preview {
+  color: #f8fafc;
+}
+
+body.dark-mode .consultant-table-wrap td > .consultant-name-preview:hover {
+  border-color: #6d28d9;
+  background: #2e2545;
+  color: #ddd6fe;
+}
+
+body.dark-mode .consultant-name-avatar {
+  background: linear-gradient(135deg, #4c1d95, #6d28d9);
+  color: #f5f3ff;
+}
+
+body.dark-mode .consultant-name-copy small {
+  color: #94a3b8;
+}
+
+body.dark-mode .consultant-form-grid .followup-switch.off {
+  border-color: #52525b;
+  background: #27272a;
+  color: #cbd5e1;
+}
+
 /* Keep the action buttons directly below the Action column heading. */
 .consultant-table-wrap th:last-child,
 .consultant-table-wrap td:last-child {

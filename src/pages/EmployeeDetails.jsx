@@ -1,304 +1,69 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, Calculator, KeyRound, Pencil } from "lucide-react";
+import { ArrowLeft, Gift, KeyRound, Pencil, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { useLocalCollection } from "../hooks/useLocalCollection";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
-import { formatDateTime, todayDateValue } from "../utils/afghanDate";
-import { calculateMonthlyIncomeCommission, employeeBalance } from "../utils/employeeFinance";
-import "./Accounts.css";
 import "./EmployeeDetails.css";
 
-const emptyAccountForm = {
-  email: "",
-  password: "",
-  confirmPassword: "",
-};
+const accountDefaults = { username: "", email: "", password: "", confirmPassword: "" };
+const adjustmentDefaults = { type: "bonus", amount: "", reason: "" };
+const slug = (value) => String(value || "employee").trim().toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "") || "employee";
 
-function EmployeeDetails({ accounts, setAccounts }) {
+export default function EmployeeDetails({ accounts, setAccounts }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [employees] = useJsonCollection("drivers");
-  const [transactions] = useJsonCollection("transactions");
-  const [employeeEarnings, setEmployeeEarnings] = useJsonCollection("employeeEarnings");
-  const [employeePayments, setEmployeePayments] = useJsonCollection("employeePayments");
-  const [showAccountModal, setShowAccountModal] = useState(false);
-  const [showCalcModal, setShowCalcModal] = useState(false);
-  const [accountForm, setAccountForm] = useState(emptyAccountForm);
-  const [paymentAmount, setPaymentAmount] = useState("");
+  const [employees, , , loaded] = useJsonCollection("employees");
+  const [adjustments, setAdjustments] = useLocalCollection("employeeAdjustments");
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false);
+  const [accountForm, setAccountForm] = useState(accountDefaults);
+  const [adjustmentForm, setAdjustmentForm] = useState(adjustmentDefaults);
+  const employee = useMemo(() => employees.find((item) => String(item.id) === String(id)), [employees, id]);
+  const employeeAccount = accounts.find((item) => String(item.employeeId) === String(id));
+  const employeeAdjustments = adjustments.filter((item) => String(item.employeeId) === String(id));
+  const totalBonus = employeeAdjustments.filter((item) => item.type === "bonus").reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalPenalty = employeeAdjustments.filter((item) => item.type === "penalty").reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
-  const employee = useMemo(() => {
-    const byId = employees.find((item) => String(item.id) === String(id));
-    return byId || employees[Number(id)];
-  }, [employees, id]);
-  const employeeKey = employee?.id ?? id;
-
-  const employeeAccount = employee
-    ? accounts.find((account) => String(account.employeeId) === String(employeeKey))
-    : null;
-  const balance = employee ? employeeBalance(employeeKey, employeeEarnings, employeePayments) : { earned: 0, paid: 0, balance: 0 };
-  const currentMonth = todayDateValue().slice(0, 7);
-
-  const openAccountModal = () => {
-    setAccountForm({
-      email: employeeAccount?.email || "",
-      password: "",
-      confirmPassword: "",
-    });
-    setShowAccountModal(true);
-  };
-
-  const closeAccountModal = () => {
-    setShowAccountModal(false);
-    setAccountForm(emptyAccountForm);
+  const openAccount = () => {
+    const suggestedEmail = employeeAccount?.email || employee?.email || "";
+    setAccountForm({ username: employeeAccount?.username || (suggestedEmail ? suggestedEmail.split("@")[0] : slug(employee?.fullName)), email: suggestedEmail, password: "", confirmPassword: "" });
+    setAccountOpen(true);
   };
 
   const saveAccount = async (event) => {
     event.preventDefault();
+    const username = accountForm.username.trim().toLowerCase();
     const email = accountForm.email.trim().toLowerCase();
-
-    if (!email) return notify("لطفاً ایمیل کارمند را وارد کنید.", "error");
-    if (!employeeAccount && !accountForm.password) return notify("لطفاً رمز عبور را وارد کنید.", "error");
-    if (accountForm.password && accountForm.password.length < 4) {
-      return notify("رمز عبور باید حداقل چهار حرف باشد.", "error");
-    }
-    if (accountForm.password !== accountForm.confirmPassword) {
-      return notify("رمز عبور و تکرار آن یکسان نیست.", "error");
-    }
-    if (accounts.some((account) =>
-      account.id !== employeeAccount?.id &&
-      String(account.email || "").toLowerCase() === email
-    )) {
-      return notify("این ایمیل قبلاً برای یک اکانت استفاده شده است.", "error");
-    }
-
-    const fullName = `${employee.firstName || ""} ${employee.lastName || ""}`.trim();
-    const nextAccounts = employeeAccount
-      ? accounts.map((account) => account.id === employeeAccount.id
-        ? {
-            ...account,
-            fullName,
-            email,
-            role: employee.jobType || "کارمند",
-            ...(accountForm.password ? { password: accountForm.password } : {}),
-          }
-        : account)
-      : [
-          ...accounts,
-          {
-            id: createRecordId(),
-            employeeId: employeeKey,
-            fullName,
-            email,
-            password: accountForm.password,
-            role: employee.jobType || "کارمند",
-            createdAt: new Date().toISOString(),
-          },
-        ];
-
-    const saved = await setAccounts(nextAccounts);
-    if (!saved) return;
-    notify(employeeAccount ? "اکانت کارمند ویرایش شد." : "اکانت کارمند ساخته شد.");
-    closeAccountModal();
+    if (!username) return notify("Username is required.", "error");
+    if (!employeeAccount && !accountForm.password) return notify("Password is required.", "error");
+    if (accountForm.password !== accountForm.confirmPassword) return notify("Password confirmation does not match.", "error");
+    if (accounts.some((item) => item.id !== employeeAccount?.id && (String(item.username || "").toLowerCase() === username || (email && String(item.email || "").toLowerCase() === email)))) return notify("Username or email is already in use.", "error");
+    const department = employee.departments?.[0] || "Consultant";
+    const record = { ...(employeeAccount || {}), id: employeeAccount?.id || createRecordId(), employeeId: employee.id, fullName: employee.fullName, username, email, role: "Employee", accountType: "employee", department, status: "Active", permissions: { dashboard: { view: true } }, createdAt: employeeAccount?.createdAt || new Date().toISOString(), ...(accountForm.password ? { password: accountForm.password } : {}) };
+    const saved = await setAccounts(employeeAccount ? accounts.map((item) => item.id === employeeAccount.id ? record : item) : [...accounts, record]);
+    if (saved) { notify(employeeAccount ? "Employee account updated." : "Employee account created.", "success"); setAccountOpen(false); }
   };
 
-  const openCalculation = async () => {
-    if (employee?.salaryType === "فیصدی" && employee.percentageBasis === "monthly_income") {
-      const amount = calculateMonthlyIncomeCommission(employee, currentMonth, transactions);
-      const exists = employeeEarnings.some((item) =>
-        String(item.employeeId) === String(employeeKey) &&
-        item.source === "monthly-income-commission" &&
-        item.month === currentMonth
-      );
-      if (amount > 0 && !exists) {
-        await setEmployeeEarnings([
-          ...employeeEarnings,
-          {
-            id: createRecordId(),
-            employeeId: employeeKey,
-            employeeName: `${employee.firstName || ""} ${employee.lastName || ""}`.trim(),
-            amount,
-            date: todayDateValue(),
-            month: currentMonth,
-            createdAt: new Date().toISOString(),
-            source: "monthly-income-commission",
-            title: `فیصدی عواید ماهانه ${currentMonth}`,
-            description: "محاسبه به اساس عواید ماهانه",
-          },
-        ]);
-      }
-    }
-    setShowCalcModal(true);
-  };
-
-  const payEmployee = async (event) => {
+  const saveAdjustment = async (event) => {
     event.preventDefault();
-    const amount = Number(paymentAmount || 0);
-    const currentBalance = employeeBalance(employeeKey, employeeEarnings, employeePayments).balance;
-    if (amount <= 0 || amount > currentBalance) return notify("مقدار پرداخت باید بیشتر از صفر و کمتر یا مساوی بیلانس باشد.", "error");
-    await setEmployeePayments([
-      ...employeePayments,
-      {
-        id: createRecordId(),
-        employeeId: employeeKey,
-        employeeName: `${employee.firstName || ""} ${employee.lastName || ""}`.trim(),
-        amount,
-        date: todayDateValue(),
-        createdAt: new Date().toISOString(),
-        description: "پرداخت از بیلانس کارمند",
-      },
-    ]);
-    setPaymentAmount("");
-    notify("پرداخت کارمند ثبت شد.");
+    const amount = Number(adjustmentForm.amount);
+    if (!(amount > 0)) return notify("Enter a valid amount.", "error");
+    const saved = await setAdjustments([...adjustments, { id: createRecordId(), employeeId: employee.id, employeeName: employee.fullName, ...adjustmentForm, amount, createdAt: new Date().toISOString() }]);
+    if (saved) { notify("Bonus / penalty saved.", "success"); setAdjustmentForm(adjustmentDefaults); setAdjustmentOpen(false); }
   };
 
-  if (!employee) {
-    return (
-      <div className="employee-details-page">
-        <div className="employee-not-found">
-          <h2>کارمند پیدا نشد</h2>
-          <button onClick={() => navigate("/employees")}>برگشت به کارمندان</button>
-        </div>
-      </div>
-    );
-  }
+  if (!loaded) return <div className="page-loading">Loading employee...</div>;
+  if (!employee) return <div className="employee-profile-page"><button onClick={() => navigate("/employees")}>Back to Employees</button><h2>Employee not found.</h2></div>;
 
-  const salary = employee.salaryType === "ثابت"
-    ? `${employee.fixedSalary || 0} افغانی`
-    : employee.salaryType === "فیصدی"
-      ? `${employee.percentage || 0}%`
-      : "-";
-
-  return (
-    <div className="employee-details-page">
-      <div className="employee-details-header">
-        <div>
-          <button className="employee-back-btn" onClick={() => navigate("/employees")}>
-            <ArrowRight size={17} /> برگشت به کارمندان
-          </button>
-          <h1>{employee.firstName} {employee.lastName}</h1>
-          <p>جزئیات کارمند و مدیریت اکانت ورود به سیستم</p>
-        </div>
-        <div className="employee-detail-actions">
-          <button className="employee-account-btn" onClick={openCalculation}>
-            <Calculator size={17} /> محاسبه
-          </button>
-          <button className="employee-account-btn" onClick={openAccountModal}>
-            {employeeAccount ? <Pencil size={17} /> : <KeyRound size={17} />}
-            {employeeAccount ? "ویرایش اکانت" : "ساخت اکانت"}
-          </button>
-        </div>
-      </div>
-
-      <div className="employee-detail-grid">
-        <section className="employee-profile-card">
-          <div className="employee-profile-avatar">
-            {employee.photo ? <img src={employee.photo} alt={`عکس ${employee.firstName}`} /> : (employee.firstName || "ک").slice(0, 1)}
-          </div>
-          <div>
-            <span className={employee.status === "فعال" ? "employee-status active" : "employee-status inactive"}>
-              {employee.status || "نامعلوم"}
-            </span>
-            <h2>{employee.firstName} {employee.lastName}</h2>
-            <p>{employee.jobType || (employee.licenseNo ? "دریور" : "وظیفه تعیین نشده")}</p>
-          </div>
-        </section>
-
-        <section className="employee-info-card">
-          <h3>معلومات کارمند</h3>
-          <div className="employee-info-list">
-            <div><span>شماره تماس</span><strong>{employee.phone || "-"}</strong></div>
-            <div><span>آدرس</span><strong>{employee.address || "-"}</strong></div>
-            <div><span>وظیفه</span><strong>{employee.jobType || (employee.licenseNo ? "دریور" : "-")}</strong></div>
-            <div><span>نوع معاش</span><strong>{employee.salaryType || "-"}</strong></div>
-            <div><span>معاش / فیصدی</span><strong>{salary}</strong></div>
-            <div><span>بیلانس فعلی</span><strong>{balance.balance.toLocaleString("en-US")} افغانی</strong></div>
-            <div><span>توضیحات</span><strong>{employee.note || "-"}</strong></div>
-          </div>
-        </section>
-
-        <section className="employee-account-card">
-          <div>
-            <h3>اکانت ورود به سیستم</h3>
-            <p>این اکانت مستقیماً به همین کارمند وصل می‌شود.</p>
-          </div>
-          {employeeAccount ? (
-            <div className="employee-account-summary">
-              <span>ایمیل ورود</span>
-              <strong>{employeeAccount.email}</strong>
-              <small>وظیفه اکانت: {employeeAccount.role || employee.jobType || "کارمند"}</small>
-            </div>
-          ) : (
-            <div className="employee-account-empty">
-              هنوز برای این کارمند اکانت ساخته نشده است.
-            </div>
-          )}
-        </section>
-      </div>
-
-      {showAccountModal && (
-        <div className="account-modal-backdrop" onClick={closeAccountModal}>
-          <div className="account-modal employee-account-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="account-modal-header">
-              <div>
-                <h3>{employeeAccount ? "ویرایش اکانت کارمند" : "ساخت اکانت کارمند"}</h3>
-                <p>{employee.firstName} {employee.lastName} پس از ذخیره می‌تواند با این ایمیل و رمز وارد سیستم شود.</p>
-              </div>
-              <button onClick={closeAccountModal}>×</button>
-            </div>
-            <form onSubmit={saveAccount} noValidate>
-              <label>
-                ایمیل
-                <input type="email" value={accountForm.email} onChange={(event) => setAccountForm({ ...accountForm, email: event.target.value })} placeholder="name@example.com" />
-              </label>
-              <label>
-                {employeeAccount ? "رمز جدید (اختیاری)" : "رمز عبور"}
-                <input type="password" value={accountForm.password} onChange={(event) => setAccountForm({ ...accountForm, password: event.target.value })} />
-              </label>
-              <label>
-                تکرار رمز عبور
-                <input type="password" value={accountForm.confirmPassword} onChange={(event) => setAccountForm({ ...accountForm, confirmPassword: event.target.value })} />
-              </label>
-              <div>
-                <button type="button" onClick={closeAccountModal}>لغو</button>
-                <button type="submit">ذخیره اکانت</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showCalcModal && (
-        <div className="account-modal-backdrop" onClick={() => setShowCalcModal(false)}>
-          <div className="account-modal employee-account-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="account-modal-header">
-              <div>
-                <h3>محاسبه بیلانس کارمند</h3>
-                <p>بیلانس فعلی: {employeeBalance(employeeKey, employeeEarnings, employeePayments).balance.toLocaleString("en-US")} افغانی</p>
-              </div>
-              <button onClick={() => setShowCalcModal(false)}>×</button>
-            </div>
-            <div className="employee-ledger-list">
-              {employeeEarnings.filter((item) => String(item.employeeId) === String(employeeKey)).map((item) => (
-                <div key={item.id}><span>{item.title || item.source}</span><strong>{Number(item.amount || 0).toLocaleString("en-US")}</strong><small>{formatDateTime(item.date, item.createdAt || item.updatedAt)}</small></div>
-              ))}
-              {employeeEarnings.filter((item) => String(item.employeeId) === String(employeeKey)).length === 0 && <p>هنوز عایدی برای این کارمند ثبت نشده است.</p>}
-            </div>
-            <form onSubmit={payEmployee}>
-              <label>
-                مقدار پرداخت
-                <input type="number" dir="ltr" min="1" max={employeeBalance(employeeKey, employeeEarnings, employeePayments).balance} value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} />
-              </label>
-              <div>
-                <button type="button" onClick={() => setShowCalcModal(false)}>لغو</button>
-                <button type="submit">پرداخت</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  const details = [["Phone", employee.phone], ["Email", employee.email], ["NIC Number", employee.nicNumber], ["Departments", employee.departments?.join(", ")], ["Roles", employee.roles?.join(", ") || employee.role], ["Status", employee.status], ["Contract Start", employee.startDate], ["Contract End", employee.endDate], ["Notes", employee.notes]];
+  return <div className="employee-profile-page">
+    <header className="employee-profile-header"><div><button className="employee-profile-back" onClick={() => navigate("/employees")}><ArrowLeft size={17}/> Employees</button><h1>Employee Profile</h1><p>Complete information, login account, bonus and penalty.</p></div><div className="employee-profile-actions"><button onClick={() => setAdjustmentOpen(true)}><Gift size={17}/> Bonus and Penalty</button><button className="primary" onClick={openAccount}>{employeeAccount ? <Pencil size={17}/> : <KeyRound size={17}/>} {employeeAccount ? "Edit Account" : "Create Account"}</button></div></header>
+    <section className="employee-profile-hero"><div className="employee-profile-photo">{employee.image ? <img src={employee.image} alt={employee.fullName}/> : String(employee.fullName || "E").slice(0,1)}</div><div><span>{employee.status || "Unspecified"}</span><h2>{employee.fullName || "Unnamed Employee"}</h2><p>{employee.departments?.join(" • ") || "No department"}</p></div><aside><small>Bonus balance</small><strong>{(totalBonus-totalPenalty).toLocaleString("en-US")} AFN</strong><em>Bonus {totalBonus.toLocaleString()} · Penalty {totalPenalty.toLocaleString()}</em></aside></section>
+    <section className="employee-profile-card"><h3>Employee Information</h3><div className="employee-detail-list">{details.map(([label,value]) => <div key={label}><span>{label}</span><strong>{value || "-"}</strong></div>)}</div></section>
+    {employeeAccount && <section className="employee-profile-card"><h3>System Account</h3><div className="employee-detail-list"><div><span>Username</span><strong>{employeeAccount.username}</strong></div><div><span>Email</span><strong>{employeeAccount.email || "-"}</strong></div><div><span>Department dashboard</span><strong>{employeeAccount.department}</strong></div></div></section>}
+    {accountOpen && <div className="employee-profile-modal" onMouseDown={() => setAccountOpen(false)}><form onSubmit={saveAccount} onMouseDown={(e) => e.stopPropagation()}><header><div><h2>{employeeAccount ? "Edit Account" : "Create Account"}</h2><p>Username and email are suggested automatically and remain editable.</p></div><button type="button" onClick={() => setAccountOpen(false)}><X/></button></header><label>Username<input value={accountForm.username} onChange={(e) => setAccountForm({...accountForm,username:e.target.value})}/></label><label>Email<input type="email" value={accountForm.email} onChange={(e) => setAccountForm({...accountForm,email:e.target.value})}/></label><label>{employeeAccount ? "New password (optional)" : "Password"}<input type="password" value={accountForm.password} onChange={(e) => setAccountForm({...accountForm,password:e.target.value})} placeholder="Enter any password"/></label><label>Confirm password<input type="password" value={accountForm.confirmPassword} onChange={(e) => setAccountForm({...accountForm,confirmPassword:e.target.value})}/></label><footer><button type="button" onClick={() => setAccountOpen(false)}>Cancel</button><button className="primary">Save Account</button></footer></form></div>}
+    {adjustmentOpen && <div className="employee-profile-modal" onMouseDown={() => setAdjustmentOpen(false)}><form onSubmit={saveAdjustment} onMouseDown={(e) => e.stopPropagation()}><header><div><h2>Bonus and Penalty</h2><p>Add a financial adjustment for {employee.fullName}.</p></div><button type="button" onClick={() => setAdjustmentOpen(false)}><X/></button></header><label>Type<select value={adjustmentForm.type} onChange={(e) => setAdjustmentForm({...adjustmentForm,type:e.target.value})}><option value="bonus">Bonus</option><option value="penalty">Penalty</option></select></label><label>Amount (AFN)<input type="number" min="1" value={adjustmentForm.amount} onChange={(e) => setAdjustmentForm({...adjustmentForm,amount:e.target.value})}/></label><label>Reason<textarea rows="3" value={adjustmentForm.reason} onChange={(e) => setAdjustmentForm({...adjustmentForm,reason:e.target.value})}/></label><footer><button type="button" onClick={() => setAdjustmentOpen(false)}>Cancel</button><button className="primary">Save</button></footer></form></div>}
+  </div>;
 }
-
-export default EmployeeDetails;

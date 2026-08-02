@@ -3,6 +3,7 @@ import axios from "axios";
 import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, FileBadge, FileUp, ImagePlus, Mail, Pencil, Phone, Plus, Trash2, UserRoundCog, X } from "lucide-react";
 import { notify } from "../utils/notify";
 import { apiUrl } from "../utils/api";
+import { useNavigate } from "react-router-dom";
 import "./Employees.css";
 
 const emptyEmployee = {
@@ -46,6 +47,7 @@ function readLocalEmployees() {
 }
 
 function Employees() {
+  const navigate = useNavigate();
   const [employees, setEmployeesState] = useState(readLocalEmployees);
   const [storageMode, setStorageMode] = useState("local");
   const [showForm, setShowForm] = useState(false);
@@ -295,7 +297,7 @@ function Employees() {
             <tbody>
               {filteredEmployees.map((employee) => (
                 <tr key={employee.id}>
-                  <td><div className="employee-person">{employee.image ? <img src={employee.image} alt="" /> : <span>{String(employee.fullName || "E").slice(0, 1).toUpperCase()}</span>}<div><strong>{employee.fullName || "Unnamed Employee"}</strong><small>{employee.email || "No email"}</small></div></div></td>
+                  <td><button type="button" className="employee-person employee-person-link" onClick={() => navigate(`/employees/${employee.id}`)}>{employee.image ? <img src={employee.image} alt="" /> : <span>{String(employee.fullName || "E").slice(0, 1).toUpperCase()}</span>}<div><strong>{employee.fullName || "Unnamed Employee"}</strong><small>{employee.email || "No email"}</small></div></button></td>
                   <td><div className="employee-contact"><span><Phone size={13} />{employee.phone}</span><span><Mail size={13} />{employee.email || "-"}</span></div></td>
                   <td>{employee.nicNumber}</td>
                   <td><div className="employee-role-wrap"><span className="employee-role">{employee.roles?.length ? employee.roles.join(", ") : employee.role || "No role"}</span>{employee.departments?.length > 0 && <small>{employee.departments.join(", ")}</small>}</div></td>

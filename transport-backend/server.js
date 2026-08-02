@@ -55,6 +55,10 @@ const COLLECTIONS = new Set([
   "employeePayrolls",
   "employeeEarnings",
   "employeePayments",
+  "employeeAdjustments",
+  "consultantCustomers",
+  "travelCustomers",
+  "technologyCustomers",
 
   "towerAssets",
   "towerLinks",

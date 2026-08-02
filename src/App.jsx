@@ -67,6 +67,8 @@ const Settings = lazy(() => import("./pages/Settings"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const Agent = lazy(() => import("./pages/Agent"));
 const Employees = lazy(() => import("./pages/Employees"));
+const EmployeeDetails = lazy(() => import("./pages/EmployeeDetails"));
+const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard"));
 const Projects = lazy(() => import("./pages/Projects"));
 const ProjectLicense = lazy(() => import("./pages/ProjectLicense"));
 const ProjectSales = lazy(() => import("./pages/ProjectSales"));
@@ -162,6 +164,13 @@ function App() {
   const currentUser = effectiveAccounts.find(
     (account) => String(account.id) === String(sessionId)
   );
+  const isEmployeeAccount = currentUser?.accountType === "employee";
+
+  useEffect(() => {
+    if (isEmployeeAccount && location.pathname !== "/") {
+      window.location.hash = "#/";
+    }
+  }, [isEmployeeAccount, location.pathname]);
 
   useEffect(() => {
     window.addEventListener("company-settings-updated", loadSettings);
@@ -231,7 +240,7 @@ function App() {
   const customerMenuItems = [
     { to: "/customers/consultants", label: "Consultant Customers", icon: BriefcaseBusiness },
     { to: "/customers/travel", label: "Travel Customers", icon: Plane },
-    { to: "/customers?type=technology", label: "Technology Customers", icon: Cpu },
+    { to: "/customers/technology", label: "Technology Customers", icon: Cpu },
     { to: "/customers?type=media", label: "Media Customers", icon: Clapperboard },
   ];
 
@@ -322,7 +331,7 @@ function App() {
             <span>Dashboard</span>
           </NavLink>
 
-          {canViewModule(currentUser, "customers") && (
+          {!isEmployeeAccount && canViewModule(currentUser, "customers") && (
             <div className={`sidebar-customer-menu ${customerMenuOpen ? "open" : ""}`}>
               <button
                 type="button"
@@ -357,7 +366,7 @@ function App() {
             </div>
           )}
 
-          {canViewModule(currentUser, "dashboard") && (
+          {!isEmployeeAccount && canViewModule(currentUser, "dashboard") && (
             <div className={`sidebar-customer-menu ${projectMenuOpen ? "open" : ""}`}>
               <button
                 type="button"
@@ -392,7 +401,7 @@ function App() {
             </div>
           )}
 
-          {menuItems
+          {!isEmployeeAccount && menuItems
             .filter((item) => item.to !== "/" && canViewModule(currentUser, item.moduleKey))
             .map((item) => {
               const Icon = item.icon;
@@ -458,12 +467,13 @@ function App() {
         <div className="page-content">
           <Suspense fallback={<div className="page-loading">Loading...</div>}>
             <Routes>
-              <Route path="/" element={protect("dashboard", <Dashboard />)} />
+              <Route path="/" element={isEmployeeAccount ? <EmployeeDashboard currentUser={currentUser} /> : protect("dashboard", <Dashboard />)} />
               <Route
                 path="/projects"
                 element={protect("dashboard", <Projects />)}
               />
               <Route path="/employees" element={<Employees />} />
+              <Route path="/employees/:id" element={<EmployeeDetails accounts={accounts} setAccounts={setAccounts} />} />
               <Route
                 path="/expenses"
                 element={protect("finance", <ModulePlaceholder title="Expenses" description="Review and manage project and business expenses." items={["Expense records", "Expense categories", "Cost summaries"]} />)}
@@ -495,6 +505,7 @@ function App() {
               <Route path="/customers" element={protect("customers", <Customers />)} />
               <Route path="/customers/consultants" element={protect("customers", <ConsultantCustomers />)} />
               <Route path="/customers/travel" element={protect("customers", <ConsultantCustomers mode="travel" />)} />
+              <Route path="/customers/technology" element={protect("customers", <ConsultantCustomers mode="technology" />)} />
               <Route path="/customers/:id" element={protect("customers", <CustomerDetails />)} />
 
               <Route path="/tower-assets" element={protect("towerAssets", <TowerAssets />)} />

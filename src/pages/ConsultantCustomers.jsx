@@ -3,9 +3,12 @@ import { AlertTriangle, BriefcaseBusiness, ChevronDown, Eye, GraduationCap, Mail
 import axios from "axios";
 import { apiUrl } from "../utils/api";
 import { notify } from "../utils/notify";
+import { useLocalCollection } from "../hooks/useLocalCollection";
+import { useJsonCollection } from "../hooks/useJsonCollection";
 import "./ConsultantCustomers.css";
 
 const employeeKey = "isp-employees-fallback";
+const provinces = ["Badakhshan","Badghis","Baghlan","Balkh","Bamyan","Daykundi","Farah","Faryab","Ghazni","Ghor","Helmand","Herat","Jowzjan","Kabul","Kandahar","Kapisa","Khost","Kunar","Kunduz","Laghman","Logar","Nangarhar","Nimroz","Nuristan","Paktia","Paktika","Panjshir","Parwan","Samangan","Sar-e Pol","Takhar","Uruzgan","Wardak","Zabul"];
 
 const emptyForm = {
   passportFullName: "",
@@ -18,6 +21,13 @@ const emptyForm = {
   assignedEmployeeId: "",
   assignedEmployeeName: "",
   purpose: "",
+  city: "",
+  language: "Dari",
+  callType: "Incoming",
+  needFollowup: "No",
+  businessType: "",
+  companyName: "",
+  technologyPurpose: "Database",
 };
 
 const readList = (key) => {
@@ -79,10 +89,20 @@ function EmployeePicker({ label, employees, value, selectedId, onSelect }) {
 
 function ConsultantCustomers({ mode = "consultant" }) {
   const isTravel = mode === "travel";
-  const customerKey = isTravel ? "isp-travel-customers" : "isp-consultant-customers";
-  const typeLabel = isTravel ? "Travel Customer" : "Consultant Customer";
-  const typeLabelPlural = isTravel ? "Travel Customers" : "Consultant Customers";
-  const [customers, setCustomers] = useState(() => readList(customerKey));
+  const isTechnology = mode === "technology";
+  const legacyCollectionName = isTravel ? "travelCustomers" : isTechnology ? "technologyCustomers" : "consultantCustomers";
+  const typeLabel = isTravel ? "Travel Customer" : isTechnology ? "Technology Customer" : "Consultant Customer";
+  const typeLabelPlural = isTravel ? "Travel Customers" : isTechnology ? "Technology Customers" : "Consultant Customers";
+  const [serverCustomers, setServerCustomers, , customersLoaded] = useJsonCollection("customers");
+  const [localCustomers] = useLocalCollection("employeeCustomers");
+  const [legacyCustomers, setLegacyCustomers] = useLocalCollection(legacyCollectionName);
+  useEffect(() => {
+    if (!customersLoaded) return;
+    const localRecords = [...localCustomers, ...legacyCustomers].map((item) => ({ ...item, customerType: item.customerType || mode, specializedCustomer: true }));
+    const missing = localRecords.filter((item) => !serverCustomers.some((saved) => String(saved.id) === String(item.id)));
+    if (missing.length) setServerCustomers([...serverCustomers, ...missing]);
+  }, [customersLoaded, legacyCustomers, localCustomers, mode, serverCustomers, setServerCustomers]);
+  const customers = useMemo(() => serverCustomers.filter((item) => item.specializedCustomer && item.customerType === mode), [serverCustomers, mode]);
   const [employees, setEmployees] = useState(() => readList(employeeKey));
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
@@ -90,6 +110,8 @@ function ConsultantCustomers({ mode = "consultant" }) {
   const [editId, setEditId] = useState(null);
   const [viewCustomer, setViewCustomer] = useState(null);
   const [deleteCustomer, setDeleteCustomer] = useState(null);
+  const editingCustomer = editId ? customers.find((customer) => customer.id === editId) : null;
+  const useEmployeeForm = Boolean(editingCustomer?.createdByAccountId);
 
   useEffect(() => {
     axios.get(apiUrl("employees")).then((response) => {
@@ -101,7 +123,7 @@ function ConsultantCustomers({ mode = "consultant" }) {
     const query = search.trim().toLowerCase();
     if (!query) return customers;
     return customers.filter((customer) =>
-      [customer.passportFullName, customer.phone, customer.email, customer.institutionName, customer.sourceEmployeeName, customer.assignedEmployeeName, customer.purpose]
+      [customer.fullName, customer.passportFullName, customer.phone, customer.city, customer.email, customer.institutionName, customer.sourceEmployeeName, customer.assignedEmployeeName, customer.purpose, customer.businessType, customer.companyName]
         .some((value) => String(value || "").toLowerCase().includes(query))
     );
   }, [customers, search]);
@@ -115,28 +137,39 @@ function ConsultantCustomers({ mode = "consultant" }) {
     }));
   };
 
-  const save = (event) => {
+  const save = async (event) => {
     event.preventDefault();
     if (!Object.values(form).some((value) => String(value || "").trim())) {
       notify("Please complete at least one field.", "error");
       return;
     }
+    const normalizedForm = { ...form, fullName: form.fullName || form.passportFullName, passportFullName: form.passportFullName || form.fullName, customerType: mode, specializedCustomer: true };
+    const record = editId
+      ? { ...(customers.find((customer) => customer.id === editId) || {}), ...normalizedForm, updatedAt: new Date().toISOString() }
+      : { ...normalizedForm, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
     const next = editId
-      ? customers.map((customer) => customer.id === editId ? { ...customer, ...form, updatedAt: new Date().toISOString() } : customer)
-      : [...customers, { ...form, id: crypto.randomUUID(), createdAt: new Date().toISOString() }];
-    localStorage.setItem(customerKey, JSON.stringify(next));
-    setCustomers(next);
+      ? serverCustomers.map((customer) => customer.id === editId ? record : customer)
+      : [...serverCustomers.filter((customer) => customer.id !== record.id), record];
+    if (editId && !next.some((customer) => customer.id === editId)) next.push(record);
+    const saved = await setServerCustomers(next);
+    if (!saved) return;
+    if (editId && legacyCustomers.some((customer) => customer.id === editId)) {
+      await setLegacyCustomers(legacyCustomers.filter((customer) => customer.id !== editId));
+    }
     setForm(emptyForm);
     setShowForm(false);
     setEditId(null);
     notify(editId ? "Consultant customer updated successfully." : "Consultant customer registered successfully.", "success");
   };
 
-  const remove = () => {
+  const remove = async () => {
     if (!deleteCustomer) return;
-    const next = customers.filter((customer) => customer.id !== deleteCustomer.id);
-    localStorage.setItem(customerKey, JSON.stringify(next));
-    setCustomers(next);
+    const next = serverCustomers.filter((customer) => customer.id !== deleteCustomer.id);
+    const saved = await setServerCustomers(next);
+    if (!saved) return;
+    if (legacyCustomers.some((customer) => customer.id === deleteCustomer.id)) {
+      await setLegacyCustomers(legacyCustomers.filter((customer) => customer.id !== deleteCustomer.id));
+    }
     setDeleteCustomer(null);
     notify("Consultant customer deleted.", "success");
   };
@@ -163,25 +196,41 @@ function ConsultantCustomers({ mode = "consultant" }) {
       <section className="consultant-list-card">
         <div className="consultant-list-header"><div><h2>{typeLabel} List</h2><p>Registered customer records</p></div><div><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customers..." /></div></div>
         <div className="consultant-table-wrap"><table><thead><tr><th>Full Name</th><th>Contact</th>{!isTravel && <th>Education</th>}<th>Source</th><th>Assigned To</th><th>Purpose</th><th>Action</th></tr></thead>
-          <tbody>{filtered.map((customer) => <tr key={customer.id}><td><strong>{customer.passportFullName || `Unnamed ${typeLabel}`}</strong></td><td><div className="consultant-contact"><span><Phone size={13} />{customer.phone || "-"}</span><span><Mail size={13} />{customer.email || "-"}</span></div></td>{!isTravel && <td>{customer.educationLevel || "-"}<small>{customer.institutionName || ""}</small></td>}<td>{customer.sourceEmployeeName || "-"}</td><td><span className="consultant-assigned">{customer.assignedEmployeeName || "Unassigned"}</span></td><td>{customer.purpose || "-"}</td><td><div className="consultant-row-actions"><button className="view" type="button" onClick={() => setViewCustomer(customer)} title="View details"><Eye size={14} /></button><button className="edit" type="button" onClick={() => openEdit(customer)} title="Edit"><Pencil size={14} /></button><button className="delete" type="button" onClick={() => setDeleteCustomer(customer)} title="Delete"><Trash2 size={14} /></button></div></td></tr>)}{!filtered.length && <tr><td colSpan={isTravel ? 6 : 7} className="consultant-empty">No customers registered yet.</td></tr>}</tbody>
+          <tbody>{filtered.map((customer) => { const customerName = customer.fullName || customer.passportFullName || `Unnamed ${typeLabel}`; return <tr key={customer.id}><td><button type="button" className="consultant-name-preview" onClick={() => setViewCustomer(customer)} title="Preview customer details"><span className="consultant-name-avatar">{String(customerName).slice(0, 1).toUpperCase()}</span><span className="consultant-name-copy"><strong>{customerName}</strong><small>View details</small></span></button></td><td><div className="consultant-contact"><span><Phone size={13} />{customer.phone || "-"}</span><span><Mail size={13} />{customer.city || customer.email || "-"}</span></div></td>{!isTravel && <td>{isTechnology ? customer.businessType || "-" : customer.educationLevel || "-"}<small>{isTechnology ? customer.companyName || "" : customer.institutionName || ""}</small></td>}<td>{customer.sourceEmployeeName || "-"}</td><td><span className="consultant-assigned">{customer.assignedEmployeeName || "Unassigned"}</span></td><td>{isTechnology ? customer.technologyPurpose || "-" : customer.purpose || "-"}</td><td><div className="consultant-row-actions"><button className="view" type="button" onClick={() => setViewCustomer(customer)} title="View details"><Eye size={14} /></button><button className="edit" type="button" onClick={() => openEdit(customer)} title="Edit"><Pencil size={14} /></button><button className="delete" type="button" onClick={() => setDeleteCustomer(customer)} title="Delete"><Trash2 size={14} /></button></div></td></tr>; })}{!filtered.length && <tr><td colSpan={isTravel ? 6 : 7} className="consultant-empty">No customers registered yet.</td></tr>}</tbody>
         </table></div>
       </section>
 
       {showForm && <div className="consultant-modal-backdrop" onMouseDown={() => setShowForm(false)}><div className="consultant-modal" onMouseDown={(event) => event.stopPropagation()}>
         <div className="consultant-modal-header"><div><h2>{editId ? `Edit ${typeLabel}` : `Register ${typeLabel}`}</h2><p>Complete the customer information and employee assignment.</p></div><button type="button" onClick={() => setShowForm(false)}><X size={19} /></button></div>
         <form onSubmit={save}><div className="consultant-form-grid">
-          <label><span>Full Name in Passport</span><input name="passportFullName" value={form.passportFullName} onChange={update} /></label>
-          <label><span>Phone Number</span><input name="phone" value={form.phone} onChange={update} /></label>
-          <label><span>Email</span><input type="email" name="email" value={form.email} onChange={update} /></label>
-          {!isTravel && <label><span>Education Level</span><select name="educationLevel" value={form.educationLevel} onChange={update}><option value="">Select education</option><option>School</option><option>University</option><option>Institute</option><option>Other</option></select></label>}
-          {!isTravel && (form.educationLevel === "School" || form.educationLevel === "University") && <label className="consultant-institution"><span>{form.educationLevel === "School" ? "School Name" : "University Name"}</span><input name="institutionName" value={form.institutionName} onChange={update} placeholder={`Enter ${form.educationLevel.toLowerCase()} name`} /></label>}
-          <EmployeePicker label="Source" employees={employees} value={form.sourceEmployeeName} selectedId={form.sourceEmployeeId} onSelect={(employee) => setForm((current) => ({ ...current, sourceEmployeeId: employee.id, sourceEmployeeName: employee.fullName }))} />
-          <EmployeePicker label="Assign To" employees={employees} value={form.assignedEmployeeName} selectedId={form.assignedEmployeeId} onSelect={(employee) => setForm((current) => ({ ...current, assignedEmployeeId: employee.id, assignedEmployeeName: employee.fullName }))} />
-          <label className="consultant-form-full"><span>Purpose</span><textarea name="purpose" value={form.purpose} onChange={update} rows="4" /></label>
+          {useEmployeeForm ? <>
+            <label><span>Full Name</span><input name="passportFullName" value={form.passportFullName} onChange={update} /></label>
+            <label><span>Phone Number</span><input name="phone" value={form.phone} onChange={update} /></label>
+            <label><span>City / Province</span><select name="city" value={form.city} onChange={update}><option value="">Select province</option>{provinces.map((province) => <option key={province}>{province}</option>)}</select></label>
+            <label><span>Language</span><select name="language" value={form.language} onChange={update}><option>Dari</option><option>Pashto</option><option>English</option><option>Other</option></select></label><label><span>Call Type</span><select name="callType" value={form.callType} onChange={update}><option>Incoming</option><option>Outgoing</option></select></label><label className="followup-field"><span>Need Follow-up</span><button type="button" role="switch" aria-checked={form.needFollowup === "Yes"} className={`followup-switch ${form.needFollowup === "Yes" ? "on" : "off"}`} onClick={() => setForm((current) => ({ ...current, needFollowup: current.needFollowup === "Yes" ? "No" : "Yes" }))}><span/><b>{form.needFollowup === "Yes" ? "ON" : "OFF"}</b></button></label>
+            {isTechnology && <><label><span>Business Type</span><input name="businessType" value={form.businessType} onChange={update} /></label><label><span>Company Name</span><input name="companyName" value={form.companyName} onChange={update} /></label><label><span>Purpose</span><select name="technologyPurpose" value={form.technologyPurpose} onChange={update}><option>Database</option><option>Web</option><option>Application</option></select></label></>}
+            {!isTechnology && <label className="consultant-form-full"><span>Purpose</span><textarea name="purpose" value={form.purpose} onChange={update} rows="4" /></label>}
+          </> : isTechnology ? <>
+            <label><span>Full Name</span><input name="passportFullName" value={form.passportFullName} onChange={update} /></label>
+            <label><span>Phone Number</span><input name="phone" value={form.phone} onChange={update} /></label>
+            <label><span>City / Province</span><select name="city" value={form.city} onChange={update}><option value="">Select province</option>{provinces.map((province) => <option key={province}>{province}</option>)}</select></label>
+            <label><span>Business Type</span><input name="businessType" value={form.businessType} onChange={update} /></label><label><span>Company Name</span><input name="companyName" value={form.companyName} onChange={update} /></label><label><span>Purpose</span><select name="technologyPurpose" value={form.technologyPurpose} onChange={update}><option>Database</option><option>Web</option><option>Application</option></select></label>
+            <EmployeePicker label="Source" employees={employees} value={form.sourceEmployeeName} selectedId={form.sourceEmployeeId} onSelect={(employee) => setForm((current) => ({ ...current, sourceEmployeeId: employee.id, sourceEmployeeName: employee.fullName }))} />
+            <EmployeePicker label="Assign To" employees={employees} value={form.assignedEmployeeName} selectedId={form.assignedEmployeeId} onSelect={(employee) => setForm((current) => ({ ...current, assignedEmployeeId: employee.id, assignedEmployeeName: employee.fullName }))} />
+          </> : <>
+            <label><span>Full Name in Passport</span><input name="passportFullName" value={form.passportFullName} onChange={update} /></label>
+            <label><span>Phone Number</span><input name="phone" value={form.phone} onChange={update} /></label>
+            <label><span>Email</span><input type="email" name="email" value={form.email} onChange={update} /></label>
+            {!isTravel && <label><span>Education Level</span><select name="educationLevel" value={form.educationLevel} onChange={update}><option value="">Select education</option><option>School</option><option>University</option><option>Institute</option><option>Other</option></select></label>}
+            {!isTravel && (form.educationLevel === "School" || form.educationLevel === "University") && <label className="consultant-institution"><span>{form.educationLevel === "School" ? "School Name" : "University Name"}</span><input name="institutionName" value={form.institutionName} onChange={update} placeholder={`Enter ${form.educationLevel.toLowerCase()} name`} /></label>}
+            <EmployeePicker label="Source" employees={employees} value={form.sourceEmployeeName} selectedId={form.sourceEmployeeId} onSelect={(employee) => setForm((current) => ({ ...current, sourceEmployeeId: employee.id, sourceEmployeeName: employee.fullName }))} />
+            <EmployeePicker label="Assign To" employees={employees} value={form.assignedEmployeeName} selectedId={form.assignedEmployeeId} onSelect={(employee) => setForm((current) => ({ ...current, assignedEmployeeId: employee.id, assignedEmployeeName: employee.fullName }))} />
+            <label className="consultant-form-full"><span>Purpose</span><textarea name="purpose" value={form.purpose} onChange={update} rows="4" /></label>
+          </>}
         </div><div className="consultant-modal-actions"><button type="button" onClick={() => setShowForm(false)}>Cancel</button><button type="submit">{editId ? "Save Changes" : `Register ${typeLabel}`}</button></div></form>
       </div></div>}
 
-      {viewCustomer && <div className="consultant-modal-backdrop" onMouseDown={() => setViewCustomer(null)}><div className="consultant-detail-modal" onMouseDown={(event) => event.stopPropagation()}><div className="consultant-detail-hero"><div><b>{String(viewCustomer.passportFullName || "C").slice(0,1).toUpperCase()}</b><span><small>Consultant Customer</small><h2>{viewCustomer.passportFullName || "Unnamed Consultant"}</h2></span></div><button type="button" onClick={() => setViewCustomer(null)}><X size={18}/></button></div><div className="consultant-detail-grid">{[["Phone Number",viewCustomer.phone],["Email",viewCustomer.email],["Education Level",viewCustomer.educationLevel],["School / University",viewCustomer.institutionName],["Source",viewCustomer.sourceEmployeeName],["Assigned To",viewCustomer.assignedEmployeeName],["Purpose",viewCustomer.purpose],["Registered",viewCustomer.createdAt ? new Date(viewCustomer.createdAt).toLocaleDateString() : ""]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value || "-"}</strong></div>)}</div><div className="consultant-detail-actions"><button type="button" onClick={() => { setViewCustomer(null); openEdit(viewCustomer); }}><Pencil size={15}/> Edit Information</button></div></div></div>}
+      {viewCustomer && <div className="consultant-modal-backdrop" onMouseDown={() => setViewCustomer(null)}><div className="consultant-detail-modal" onMouseDown={(event) => event.stopPropagation()}><div className="consultant-detail-hero"><div><b>{String(viewCustomer.fullName || viewCustomer.passportFullName || "C").slice(0,1).toUpperCase()}</b><span><small>{typeLabel}</small><h2>{viewCustomer.fullName || viewCustomer.passportFullName || `Unnamed ${typeLabel}`}</h2></span></div><button type="button" onClick={() => setViewCustomer(null)}><X size={18}/></button></div><div className="consultant-detail-grid">{[["Phone Number",viewCustomer.phone],["City / Province",viewCustomer.city],["Language",viewCustomer.language],["Call Type",viewCustomer.callType],["Need Follow-up",viewCustomer.needFollowup],["Business Type",viewCustomer.businessType],["Company Name",viewCustomer.companyName],[viewCustomer.createdByAccountId ? "Added By" : "Source Employee",viewCustomer.sourceEmployeeName],["Assigned To",viewCustomer.assignedEmployeeName],["Purpose",isTechnology ? viewCustomer.technologyPurpose : viewCustomer.purpose],[viewCustomer.createdByAccountId ? "Added Date" : "Registered",viewCustomer.createdAt ? new Date(viewCustomer.createdAt).toLocaleString() : ""]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value || "-"}</strong></div>)}</div><div className="consultant-detail-actions"><button type="button" onClick={() => { setViewCustomer(null); openEdit(viewCustomer); }}><Pencil size={15}/> Edit Information</button></div></div></div>}
 
       {deleteCustomer && <div className="consultant-modal-backdrop" onMouseDown={() => setDeleteCustomer(null)}><div className="consultant-delete-modal" onMouseDown={(event) => event.stopPropagation()}><div className="consultant-delete-icon"><AlertTriangle size={26}/></div><h2>Delete Consultant?</h2><p>You are about to permanently delete <strong>{deleteCustomer.passportFullName || "this consultant"}</strong>. This action cannot be undone.</p><div><button type="button" onClick={() => setDeleteCustomer(null)}>Cancel</button><button type="button" onClick={remove}><Trash2 size={15}/> Delete Consultant</button></div></div></div>}
     </div>
