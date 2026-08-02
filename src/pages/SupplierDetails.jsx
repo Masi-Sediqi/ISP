@@ -13,24 +13,17 @@ import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
 import { formatDateTime } from "../utils/afghanDate";
 import "./SupplierDetails.css";
-
 const emptyPurchaseForm = {
   purchaseDate: "",
-  referenceNumber: "",
-  invoiceNumber: "",
-  assetId: "",
-  deviceName: "",
+  productName: "",
+  productCode: "",
+  billNumber: "",
+  billImage: "",
   category: "",
-  brand: "",
-  model: "",
-  macAddress: "",
-  serialNumber: "",
+  unit: "Piece",
   quantity: "1",
   unitPrice: "",
   paidAmount: "",
-  remainAmount: "",
-  location: "Main Stock",
-  status: "In Stock",
   notes: "",
 };
 
@@ -675,6 +668,25 @@ const backToCategorySelect = () => {
     }));
   };
 
+
+
+  const handleBillImageChange = (event) => {
+    const file = event.target.files?.[0];
+  
+    if (!file) return;
+  
+    const reader = new FileReader();
+  
+    reader.onload = () => {
+      setPurchaseForm((previous) => ({
+        ...previous,
+        billImage: reader.result,
+      }));
+    };
+  
+    reader.readAsDataURL(file);
+  };
+
   const resetPurchaseForm = () => {
     setPurchaseForm(emptyPurchaseForm);
     setCategoryMode("select");
@@ -1015,133 +1027,117 @@ const removePurchaseExpense = async (source, referenceId) =>
     )
   );
 
-const savePurchase = async (event) => {
-  event.preventDefault();
-
-  const quantity = Number(purchaseForm.quantity || 1);
-  const unitPrice = Number(purchaseForm.unitPrice || 0);
-  const totalPurchaseValue = quantity * unitPrice;
-  const paidAmount = Number(purchaseForm.paidAmount || 0);
-  const remainAmount = Math.max(totalPurchaseValue - paidAmount, 0);
-
-  const cleanPurchase = {
-    id: editPurchaseId || Date.now(),
-    supplierIndex,
-    supplierName,
-    purchaseDate: purchaseForm.purchaseDate,
-    referenceNumber: purchaseForm.referenceNumber.trim() || generateNextPurchaseReference(),
-    invoiceNumber: purchaseForm.invoiceNumber.trim(),
-    assetId: purchaseForm.assetId.trim(),
-    deviceName: purchaseForm.deviceName.trim(),
-    category: purchaseForm.category.trim(),
-    brand: purchaseForm.brand.trim(),
-    model: purchaseForm.model.trim(),
-    macAddress: purchaseForm.macAddress.trim(),
-    serialNumber: purchaseForm.serialNumber.trim(),
-    quantity,
-    unitPrice,
-    totalPurchaseValue,
-    paidAmount,
-    remainAmount,
-    location: purchaseForm.location,
-    status: purchaseForm.status,
-    notes: purchaseForm.notes.trim(),
-    createdAt:
-      supplierPurchases.find((purchase) => purchase.id === editPurchaseId)?.createdAt ||
-      new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  if (!cleanPurchase.assetId && !cleanPurchase.macAddress && !cleanPurchase.serialNumber) {
-    notify(
-      "Please enter at least one unique identity: Asset ID, MAC Address, or Serial Number.",
-      "error"
-    );
-    return;
-  }
-
-  const duplicateIdentity = assets.some((asset) => {
-    if (editPurchaseId && asset.purchaseId === editPurchaseId) return false;
-
-    const sameAssetId =
-      cleanPurchase.assetId &&
-      asset.assetId &&
-      cleanPurchase.assetId.toLowerCase() === asset.assetId.toLowerCase();
-
-    const sameMac =
-      cleanPurchase.macAddress &&
-      asset.macAddress &&
-      cleanPurchase.macAddress.toLowerCase() === asset.macAddress.toLowerCase();
-
-    const sameSerial =
-      cleanPurchase.serialNumber &&
-      asset.serialNumber &&
-      cleanPurchase.serialNumber.toLowerCase() === asset.serialNumber.toLowerCase();
-
-    return sameAssetId || sameMac || sameSerial;
-  });
-
-  if (duplicateIdentity) {
-    notify("Asset ID, MAC Address, or Serial Number already exists.", "error");
-    return;
-  }
-
-  let nextPurchases;
-
-  if (editPurchaseId) {
-    nextPurchases = supplierPurchases.map((purchase) =>
-      purchase.id === editPurchaseId ? cleanPurchase : purchase
-    );
-  } else {
-    nextPurchases = [...supplierPurchases, cleanPurchase];
-  }
-
-  const existingAsset = assets.find((asset) => asset.purchaseId === cleanPurchase.id);
-  let nextAssets;
-
-  if (existingAsset) {
-    nextAssets = assets.map((asset) =>
-      asset.purchaseId === cleanPurchase.id
-        ? buildAssetFromPurchase(cleanPurchase, asset)
-        : asset
-    );
-  } else {
-    nextAssets = [...assets, buildAssetFromPurchase(cleanPurchase)];
-  }
-
-  const purchasesSaved = await setSupplierPurchases(nextPurchases);
-  const assetsSaved = await setAssets(nextAssets);
-
-  if (purchasesSaved && assetsSaved) {
-    const financeSaved = await upsertPurchaseExpense(cleanPurchase);
-
-    if (!financeSaved) {
-      notify("Purchase saved, but its expense could not be linked to Financial.", "error");
+  const savePurchase = async (event) => {
+    event.preventDefault();
+  
+    const quantity = Number(purchaseForm.quantity || 0);
+    const unitPrice = Number(purchaseForm.unitPrice || 0);
+    const paidAmount = Number(purchaseForm.paidAmount || 0);
+  
+    const totalPurchaseValue = quantity * unitPrice;
+    const remainAmount = totalPurchaseValue - paidAmount;
+  
+    if (!purchaseForm.productName?.trim()) {
+      notify("Please enter the product name.", "error");
+      return;
     }
-
+  
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      notify("Quantity must be greater than zero.", "error");
+      return;
+    }
+  
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      notify("Purchase price is invalid.", "error");
+      return;
+    }
+  
+    if (!Number.isFinite(paidAmount) || paidAmount < 0) {
+      notify("Paid amount is invalid.", "error");
+      return;
+    }
+  
+    if (paidAmount > totalPurchaseValue) {
+      notify("Paid amount cannot be greater than total.", "error");
+      return;
+    }
+  
+    const existingPurchase = supplierPurchases.find(
+      (purchase) => purchase.id === editPurchaseId
+    );
+  
+    const cleanPurchase = {
+      ...existingPurchase,
+  
+      id: editPurchaseId || crypto.randomUUID(),
+  
+      supplierIndex,
+      supplierRecordId: supplier?.id || "",
+      supplierName,
+  
+      purchaseDate:
+        purchaseForm.purchaseDate ||
+        new Date().toISOString().slice(0, 10),
+  
+      productName: purchaseForm.productName.trim(),
+      productCode: purchaseForm.productCode.trim(),
+      billNumber: purchaseForm.billNumber.trim(),
+      billImage: purchaseForm.billImage || "",
+      category: purchaseForm.category.trim(),
+      unit: purchaseForm.unit,
+  
+      quantity,
+      unitPrice,
+      paidAmount,
+      totalPurchaseValue,
+      remainAmount,
+  
+      notes: purchaseForm.notes.trim(),
+  
+      /* برای سازگاری با جدول فعلی */
+      deviceName: purchaseForm.productName.trim(),
+      invoiceNumber: purchaseForm.billNumber.trim(),
+  
+      status:
+        remainAmount === 0
+          ? "Paid"
+          : paidAmount > 0
+            ? "Partial"
+            : "Unpaid",
+  
+      createdAt:
+        existingPurchase?.createdAt || new Date().toISOString(),
+  
+      updatedAt: new Date().toISOString(),
+    };
+  
+    const nextPurchases = editPurchaseId
+      ? supplierPurchases.map((purchase) =>
+          purchase.id === editPurchaseId ? cleanPurchase : purchase
+        )
+      : [...supplierPurchases, cleanPurchase];
+  
+    const saved = await setSupplierPurchases(nextPurchases);
+  
+    if (!saved) return;
+  
     notify(
       editPurchaseId
         ? "Purchase updated successfully."
-        : "Purchase saved and asset added to inventory successfully."
+        : "Purchase saved successfully."
     );
-
+  
     setEditPurchaseId(null);
     closePurchaseModal();
-  }
-};
-
+  };
 
   const openCreatePurchaseModal = () => {
-  setEditPurchaseId(null);
-  setPurchaseForm({
-    ...emptyPurchaseForm,
-    assetId: generateNextAssetId(),
-    referenceNumber: generateNextPurchaseReference(),
-  });
-  setCategoryMode("select");
-  setNewCategory("");
-  setShowPurchaseModal(true);
-};
+    setEditPurchaseId(null);
+    setPurchaseForm(emptyPurchaseForm);
+    setCategoryMode("select");
+    setNewCategory("");
+    setShowPurchaseModal(true);
+  };
 
 const openEditPurchaseModal = (purchase) => {
   if (purchase.source === "asset-movement") {
@@ -1359,6 +1355,14 @@ const confirmDeletePurchase = async () => {
         </div>
 
         <div className="supplier-header-actions">
+
+        <button
+  type="button"
+  className="supplier-secondary-btn"
+  onClick={openCreatePurchaseModal}
+>
+  Purchase
+</button>
           <button
             type="button"
             className="supplier-secondary-btn"
@@ -1753,7 +1757,7 @@ const confirmDeletePurchase = async () => {
         </div>
       </div>
 
-      {false && showPurchaseModal && (
+      {showPurchaseModal && (
         <div className="supplier-purchase-modal-backdrop" onClick={closePurchaseModal}>
           <div
             className="supplier-purchase-modal"
@@ -1771,269 +1775,213 @@ const confirmDeletePurchase = async () => {
             </div>
 
             <form onSubmit={savePurchase}>
-              <div className="supplier-purchase-form-grid">
-                <div className="supplier-form-group">
-                  <label>Purchase Date</label>
-                  <input
-                    type="date"
-                    name="purchaseDate"
-                    value={purchaseForm.purchaseDate}
-                    onChange={handlePurchaseChange}
-                    required
-                  />
-                </div>
+            <div className="supplier-purchase-form-grid">
+  <div className="supplier-form-group">
+    <label>Purchase Date</label>
+    <input
+      type="date"
+      name="purchaseDate"
+      value={purchaseForm.purchaseDate}
+      onChange={handlePurchaseChange}
+      required
+    />
+  </div>
 
-                <div className="supplier-form-group">
-                  <label>Reference Number</label>
-                  <input
-                    name="referenceNumber"
-                    value={purchaseForm.referenceNumber}
-                    onChange={handlePurchaseChange}
-                    placeholder="Example: REF-0001"
-                    required
-                  />
-                </div>
+  <div className="supplier-form-group">
+    <label>Product Name</label>
+    <input
+      name="productName"
+      value={purchaseForm.productName}
+      onChange={handlePurchaseChange}
+      placeholder="Enter product name"
+      required
+    />
+  </div>
 
-                <div className="supplier-form-group">
-                  <label>Invoice Number</label>
-                  <input
-                    name="invoiceNumber"
-                    value={purchaseForm.invoiceNumber}
-                    onChange={handlePurchaseChange}
-                    placeholder="Example: INV-1001"
-                  />
-                </div>
+  <div className="supplier-form-group">
+    <label>Product Code</label>
+    <input
+      name="productCode"
+      value={purchaseForm.productCode}
+      onChange={handlePurchaseChange}
+      placeholder="Enter product code"
+    />
+  </div>
 
-                <div className="supplier-form-group">
-                  <label>Asset ID</label>
-                  <div className="supplier-asset-id-field">
-                    <input
-                      name="assetId"
-                      value={purchaseForm.assetId}
-                      onChange={handlePurchaseChange}
-                      placeholder="Example: AST-0001"
-                    />
+  <div className="supplier-form-group">
+    <label>Bill Number</label>
+    <input
+      name="billNumber"
+      value={purchaseForm.billNumber}
+      onChange={handlePurchaseChange}
+      placeholder="Enter bill number"
+    />
+  </div>
 
-                    <button type="button" onClick={handleGenerateAssetId}>
-                      Generate
-                    </button>
-                  </div>
-                </div>
+  <div className="supplier-form-group supplier-form-full">
+    <label>Bill Image</label>
+    <input
+      type="file"
+      accept="image/*"
+      onChange={handleBillImageChange}
+    />
 
-                <div className="supplier-form-group">
-                  <label>Device Name</label>
-                  <input
-                    name="deviceName"
-                    value={purchaseForm.deviceName}
-                    onChange={handlePurchaseChange}
-                    placeholder="Example: MikroTik Router"
-                    required
-                  />
-                </div>
+    {purchaseForm.billImage && (
+      <img
+        src={purchaseForm.billImage}
+        alt="Bill preview"
+        style={{
+          width: "130px",
+          height: "90px",
+          marginTop: "8px",
+          borderRadius: "10px",
+          objectFit: "cover",
+        }}
+      />
+    )}
+  </div>
 
-                <div className="supplier-form-group">
-                  <div className="supplier-label-row">
-                    <label>Category</label>
+  <div className="supplier-form-group supplier-form-full">
+    <div className="supplier-label-row">
+      <label>Category</label>
 
-                    {categoryMode === "select" && (
-                      <button
-                        type="button"
-                        className="supplier-category-plus"
-                        onClick={() => {
-                          setCategoryMode("custom");
-                          setNewCategory("");
-                        }}
-                        title="Add custom category"
-                      >
-                        +
-                      </button>
-                    )}
-                  </div>
+      <button
+        type="button"
+        className="supplier-category-plus"
+        onClick={() => {
+          setCategoryMode("custom");
+          setNewCategory("");
+        }}
+        title="Add category"
+      >
+        +
+      </button>
+    </div>
 
-                  {categoryMode === "select" ? (
-                    <select
-                      name="category"
-                      value={purchaseForm.category}
-                      onChange={handleCategoryChange}
-                      required
-                    >
-                      <option value="">Select Category</option>
+    {categoryMode === "custom" && (
+      <div className="supplier-custom-category">
+        <input
+          value={newCategory}
+          onChange={(event) => setNewCategory(event.target.value)}
+          placeholder="Enter category name"
+          autoFocus
+        />
 
-                      {categoryOptions.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="supplier-custom-category">
-                      <input
-                        value={newCategory}
-                        onChange={(event) => setNewCategory(event.target.value)}
-                        placeholder="Enter new category"
-                        autoFocus
-                      />
+        <button
+          type="button"
+          className="supplier-category-save"
+          onClick={saveCustomCategory}
+        >
+          Save
+        </button>
 
-                      <button
-                        type="button"
-                        className="supplier-category-save"
-                        onClick={saveCustomCategory}
-                      >
-                        Save
-                      </button>
+        <button
+          type="button"
+          className="supplier-category-back"
+          onClick={backToCategorySelect}
+        >
+          Cancel
+        </button>
+      </div>
+    )}
 
-                      <button
-                        type="button"
-                        className="supplier-category-back"
-                        onClick={backToCategorySelect}
-                      >
-                        Back
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="supplier-form-group">
-                  <label>Brand</label>
-                  <input
-                    name="brand"
-                    value={purchaseForm.brand}
-                    onChange={handlePurchaseChange}
-                    placeholder="Example: MikroTik"
-                  />
-                </div>
+    {purchaseForm.category && (
+      <div className="supplier-selected-category">
+        {purchaseForm.category}
+      </div>
+    )}
+  </div>
 
-                <div className="supplier-form-group">
-                  <label>Model</label>
-                  <input
-                    name="model"
-                    value={purchaseForm.model}
-                    onChange={handlePurchaseChange}
-                    placeholder="Example: RB750Gr3"
-                  />
-                </div>
+  <div className="supplier-form-group">
+    <label>Unit</label>
+    <select
+      name="unit"
+      value={purchaseForm.unit}
+      onChange={handlePurchaseChange}
+      required
+    >
+      <option value="Piece">Piece</option>
+      <option value="Box">Box</option>
+      <option value="Meter">Meter</option>
+      <option value="Kilogram">Kilogram</option>
+      <option value="Set">Set</option>
+      <option value="Roll">Roll</option>
+    </select>
+  </div>
 
-                <div className="supplier-form-group">
-                  <label>MAC Address</label>
-                  <input
-                    name="macAddress"
-                    value={purchaseForm.macAddress}
-                    onChange={handlePurchaseChange}
-                    placeholder="Example: AA:BB:CC:DD:EE:FF"
-                  />
-                </div>
+  <div className="supplier-form-group">
+    <label>Quantity</label>
+    <input
+      type="number"
+      min="1"
+      name="quantity"
+      value={purchaseForm.quantity}
+      onChange={handlePurchaseChange}
+      required
+    />
+  </div>
 
-                <div className="supplier-form-group">
-                  <label>Serial Number</label>
-                  <input
-                    name="serialNumber"
-                    value={purchaseForm.serialNumber}
-                    onChange={handlePurchaseChange}
-                    placeholder="Example: SN-123456"
-                  />
-                </div>
+  <div className="supplier-form-group">
+    <label>Purchase Price</label>
+    <input
+      type="number"
+      min="0"
+      name="unitPrice"
+      value={purchaseForm.unitPrice}
+      onChange={handlePurchaseChange}
+      placeholder="Price of one unit"
+      required
+    />
+  </div>
 
-                <div className="supplier-form-group">
-                  <label>Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    name="quantity"
-                    value={purchaseForm.quantity}
-                    onChange={handlePurchaseChange}
-                    required
-                  />
-                </div>
+  <div className="supplier-form-group">
+    <label>Total</label>
+    <input
+      value={`${money(
+        Number(purchaseForm.quantity || 0) *
+          Number(purchaseForm.unitPrice || 0)
+      )} AFN`}
+      readOnly
+    />
+  </div>
 
-                <div className="supplier-form-group">
-                  <label>Unit Price</label>
-                  <input
-                    type="number"
-                    min="0"
-                    name="unitPrice"
-                    value={purchaseForm.unitPrice}
-                    onChange={handlePurchaseChange}
-                    placeholder="Example: 2500"
-                    required
-                  />
-                </div>
+  <div className="supplier-form-group">
+    <label>Paid Amount</label>
+    <input
+      type="number"
+      min="0"
+      name="paidAmount"
+      value={purchaseForm.paidAmount}
+      onChange={handlePurchaseChange}
+      placeholder="Enter paid amount"
+    />
+  </div>
 
-                <div className="supplier-form-group">
-                  <label>Total Purchase Value</label>
-                  <input
-                    value={`${money(Number(purchaseForm.quantity || 0) * Number(purchaseForm.unitPrice || 0))} AFN`}
-                    readOnly
-                  />
-                </div>
+  <div className="supplier-form-group">
+    <label>Remain</label>
+    <input
+      value={`${money(
+        Math.max(
+          Number(purchaseForm.quantity || 0) *
+            Number(purchaseForm.unitPrice || 0) -
+            Number(purchaseForm.paidAmount || 0),
+          0
+        )
+      )} AFN`}
+      readOnly
+    />
+  </div>
 
-                <div className="supplier-form-group">
-                  <label>Paid Amount</label>
-                  <input
-                    type="number"
-                    min="0"
-                    name="paidAmount"
-                    value={purchaseForm.paidAmount}
-                    onChange={handlePurchaseChange}
-                    placeholder="Example: 1000"
-                  />
-                </div>
-
-                <div className="supplier-form-group">
-                  <label>Remain Amount</label>
-                  <input
-                    value={`${money(
-                      Math.max(
-                        Number(purchaseForm.quantity || 0) * Number(purchaseForm.unitPrice || 0) -
-                          Number(purchaseForm.paidAmount || 0),
-                        0
-                      )
-                    )} AFN`}
-                    readOnly
-                  />
-                </div>
-
-                <div className="supplier-form-group">
-                  <label>Location</label>
-                  <select
-                    name="location"
-                    value={purchaseForm.location}
-                    onChange={handlePurchaseChange}
-                    required
-                  >
-                    <option value="Main Stock">Main Stock</option>
-                    <option value="Tower">Tower</option>
-                    <option value="Customer">Customer</option>
-                    <option value="Repair">Repair</option>
-                    <option value="Returned Stock">Returned Stock</option>
-                  </select>
-                </div>
-
-                <div className="supplier-form-group">
-                  <label>Status</label>
-                  <select
-                    name="status"
-                    value={purchaseForm.status}
-                    onChange={handlePurchaseChange}
-                    required
-                  >
-                    <option value="In Stock">In Stock</option>
-                    <option value="Issued">Issued</option>
-                    <option value="Installed">Installed</option>
-                    <option value="Returned">Returned</option>
-                    <option value="Damaged">Damaged</option>
-                    <option value="Lost">Lost</option>
-                  </select>
-                </div>
-
-                <div className="supplier-form-group supplier-form-full">
-                  <label>Notes</label>
-                  <textarea
-                    name="notes"
-                    value={purchaseForm.notes}
-                    onChange={handlePurchaseChange}
-                    placeholder="Additional purchase notes..."
-                  />
-                </div>
-              </div>
+  <div className="supplier-form-group supplier-form-full">
+    <label>Notes</label>
+    <textarea
+      name="notes"
+      value={purchaseForm.notes}
+      onChange={handlePurchaseChange}
+      placeholder="Additional purchase notes..."
+    />
+  </div>
+</div>
 
               <div className="supplier-purchase-modal-actions">
                 <button type="button" className="supplier-cancel-btn" onClick={closePurchaseModal}>
