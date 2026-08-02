@@ -122,6 +122,8 @@ function Suppliers({ currentUser }) {
   };
 
   const [suppliers, setSuppliers] = useJsonCollection("suppliers");
+  const [supplierPayments, setSupplierPayments] =
+    useJsonCollection("supplierPayments");
   const [formData, setFormData] = useState(emptyForm);
   const canCreateSupplier = hasPermission(currentUser, "suppliers", "create");
   const canEditSupplier = hasPermission(currentUser, "suppliers", "edit");
@@ -254,9 +256,41 @@ if (!canCreateSupplier) {
   return;
 }
 
-const saved = await setSuppliers([...suppliers, cleanData]);
+const newSupplier = {
+  ...cleanData,
+  id: cleanData.id || crypto.randomUUID(),
+};
+
+const saved = await setSuppliers([...suppliers, newSupplier]);
 
 if (saved) {
+  const openingBalance = Number(newSupplier.openingBalance || 0);
+
+  if (openingBalance !== 0) {
+    const balanceRecord = {
+      id: crypto.randomUUID(),
+      recordType: "balance",
+      type: "Balance",
+      supplierIndex: suppliers.length,
+      supplierRecordId: newSupplier.id,
+      supplierName: newSupplier.supplierName,
+      balanceDate: new Date().toISOString().slice(0, 10),
+      balanceSide:
+        openingBalance < 0
+          ? "we_owe_supplier"
+          : "supplier_owes_us",
+      amount: Math.abs(openingBalance),
+      notes: newSupplier.note || "Opening balance from supplier form",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await setSupplierPayments([
+      ...supplierPayments,
+      balanceRecord,
+    ]);
+  }
+
   notify("Supplier saved successfully.");
   resetForm();
   setShowModal(false);
@@ -506,161 +540,135 @@ const confirmDelete = () => {
             </div>
 
             <form onSubmit={handleSubmit}>
-              <div className="driver-form-grid">
-                <div className="form-group">
-                  <label>Supplier Name</label>
-                  <input
-                    name="supplierName"
-                    value={formData.supplierName}
-                    onChange={handleChange}
-                    placeholder="Example: Netlink Technologies"
-                    required
-                  />
-                </div>
+            <div className="driver-form-grid">
+  <div className="form-group form-full">
+    <label>Name / Company</label>
+    <input
+      name="supplierName"
+      value={formData.supplierName}
+      onChange={handleChange}
+      placeholder="Enter supplier or company name"
+      required
+    />
+  </div>
 
-                <div className="form-group">
-                  <label>Company Name</label>
-                  <input
-                    name="companyName"
-                    value={formData.companyName}
-                    onChange={handleChange}
-                    placeholder="Example: Netlink Ltd"
-                  />
-                </div>
+  <div className="form-group">
+    <label>Contact Person</label>
+    <input
+      name="contactPerson"
+      value={formData.contactPerson}
+      onChange={handleChange}
+      placeholder="Enter contact person name"
+    />
+  </div>
 
-                <div className="form-group">
-                  <label>Contact Person</label>
-                  <input
-                    name="contactPerson"
-                    value={formData.contactPerson}
-                    onChange={handleChange}
-                    placeholder="Example: Ahmad"
-                  />
-                </div>
+  <div className="form-group">
+    <label>Phone Number</label>
+    <input
+      name="phone"
+      value={formData.phone}
+      onChange={handleChange}
+      placeholder="Example: 0799000000"
+      required
+    />
+  </div>
 
-                <div className="form-group">
-                  <label>Phone Number</label>
-                  <input
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="Example: 0799000000"
-                    required
-                  />
-                </div>
+  <div className="form-group">
+    <label>Email</label>
+    <input
+      type="email"
+      name="email"
+      value={formData.email}
+      onChange={handleChange}
+      placeholder="Example: info@example.com"
+    />
+  </div>
 
-                <div className="form-group">
-                  <label>Email Address</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="Example: info@example.com"
-                  />
-                </div>
+  <div className="form-group">
+    <label>Opening Balance</label>
+    <input
+      type="number"
+      step="any"
+      name="openingBalance"
+      value={formData.openingBalance}
+      onChange={handleChange}
+      placeholder="Example: -100 or 100"
+    />
 
-                <div className="form-group">
-                  <label>TIN / Tax Number</label>
-                  <input
-                    name="taxNumber"
-                    value={formData.taxNumber}
-                    onChange={handleChange}
-                    placeholder="Optional"
-                  />
-                </div>
+    <small className="supplier-balance-help">
+      Negative: We owe the supplier — Positive: Supplier owes us
+    </small>
+  </div>
 
-                <div className="form-group">
-                  <label>Status</label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
+  <div className="form-group form-full">
+    <label>Item Supply</label>
 
-                <div className="form-group form-full">
-                  <label>Supplier Services</label>
+    <div className="supplier-type-picker">
+      <button
+        type="button"
+        className={
+          (formData.supplierTypes || []).includes("Product Supplier")
+            ? "active"
+            : ""
+        }
+        onClick={() => toggleSupplierType("Product Supplier")}
+      >
+        Supplies Products
+      </button>
 
-                  <div className="supplier-type-picker">
-                    <button
-                      type="button"
-                      className={
-                        (formData.supplierTypes || []).includes("Product Supplier")
-                          ? "active"
-                          : ""
-                      }
-                      onClick={() => toggleSupplierType("Product Supplier")}
-                    >
-                      Provides Products
-                    </button>
+      <button
+        type="button"
+        className={
+          (formData.supplierTypes || []).includes("Repair Service")
+            ? "active"
+            : ""
+        }
+        onClick={() => toggleSupplierType("Repair Service")}
+      >
+        Repairs Devices
+      </button>
+    </div>
 
-                    <button
-                      type="button"
-                      className={
-                        (formData.supplierTypes || []).includes("Repair Service")
-                          ? "active"
-                          : ""
-                      }
-                      onClick={() => toggleSupplierType("Repair Service")}
-                    >
-                      Repairs Devices
-                    </button>
-                  </div>
+    <div className="supplier-custom-type-add">
+      <input
+        name="customSupplierType"
+        value={formData.customSupplierType}
+        onChange={handleChange}
+        placeholder="Add supplied item..."
+      />
 
-                  <div className="supplier-custom-type-add">
-                    <input
-                      name="customSupplierType"
-                      value={formData.customSupplierType}
-                      onChange={handleChange}
-                      placeholder="Add custom supplier service..."
-                    />
+      <button type="button" onClick={addCustomSupplierType}>
+        Add
+      </button>
+    </div>
 
-                    <button type="button" onClick={addCustomSupplierType}>
-                      Add
-                    </button>
-                  </div>
+    {(formData.supplierTypes || []).length > 0 && (
+      <div className="supplier-type-chips">
+        {(formData.supplierTypes || []).map((type) => (
+          <button
+            type="button"
+            key={type}
+            onClick={() => removeSupplierType(type)}
+          >
+            {type}
+            <span>×</span>
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
 
-                  {(formData.supplierTypes || []).length > 0 && (
-                    <div className="supplier-type-chips">
-                      {(formData.supplierTypes || []).map((type) => (
-                        <button
-                          type="button"
-                          key={type}
-                          onClick={() => removeSupplierType(type)}
-                        >
-                          {type}
-                          <span>×</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="form-group form-full">
-                  <label>Address</label>
-                  <input
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    placeholder="Supplier address"
-                  />
-                </div>
-
-                <div className="form-group form-full">
-                  <label>Notes</label>
-                  <textarea
-                    name="note"
-                    value={formData.note}
-                    onChange={handleChange}
-                    placeholder="Additional supplier notes..."
-                  />
-                </div>
-              </div>
+  <div className="form-group form-full">
+    <label>Notes</label>
+    <textarea
+      name="note"
+      value={formData.note}
+      onChange={handleChange}
+      placeholder="Additional supplier notes..."
+      rows="4"
+    />
+  </div>
+</div>
 
               <div className="driver-modal-actions">
                 <button

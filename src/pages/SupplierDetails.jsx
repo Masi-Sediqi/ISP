@@ -282,6 +282,18 @@ function SupplierDetails() {
     String(record.recordType || record.type || "").toLowerCase() === "balance";
 
   const balanceRecords = supplierPaymentRecords.filter(isBalanceRecord);
+  const latestBalanceRecord = [...balanceRecords]
+  .sort(
+    (a, b) =>
+      new Date(b.createdAt || b.balanceDate).getTime() -
+      new Date(a.createdAt || a.balanceDate).getTime()
+  )[0];
+
+const latestOpeningBalance = latestBalanceRecord
+  ? latestBalanceRecord.balanceSide === "we_owe_supplier"
+    ? -Math.abs(Number(latestBalanceRecord.amount || 0))
+    : Math.abs(Number(latestBalanceRecord.amount || 0))
+  : Number(supplier?.openingBalance || 0);
   const payments = supplierPaymentRecords.filter((record) => !isBalanceRecord(record));
 
   const supplierAssets = assets.filter(
@@ -1417,6 +1429,21 @@ const confirmDeletePurchase = async () => {
           <strong>{money(supplierOwesUs)} AFN</strong>
           <p>Overpaid supplier balance</p>
         </div>
+        <div className="supplier-dashboard-card">
+  <span>Latest Opening Balance</span>
+
+  <strong>
+    {money(latestOpeningBalance)} AFN
+  </strong>
+
+  <p>
+    {latestOpeningBalance < 0
+      ? "We Owe Supplier"
+      : latestOpeningBalance > 0
+        ? "Supplier Owes Us"
+        : "No opening balance recorded"}
+  </p>
+</div>
 
         <div className="supplier-dashboard-card">
           <span>Total Paid</span>
