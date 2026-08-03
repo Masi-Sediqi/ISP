@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const fs = require("fs-extra");
 const path = require("path");
+const http = require("http");
+const { Server } = require("socket.io");
 const { answerAdvancedReport } = require("./advancedReport");
 const {
   ALLOWED_LICENSE_TYPES,
@@ -11,6 +13,14 @@ const {
 
 const app = express();
 
+const httpServer = http.createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: true,
+    credentials: true,
+  },
+});
 const DEFAULT_PORT = Number(process.env.ISP_API_PORT || 5000);
 const DEFAULT_HOST = process.env.ISP_API_HOST || "127.0.0.1";
 const DEFAULT_DATA_DIR = "C:/ISP Smart";
@@ -62,6 +72,7 @@ const COLLECTIONS = new Set([
 
   "educationInstitutions",
   "mediaProducts",
+  "messages",
 
 
   "officeAssets",
@@ -475,6 +486,180 @@ async function readOperationalData() {
   return Object.fromEntries(entries);
 }
 
+
+
+
+const onlineUsers = new Map();
+
+io.on("connection", (socket) => {
+  socket.on("chat:join", ({ accountId }) => {
+    const normalizedAccountId = String(
+      accountId || ""
+    ).trim();
+
+    if (!normalizedAccountId) return;
+
+    socket.data.accountId = normalizedAccountId;
+    socket.join(`account:${normalizedAccountId}`);
+
+    onlineUsers.set(
+      normalizedAccountId,
+      socket.id
+    );
+
+    io.emit(
+      "chat:online-users",
+      Array.from(onlineUsers.keys())
+    );
+  });
+
+  socket.on("chat:send", async (payload, callback) => {
+    try {
+      const fromAccountId = String(
+        payload?.fromAccountId || ""
+      ).trim();
+
+      const toAccountId = String(
+        payload?.toAccountId || ""
+      ).trim();
+
+      const text = String(
+        payload?.text || ""
+      ).trim();
+
+      if (!fromAccountId || !toAccountId || !text) {
+        callback?.({
+          success: false,
+          error: "Message information is incomplete.",
+        });
+
+        return;
+      }
+
+      const messages = await readCollection("messages");
+
+      const message = {
+        id:
+          typeof crypto !== "undefined" &&
+          crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random()
+                .toString(36)
+                .slice(2, 10)}`,
+
+        fromAccountId,
+        toAccountId,
+
+        fromEmployeeId: String(
+          payload?.fromEmployeeId || ""
+        ),
+
+        toEmployeeId: String(
+          payload?.toEmployeeId || ""
+        ),
+
+        senderName: String(
+          payload?.senderName || "Employee"
+        ),
+
+        receiverName: String(
+          payload?.receiverName || "Employee"
+        ),
+
+        text,
+
+        seen: false,
+        delivered: false,
+
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      messages.push(message);
+      await writeCollection("messages", messages);
+
+      io.to(`account:${fromAccountId}`).emit(
+        "chat:message",
+        message
+      );
+
+      io.to(`account:${toAccountId}`).emit(
+        "chat:message",
+        message
+      );
+
+      callback?.({
+        success: true,
+        message,
+      });
+    } catch (error) {
+      console.error(
+        "Unable to send chat message:",
+        error
+      );
+
+      callback?.({
+        success: false,
+        error: "Unable to send message.",
+      });
+    }
+  });
+
+  socket.on("chat:seen", async ({ messageIds }) => {
+    try {
+      const ids = Array.isArray(messageIds)
+        ? messageIds.map(String)
+        : [];
+
+      if (!ids.length) return;
+
+      const messages = await readCollection("messages");
+
+      const updatedAt = new Date().toISOString();
+
+      const nextMessages = messages.map((message) =>
+        ids.includes(String(message.id))
+          ? {
+              ...message,
+              seen: true,
+              delivered: true,
+              seenAt: updatedAt,
+              updatedAt,
+            }
+          : message
+      );
+
+      await writeCollection(
+        "messages",
+        nextMessages
+      );
+
+      io.emit("chat:messages-seen", {
+        messageIds: ids,
+        seenAt: updatedAt,
+      });
+    } catch (error) {
+      console.error(
+        "Unable to mark messages as seen:",
+        error
+      );
+    }
+  });
+
+  socket.on("disconnect", () => {
+    const accountId = socket.data.accountId;
+
+    if (accountId) {
+      onlineUsers.delete(accountId);
+
+      io.emit(
+        "chat:online-users",
+        Array.from(onlineUsers.keys())
+      );
+    }
+  });
+});
+
 app.get("/api/health", (req, res) => {
   res.json({
     ready: true,
@@ -656,7 +841,7 @@ function startServer(options = {}) {
       new Promise((resolve, reject) => {
         let settled = false;
 
-        const server = app.listen(port, host, () => {
+        const server = httpServer.listen(port, host, () => {
           const address = server.address();
           const resolvedPort =
             address && typeof address === "object" ? address.port : Number(port);

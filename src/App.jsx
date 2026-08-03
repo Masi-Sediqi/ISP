@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-
+import { MessageCircle } from "lucide-react";
 import {
   Routes,
   Route,
@@ -53,6 +53,7 @@ const MyAccount = lazy(() =>
   import("./pages/MyAccount")
 );
 const Suppliers = lazy(() => import("./pages/Suppliers"));
+const TeamChat = lazy(() => import("./pages/TeamChat"));
 const SupplierDetails = lazy(() => import("./pages/SupplierDetails"));
 const SupplierAnalysis = lazy(() => import("./pages/SupplierAnalysis"));
 const AssetInventory = lazy(() => import("./pages/AssetInventory"));
@@ -280,9 +281,10 @@ const isEmployeeAccount =
 
   useEffect(() => {
     const receptionAllowedPaths = [
-  "/reception",
-  "/my-account",
-];
+      "/reception",
+      "/my-account",
+      "/team-chat",
+    ];
 
 if (
   isReceptionAccount &&
@@ -294,9 +296,10 @@ if (
   return;
 }
   
-    const employeeAllowedPaths = [
+const employeeAllowedPaths = [
   "/",
   "/my-account",
+  "/team-chat",
 ];
 
 if (
@@ -475,12 +478,19 @@ if (
 
           <nav className="menu">
 
-              {!isAdminAccount && (
-    <NavLink to="/my-account">
-      <CircleUserRound size={17} />
-      <span>My Account</span>
-    </NavLink>
-  )}
+          {!isAdminAccount && (
+<>
+  <NavLink to="/my-account">
+    <CircleUserRound size={17}/>
+    <span>My Account</span>
+  </NavLink>
+
+  <NavLink to="/team-chat">
+    <MessageCircle size={17}/>
+    <span>Team Chat</span>
+  </NavLink>
+</>
+)}
           {!isReceptionAccount && (
               <NavLink to="/">
                 <LayoutDashboard size={17} />
@@ -630,6 +640,16 @@ if (
                   path="/projects"
                   element={protect("dashboard", <Projects />)}
                 />
+               <Route
+  path="/team-chat"
+  element={
+    !isAdminAccount ? (
+      <TeamChat currentUser={currentUser} />
+    ) : (
+      <PermissionDenied />
+    )
+  }
+/>
                 <Route
                   path="/reception"
                   element={protect(
