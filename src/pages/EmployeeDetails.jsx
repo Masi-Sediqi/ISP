@@ -53,6 +53,9 @@ export default function EmployeeDetails({
     useState(false);
 
   const [adjustmentOpen, setAdjustmentOpen] =
+  useState(false);
+  
+  const [detailsOpen, setDetailsOpen] =
     useState(false);
 
   const [showPassword, setShowPassword] =
@@ -104,9 +107,8 @@ export default function EmployeeDetails({
     );
 
   const anyModalOpen =
-    accountOpen || adjustmentOpen;
-
-  useEffect(() => {
+  accountOpen || adjustmentOpen || detailsOpen;
+    useEffect(() => {
     if (!anyModalOpen) return undefined;
 
     const previousOverflow =
@@ -135,8 +137,8 @@ export default function EmployeeDetails({
         closeAccount();
       }
 
-      if (adjustmentOpen) {
-        closeAdjustment();
+      if (detailsOpen) {
+        setDetailsOpen(false);
       }
     };
 
@@ -150,7 +152,7 @@ export default function EmployeeDetails({
         "keydown",
         closeWithEscape
       );
-  }, [accountOpen, adjustmentOpen]);
+    }, [accountOpen, adjustmentOpen, detailsOpen]);
 
   const openAccount = () => {
     const suggestedEmail =
@@ -284,19 +286,26 @@ const employeeRoles = Array.isArray(employee.roles)
     ? [employee.role]
     : [];
 
-const isAdminAccount = employeeRoles.some(
-  (role) => {
-    const normalizedRole = String(role || "")
-      .trim()
-      .toLowerCase();
-
-    return (
-      normalizedRole === "admin" ||
-      normalizedRole === "full admin" ||
-      normalizedRole === "administrator"
+  const isAdminAccount = employeeRoles.some(
+    (role) => {
+      const normalizedRole = String(role || "")
+        .trim()
+        .toLowerCase();
+  
+      return (
+        normalizedRole === "admin" ||
+        normalizedRole === "full admin" ||
+        normalizedRole === "administrator"
+      );
+    }
+  );
+  
+    const isReceptionAccount = employeeRoles.some(
+      (role) =>
+        String(role || "")
+          .trim()
+          .toLowerCase() === "reception"
     );
-  }
-);
 
 const record = {
   ...(employeeAccount || {}),
@@ -322,8 +331,16 @@ const record = {
   status: "Active",
 
   permissions: isAdminAccount
+  ? {
+      all: true,
+    }
+  : isReceptionAccount
     ? {
-        all: true,
+        customers: {
+          view: true,
+          create: true,
+          edit: true,
+        },
       }
     : {
         dashboard: {
@@ -478,6 +495,22 @@ const record = {
         </div>
 
         <div className="employee-profile-actions">
+          <div className="employee-current-balance">
+            <span>Current Balance</span>
+
+            <strong>
+              {(totalBonus - totalPenalty).toLocaleString("en-US")} AFN
+            </strong>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setDetailsOpen(true)}
+          >
+            <Eye size={17} />
+            View Details
+          </button>
+
           <button
             type="button"
             onClick={openAdjustment}
@@ -504,7 +537,13 @@ const record = {
         </div>
       </header>
 
-      <section className="employee-profile-hero">
+      <section
+          className={`employee-profile-hero ${
+            String(employee.status || "").toLowerCase() === "active"
+              ? "employee-profile-active"
+              : ""
+          }`}
+        >
         <div className="employee-profile-photo">
           {employee.image ? (
             <img
@@ -555,51 +594,8 @@ const record = {
         </aside>
       </section>
 
-      <section className="employee-profile-card">
-        <h3>Employee Information</h3>
 
-        <div className="employee-detail-list">
-          {details.map(([label, value]) => (
-            <div key={label}>
-              <span>{label}</span>
-              <strong>{value || "-"}</strong>
-            </div>
-          ))}
-        </div>
-      </section>
 
-      {employeeAccount && (
-        <section className="employee-profile-card">
-          <h3>System Account</h3>
-
-          <div className="employee-detail-list">
-            <div>
-              <span>Username</span>
-              <strong>
-                {employeeAccount.username}
-              </strong>
-            </div>
-
-            <div>
-              <span>Email</span>
-              <strong>
-                {employeeAccount.email ||
-                  "-"}
-              </strong>
-            </div>
-
-            <div>
-              <span>
-                Department dashboard
-              </span>
-
-              <strong>
-                {employeeAccount.department}
-              </strong>
-            </div>
-          </div>
-        </section>
-      )}
 
       {accountOpen && (
         <div
@@ -785,6 +781,70 @@ const record = {
               </button>
             </footer>
           </form>
+        </div>
+      )}
+
+
+      {detailsOpen && (
+        <div
+          className="employee-profile-modal"
+          onMouseDown={() => setDetailsOpen(false)}
+        >
+          <div
+            className="employee-details-modal"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <h2>Employee Details</h2>
+                <p>Employee information and system account.</p>
+              </div>
+
+              <button
+                type="button"
+                className="employee-profile-modal-close"
+                onClick={() => setDetailsOpen(false)}
+              >
+                <X size={19} />
+              </button>
+            </header>
+
+            <section>
+              <h3>Employee Information</h3>
+
+              <div className="employee-detail-list">
+                {details.map(([label, value]) => (
+                  <div key={label}>
+                    <span>{label}</span>
+                    <strong>{value || "-"}</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {employeeAccount && (
+              <section>
+                <h3>System Account</h3>
+
+                <div className="employee-detail-list">
+                  <div>
+                    <span>Username</span>
+                    <strong>{employeeAccount.username || "-"}</strong>
+                  </div>
+
+                  <div>
+                    <span>Email</span>
+                    <strong>{employeeAccount.email || "-"}</strong>
+                  </div>
+
+                  <div>
+                    <span>Department Dashboard</span>
+                    <strong>{employeeAccount.department || "-"}</strong>
+                  </div>
+                </div>
+              </section>
+            )}
+          </div>
         </div>
       )}
 

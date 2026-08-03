@@ -256,15 +256,44 @@ const currentUser = signedInAccount
  * فقط کارمند عادی باید EmployeeDashboard را ببیند.
  * Admin و Full Admin وارد داشبورد عمومی سیستم می‌شوند.
  */
+const currentUserRoles = Array.isArray(currentUser?.roles)
+  ? currentUser.roles
+  : currentUser?.primaryRole
+    ? [currentUser.primaryRole]
+    : linkedEmployeeRoles;
+
+const isReceptionAccount = currentUserRoles.some(
+  (role) =>
+    String(role || "")
+      .trim()
+      .toLowerCase() === "reception"
+);
+
 const isEmployeeAccount =
   currentUser?.accountType === "employee" &&
-  !isAdminAccount;
+  !isAdminAccount &&
+  !isReceptionAccount;
 
   useEffect(() => {
-    if (isEmployeeAccount && location.pathname !== "/") {
+    if (
+      isReceptionAccount &&
+      location.pathname !== "/reception"
+    ) {
+      window.location.hash = "#/reception";
+      return;
+    }
+  
+    if (
+      isEmployeeAccount &&
+      location.pathname !== "/"
+    ) {
       window.location.hash = "#/";
     }
-  }, [isEmployeeAccount, location.pathname]);
+  }, [
+    isReceptionAccount,
+    isEmployeeAccount,
+    location.pathname,
+  ]);
 
   useEffect(() => {
     window.addEventListener("company-settings-updated", loadSettings);
@@ -427,12 +456,16 @@ const isEmployeeAccount =
           </div>
 
           <nav className="menu">
-            <NavLink to="/">
-              <LayoutDashboard size={17} />
-              <span>Dashboard</span>
-            </NavLink>
+          {!isReceptionAccount && (
+              <NavLink to="/">
+                <LayoutDashboard size={17} />
+                <span>Dashboard</span>
+              </NavLink>
+            )}
 
-            {!isEmployeeAccount && canViewModule(currentUser, "customers") && (
+                {!isEmployeeAccount &&
+                !isReceptionAccount &&
+                canViewModule(currentUser, "customers") && (
               <div className={`sidebar-customer-menu ${customerMenuOpen ? "open" : ""}`}>
                 <button
                   type="button"

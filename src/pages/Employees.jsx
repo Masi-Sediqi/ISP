@@ -25,8 +25,18 @@ const emptyEmployee = {
 };
 
 const defaultDepartments = ["Consultant", "Travel", "Technology", "Media"];
-const defaultRoles = ["Full Admin", "Manager", "Project Manager", "Finance Manager", "HR Officer", "Supervisor", "Accountant", "Employee"];
-
+const defaultRoles = [
+  "Full Admin",
+  "Manager",
+  "Project Manager",
+  "Finance Manager",
+  "HR Officer",
+  "Supervisor",
+  "Accountant",
+  "Employee",
+  "Reception",
+  "Call Center",
+];
 const readFile = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();

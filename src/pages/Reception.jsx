@@ -217,13 +217,8 @@ export default function Reception({ currentUser }) {
 
   const receptionCustomers = useMemo(() => {
     const query = search.trim().toLowerCase();
-
     return customers
-      .filter(
-        (customer) =>
-          customer.registeredFrom === "reception"
-      )
-      .filter((customer) => {
+    .filter((customer) => {
         if (!query) return true;
 
         return [

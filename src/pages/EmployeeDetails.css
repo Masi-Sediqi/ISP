@@ -462,3 +462,145 @@ body.dark-mode
     width: 100%;
   }
 }
+
+
+
+
+/* Active employee green style */
+
+.employee-profile-hero.employee-profile-active {
+  border-color: #86efac;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(220, 252, 231, 0.96),
+      rgba(240, 253, 244, 0.96)
+    );
+  box-shadow: 0 10px 30px rgba(22, 163, 74, 0.1);
+}
+
+.employee-profile-hero.employee-profile-active > div > span {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.employee-profile-hero.employee-profile-active .employee-profile-photo {
+  background: #bbf7d0;
+  color: #15803d;
+}
+
+/* Current balance */
+
+.employee-current-balance {
+  min-height: 42px;
+  padding: 6px 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: #f0fdf4;
+}
+
+.employee-current-balance span {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.employee-current-balance strong {
+  color: #15803d;
+  font-size: 13px;
+}
+
+/* Details modal */
+
+.employee-details-modal {
+  width: min(850px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 22px;
+  border: 1px solid #e8e9ee;
+  border-radius: 18px;
+  display: grid;
+  gap: 22px;
+  background: #ffffff;
+  color: #172033;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.32);
+  animation: employeeProfileModalOpen 180ms ease-out;
+}
+
+.employee-details-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.employee-details-modal header h2,
+.employee-details-modal section h3 {
+  margin: 0;
+}
+
+.employee-details-modal header p {
+  margin: 5px 0 0;
+  color: #718096;
+}
+
+.employee-details-modal section {
+  display: grid;
+  gap: 12px;
+}
+
+/* Dark mode */
+
+body.dark-mode
+  .employee-profile-hero.employee-profile-active {
+  border-color: #166534;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(20, 83, 45, 0.72),
+      rgba(21, 128, 61, 0.28)
+    );
+}
+
+body.dark-mode
+  .employee-profile-hero.employee-profile-active
+  .employee-profile-photo {
+  background: #166534;
+  color: #dcfce7;
+}
+
+body.dark-mode .employee-current-balance {
+  border-color: #166534;
+  background: rgba(20, 83, 45, 0.35);
+}
+
+body.dark-mode .employee-current-balance span {
+  color: #bbf7d0;
+}
+
+body.dark-mode .employee-current-balance strong {
+  color: #86efac;
+}
+
+body.dark-mode .employee-details-modal {
+  border-color: #334155;
+  background: #0b0f19;
+  color: #f8fafc;
+}
+
+body.dark-mode .employee-details-modal header h2,
+body.dark-mode .employee-details-modal section h3 {
+  color: #f8fafc;
+}
+
+@media (max-width: 760px) {
+  .employee-current-balance {
+    flex: 1;
+  }
+
+  .employee-details-modal {
+    padding: 17px;
+  }
+}
