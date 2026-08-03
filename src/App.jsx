@@ -37,6 +37,7 @@ import {
   ShieldCheck,
   Trash2,
   Users,
+  CircleUserRound,
   UserRoundCog,
   WalletCards,
 } from "lucide-react";
@@ -48,6 +49,9 @@ import { useJsonCollection } from "./hooks/useJsonCollection";
 import { canViewModule } from "./utils/permissions";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const MyAccount = lazy(() =>
+  import("./pages/MyAccount")
+);
 const Suppliers = lazy(() => import("./pages/Suppliers"));
 const SupplierDetails = lazy(() => import("./pages/SupplierDetails"));
 const SupplierAnalysis = lazy(() => import("./pages/SupplierAnalysis"));
@@ -275,20 +279,34 @@ const isEmployeeAccount =
   !isReceptionAccount;
 
   useEffect(() => {
-    if (
-      isReceptionAccount &&
-      location.pathname !== "/reception"
-    ) {
-      window.location.hash = "#/reception";
-      return;
-    }
+    const receptionAllowedPaths = [
+  "/reception",
+  "/my-account",
+];
+
+if (
+  isReceptionAccount &&
+  !receptionAllowedPaths.includes(
+    location.pathname
+  )
+) {
+  window.location.hash = "#/reception";
+  return;
+}
   
-    if (
-      isEmployeeAccount &&
-      location.pathname !== "/"
-    ) {
-      window.location.hash = "#/";
-    }
+    const employeeAllowedPaths = [
+  "/",
+  "/my-account",
+];
+
+if (
+  isEmployeeAccount &&
+  !employeeAllowedPaths.includes(
+    location.pathname
+  )
+) {
+  window.location.hash = "#/";
+}
   }, [
     isReceptionAccount,
     isEmployeeAccount,
@@ -456,6 +474,13 @@ const isEmployeeAccount =
           </div>
 
           <nav className="menu">
+
+              {!isAdminAccount && (
+    <NavLink to="/my-account">
+      <CircleUserRound size={17} />
+      <span>My Account</span>
+    </NavLink>
+  )}
           {!isReceptionAccount && (
               <NavLink to="/">
                 <LayoutDashboard size={17} />
@@ -619,6 +644,19 @@ const isEmployeeAccount =
                   path="/office-assets"
                   element={protect("dashboard", <OfficeAssets />)}
                 />
+                <Route
+  path="/my-account"
+  element={
+    !isAdminAccount ? (
+      <MyAccount
+        currentUser={currentUser}
+        employee={linkedEmployee}
+      />
+    ) : (
+      <PermissionDenied />
+    )
+  }
+/>
 
 
 

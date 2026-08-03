@@ -999,3 +999,89 @@ body.dark-mode .employee-modal-actions button[type="submit"] {
   background: #f8fafc !important;
   color: #0f172a !important;
 }
+.employee-table-wrap
+  .employee-clickable-row {
+  position: relative;
+  cursor: pointer;
+
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.employee-table-wrap
+  .employee-clickable-row:hover
+  > td {
+  background: #f1f5f9;
+}
+
+.employee-table-wrap
+  .employee-clickable-row:hover {
+  box-shadow:
+    inset 4px 0 0 #6366f1;
+}
+
+.employee-table-wrap
+  .employee-clickable-row:active
+  > td {
+  background: #e8eafc;
+}
+
+.employee-table-wrap
+  .employee-clickable-row:focus {
+  outline: none;
+}
+
+.employee-table-wrap
+  .employee-clickable-row:focus-visible
+  > td {
+  background: #eef2ff;
+}
+
+.employee-table-wrap
+  .employee-clickable-row:focus-visible {
+  box-shadow:
+    inset 4px 0 0 #4f46e5;
+}
+
+/* جلوگیری از تغییر رنگ دکمه‌های Action */
+
+.employee-table-wrap
+  .employee-clickable-row:hover
+  .employee-edit {
+  background: #eef2ff;
+}
+
+.employee-table-wrap
+  .employee-clickable-row:hover
+  .employee-delete {
+  background: #fff1f2;
+}
+
+/* Dark mode */
+
+body.dark-mode
+  .employee-table-wrap
+  .employee-clickable-row:hover
+  > td {
+  background: #263449 !important;
+}
+
+body.dark-mode
+  .employee-table-wrap
+  .employee-clickable-row:active
+  > td,
+body.dark-mode
+  .employee-table-wrap
+  .employee-clickable-row:focus-visible
+  > td {
+  background: #312e81 !important;
+}
+
+body.dark-mode
+  .employee-table-wrap
+  .employee-clickable-row:hover {
+  box-shadow:
+    inset 4px 0 0 #818cf8;
+}

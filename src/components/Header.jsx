@@ -232,11 +232,13 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
               <small>Expired customer packages: {expiredCustomerPackages.length}</small>
             </div>
 
-            <Link
+           <Link
   to={
-    currentUser?.employeeId
-      ? `/employees/${currentUser.employeeId}`
-      : "/settings"
+    currentUser?.accountType === "employee"
+      ? "/my-account"
+      : currentUser?.employeeId
+        ? "/my-account"
+        : "/settings"
   }
   className="dropdown-action profile-account-link"
   onClick={() => setOpenMenu(null)}

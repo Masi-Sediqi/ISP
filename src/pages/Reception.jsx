@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  ArrowRight,
   BriefcaseBusiness,
   CalendarDays,
   Clapperboard,
@@ -15,7 +16,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
 import "./Reception.css";
@@ -186,6 +186,131 @@ export default function Reception({ currentUser }) {
     useState("");
 
   const [search, setSearch] = useState("");
+
+  const [assignTarget, setAssignTarget] =
+  useState(null);
+
+const [assignEmployeeId, setAssignEmployeeId] =
+  useState("");
+
+const [assignEmployeeName, setAssignEmployeeName] =
+  useState("");
+
+const [assigningRecord, setAssigningRecord] =
+  useState(false);
+  
+
+  function openAssignModal(customer) {
+  setAssignTarget(customer);
+
+  setAssignEmployeeId(
+    customer.assignedEmployeeId || ""
+  );
+
+  setAssignEmployeeName(
+    customer.assignedEmployeeName || ""
+  );
+}
+
+function closeAssignModal() {
+  if (assigningRecord) return;
+
+  setAssignTarget(null);
+  setAssignEmployeeId("");
+  setAssignEmployeeName("");
+}
+
+function updateAssignEmployee(event) {
+  const employeeId = event.target.value;
+
+  const selectedEmployee = employeeOptions.find(
+    (employee) =>
+      String(
+        employee.id ||
+          employee.employeeId ||
+          ""
+      ) === String(employeeId)
+  );
+
+  setAssignEmployeeId(employeeId);
+
+  setAssignEmployeeName(
+    selectedEmployee
+      ? getEmployeeName(selectedEmployee)
+      : ""
+  );
+}
+
+async function saveCustomerAssignment(event) {
+  event.preventDefault();
+
+  if (!assignTarget) return;
+
+  if (!assignEmployeeId) {
+    notify(
+      "Please select an employee.",
+      "error"
+    );
+    return;
+  }
+
+  setAssigningRecord(true);
+
+  try {
+    const assignedAt =
+      new Date().toISOString();
+
+    const nextCustomers = customers.map(
+      (customer) =>
+        String(customer.id) ===
+        String(assignTarget.id)
+          ? {
+              ...customer,
+
+              assignedEmployeeId:
+                assignEmployeeId,
+
+              assignedEmployeeName:
+                assignEmployeeName,
+
+              assignedAt,
+
+              assignedByAccountId:
+                currentUser?.id || "",
+
+              assignedByEmployeeId:
+                currentUser?.employeeId ||
+                currentUser?.id ||
+                "",
+
+              assignedByName:
+                currentUser?.fullName ||
+                currentUser?.username ||
+                currentUser?.email ||
+                "Current User",
+
+              assignmentStatus: "Assigned",
+
+              updatedAt: assignedAt,
+            }
+          : customer
+    );
+
+    const saved =
+      await setCustomers(nextCustomers);
+
+    if (!saved) return;
+
+    notify(
+      `Customer assigned to ${assignEmployeeName}.`,
+      "success"
+    );
+
+    closeAssignModal();
+  } finally {
+    setAssigningRecord(false);
+  }
+}
 
   const employeeOptions = useMemo(() => {
     const accountEmployees = accounts.filter(
@@ -855,9 +980,35 @@ export default function Reception({ currentUser }) {
                   </td>
 
                   <td>
-                    {customer.assignedEmployeeName ||
-                      "-"}
-                  </td>
+  {customer.assignedEmployeeName ? (
+    <button
+      type="button"
+      className="reception-assigned-employee"
+      onClick={() =>
+        openAssignModal(customer)
+      }
+      title="Change assigned employee"
+    >
+      <UserRound size={13} />
+
+      <span>
+        {customer.assignedEmployeeName}
+      </span>
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="reception-assign-arrow"
+      onClick={() =>
+        openAssignModal(customer)
+      }
+      title="Assign this customer"
+      aria-label="Assign customer"
+    >
+      <ArrowRight size={17} />
+    </button>
+  )}
+</td>
 
                   <td>
                     {customer.technologyPurpose ||
@@ -896,6 +1047,245 @@ export default function Reception({ currentUser }) {
           </table>
         </div>
       </section>
+
+      {assignTarget && (
+  <div
+    className="reception-modal-backdrop"
+    onMouseDown={closeAssignModal}
+  >
+    <div
+      className="reception-assign-modal"
+      onMouseDown={(event) =>
+        event.stopPropagation()
+      }
+    >
+      <header className="reception-assign-header">
+        <div>
+          <span>Customer Assignment</span>
+
+          <h2>Assign Customer</h2>
+
+          <p>
+            Review the registration information and
+            assign this customer to an employee.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={closeAssignModal}
+          disabled={assigningRecord}
+        >
+          <X size={18} />
+        </button>
+      </header>
+
+      <form onSubmit={saveCustomerAssignment}>
+        <div className="reception-assign-grid">
+          <label>
+            <span>Customer Name</span>
+
+            <input
+              value={
+                assignTarget.fullName ||
+                assignTarget.customerName ||
+                "-"
+              }
+              readOnly
+            />
+          </label>
+
+          <label>
+            <span>Phone Number</span>
+
+            <input
+              value={
+                assignTarget.phone ||
+                assignTarget.contactNumber ||
+                "-"
+              }
+              readOnly
+            />
+          </label>
+
+          <label>
+            <span>Customer Type</span>
+
+            <input
+              value={
+                assignTarget.customerType || "-"
+              }
+              readOnly
+            />
+          </label>
+
+          <label>
+            <span>Source</span>
+
+            <input
+              value={
+                assignTarget.source ||
+                assignTarget.sourceEmployeeName ||
+                "-"
+              }
+              readOnly
+            />
+          </label>
+
+          <label>
+            <span>Registered Date</span>
+
+            <input
+              value={
+                assignTarget.date ||
+                assignTarget.createdAt?.slice(
+                  0,
+                  10
+                ) ||
+                "-"
+              }
+              readOnly
+            />
+          </label>
+
+          <label>
+            <span>Registered Time</span>
+
+            <input
+              value={
+                assignTarget.createdAt
+                  ? new Date(
+                      assignTarget.createdAt
+                    ).toLocaleTimeString()
+                  : "-"
+              }
+              readOnly
+            />
+          </label>
+
+          {assignTarget.email && (
+            <label>
+              <span>Email</span>
+
+              <input
+                value={assignTarget.email}
+                readOnly
+              />
+            </label>
+          )}
+
+          {assignTarget.educationalLevel && (
+            <label>
+              <span>Educational Level</span>
+
+              <input
+                value={
+                  assignTarget.educationalLevel
+                }
+                readOnly
+              />
+            </label>
+          )}
+
+          {assignTarget.schoolUniversity && (
+            <label>
+              <span>School / University</span>
+
+              <input
+                value={
+                  assignTarget.schoolUniversity
+                }
+                readOnly
+              />
+            </label>
+          )}
+
+          {assignTarget.companyName && (
+            <label>
+              <span>Company Name</span>
+
+              <input
+                value={
+                  assignTarget.companyName
+                }
+                readOnly
+              />
+            </label>
+          )}
+
+          <label className="reception-assign-full">
+            <span>Purpose</span>
+
+            <textarea
+              value={
+                assignTarget.technologyPurpose ||
+                assignTarget.purpose ||
+                "-"
+              }
+              rows="3"
+              readOnly
+            />
+          </label>
+
+          <label className="reception-assign-full reception-assign-select">
+            <span>Assign To</span>
+
+            <select
+              value={assignEmployeeId}
+              onChange={updateAssignEmployee}
+              autoFocus
+            >
+              <option value="">
+                Select responsible employee
+              </option>
+
+              {employeeOptions.map(
+                (employee) => {
+                  const employeeId =
+                    employee.id ||
+                    employee.employeeId;
+
+                  return (
+                    <option
+                      key={employeeId}
+                      value={employeeId}
+                    >
+                      {getEmployeeName(
+                        employee
+                      )}
+                    </option>
+                  );
+                }
+              )}
+            </select>
+          </label>
+        </div>
+
+        <footer className="reception-assign-actions">
+          <button
+            type="button"
+            onClick={closeAssignModal}
+            disabled={assigningRecord}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="primary"
+            disabled={assigningRecord}
+          >
+            <ArrowRight size={15} />
+
+            {assigningRecord
+              ? "Assigning..."
+              : "Assign Customer"}
+          </button>
+        </footer>
+      </form>
+    </div>
+  </div>
+)}
 
       {showForm && (
         <div
