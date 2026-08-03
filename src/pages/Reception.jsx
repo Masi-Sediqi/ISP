@@ -848,7 +848,10 @@ export default function Reception({ currentUser }) {
                   </td>
 
                   <td>
-                    {customer.source || "-"}
+                    {customer.sourceEmployeeName ||
+                      customer.source ||
+                      customer.createdByName ||
+                      "-"}
                   </td>
 
                   <td>
@@ -863,13 +866,18 @@ export default function Reception({ currentUser }) {
                   </td>
 
                   <td>
-                    <CalendarDays size={14} />
-                    {customer.date
-                      ? new Date(
-                          `${customer.date}T00:00:00`
-                        ).toLocaleDateString()
-                      : "-"}
-                  </td>
+  <CalendarDays size={14} />
+
+  {customer.date
+    ? new Date(
+        `${customer.date}T00:00:00`
+      ).toLocaleDateString()
+    : customer.createdAt
+      ? new Date(
+          customer.createdAt
+        ).toLocaleDateString()
+      : "-"}
+</td>
                 </tr>
               ))}
 

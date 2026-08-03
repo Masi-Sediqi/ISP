@@ -46,8 +46,45 @@ export default function EmployeeDashboard({ currentUser }) {
   const income = transactions.filter(t => String(t.employeeId) === String(currentUser.employeeId) && String(t.type || "").toLowerCase() === "income").reduce((s, t) => s + Number(t.amount || 0), 0);
   const bonus = adjustments.filter(a => String(a.employeeId) === String(currentUser.employeeId)).reduce((s, a) => s + (a.type === "penalty" ? -1 : 1) * Number(a.amount || 0), 0);
   const update = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-  const save = async (e) => { e.preventDefault(); if (!form.fullName.trim() || !form.phone.trim()) return notify("Full name and phone number are required.", "error"); const record = { ...form, id: createRecordId(), customerType: mode, specializedCustomer: true, sourceEmployeeId: currentUser.employeeId, sourceEmployeeName: currentUser.fullName, createdByAccountId: currentUser.id, createdAt: new Date().toISOString() }; const ok = await setServerCustomers([...serverCustomers, record]); if (ok) { setForm(baseForm); setOpen(false); notify("Customer saved successfully.", "success"); } };
-  return <div className="employee-dashboard"><header><div><span>{mode} workspace</span><h1>Welcome, {currentUser.fullName}</h1><p>Your private dashboard and customer records.</p></div><button onClick={() => { setForm({ ...baseForm, technologyPurpose: mode === "technology" ? "Database" : "" }); setOpen(true); }}><Plus size={17} /> Add {mode === "consultant" ? "Consultant" : mode === "travel" ? "Travel" : "Technology"} Customer</button></header>
+  const save = async (e) => { e.preventDefault(); if (!form.fullName.trim() || !form.phone.trim()) return notify("Full name and phone number are required.", "error"); const record = {
+    ...form,
+  
+    id: createRecordId(),
+  
+    customerType: mode,
+    specializedCustomer: true,
+  
+    sourceEmployeeId:
+      currentUser.employeeId ||
+      currentUser.id ||
+      "",
+  
+    sourceEmployeeName:
+      currentUser.fullName ||
+      currentUser.username ||
+      currentUser.email ||
+      "Employee",
+  
+    assignedEmployeeId:
+      currentUser.employeeId ||
+      "",
+  
+    assignedEmployeeName:
+      currentUser.fullName ||
+      currentUser.username ||
+      currentUser.email ||
+      "Employee",
+  
+    registeredFrom: "employee-dashboard",
+  
+    date: new Date().toISOString().slice(0, 10),
+  
+    createdByAccountId:
+      currentUser.id ||
+      "",
+  
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),}; const ok = await setServerCustomers([...serverCustomers, record]); if (ok) { setForm(baseForm); setOpen(false); notify("Customer saved successfully.", "success"); } };return <div className="employee-dashboard"><header><div><span>{mode} workspace</span><h1>Welcome, {currentUser.fullName}</h1><p>Your private dashboard and customer records.</p></div><button onClick={() => { setForm({ ...baseForm, technologyPurpose: mode === "technology" ? "Database" : "" }); setOpen(true); }}><Plus size={17} /> Add {mode === "consultant" ? "Consultant" : mode === "travel" ? "Travel" : "Technology"} Customer</button></header>
     <section className="employee-dashboard-cards"><div><Users /><span>Total Customers</span><strong>{mine.length}</strong></div><div><WalletCards /><span>Total Income</span><strong>{income.toLocaleString()} AFN</strong></div><div><Gift /><span>Bonus and Penalty</span><strong>{bonus.toLocaleString()} AFN</strong></div></section>
     <section className="employee-dashboard-list"><div className="employee-dashboard-list-head"><div><h2>My Customers</h2><p>Every record is linked to your employee profile.</p></div><label><Filter size={15} /><select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All calls</option><option value="incoming">Incoming</option><option value="outgoing">Outgoing</option></select></label></div><div className="employee-dashboard-table"><table><thead><tr><th>Full Name</th><th>Phone</th><th>City</th><th>Call Type</th><th>Purpose</th><th>Follow-up</th></tr></thead><tbody>{filtered.map(c => <tr key={c.id}><td><strong>{c.fullName}</strong></td><td>{c.phone}</td><td>{c.city || "-"}</td><td>{c.callType || "-"}</td><td>{mode === "technology" ? c.technologyPurpose || "-" : c.purpose || "-"}</td><td>{c.needFollowup || "-"}</td></tr>)}{!filtered.length && <tr><td colSpan="6">No customer records yet.</td></tr>}</tbody></table></div></section>
     {open && <div className="employee-dashboard-modal" onMouseDown={() => setOpen(false)}><form onSubmit={save} onMouseDown={e => e.stopPropagation()}><header><div><h2>Add Customer</h2><p>This record will also appear in the general {mode} customer list.</p></div><button type="button" onClick={() => setOpen(false)}><X /></button></header>
