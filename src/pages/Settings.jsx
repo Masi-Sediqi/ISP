@@ -6,8 +6,10 @@ import { apiUrl } from "../utils/api";
 import { notify } from "../utils/notify";
 import "./Settings.css";
 
-const defaultSystemName = "ISP Smart";
-const defaultSystemSubtitle = "Asset & Inventory Management";
+const defaultSystemName = "Afghan Power";
+
+const defaultSystemSubtitle =
+  "Afghan Power Companies Group";
 
 function Settings() {
   const [settings, setSettings] = useJsonCollection("settings");
@@ -80,17 +82,20 @@ function Settings() {
         })
       );
       const payload = {
-        app: "ISP Smart",
-        exportedAt: new Date().toISOString(),
-        collections: Object.fromEntries(entries),
-      };
+  app: "Afghan Power",
+  exportedAt: new Date().toISOString(),
+  collections: Object.fromEntries(entries),
+};
       const blob = new Blob([JSON.stringify(payload, null, 2)], {
         type: "application/json",
       });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `isp-data-${new Date().toISOString().slice(0, 10)}.json`;
+      link.download =
+  `afghan-power-data-${new Date()
+    .toISOString()
+    .slice(0, 10)}.json`;
       document.body.appendChild(link);
       link.click();
       link.remove();
