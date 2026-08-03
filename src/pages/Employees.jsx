@@ -306,8 +306,56 @@ function Employees() {
             <thead><tr><th>Employee</th><th>Contact</th><th>NIC Number</th><th>Role</th><th>Contract</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
               {filteredEmployees.map((employee) => (
-                <tr key={employee.id}>
-                  <td><button type="button" className="employee-person employee-person-link" onClick={() => navigate(`/employees/${employee.id}`)}>{employee.image ? <img src={employee.image} alt="" /> : <span>{String(employee.fullName || "E").slice(0, 1).toUpperCase()}</span>}<div><strong>{employee.fullName || "Unnamed Employee"}</strong><small>{employee.email || "No email"}</small></div></button></td>
+                <tr
+  key={employee.id}
+  className="employee-clickable-row"
+  tabIndex={0}
+  role="link"
+  onClick={() =>
+    navigate(`/employees/${employee.id}`)
+  }
+  onKeyDown={(event) => {
+    if (
+      event.key === "Enter" ||
+      event.key === " "
+    ) {
+      event.preventDefault();
+
+      navigate(
+        `/employees/${employee.id}`
+      );
+    }
+  }}
+>
+                  <td>
+  <div className="employee-person">
+    {employee.image ? (
+      <img
+        src={employee.image}
+        alt={employee.fullName || "Employee"}
+      />
+    ) : (
+      <span>
+        {String(
+          employee.fullName || "E"
+        )
+          .slice(0, 1)
+          .toUpperCase()}
+      </span>
+    )}
+
+    <div>
+      <strong>
+        {employee.fullName ||
+          "Unnamed Employee"}
+      </strong>
+
+      <small>
+        {employee.email || "No email"}
+      </small>
+    </div>
+  </div>
+</td>
                   <td><div className="employee-contact"><span><Phone size={13} />{employee.phone}</span><span><Mail size={13} />{employee.email || "-"}</span></div></td>
                   <td>{employee.nicNumber}</td>
                   <td><div className="employee-role-wrap"><span className="employee-role">{employee.roles?.length ? employee.roles.join(", ") : employee.role || "No role"}</span>{employee.departments?.length > 0 && <small>{employee.departments.join(", ")}</small>}</div></td>
@@ -321,12 +369,30 @@ function Employees() {
                   <td><span className={`employee-status ${String(employee.status || "unspecified").toLowerCase().replace(" ", "-")}`}>{employee.status || "Unspecified"}</span></td>
                   <td>
                     <div className="employee-row-actions">
-                      <button className="employee-edit" type="button" onClick={() => openEdit(employee)} title="Edit">
-                        <Pencil size={15} />
-                      </button>
-                      <button className="employee-delete" type="button" onClick={() => setDeleteTarget(employee)} title="Delete">
-                        <Trash2 size={15} />
-                      </button>
+                      <button
+  className="employee-edit"
+  type="button"
+  onClick={(event) => {
+    event.stopPropagation();
+    openEdit(employee);
+  }}
+  title="Edit"
+  aria-label="Edit employee"
+>
+  <Pencil size={15} />
+</button>
+                      <button
+  className="employee-delete"
+  type="button"
+  onClick={(event) => {
+    event.stopPropagation();
+    setDeleteTarget(employee);
+  }}
+  title="Delete"
+  aria-label="Delete employee"
+>
+  <Trash2 size={15} />
+</button>
                     </div>
                   </td>
                 </tr>
