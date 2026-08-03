@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-
+import { MessageCircle } from "lucide-react";
 import {
   Routes,
   Route,
@@ -53,6 +53,7 @@ const MyAccount = lazy(() =>
   import("./pages/MyAccount")
 );
 const Suppliers = lazy(() => import("./pages/Suppliers"));
+const TeamChat = lazy(() => import("./pages/TeamChat"));
 const SupplierDetails = lazy(() => import("./pages/SupplierDetails"));
 const SupplierAnalysis = lazy(() => import("./pages/SupplierAnalysis"));
 const AssetInventory = lazy(() => import("./pages/AssetInventory"));
@@ -346,22 +347,24 @@ const myAssignedCustomers = customers
     const receptionAllowedPaths = [
       "/reception",
       "/my-account",
+      "/team-chat",
     ];
 
-    if (
-      isReceptionAccount &&
-      !receptionAllowedPaths.includes(
-        location.pathname
-      )
-    ) {
-      window.location.hash = "#/reception";
-      return;
-    }
-
-    const employeeAllowedPaths = [
-      "/",
-      "/my-account",
-    ];
+if (
+  isReceptionAccount &&
+  !receptionAllowedPaths.includes(
+    location.pathname
+  )
+) {
+  window.location.hash = "#/reception";
+  return;
+}
+  
+const employeeAllowedPaths = [
+  "/",
+  "/my-account",
+  "/team-chat",
+];
 
     if (
       isEmployeeAccount &&
@@ -539,13 +542,20 @@ const myAssignedCustomers = customers
 
           <nav className="menu">
 
-            {!isAdminAccount && (
-              <NavLink to="/my-account">
-                <CircleUserRound size={17} />
-                <span>My Account</span>
-              </NavLink>
-            )}
-            {!isReceptionAccount && (
+          {!isAdminAccount && (
+<>
+  <NavLink to="/my-account">
+    <CircleUserRound size={17}/>
+    <span>My Account</span>
+  </NavLink>
+
+  <NavLink to="/team-chat">
+    <MessageCircle size={17}/>
+    <span>Team Chat</span>
+  </NavLink>
+</>
+)}
+          {!isReceptionAccount && (
               <NavLink to="/">
                 <LayoutDashboard size={17} />
                 <span>Dashboard</span>
@@ -694,6 +704,16 @@ const myAssignedCustomers = customers
                   path="/projects"
                   element={protect("dashboard", <Projects />)}
                 />
+               <Route
+  path="/team-chat"
+  element={
+    !isAdminAccount ? (
+      <TeamChat currentUser={currentUser} />
+    ) : (
+      <PermissionDenied />
+    )
+  }
+/>
                 <Route
                   path="/reception"
                   element={protect(

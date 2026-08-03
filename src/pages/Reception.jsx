@@ -682,13 +682,15 @@ export default function Reception({ currentUser }) {
       registeredFrom: "reception",
 
       sourceEmployeeId:
-        currentUser?.employeeId ||
-        currentUser?.id ||
-        "",
+        consultantForm.source
+          ? employeeOptions.find(
+              employee =>
+                getEmployeeName(employee) === consultantForm.source
+            )?.id || ""
+          : "",
 
       sourceEmployeeName:
-        currentUser?.fullName || "",
-
+        consultantForm.source || "External Customer",
       createdByAccountId:
         currentUser?.id || "",
 
@@ -761,12 +763,15 @@ export default function Reception({ currentUser }) {
       registeredFrom: "reception",
 
       sourceEmployeeId:
-        currentUser?.employeeId ||
-        currentUser?.id ||
-        "",
+  travelForm.source
+    ? employeeOptions.find(
+        employee =>
+          getEmployeeName(employee) === travelForm.source
+      )?.id || ""
+    : "",
 
-      sourceEmployeeName:
-        currentUser?.fullName || "",
+sourceEmployeeName:
+  travelForm.source || "External Customer",
 
       createdByAccountId:
         currentUser?.id || "",
@@ -840,14 +845,16 @@ export default function Reception({ currentUser }) {
       customerType: "technology",
       specializedCustomer: true,
       registeredFrom: "reception",
-
       sourceEmployeeId:
-        currentUser?.employeeId ||
-        currentUser?.id ||
-        "",
-
-      sourceEmployeeName:
-        currentUser?.fullName || "",
+      travelForm.source
+        ? employeeOptions.find(
+            employee =>
+              getEmployeeName(employee) === travelForm.source
+          )?.id || ""
+        : "",
+    
+    sourceEmployeeName:
+      travelForm.source || "External Customer",
 
       createdByAccountId:
         currentUser?.id || "",
