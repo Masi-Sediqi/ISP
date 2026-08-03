@@ -70,6 +70,11 @@ function createConsultantForm() {
   return {
     fullName: "",
     phone: "",
+
+    passportNumber: "",
+    maritalStatus: "Single",
+    applicationType: "Student Visa",
+
     educationalLevel: "",
     schoolUniversity: "",
     email: "",
@@ -85,6 +90,11 @@ function createTravelForm() {
   return {
     fullName: "",
     phone: "",
+
+    passportNumber: "",
+    maritalStatus: "Single",
+    applicationType: "Student Visa",
+
     source: "",
     assignedEmployeeId: "",
     assignedEmployeeName: "",
@@ -188,91 +198,86 @@ export default function Reception({ currentUser }) {
   const [search, setSearch] = useState("");
 
   const [assignTarget, setAssignTarget] =
-  useState(null);
+    useState(null);
 
-const [assignEmployeeId, setAssignEmployeeId] =
-  useState("");
+  const [assignEmployeeId, setAssignEmployeeId] =
+    useState("");
 
-const [assignEmployeeName, setAssignEmployeeName] =
-  useState("");
+  const [assignEmployeeName, setAssignEmployeeName] =
+    useState("");
 
-const [assigningRecord, setAssigningRecord] =
-  useState(false);
-  
+  const [assigningRecord, setAssigningRecord] =
+    useState(false);
+
 
   function openAssignModal(customer) {
-  setAssignTarget(customer);
+    setAssignTarget(customer);
 
-  setAssignEmployeeId(
-    customer.assignedEmployeeId || ""
-  );
-
-  setAssignEmployeeName(
-    customer.assignedEmployeeName || ""
-  );
-}
-
-function closeAssignModal() {
-  if (assigningRecord) return;
-
-  setAssignTarget(null);
-  setAssignEmployeeId("");
-  setAssignEmployeeName("");
-}
-
-function updateAssignEmployee(event) {
-  const employeeId = event.target.value;
-
-  const selectedEmployee = employeeOptions.find(
-    (employee) =>
-      String(
-        employee.id ||
-          employee.employeeId ||
-          ""
-      ) === String(employeeId)
-  );
-
-  setAssignEmployeeId(employeeId);
-
-  setAssignEmployeeName(
-    selectedEmployee
-      ? getEmployeeName(selectedEmployee)
-      : ""
-  );
-}
-
-async function saveCustomerAssignment(event) {
-  event.preventDefault();
-
-  if (!assignTarget) return;
-
-  if (!assignEmployeeId) {
-    notify(
-      "Please select an employee.",
-      "error"
+    setAssignEmployeeId(
+      customer.assignedEmployeeId || ""
     );
-    return;
+
+    setAssignEmployeeName(
+      customer.assignedEmployeeName || ""
+    );
   }
 
-  setAssigningRecord(true);
+  function closeAssignModal() {
+    if (assigningRecord) return;
 
-  try {
-    const assignedAt =
-      new Date().toISOString();
+    setAssignTarget(null);
+    setAssignEmployeeId("");
+    setAssignEmployeeName("");
+  }
 
-    const nextCustomers = customers.map(
-      (customer) =>
-        String(customer.id) ===
-        String(assignTarget.id)
-          ? {
+  function updateAssignEmployee(event) {
+    const employeeId = event.target.value;
+
+    const selectedEmployee = employeeOptions.find(
+      (employee) =>
+        String(
+          employee.id ||
+          employee.employeeId ||
+          ""
+        ) === String(employeeId)
+    );
+
+    setAssignEmployeeId(employeeId);
+
+    setAssignEmployeeName(
+      selectedEmployee
+        ? getEmployeeName(selectedEmployee)
+        : ""
+    );
+  }
+
+  async function saveCustomerAssignment(event) {
+    event.preventDefault();
+
+    if (!assignTarget) return;
+
+    if (!assignEmployeeId) {
+      notify(
+        "Please select an employee.",
+        "error"
+      );
+      return;
+    }
+
+    setAssigningRecord(true);
+
+    try {
+      const assignedAt =
+        new Date().toISOString();
+
+      const nextCustomers = customers.map(
+        (customer) =>
+          String(customer.id) === String(assignTarget.id)
+            ? {
               ...customer,
 
-              assignedEmployeeId:
-                assignEmployeeId,
-
-              assignedEmployeeName:
-                assignEmployeeName,
-
+              assignedEmployeeId: assignEmployeeId,
+              assignedEmployeeName: assignEmployeeName,
               assignedAt,
 
               assignedByAccountId:
@@ -289,28 +294,28 @@ async function saveCustomerAssignment(event) {
                 currentUser?.email ||
                 "Current User",
 
-              assignmentStatus: "Assigned",
+              assignmentStatus: "None",
 
               updatedAt: assignedAt,
             }
-          : customer
-    );
+            : customer
+      );
 
-    const saved =
-      await setCustomers(nextCustomers);
+      const saved =
+        await setCustomers(nextCustomers);
 
-    if (!saved) return;
+      if (!saved) return;
 
-    notify(
-      `Customer assigned to ${assignEmployeeName}.`,
-      "success"
-    );
+      notify(
+        `Customer assigned to ${assignEmployeeName}.`,
+        "success"
+      );
 
-    closeAssignModal();
-  } finally {
-    setAssigningRecord(false);
+      closeAssignModal();
+    } finally {
+      setAssigningRecord(false);
+    }
   }
-}
 
   const employeeOptions = useMemo(() => {
     const accountEmployees = accounts.filter(
@@ -328,9 +333,9 @@ async function saveCustomerAssignment(event) {
     return combined.filter((employee) => {
       const key = String(
         employee.id ||
-          employee.employeeId ||
-          employee.email ||
-          getEmployeeName(employee)
+        employee.employeeId ||
+        employee.email ||
+        getEmployeeName(employee)
       );
 
       if (seen.has(key)) return false;
@@ -343,7 +348,7 @@ async function saveCustomerAssignment(event) {
   const receptionCustomers = useMemo(() => {
     const query = search.trim().toLowerCase();
     return customers
-    .filter((customer) => {
+      .filter((customer) => {
         if (!query) return true;
 
         return [
@@ -516,8 +521,8 @@ async function saveCustomerAssignment(event) {
       (institution) =>
         String(
           institution.name ||
-            institution.institutionName ||
-            ""
+          institution.institutionName ||
+          ""
         ).toLowerCase() ===
         institutionName.toLowerCase()
     );
@@ -532,8 +537,60 @@ async function saveCustomerAssignment(event) {
 
     const record = {
       id: createId(),
-      name: institutionName,
+
+      fullName: consultantForm.fullName.trim(),
+      passportFullName:
+        consultantForm.fullName.trim(),
+      customerName:
+        consultantForm.fullName.trim(),
+
+      phone: consultantForm.phone.trim(),
+
+      passportNumber:
+        consultantForm.passportNumber.trim(),
+
+      maritalStatus:
+        consultantForm.maritalStatus,
+
+      applicationType:
+        consultantForm.applicationType,
+
+      educationalLevel:
+        consultantForm.educationalLevel,
+      schoolUniversity:
+        consultantForm.schoolUniversity,
+      email: consultantForm.email.trim(),
+
+      source: consultantForm.source.trim(),
+
+      assignedEmployeeId:
+        consultantForm.assignedEmployeeId,
+
+      assignedEmployeeName:
+        consultantForm.assignedEmployeeName,
+
+      assignmentStatus: "Pending",
+
+      purpose: consultantForm.purpose.trim(),
+      date: consultantForm.date,
+
+      customerType: "consultant",
+      specializedCustomer: true,
+      registeredFrom: "reception",
+
+      sourceEmployeeId:
+        currentUser?.employeeId ||
+        currentUser?.id ||
+        "",
+
+      sourceEmployeeName:
+        currentUser?.fullName || "",
+
+      createdByAccountId:
+        currentUser?.id || "",
+
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     const saved = await setEducationInstitutions([
@@ -578,6 +635,8 @@ async function saveCustomerAssignment(event) {
     await saveMediaProduct();
   }
 
+
+
   async function saveConsultantCustomer() {
     if (!consultantForm.fullName.trim()) {
       notify(
@@ -612,6 +671,8 @@ async function saveCustomerAssignment(event) {
         consultantForm.assignedEmployeeId,
       assignedEmployeeName:
         consultantForm.assignedEmployeeName,
+
+      assignmentStatus: "None",
 
       purpose: consultantForm.purpose.trim(),
       date: consultantForm.date,
@@ -673,12 +734,24 @@ async function saveCustomerAssignment(event) {
       customerName: travelForm.fullName.trim(),
 
       phone: travelForm.phone.trim(),
+
+      passportNumber:
+        travelForm.passportNumber.trim(),
+
+      maritalStatus:
+        travelForm.maritalStatus,
+
+      applicationType:
+        travelForm.applicationType,
+
       source: travelForm.source.trim(),
 
       assignedEmployeeId:
         travelForm.assignedEmployeeId,
       assignedEmployeeName:
         travelForm.assignedEmployeeName,
+
+      assignmentStatus: "None",
 
       purpose: travelForm.purpose.trim(),
       date: travelForm.date,
@@ -758,6 +831,8 @@ async function saveCustomerAssignment(event) {
       assignedEmployeeName:
         technologyForm.assignedEmployeeName,
 
+      assignmentStatus: "None",
+
       note: technologyForm.note.trim(),
       notes: technologyForm.note.trim(),
       date: technologyForm.date,
@@ -795,6 +870,8 @@ async function saveCustomerAssignment(event) {
 
     closeForm();
   }
+
+
 
   async function saveMediaProduct() {
     if (!mediaForm.personName.trim()) {
@@ -937,6 +1014,7 @@ async function saveCustomerAssignment(event) {
                 <th>Assigned To</th>
                 <th>Purpose</th>
                 <th>Date</th>
+                <th>Status</th>
               </tr>
             </thead>
 
@@ -980,62 +1058,80 @@ async function saveCustomerAssignment(event) {
                   </td>
 
                   <td>
-  {customer.assignedEmployeeName ? (
-    <button
-      type="button"
-      className="reception-assigned-employee"
-      onClick={() =>
-        openAssignModal(customer)
-      }
-      title="Change assigned employee"
-    >
-      <UserRound size={13} />
+                    {customer.assignedEmployeeName ? (
 
-      <span>
-        {customer.assignedEmployeeName}
-      </span>
-    </button>
-  ) : (
-    <button
-      type="button"
-      className="reception-assign-arrow"
-      onClick={() =>
-        openAssignModal(customer)
-      }
-      title="Assign this customer"
-      aria-label="Assign customer"
-    >
-      <ArrowRight size={17} />
-    </button>
-  )}
-</td>
+                      <button
+                        type="button"
+                        className="reception-assigned-employee"
+                        onClick={() =>
+                          openAssignModal(customer)
+                        }
+                        title="Change assigned employee"
+                      >
+                        <UserRound size={13} />
 
-                  <td>
-                    {customer.technologyPurpose ||
-                      customer.purpose ||
-                      "-"}
+                        <span>
+                          {customer.assignedEmployeeName}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="reception-assign-arrow"
+                        onClick={() =>
+                          openAssignModal(customer)
+                        }
+                        title="Assign this customer"
+                        aria-label="Assign customer"
+                      >
+                        <ArrowRight size={17} />
+                      </button>
+                    )}
+                  </td>
+                  <td className="reception-purpose-cell">
+                    <span
+                      title={
+                        customer.technologyPurpose ||
+                        customer.purpose ||
+                        "-"
+                      }
+                    >
+                      {customer.technologyPurpose ||
+                        customer.purpose ||
+                        "-"}
+                    </span>
                   </td>
 
                   <td>
-  <CalendarDays size={14} />
+                    <CalendarDays size={14} />
 
-  {customer.date
-    ? new Date(
-        `${customer.date}T00:00:00`
-      ).toLocaleDateString()
-    : customer.createdAt
-      ? new Date(
-          customer.createdAt
-        ).toLocaleDateString()
-      : "-"}
-</td>
+                    {customer.date
+                      ? new Date(
+                        `${customer.date}T00:00:00`
+                      ).toLocaleDateString()
+                      : customer.createdAt
+                        ? new Date(
+                          customer.createdAt
+                        ).toLocaleDateString()
+                        : "-"}
+                  </td>
+
+                  <td>
+                    <span
+                      className={`reception-status-badge ${String(
+                        customer.assignmentStatus || "None"
+                      ).toLowerCase()}`}
+                    >
+                      {customer.assignmentStatus || "None"}
+                    </span>
+                  </td>
                 </tr>
               ))}
 
               {!receptionCustomers.length && (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="8"
                     className="reception-empty"
                   >
                     No reception customers registered
@@ -1049,243 +1145,284 @@ async function saveCustomerAssignment(event) {
       </section>
 
       {assignTarget && (
-  <div
-    className="reception-modal-backdrop"
-    onMouseDown={closeAssignModal}
-  >
-    <div
-      className="reception-assign-modal"
-      onMouseDown={(event) =>
-        event.stopPropagation()
-      }
-    >
-      <header className="reception-assign-header">
-        <div>
-          <span>Customer Assignment</span>
-
-          <h2>Assign Customer</h2>
-
-          <p>
-            Review the registration information and
-            assign this customer to an employee.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={closeAssignModal}
-          disabled={assigningRecord}
+        <div
+          className="reception-modal-backdrop"
+          onMouseDown={closeAssignModal}
         >
-          <X size={18} />
-        </button>
-      </header>
-
-      <form onSubmit={saveCustomerAssignment}>
-        <div className="reception-assign-grid">
-          <label>
-            <span>Customer Name</span>
-
-            <input
-              value={
-                assignTarget.fullName ||
-                assignTarget.customerName ||
-                "-"
-              }
-              readOnly
-            />
-          </label>
-
-          <label>
-            <span>Phone Number</span>
-
-            <input
-              value={
-                assignTarget.phone ||
-                assignTarget.contactNumber ||
-                "-"
-              }
-              readOnly
-            />
-          </label>
-
-          <label>
-            <span>Customer Type</span>
-
-            <input
-              value={
-                assignTarget.customerType || "-"
-              }
-              readOnly
-            />
-          </label>
-
-          <label>
-            <span>Source</span>
-
-            <input
-              value={
-                assignTarget.source ||
-                assignTarget.sourceEmployeeName ||
-                "-"
-              }
-              readOnly
-            />
-          </label>
-
-          <label>
-            <span>Registered Date</span>
-
-            <input
-              value={
-                assignTarget.date ||
-                assignTarget.createdAt?.slice(
-                  0,
-                  10
-                ) ||
-                "-"
-              }
-              readOnly
-            />
-          </label>
-
-          <label>
-            <span>Registered Time</span>
-
-            <input
-              value={
-                assignTarget.createdAt
-                  ? new Date(
-                      assignTarget.createdAt
-                    ).toLocaleTimeString()
-                  : "-"
-              }
-              readOnly
-            />
-          </label>
-
-          {assignTarget.email && (
-            <label>
-              <span>Email</span>
-
-              <input
-                value={assignTarget.email}
-                readOnly
-              />
-            </label>
-          )}
-
-          {assignTarget.educationalLevel && (
-            <label>
-              <span>Educational Level</span>
-
-              <input
-                value={
-                  assignTarget.educationalLevel
-                }
-                readOnly
-              />
-            </label>
-          )}
-
-          {assignTarget.schoolUniversity && (
-            <label>
-              <span>School / University</span>
-
-              <input
-                value={
-                  assignTarget.schoolUniversity
-                }
-                readOnly
-              />
-            </label>
-          )}
-
-          {assignTarget.companyName && (
-            <label>
-              <span>Company Name</span>
-
-              <input
-                value={
-                  assignTarget.companyName
-                }
-                readOnly
-              />
-            </label>
-          )}
-
-          <label className="reception-assign-full">
-            <span>Purpose</span>
-
-            <textarea
-              value={
-                assignTarget.technologyPurpose ||
-                assignTarget.purpose ||
-                "-"
-              }
-              rows="3"
-              readOnly
-            />
-          </label>
-
-          <label className="reception-assign-full reception-assign-select">
-            <span>Assign To</span>
-
-            <select
-              value={assignEmployeeId}
-              onChange={updateAssignEmployee}
-              autoFocus
-            >
-              <option value="">
-                Select responsible employee
-              </option>
-
-              {employeeOptions.map(
-                (employee) => {
-                  const employeeId =
-                    employee.id ||
-                    employee.employeeId;
-
-                  return (
-                    <option
-                      key={employeeId}
-                      value={employeeId}
-                    >
-                      {getEmployeeName(
-                        employee
-                      )}
-                    </option>
-                  );
-                }
-              )}
-            </select>
-          </label>
-        </div>
-
-        <footer className="reception-assign-actions">
-          <button
-            type="button"
-            onClick={closeAssignModal}
-            disabled={assigningRecord}
+          <div
+            className="reception-assign-modal"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
           >
-            Cancel
-          </button>
+            <header className="reception-assign-header">
+              <div>
+                <span>Customer Assignment</span>
 
-          <button
-            type="submit"
-            className="primary"
-            disabled={assigningRecord}
-          >
-            <ArrowRight size={15} />
+                <h2>Assign Customer</h2>
 
-            {assigningRecord
-              ? "Assigning..."
-              : "Assign Customer"}
-          </button>
-        </footer>
-      </form>
-    </div>
-  </div>
+                <p>
+                  Review the registration information and
+                  assign this customer to an employee.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeAssignModal}
+                disabled={assigningRecord}
+              >
+                <X size={18} />
+              </button>
+            </header>
+
+            <form onSubmit={saveCustomerAssignment}>
+              <div className="reception-assign-grid">
+                <label>
+                  <span>Customer Name</span>
+
+                  <input
+                    value={
+                      assignTarget.fullName ||
+                      assignTarget.customerName ||
+                      "-"
+                    }
+                    readOnly
+                  />
+                </label>
+
+                <label>
+                  <span>Phone Number</span>
+
+                  <input
+                    value={
+                      assignTarget.phone ||
+                      assignTarget.contactNumber ||
+                      "-"
+                    }
+                    readOnly
+                  />
+                </label>
+
+
+{assignTarget.passportNumber && (
+  <label>
+    <span>Passport Number</span>
+
+    <input
+      value={
+        assignTarget.passportNumber
+      }
+      readOnly
+    />
+  </label>
 )}
+
+{assignTarget.maritalStatus && (
+  <label>
+    <span>Marital Status</span>
+
+    <input
+      value={
+        assignTarget.maritalStatus
+      }
+      readOnly
+    />
+  </label>
+)}
+
+{assignTarget.applicationType && (
+  <label>
+    <span>Application Type</span>
+
+    <input
+      value={
+        assignTarget.applicationType
+      }
+      readOnly
+    />
+  </label>
+)}
+
+
+                <label>
+                  <span>Customer Type</span>
+
+                  <input
+                    value={
+                      assignTarget.customerType || "-"
+                    }
+                    readOnly
+                  />
+                </label>
+
+                <label>
+                  <span>Source</span>
+
+                  <input
+                    value={
+                      assignTarget.source ||
+                      assignTarget.sourceEmployeeName ||
+                      "-"
+                    }
+                    readOnly
+                  />
+                </label>
+
+                <label>
+                  <span>Registered Date</span>
+
+                  <input
+                    value={
+                      assignTarget.date ||
+                      assignTarget.createdAt?.slice(
+                        0,
+                        10
+                      ) ||
+                      "-"
+                    }
+                    readOnly
+                  />
+                </label>
+
+                <label>
+                  <span>Registered Time</span>
+
+                  <input
+                    value={
+                      assignTarget.createdAt
+                        ? new Date(
+                          assignTarget.createdAt
+                        ).toLocaleTimeString()
+                        : "-"
+                    }
+                    readOnly
+                  />
+                </label>
+
+                {assignTarget.email && (
+                  <label>
+                    <span>Email</span>
+
+                    <input
+                      value={assignTarget.email}
+                      readOnly
+                    />
+                  </label>
+                )}
+
+                {assignTarget.educationalLevel && (
+                  <label>
+                    <span>Educational Level</span>
+
+                    <input
+                      value={
+                        assignTarget.educationalLevel
+                      }
+                      readOnly
+                    />
+                  </label>
+                )}
+
+                {assignTarget.schoolUniversity && (
+                  <label>
+                    <span>School / University</span>
+
+                    <input
+                      value={
+                        assignTarget.schoolUniversity
+                      }
+                      readOnly
+                    />
+                  </label>
+                )}
+
+                {assignTarget.companyName && (
+                  <label>
+                    <span>Company Name</span>
+
+                    <input
+                      value={
+                        assignTarget.companyName
+                      }
+                      readOnly
+                    />
+                  </label>
+                )}
+
+                <label className="reception-assign-full">
+                  <span>Purpose</span>
+
+                  <textarea
+                    value={
+                      assignTarget.technologyPurpose ||
+                      assignTarget.purpose ||
+                      "-"
+                    }
+                    rows="3"
+                    readOnly
+                  />
+                </label>
+
+                <label className="reception-assign-full reception-assign-select">
+                  <span>Assign To</span>
+
+                  <select
+                    value={assignEmployeeId}
+                    onChange={updateAssignEmployee}
+                    autoFocus
+                  >
+                    <option value="">
+                      Select responsible employee
+                    </option>
+
+                    {employeeOptions.map(
+                      (employee) => {
+                        const employeeId =
+                          employee.id ||
+                          employee.employeeId;
+
+                        return (
+                          <option
+                            key={employeeId}
+                            value={employeeId}
+                          >
+                            {getEmployeeName(
+                              employee
+                            )}
+                          </option>
+                        );
+                      }
+                    )}
+                  </select>
+                </label>
+              </div>
+
+              <footer className="reception-assign-actions">
+                <button
+                  type="button"
+                  onClick={closeAssignModal}
+                  disabled={assigningRecord}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="primary"
+                  disabled={assigningRecord}
+                >
+                  <ArrowRight size={15} />
+
+                  {assigningRecord
+                    ? "Assigning..."
+                    : "Assign Customer"}
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div
@@ -1357,258 +1494,329 @@ async function saveCustomerAssignment(event) {
 
                 {registrationType ===
                   "consultant" && (
-                  <div className="reception-form-grid">
-                    <label>
-                      <span>
-                        Full Name In Passport
-                      </span>
+                    <div className="reception-form-grid">
+                      <label>
+                        <span>
+                          Full Name In Passport
+                        </span>
 
-                      <input
-                        name="fullName"
-                        value={
-                          consultantForm.fullName
-                        }
-                        onChange={
-                          updateConsultantField
-                        }
-                        placeholder="Enter full name in passport"
-                        autoFocus
-                      />
-                    </label>
-
-                    <label>
-                      <span>Phone Number</span>
-
-                      <input
-                        name="phone"
-                        value={consultantForm.phone}
-                        onChange={
-                          updateConsultantField
-                        }
-                        placeholder="Enter phone number"
-                      />
-                    </label>
-
-                    <label>
-                      <span>Educational Level</span>
-
-                      <select
-                        name="educationalLevel"
-                        value={
-                          consultantForm.educationalLevel
-                        }
-                        onChange={
-                          updateConsultantField
-                        }
-                      >
-                        <option value="">
-                          Select educational level
-                        </option>
-
-                        {educationLevels.map(
-                          (level) => (
-                            <option
-                              key={level}
-                              value={level}
-                            >
-                              {level}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </label>
-
-                    <div className="reception-institution-field">
-                      <span>School / University</span>
-
-                      <div className="reception-institution-control">
-                        <select
-                          name="schoolUniversity"
+                        <input
+                          name="fullName"
                           value={
-                            consultantForm.schoolUniversity
+                            consultantForm.fullName
+                          }
+                          onChange={
+                            updateConsultantField
+                          }
+                          placeholder="Enter full name in passport"
+                          autoFocus
+                        />
+                      </label>
+
+                      <label>
+                        <span>Phone Number</span>
+
+                        <input
+                          name="phone"
+                          value={consultantForm.phone}
+                          onChange={
+                            updateConsultantField
+                          }
+                          placeholder="Enter phone number"
+                        />
+                      </label>
+
+
+                      <label>
+  <span>Passport Number</span>
+
+  <input
+    name="passportNumber"
+    value={
+      consultantForm.passportNumber
+    }
+    onChange={
+      updateConsultantField
+    }
+    placeholder="Enter passport number"
+  />
+</label>
+
+<label>
+  <span>Marital Status</span>
+
+  <select
+    name="maritalStatus"
+    value={
+      consultantForm.maritalStatus
+    }
+    onChange={
+      updateConsultantField
+    }
+  >
+    <option value="Single">
+      Single
+    </option>
+
+    <option value="Married">
+      Married
+    </option>
+
+    <option value="Divorced">
+      Divorced
+    </option>
+
+    <option value="Widowed">
+      Widowed
+    </option>
+  </select>
+</label>
+
+<label>
+  <span>Application Type</span>
+
+  <select
+    name="applicationType"
+    value={
+      consultantForm.applicationType
+    }
+    onChange={
+      updateConsultantField
+    }
+  >
+    <option value="Student Visa">
+      Student Visa
+    </option>
+
+    <option value="Scholarship">
+      Scholarship
+    </option>
+
+    <option value="Both">
+      Both
+    </option>
+  </select>
+</label>
+
+                      <label>
+                        <span>Educational Level</span>
+
+                        <select
+                          name="educationalLevel"
+                          value={
+                            consultantForm.educationalLevel
                           }
                           onChange={
                             updateConsultantField
                           }
                         >
                           <option value="">
-                            Select school or university
+                            Select educational level
                           </option>
 
-                          {educationInstitutions.map(
-                            (institution) => {
-                              const name =
-                                institution.name ||
-                                institution.institutionName;
-
-                              return (
-                                <option
-                                  key={
-                                    institution.id ||
-                                    name
-                                  }
-                                  value={name}
-                                >
-                                  {name}
-                                </option>
-                              );
-                            }
+                          {educationLevels.map(
+                            (level) => (
+                              <option
+                                key={level}
+                                value={level}
+                              >
+                                {level}
+                              </option>
+                            )
                           )}
                         </select>
+                      </label>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowInstitutionForm(
-                              (open) => !open
-                            )
-                          }
-                          title="Add school or university"
-                          aria-label="Add school or university"
-                        >
-                          <Plus size={17} />
-                        </button>
-                      </div>
-                    </div>
+                      <div className="reception-institution-field">
+                        <span>School / University</span>
 
-                    {showInstitutionForm && (
-                      <div className="reception-add-institution reception-form-full">
-                        <div>
-                          <GraduationCap size={17} />
+                        <div className="reception-institution-control">
+                          <select
+                            name="schoolUniversity"
+                            value={
+                              consultantForm.schoolUniversity
+                            }
+                            onChange={
+                              updateConsultantField
+                            }
+                          >
+                            <option value="">
+                              Select school or university
+                            </option>
 
-                          <input
-                            value={newInstitutionName}
-                            onChange={(event) =>
-                              setNewInstitutionName(
-                                event.target.value
+                            {educationInstitutions.map(
+                              (institution) => {
+                                const name =
+                                  institution.name ||
+                                  institution.institutionName;
+
+                                return (
+                                  <option
+                                    key={
+                                      institution.id ||
+                                      name
+                                    }
+                                    value={name}
+                                  >
+                                    {name}
+                                  </option>
+                                );
+                              }
+                            )}
+                          </select>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowInstitutionForm(
+                                (open) => !open
                               )
                             }
-                            placeholder="Enter school or university name"
-                          />
+                            title="Add school or university"
+                            aria-label="Add school or university"
+                          >
+                            <Plus size={17} />
+                          </button>
                         </div>
+                      </div>
 
-                        <button
-                          type="button"
-                          onClick={
-                            addEducationInstitution
+                      {showInstitutionForm && (
+                        <div className="reception-add-institution reception-form-full">
+                          <div>
+                            <GraduationCap size={17} />
+
+                            <input
+                              value={newInstitutionName}
+                              onChange={(event) =>
+                                setNewInstitutionName(
+                                  event.target.value
+                                )
+                              }
+                              placeholder="Enter school or university name"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={
+                              addEducationInstitution
+                            }
+                          >
+                            Add Institution
+                          </button>
+                        </div>
+                      )}
+
+                      <label>
+                        <span>Email</span>
+
+                        <input
+                          type="email"
+                          name="email"
+                          value={consultantForm.email}
+                          onChange={
+                            updateConsultantField
+                          }
+                          placeholder="Enter email address"
+                        />
+                      </label>
+
+                      <label>
+                        <span>Source</span>
+
+                        <select
+                          name="source"
+                          value={consultantForm.source}
+                          onChange={updateConsultantField}
+                        >
+                          <option value="">Select source employee</option>
+
+                          {employeeOptions.map((employee) => {
+                            const employeeName = getEmployeeName(employee);
+
+                            return (
+                              <option
+                                key={`consultant-source-${employee.id ||
+                                  employee.employeeId ||
+                                  employee.email
+                                  }`}
+                                value={employeeName}
+                              >
+                                {employeeName}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+
+                      <label>
+                        <span>Assign To</span>
+
+                        <select
+                          name="assignedEmployeeId"
+                          value={
+                            consultantForm.assignedEmployeeId
+                          }
+                          onChange={
+                            updateConsultantField
                           }
                         >
-                          Add Institution
-                        </button>
-                      </div>
-                    )}
+                          <option value="">
+                            Select employee
+                          </option>
 
-                    <label>
-                      <span>Email</span>
+                          {employeeOptions.map(
+                            (employee) => (
+                              <option
+                                key={
+                                  employee.id ||
+                                  employee.employeeId ||
+                                  employee.email
+                                }
+                                value={
+                                  employee.id ||
+                                  employee.employeeId
+                                }
+                              >
+                                {getEmployeeName(
+                                  employee
+                                )}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
 
-                      <input
-                        type="email"
-                        name="email"
-                        value={consultantForm.email}
-                        onChange={
-                          updateConsultantField
-                        }
-                        placeholder="Enter email address"
-                      />
-                    </label>
+                      <label>
+                        <span>Date</span>
 
-                    <label>
-  <span>Source</span>
+                        <input
+                          type="date"
+                          name="date"
+                          value={consultantForm.date}
+                          onChange={
+                            updateConsultantField
+                          }
+                        />
+                      </label>
 
-  <select
-    name="source"
-    value={consultantForm.source}
-    onChange={updateConsultantField}
-  >
-    <option value="">Select source employee</option>
+                      <label className="reception-form-full">
+                        <span>Purpose</span>
 
-    {employeeOptions.map((employee) => {
-      const employeeName = getEmployeeName(employee);
-
-      return (
-        <option
-          key={`consultant-source-${
-            employee.id ||
-            employee.employeeId ||
-            employee.email
-          }`}
-          value={employeeName}
-        >
-          {employeeName}
-        </option>
-      );
-    })}
-  </select>
-</label>
-
-                    <label>
-                      <span>Assign To</span>
-
-                      <select
-                        name="assignedEmployeeId"
-                        value={
-                          consultantForm.assignedEmployeeId
-                        }
-                        onChange={
-                          updateConsultantField
-                        }
-                      >
-                        <option value="">
-                          Select employee
-                        </option>
-
-                        {employeeOptions.map(
-                          (employee) => (
-                            <option
-                              key={
-                                employee.id ||
-                                employee.employeeId ||
-                                employee.email
-                              }
-                              value={
-                                employee.id ||
-                                employee.employeeId
-                              }
-                            >
-                              {getEmployeeName(
-                                employee
-                              )}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </label>
-
-                    <label>
-                      <span>Date</span>
-
-                      <input
-                        type="date"
-                        name="date"
-                        value={consultantForm.date}
-                        onChange={
-                          updateConsultantField
-                        }
-                      />
-                    </label>
-
-                    <label className="reception-form-full">
-                      <span>Purpose</span>
-
-                      <textarea
-                        name="purpose"
-                        value={
-                          consultantForm.purpose
-                        }
-                        onChange={
-                          updateConsultantField
-                        }
-                        placeholder="Enter customer purpose"
-                        rows="4"
-                      />
-                    </label>
-                  </div>
-                )}
+                        <textarea
+                          name="purpose"
+                          value={
+                            consultantForm.purpose
+                          }
+                          onChange={
+                            updateConsultantField
+                          }
+                          placeholder="Enter customer purpose"
+                          rows="4"
+                        />
+                      </label>
+                    </div>
+                  )}
 
                 {registrationType === "travel" && (
                   <div className="reception-form-grid">
@@ -1637,34 +1845,79 @@ async function saveCustomerAssignment(event) {
                       />
                     </label>
 
-                    <label>
-  <span>Source</span>
+<label>
+  <span>Passport Number</span>
+
+  <input
+    name="passportNumber"
+    value={
+      travelForm.passportNumber
+    }
+    onChange={
+      updateTravelField
+    }
+    placeholder="Enter passport number"
+  />
+</label>
+
+<label>
+  <span>Marital Status</span>
 
   <select
-    name="source"
-    value={travelForm.source}
-    onChange={updateTravelField}
+    name="maritalStatus"
+    value={
+      travelForm.maritalStatus
+    }
+    onChange={
+      updateTravelField
+    }
   >
-    <option value="">Select source employee</option>
+    <option value="Single">
+      Single
+    </option>
 
-    {employeeOptions.map((employee) => {
-      const employeeName = getEmployeeName(employee);
+    <option value="Married">
+      Married
+    </option>
 
-      return (
-        <option
-          key={`travel-source-${
-            employee.id ||
-            employee.employeeId ||
-            employee.email
-          }`}
-          value={employeeName}
-        >
-          {employeeName}
-        </option>
-      );
-    })}
+    <option value="Divorced">
+      Divorced
+    </option>
+
+    <option value="Widowed">
+      Widowed
+    </option>
   </select>
 </label>
+
+
+                    <label>
+                      <span>Source</span>
+
+                      <select
+                        name="source"
+                        value={travelForm.source}
+                        onChange={updateTravelField}
+                      >
+                        <option value="">Select source employee</option>
+
+                        {employeeOptions.map((employee) => {
+                          const employeeName = getEmployeeName(employee);
+
+                          return (
+                            <option
+                              key={`travel-source-${employee.id ||
+                                employee.employeeId ||
+                                employee.email
+                                }`}
+                              value={employeeName}
+                            >
+                              {employeeName}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
 
                     <label>
                       <span>Assign To</span>
@@ -1729,172 +1982,171 @@ async function saveCustomerAssignment(event) {
 
                 {registrationType ===
                   "technology" && (
-                  <div className="reception-form-grid">
-                    <label>
-                      <span>Full Name</span>
+                    <div className="reception-form-grid">
+                      <label>
+                        <span>Full Name</span>
 
-                      <input
-                        name="fullName"
-                        value={
-                          technologyForm.fullName
-                        }
-                        onChange={
-                          updateTechnologyField
-                        }
-                        placeholder="Enter full name"
-                        autoFocus
-                      />
-                    </label>
+                        <input
+                          name="fullName"
+                          value={
+                            technologyForm.fullName
+                          }
+                          onChange={
+                            updateTechnologyField
+                          }
+                          placeholder="Enter full name"
+                          autoFocus
+                        />
+                      </label>
 
-                    <label>
-                      <span>Company Name</span>
+                      <label>
+                        <span>Company Name</span>
 
-                      <input
-                        name="companyName"
-                        value={
-                          technologyForm.companyName
-                        }
-                        onChange={
-                          updateTechnologyField
-                        }
-                        placeholder="Enter company name"
-                      />
-                    </label>
+                        <input
+                          name="companyName"
+                          value={
+                            technologyForm.companyName
+                          }
+                          onChange={
+                            updateTechnologyField
+                          }
+                          placeholder="Enter company name"
+                        />
+                      </label>
 
-                    <label>
-                      <span>Contact Number</span>
+                      <label>
+                        <span>Contact Number</span>
 
-                      <input
-                        name="contactNumber"
-                        value={
-                          technologyForm.contactNumber
-                        }
-                        onChange={
-                          updateTechnologyField
-                        }
-                        placeholder="Enter contact number"
-                      />
-                    </label>
+                        <input
+                          name="contactNumber"
+                          value={
+                            technologyForm.contactNumber
+                          }
+                          onChange={
+                            updateTechnologyField
+                          }
+                          placeholder="Enter contact number"
+                        />
+                      </label>
 
-                    <label>
-                      <span>Purpose</span>
+                      <label>
+                        <span>Purpose</span>
 
-                      <select
-                        name="technologyPurpose"
-                        value={
-                          technologyForm.technologyPurpose
-                        }
-                        onChange={
-                          updateTechnologyField
-                        }
-                      >
-                        {technologyPurposes.map(
-                          (purpose) => (
-                            <option
-                              key={purpose}
-                              value={purpose}
-                            >
-                              {purpose}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </label>
+                        <select
+                          name="technologyPurpose"
+                          value={
+                            technologyForm.technologyPurpose
+                          }
+                          onChange={
+                            updateTechnologyField
+                          }
+                        >
+                          {technologyPurposes.map(
+                            (purpose) => (
+                              <option
+                                key={purpose}
+                                value={purpose}
+                              >
+                                {purpose}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
 
-                    <label>
-  <span>Source</span>
+                      <label>
+                        <span>Source</span>
 
-  <select
-    name="source"
-    value={technologyForm.source}
-    onChange={updateTechnologyField}
-  >
-    <option value="">Select source employee</option>
+                        <select
+                          name="source"
+                          value={technologyForm.source}
+                          onChange={updateTechnologyField}
+                        >
+                          <option value="">Select source employee</option>
 
-    {employeeOptions.map((employee) => {
-      const employeeName = getEmployeeName(employee);
+                          {employeeOptions.map((employee) => {
+                            const employeeName = getEmployeeName(employee);
 
-      return (
-        <option
-          key={`technology-source-${
-            employee.id ||
-            employee.employeeId ||
-            employee.email
-          }`}
-          value={employeeName}
-        >
-          {employeeName}
-        </option>
-      );
-    })}
-  </select>
-</label>
-                    <label>
-                      <span>Assign To</span>
+                            return (
+                              <option
+                                key={`technology-source-${employee.id ||
+                                  employee.employeeId ||
+                                  employee.email
+                                  }`}
+                                value={employeeName}
+                              >
+                                {employeeName}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                      <label>
+                        <span>Assign To</span>
 
-                      <select
-                        name="assignedEmployeeId"
-                        value={
-                          technologyForm.assignedEmployeeId
-                        }
-                        onChange={
-                          updateTechnologyField
-                        }
-                      >
-                        <option value="">
-                          Select employee
-                        </option>
+                        <select
+                          name="assignedEmployeeId"
+                          value={
+                            technologyForm.assignedEmployeeId
+                          }
+                          onChange={
+                            updateTechnologyField
+                          }
+                        >
+                          <option value="">
+                            Select employee
+                          </option>
 
-                        {employeeOptions.map(
-                          (employee) => (
-                            <option
-                              key={
-                                employee.id ||
-                                employee.employeeId ||
-                                employee.email
-                              }
-                              value={
-                                employee.id ||
-                                employee.employeeId
-                              }
-                            >
-                              {getEmployeeName(
-                                employee
-                              )}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </label>
+                          {employeeOptions.map(
+                            (employee) => (
+                              <option
+                                key={
+                                  employee.id ||
+                                  employee.employeeId ||
+                                  employee.email
+                                }
+                                value={
+                                  employee.id ||
+                                  employee.employeeId
+                                }
+                              >
+                                {getEmployeeName(
+                                  employee
+                                )}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
 
-                    <label>
-                      <span>Date</span>
+                      <label>
+                        <span>Date</span>
 
-                      <input
-                        type="date"
-                        name="date"
-                        value={technologyForm.date}
-                        onChange={
-                          updateTechnologyField
-                        }
-                      />
-                    </label>
+                        <input
+                          type="date"
+                          name="date"
+                          value={technologyForm.date}
+                          onChange={
+                            updateTechnologyField
+                          }
+                        />
+                      </label>
 
-                    <label className="reception-form-full">
-                      <span>Note</span>
+                      <label className="reception-form-full">
+                        <span>Note</span>
 
-                      <textarea
-                        name="note"
-                        value={technologyForm.note}
-                        onChange={
-                          updateTechnologyField
-                        }
-                        placeholder="Write additional notes"
-                        rows="4"
-                      />
-                    </label>
-                  </div>
-                )}
+                        <textarea
+                          name="note"
+                          value={technologyForm.note}
+                          onChange={
+                            updateTechnologyField
+                          }
+                          placeholder="Write additional notes"
+                          rows="4"
+                        />
+                      </label>
+                    </div>
+                  )}
 
                 {registrationType === "media" && (
                   <div className="reception-form-grid">
@@ -1940,33 +2192,32 @@ async function saveCustomerAssignment(event) {
                     </label>
 
                     <label>
-  <span>Source</span>
+                      <span>Source</span>
 
-  <select
-    name="source"
-    value={mediaForm.source}
-    onChange={updateMediaField}
-  >
-    <option value="">Select source employee</option>
+                      <select
+                        name="source"
+                        value={mediaForm.source}
+                        onChange={updateMediaField}
+                      >
+                        <option value="">Select source employee</option>
 
-    {employeeOptions.map((employee) => {
-      const employeeName = getEmployeeName(employee);
+                        {employeeOptions.map((employee) => {
+                          const employeeName = getEmployeeName(employee);
 
-      return (
-        <option
-          key={`media-source-${
-            employee.id ||
-            employee.employeeId ||
-            employee.email
-          }`}
-          value={employeeName}
-        >
-          {employeeName}
-        </option>
-      );
-    })}
-  </select>
-</label>
+                          return (
+                            <option
+                              key={`media-source-${employee.id ||
+                                employee.employeeId ||
+                                employee.email
+                                }`}
+                              value={employeeName}
+                            >
+                              {employeeName}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
 
                     <label>
                       <span>Date</span>

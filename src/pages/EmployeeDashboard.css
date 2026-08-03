@@ -523,3 +523,203 @@
       width: 100%;
     }
   }
+  .employee-purpose-cell {
+  width: 260px;
+  max-width: 260px;
+}
+
+.employee-purpose-cell span {
+  display: block;
+  max-width: 260px;
+
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  color: inherit;
+}
+.employee-record-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.employee-record-actions button {
+  width: 31px;
+  height: 31px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.employee-record-actions .edit {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.employee-record-actions .delete {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.employee-record-actions .edit:hover {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+.employee-record-actions .delete:hover {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+.employee-customer-status {
+  min-width: 65px;
+  min-height: 25px;
+  padding: 0 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 850;
+  text-transform: capitalize;
+}
+
+.employee-customer-status.none {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+}
+
+.employee-customer-status.pending,
+.employee-customer-status.assigned {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.employee-customer-status.accepted {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.employee-customer-status.rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.employee-empty-record {
+  padding: 28px !important;
+  color: #94a3b8;
+  text-align: center !important;
+}
+
+/* Delete confirmation */
+
+.employee-delete-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483001;
+  padding: 18px;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.62);
+  backdrop-filter: blur(4px);
+}
+
+.employee-delete-modal {
+  width: min(410px, 100%);
+  padding: 25px;
+  border-radius: 19px;
+  background: #ffffff;
+  color: #172033;
+  text-align: center;
+  box-shadow:
+    0 30px 80px
+    rgba(15, 23, 42, 0.3);
+}
+
+.employee-delete-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 13px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.employee-delete-modal h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.employee-delete-modal p {
+  margin: 0;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.employee-delete-modal p strong {
+  color: #172033;
+}
+
+.employee-delete-actions {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.employee-delete-actions button {
+  min-height: 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ffffff;
+  font-family: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.employee-delete-actions .danger {
+  border-color: #e11d48;
+  background: #e11d48;
+  color: #ffffff;
+}
+
+.employee-delete-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+body.dark-mode
+  .employee-delete-modal {
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+body.dark-mode
+  .employee-delete-modal p strong {
+  color: #f8fafc;
+}
+
+body.dark-mode
+  .employee-customer-status.none {
+  border-color: #475569;
+  background: #1e293b;
+  color: #cbd5e1;
+}
+
+@media (max-width: 500px) {
+  .employee-delete-actions {
+    grid-template-columns: 1fr;
+  }
+}
