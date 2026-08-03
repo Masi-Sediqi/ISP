@@ -1169,3 +1169,32 @@ body.dark-mode .suppliers-page .supplier-floating-menu .supplier-menu-link {
 body.dark-mode .suppliers-page .supplier-floating-menu .supplier-menu-link:hover {
   background: #334155;
 }
+
+.suppliers-page .supplier-clickable-row {
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.suppliers-page
+  .supplier-clickable-row:hover {
+  background: #f8fafc;
+}
+
+.suppliers-page
+  .supplier-clickable-row:active {
+  background: #f1f5f9;
+}
+
+body.dark-mode
+  .suppliers-page
+  .supplier-clickable-row:hover {
+  background: #263449 !important;
+}
+
+body.dark-mode
+  .suppliers-page
+  .supplier-clickable-row:active {
+  background: #334155 !important;
+}

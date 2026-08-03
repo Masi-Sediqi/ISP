@@ -3,8 +3,6 @@ import {
   ShoppingCart,
   Banknote,
   Boxes,
-  PackageCheck,
-  Calculator,
 } from "lucide-react";
 import {
   Bar,
@@ -23,7 +21,6 @@ import "./SupplierDetails.css";
 const emptyPurchaseForm = {
   purchaseDate: "",
   productName: "",
-  productCode: "",
   billNumber: "",
   billImage: "",
   category: "",
@@ -50,29 +47,26 @@ const emptyBalanceForm = {
 };
 
 const defaultCategories = [
-  "Router",
-  "ONU / ONT",
-  "Modem",
-  "Switch",
-  "Access Point",
-  "Radio",
-  "Antenna",
-  "Power Supply",
-  "UPS",
-  "Battery",
-  "Server",
-  "Rack",
-  "Fiber Cable",
-  "Ethernet Cable",
-  "SFP Module",
-  "Media Converter",
-  "PoE Adapter",
-  "Tower Equipment",
+  "Energy",
+  "Food and Beverages",
+  "Construction Materials",
+  "Office Supplies",
+  "Electronics",
+  "Furniture",
+  "Clothing and Uniforms",
+  "Cleaning Materials",
+  "Vehicles and Transportation",
+  "Machinery and Equipment",
+  "Medical Supplies",
+  "Agricultural Products",
+  "Raw Materials",
+  "Packaging Materials",
+  "Printing and Advertising",
+  "Safety Equipment",
   "Tools",
-  "Office Equipment",
-  "Computers",
-  "Printers",
-  "Vehicles",
+  "Spare Parts",
+  "Fuel and Lubricants",
+  "Other",
 ];
 
 function InfoIcon() {
@@ -139,6 +133,15 @@ function SupplierDetails() {
   const [purchaseForm, setPurchaseForm] = useState(emptyPurchaseForm);
   const [categoryMode, setCategoryMode] = useState("select");
   const [newCategory, setNewCategory] = useState("");
+
+  const [editingCategoryId, setEditingCategoryId] =
+  useState(null);
+
+const [editingCategoryName, setEditingCategoryName] =
+  useState("");
+
+const [deleteCategoryTarget, setDeleteCategoryTarget] =
+  useState(null);
 
   const [editPurchaseId, setEditPurchaseId] = useState(null);
   const [detailPurchase, setDetailPurchase] = useState(null);
@@ -356,8 +359,6 @@ const latestOpeningBalance = latestBalanceRecord
     openingSupplierOwesUs;
   const weOweSupplier = supplierBalance > 0 ? supplierBalance : 0;
   const supplierOwesUs = supplierBalance < 0 ? Math.abs(supplierBalance) : 0;
-  const averagePurchaseValue =
-    purchases.length > 0 ? totalPurchaseValue / purchases.length : 0;
   const hasSupplierFinancialRecords =
     purchases.length > 0 || payments.length > 0 || balanceRecords.length > 0;
 
@@ -439,12 +440,37 @@ const latestOpeningBalance = latestBalanceRecord
   return getTimestamp(b) - getTimestamp(a);
 });
 
-  const categoryOptions = [
+const normalizedCustomCategories =
+  customCategories
+    .map((item) => {
+      if (typeof item === "string") {
+        return {
+          id: item,
+          name: item,
+          createdAt: "",
+        };
+      }
+
+      return {
+        ...item,
+        id: item.id || item.name,
+        name: String(item.name || "").trim(),
+      };
+    })
+    .filter((item) => item.name);
+
+const categoryOptions = [
   ...defaultCategories,
-  ...customCategories
+  ...normalizedCustomCategories
     .map((item) => item.name)
-    .filter(Boolean)
-    .filter((name) => !defaultCategories.includes(name)),
+    .filter(
+      (name) =>
+        !defaultCategories.some(
+          (defaultName) =>
+            defaultName.toLowerCase() ===
+            name.toLowerCase()
+        )
+    ),
 ];
 
 const togglePurchaseActionMenu = (event, purchaseId) => {
@@ -797,30 +823,52 @@ const handleCategoryChange = (event) => {
   }));
 };
 
+const openAddCategory = () => {
+  setEditingCategoryId(null);
+  setEditingCategoryName("");
+  setNewCategory("");
+  setCategoryMode("custom");
+};
+
 const saveCustomCategory = async () => {
   const cleanCategory = newCategory.trim();
 
   if (!cleanCategory) {
-    notify("Please enter a category name.", "error");
+    notify(
+      "Please enter a category name.",
+      "error"
+    );
     return;
   }
 
   const alreadyExists = categoryOptions.some(
-    (category) => category.toLowerCase() === cleanCategory.toLowerCase()
+    (category) =>
+      category.toLowerCase() ===
+      cleanCategory.toLowerCase()
   );
 
   if (alreadyExists) {
-    notify("This category already exists.", "error");
+    notify(
+      "This category already exists.",
+      "error"
+    );
     return;
   }
 
+  const record = {
+    id:
+      typeof crypto !== "undefined" &&
+      crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}`,
+    name: cleanCategory,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
   const saved = await setCustomCategories([
-    ...customCategories,
-    {
-      id: Date.now(),
-      name: cleanCategory,
-      createdAt: new Date().toISOString(),
-    },
+    ...normalizedCustomCategories,
+    record,
   ]);
 
   if (!saved) return;
@@ -832,11 +880,205 @@ const saveCustomCategory = async () => {
 
   setNewCategory("");
   setCategoryMode("select");
-  notify("Category saved successfully.");
+
+  notify(
+    "Category added successfully.",
+    "success"
+  );
+};
+
+const openEditCategory = (category) => {
+  setEditingCategoryId(category.id);
+  setEditingCategoryName(category.name);
+  setCategoryMode("edit");
+};
+
+const saveEditedCategory = async () => {
+  const cleanName =
+    editingCategoryName.trim();
+
+  if (!cleanName) {
+    notify(
+      "Category name is required.",
+      "error"
+    );
+    return;
+  }
+
+  const duplicate = categoryOptions.some(
+    (name) =>
+      name.toLowerCase() ===
+        cleanName.toLowerCase() &&
+      !normalizedCustomCategories.some(
+        (category) =>
+          String(category.id) ===
+            String(editingCategoryId) &&
+          category.name.toLowerCase() ===
+            name.toLowerCase()
+      )
+  );
+
+  if (duplicate) {
+    notify(
+      "This category already exists.",
+      "error"
+    );
+    return;
+  }
+
+  const oldCategory =
+    normalizedCustomCategories.find(
+      (category) =>
+        String(category.id) ===
+        String(editingCategoryId)
+    );
+
+  if (!oldCategory) {
+    notify(
+      "Category was not found.",
+      "error"
+    );
+    return;
+  }
+
+  const nextCategories =
+    normalizedCustomCategories.map(
+      (category) =>
+        String(category.id) ===
+        String(editingCategoryId)
+          ? {
+              ...category,
+              name: cleanName,
+              updatedAt:
+                new Date().toISOString(),
+            }
+          : category
+    );
+
+  const saved =
+    await setCustomCategories(
+      nextCategories
+    );
+
+  if (!saved) return;
+
+  /*
+   * کتگوری انتخاب‌شده در فورم نیز تغییر کند.
+   */
+  setPurchaseForm((previous) => ({
+    ...previous,
+    category:
+      previous.category === oldCategory.name
+        ? cleanName
+        : previous.category,
+  }));
+
+  /*
+   * کتگوری ریکاردهای خرید قبلی نیز تغییر کند.
+   */
+  await setSupplierPurchases(
+    supplierPurchases.map((purchase) =>
+      purchase.category === oldCategory.name
+        ? {
+            ...purchase,
+            category: cleanName,
+            updatedAt:
+              new Date().toISOString(),
+          }
+        : purchase
+    )
+  );
+
+  /*
+   * در Assetها نیز نام کتگوری به‌روز شود.
+   */
+  await setAssets(
+    assets.map((asset) =>
+      asset.category === oldCategory.name
+        ? {
+            ...asset,
+            category: cleanName,
+            updatedAt:
+              new Date().toISOString(),
+          }
+        : asset
+    )
+  );
+
+  setEditingCategoryId(null);
+  setEditingCategoryName("");
+  setCategoryMode("select");
+
+  notify(
+    "Category updated successfully.",
+    "success"
+  );
+};
+
+const requestDeleteCategory = (category) => {
+  setDeleteCategoryTarget(category);
+};
+
+const confirmDeleteCategory = async () => {
+  if (!deleteCategoryTarget) return;
+
+  const categoryName =
+    deleteCategoryTarget.name;
+
+  const categoryIsUsed =
+    supplierPurchases.some(
+      (purchase) =>
+        purchase.category === categoryName
+    ) ||
+    assets.some(
+      (asset) =>
+        asset.category === categoryName
+    );
+
+  if (categoryIsUsed) {
+    notify(
+      "This category is already used in purchase or asset records. Change those records before deleting it.",
+      "error"
+    );
+
+    setDeleteCategoryTarget(null);
+    return;
+  }
+
+  const nextCategories =
+    normalizedCustomCategories.filter(
+      (category) =>
+        String(category.id) !==
+        String(deleteCategoryTarget.id)
+    );
+
+  const saved =
+    await setCustomCategories(
+      nextCategories
+    );
+
+  if (!saved) return;
+
+  setPurchaseForm((previous) => ({
+    ...previous,
+    category:
+      previous.category === categoryName
+        ? ""
+        : previous.category,
+  }));
+
+  setDeleteCategoryTarget(null);
+
+  notify(
+    "Category deleted successfully.",
+    "success"
+  );
 };
 
 const backToCategorySelect = () => {
   setNewCategory("");
+  setEditingCategoryId(null);
+  setEditingCategoryName("");
   setCategoryMode("select");
 };
 
@@ -956,43 +1198,87 @@ const handlePaymentChange = (event) => {
   }));
 };
 
-const upsertSupplierPaymentTransaction = async (payment) => {
-  const createdAt = payment.createdAt || new Date().toISOString();
-  const supplierPaysUs = payment.direction === "supplier_pays_us";
+const upsertSupplierPaymentTransaction = async (
+  payment
+) => {
+  const createdAt =
+    payment.createdAt ||
+    new Date().toISOString();
+
+  const supplierPaysUs =
+    payment.direction ===
+    "supplier_pays_us";
+
   const transaction = {
-    id: `supplier-payment-${supplierPaysUs ? "income" : "expense"}-${payment.id}`,
-    type: supplierPaysUs ? "income" : "expense",
+    id: `supplier-payment-${
+      supplierPaysUs ? "income" : "expense"
+    }-${payment.id}`,
+
+    type: supplierPaysUs
+      ? "income"
+      : "expense",
+
     title: supplierPaysUs
-      ? `Supplier Payment Received - ${payment.supplierName || "Supplier"}`
-      : `Supplier Payment - ${payment.supplierName || "Supplier"}`,
-    category: supplierPaysUs ? "Supplier Payment Received" : "Supplier Payment",
+      ? `Payment Received from Supplier - ${
+          payment.supplierName ||
+          "Supplier"
+        }`
+      : `Payment to Supplier - ${
+          payment.supplierName ||
+          "Supplier"
+        }`,
+
+    category: supplierPaysUs
+      ? "Supplier Payment Received"
+      : "Supplier Payment",
+
     amount: Number(payment.amount || 0),
+
     date: payment.paymentDate,
+
     description: [
-      supplierPaysUs ? "Direction: Supplier Pays Us" : "Direction: We Pay Supplier",
-      payment.method ? `Method: ${payment.method}` : "",
+      supplierPaysUs
+        ? "Supplier paid money to us"
+        : "We paid money to supplier",
+
+      payment.method
+        ? `Method: ${payment.method}`
+        : "",
+
       payment.notes || "",
     ]
       .filter(Boolean)
       .join(" | "),
+
     source: "supplier-payment",
     referenceId: payment.id,
-    supplierRecordId: payment.supplierRecordId || "",
-    supplierName: payment.supplierName || "",
+
+    supplierRecordId:
+      payment.supplierRecordId || "",
+
+    supplierName:
+      payment.supplierName || "",
+
     createdAt,
     updatedAt: new Date().toISOString(),
   };
 
-  return setTransactions((previousTransactions) => [
-    ...previousTransactions.filter(
-      (transaction) =>
-        !(
-          transaction.source === "supplier-payment" &&
-          String(transaction.referenceId || "") === String(payment.id)
-        )
-    ),
-    transaction,
-  ]);
+  return setTransactions(
+    (previousTransactions) => [
+      ...previousTransactions.filter(
+        (item) =>
+          !(
+            item.source ===
+              "supplier-payment" &&
+            String(
+              item.referenceId || ""
+            ) === String(payment.id)
+          )
+      ),
+
+      transaction,
+    ]
+  );
 };
 
 const removeSupplierPaymentExpense = async (paymentId) =>
@@ -1180,71 +1466,161 @@ const confirmDeleteBalance = async () => {
     });
   };
 
-const upsertPurchaseExpense = async (purchase, source = "supplier-purchase") => {
+const upsertPurchaseExpense = async (
+  purchase,
+  source = "supplier-purchase"
+) => {
   const referenceId = purchase.id;
-  const totalAmount = Number(
-    purchase.totalPurchaseValue ?? purchase.totalAmount ?? 0
-  );
-  const paidAmount = Number(purchase.paidAmount || 0);
-  const remainingAmount = Number(
-    purchase.remainAmount ?? purchase.remainingAmount ?? Math.max(totalAmount - paidAmount, 0)
-  );
-  const date = purchase.purchaseDate || purchase.date || new Date().toISOString().slice(0, 10);
-  const createdAt = purchase.createdAt || new Date().toISOString();
 
+  const totalAmount = Number(
+    purchase.totalPurchaseValue ??
+      purchase.totalAmount ??
+      0
+  );
+
+  const paidAmount = Number(
+    purchase.paidAmount || 0
+  );
+
+  const remainingAmount = Number(
+    purchase.remainAmount ??
+      purchase.remainingAmount ??
+      Math.max(totalAmount - paidAmount, 0)
+  );
+
+  const date =
+    purchase.purchaseDate ||
+    purchase.date ||
+    new Date().toISOString().slice(0, 10);
+
+  const createdAt =
+    purchase.createdAt ||
+    new Date().toISOString();
+
+  /*
+   * اگر در خرید هیچ پولی پرداخت نشده باشد،
+   * مصرف نقدی ایجاد نمی‌شود.
+   * اگر قبلاً مصرف داشت، حذف می‌شود.
+   */
   if (paidAmount <= 0) {
-    return removePurchaseExpense(source, referenceId);
+    return removePurchaseExpense(
+      source,
+      referenceId
+    );
   }
+
+  const productName =
+    purchase.productName ||
+    purchase.deviceName ||
+    purchase.assetName ||
+    "Product";
 
   const expense = {
     id: `${source}-expense-${referenceId}`,
+
     type: "expense",
-    title: `Asset Purchase - ${purchase.deviceName || purchase.assetName || "Asset"}`,
+
+    title: `Purchase - ${productName}`,
+
     category: "Purchases",
+
+    /*
+     * فقط پولی که هنگام خرید پرداخت شده
+     * در مصارف ثبت می‌شود.
+     */
     amount: paidAmount,
+
     date,
+
     description: [
-      purchase.supplierName ? `Supplier: ${purchase.supplierName}` : "",
-      purchase.invoiceNumber || purchase.billNumber
-        ? `Bill: ${purchase.invoiceNumber || purchase.billNumber}`
+      purchase.supplierName
+        ? `Supplier: ${purchase.supplierName}`
         : "",
+
+      purchase.billNumber ||
+      purchase.invoiceNumber
+        ? `Bill: ${
+            purchase.billNumber ||
+            purchase.invoiceNumber
+          }`
+        : "",
+
+      purchase.category
+        ? `Category: ${purchase.category}`
+        : "",
+
+      purchase.unit
+        ? `Unit: ${purchase.unit}`
+        : "",
+
       `Quantity: ${purchase.quantity || 0}`,
-      `Unit Price: ${money(purchase.unitPrice)} AFN`,
-      `Paid: ${money(paidAmount)} AFN`,
-      `Remaining: ${money(remainingAmount)} AFN`,
+
+      `Unit Price: ${money(
+        purchase.unitPrice
+      )} AFN`,
+
+      `Total Purchase: ${money(
+        totalAmount
+      )} AFN`,
+
+      `Paid: ${money(
+        paidAmount
+      )} AFN`,
+
+      `Remaining: ${money(
+        remainingAmount
+      )} AFN`,
+
       purchase.notes || "",
     ]
       .filter(Boolean)
       .join(" | "),
+
     source,
     referenceId,
-    assetId: purchase.assetId || "",
-    supplierName: purchase.supplierName || "",
+
+    supplierRecordId:
+      purchase.supplierRecordId || "",
+
+    supplierName:
+      purchase.supplierName || "",
+
     createdAt,
     updatedAt: new Date().toISOString(),
   };
 
-  return setTransactions((previousTransactions) => [
-    ...previousTransactions.filter(
-      (transaction) =>
-        !(
-          transaction.source === source &&
-          String(transaction.referenceId || "") === String(referenceId)
-        )
-    ),
-    expense,
-  ]);
+  return setTransactions(
+    (previousTransactions) => [
+      ...previousTransactions.filter(
+        (transaction) =>
+          !(
+            transaction.source === source &&
+            String(
+              transaction.referenceId || ""
+            ) === String(referenceId)
+          )
+      ),
+
+      expense,
+    ]
+  );
 };
 
-const removePurchaseExpense = async (source, referenceId) =>
-  setTransactions((previousTransactions) =>
-    previousTransactions.filter(
-      (transaction) =>
-        !(
-          transaction.source === source &&
-          String(transaction.referenceId || "") === String(referenceId)
-        )
-    )
+const removePurchaseExpense = async (
+  source,
+  referenceId
+) =>
+  setTransactions(
+    (previousTransactions) =>
+      previousTransactions.filter(
+        (transaction) =>
+          !(
+            transaction.source === source &&
+            String(
+              transaction.referenceId || ""
+            ) === String(referenceId)
+          )
+      )
   );
 
   const savePurchase = async (event) => {
@@ -1300,7 +1676,6 @@ const removePurchaseExpense = async (source, referenceId) =>
         new Date().toISOString().slice(0, 10),
   
       productName: purchaseForm.productName.trim(),
-      productCode: purchaseForm.productCode.trim(),
       billNumber: purchaseForm.billNumber.trim(),
       billImage: purchaseForm.billImage || "",
       category: purchaseForm.category.trim(),
@@ -1338,17 +1713,35 @@ const removePurchaseExpense = async (source, referenceId) =>
       : [...supplierPurchases, cleanPurchase];
   
     const saved = await setSupplierPurchases(nextPurchases);
-  
-    if (!saved) return;
-  
-    notify(
-      editPurchaseId
-        ? "Purchase updated successfully."
-        : "Purchase saved successfully."
-    );
-  
-    setEditPurchaseId(null);
-    closePurchaseModal();
+
+if (!saved) return;
+
+/*
+ * مقدار پرداخت‌شده هنگام خرید را در Finance
+ * به‌عنوان Expense ثبت یا به‌روزرسانی می‌کند.
+ */
+const expenseSaved = await upsertPurchaseExpense(
+  cleanPurchase,
+  "supplier-purchase"
+);
+
+if (!expenseSaved) {
+  notify(
+    "Purchase was saved, but its expense record could not be linked.",
+    "error"
+  );
+  return;
+}
+
+notify(
+  editPurchaseId
+    ? "Purchase and expense updated successfully."
+    : "Purchase and expense saved successfully.",
+  "success"
+);
+
+setEditPurchaseId(null);
+closePurchaseModal();
   };
 
   const openCreatePurchaseModal = () => {
@@ -1360,43 +1753,103 @@ const removePurchaseExpense = async (source, referenceId) =>
   };
 
 const openEditPurchaseModal = (purchase) => {
+  /*
+   * ریکاردهایی که از Asset Movement آمده‌اند
+   * فورم مخصوص خود را دارند.
+   */
   if (purchase.source === "asset-movement") {
     setEditLedgerPurchase(purchase);
+
     setEditLedgerPurchaseForm({
-      purchaseDate: purchase.purchaseDate || "",
-      invoiceNumber: purchase.invoiceNumber || "",
-      quantity: String(purchase.quantity || 1),
-      unitPrice: String(purchase.unitPrice || ""),
-      paidAmount: String(purchase.paidAmount || ""),
+      purchaseDate:
+        purchase.purchaseDate ||
+        purchase.date ||
+        "",
+
+      productName:
+        purchase.productName ||
+        purchase.deviceName ||
+        "",
+
+      category:
+        purchase.category || "",
+
+      invoiceNumber:
+        purchase.invoiceNumber ||
+        purchase.billNumber ||
+        "",
+
+      quantity: String(
+        purchase.quantity || 1
+      ),
+
+      unitPrice: String(
+        purchase.unitPrice || ""
+      ),
+
+      paidAmount: String(
+        purchase.paidAmount || ""
+      ),
+
       notes: purchase.notes || "",
     });
+
     return;
   }
 
   setEditPurchaseId(purchase.id);
 
   setPurchaseForm({
-    purchaseDate: purchase.purchaseDate || "",
-    referenceNumber: purchase.referenceNumber || purchase.purchaseCode || "",
-    invoiceNumber: purchase.invoiceNumber || "",
-    assetId: purchase.assetId || "",
-    deviceName: purchase.deviceName || "",
-    category: purchase.category || "",
-    brand: purchase.brand || "",
-    model: purchase.model || "",
-    macAddress: purchase.macAddress || "",
-    serialNumber: purchase.serialNumber || "",
-    quantity: String(purchase.quantity || 1),
-    unitPrice: String(purchase.unitPrice || ""),
-    paidAmount: String(purchase.paidAmount || ""),
-    remainAmount: String(purchase.remainAmount || ""),
-    location: purchase.location || "Main Stock",
-    status: purchase.status || "In Stock",
-    notes: purchase.notes || "",
+    purchaseDate:
+      purchase.purchaseDate ||
+      purchase.date ||
+      "",
+
+    productName:
+      purchase.productName ||
+      purchase.deviceName ||
+      purchase.assetName ||
+      "",
+
+    productCode:
+      purchase.productCode ||
+      purchase.assetId ||
+      "",
+
+    billNumber:
+      purchase.billNumber ||
+      purchase.invoiceNumber ||
+      "",
+
+    billImage:
+      purchase.billImage || "",
+
+    category:
+      purchase.category || "",
+
+    unit:
+      purchase.unit || "Piece",
+
+    quantity: String(
+      purchase.quantity || 1
+    ),
+
+    unitPrice: String(
+      purchase.unitPrice || 0
+    ),
+
+    paidAmount: String(
+      purchase.paidAmount || 0
+    ),
+
+    notes:
+      purchase.notes || "",
   });
 
   setCategoryMode("select");
   setNewCategory("");
+  setEditingCategoryId(null);
+  setEditingCategoryName("");
   setShowPurchaseModal(true);
 };
 
@@ -1641,96 +2094,83 @@ const confirmDeletePurchase = async () => {
         </>
       )}
 
-      <div className="supplier-dashboard-stats supplier-account-stats">
-        <div className="supplier-dashboard-card">
-          <span>We Owe Supplier</span>
-          <strong>{money(weOweSupplier)} AFN</strong>
-          <p>Remaining payable balance</p>
-        </div>
+  <div className="supplier-all-stats">
+  <div className="supplier-dashboard-card">
+    <span>We Owe Supplier</span>
 
-        <div className="supplier-dashboard-card">
-          <span>Supplier Owes Us</span>
-          <strong>{money(supplierOwesUs)} AFN</strong>
-          <p>Overpaid supplier balance</p>
-        </div>
+    <strong>
+      {money(weOweSupplier)} AFN
+    </strong>
 
+    <p>Remaining payable balance</p>
+  </div>
 
-        <div className="supplier-dashboard-card">
-          <span>Total Paid</span>
-          <strong>{money(totalPaidToSupplier)} AFN</strong>
-          <p>Purchase paid + later payments</p>
-        </div>
-      </div>
+  <div className="supplier-dashboard-card">
+    <span>Supplier Owes Us</span>
 
-      <div className="supplier-mini-stats">
-  <div className="supplier-mini-card">
+    <strong>
+      {money(supplierOwesUs)} AFN
+    </strong>
+
+    <p>Overpaid supplier balance</p>
+  </div>
+
+  <div className="supplier-dashboard-card">
+    <span>Total Paid</span>
+
+    <strong>
+      {money(totalPaidToSupplier)} AFN
+    </strong>
+
+    <p>Purchase paid + later payments</p>
+  </div>
+
+  <div className="supplier-dashboard-card supplier-stat-with-icon">
     <div className="supplier-mini-icon">
       <ShoppingCart size={18} />
     </div>
 
     <div>
       <span>Total Purchases</span>
+
       <strong>{purchases.length}</strong>
-      <small>Purchase records</small>
+
+      <p>Purchase records</p>
     </div>
   </div>
 
-  <div className="supplier-mini-card">
+  <div className="supplier-dashboard-card supplier-stat-with-icon">
     <div className="supplier-mini-icon">
       <Banknote size={18} />
     </div>
 
     <div>
       <span>Purchase Value</span>
-      <strong>{money(totalPurchaseValue)} AFN</strong>
-      <small>Total purchase amount</small>
+
+      <strong>
+        {money(totalPurchaseValue)} AFN
+      </strong>
+
+      <p>Total purchase amount</p>
     </div>
   </div>
 
-  <div className="supplier-mini-card">
+  <div className="supplier-dashboard-card supplier-stat-with-icon">
     <div className="supplier-mini-icon">
       <Boxes size={18} />
     </div>
 
     <div>
       <span>Total Quantity</span>
+
       <strong>{totalQuantity}</strong>
-      <small>All purchased units</small>
-    </div>
-  </div>
 
-  <div className="supplier-mini-card">
-    <div className="supplier-mini-icon">
-      <PackageCheck size={18} />
-    </div>
-
-    <div>
-      <span>Total Remaining</span>
-      <strong>
-        {money(
-          purchases.reduce(
-            (sum, purchase) =>
-              sum + Number(purchase.remainAmount || 0),
-            0
-          )
-        )} AFN
-      </strong>
-      <small>Unpaid purchase amount</small>
-    </div>
-  </div>
-
-  <div className="supplier-mini-card">
-    <div className="supplier-mini-icon">
-      <Calculator size={18} />
-    </div>
-
-    <div>
-      <span>Average Purchase</span>
-      <strong>{money(averagePurchaseValue)} AFN</strong>
-      <small>Average per purchase</small>
+      <p>All purchased units</p>
     </div>
   </div>
 </div>
+
+    
 
       {showSupplierInfo && <div className="supplier-analysis-grid">
         <div className="supplier-analysis-card">
@@ -2101,25 +2541,17 @@ const confirmDeletePurchase = async () => {
     />
   </div>
 
-  <div className="supplier-form-group">
-    <label>Product Code</label>
-    <input
-      name="productCode"
-      value={purchaseForm.productCode}
-      onChange={handlePurchaseChange}
-      placeholder="Enter product code"
-    />
-  </div>
 
-  <div className="supplier-form-group">
-    <label>Bill Number</label>
-    <input
-      name="billNumber"
-      value={purchaseForm.billNumber}
-      onChange={handlePurchaseChange}
-      placeholder="Enter bill number"
-    />
-  </div>
+<div className="supplier-form-group">
+  <label>Bill Number</label>
+
+  <input
+    name="billNumber"
+    value={purchaseForm.billNumber}
+    onChange={handlePurchaseChange}
+    placeholder="Enter bill number (optional)"
+  />
+</div>
 
   <div className="supplier-form-group supplier-form-full">
     <label>Bill Image</label>
@@ -2145,55 +2577,193 @@ const confirmDeletePurchase = async () => {
   </div>
 
   <div className="supplier-form-group supplier-form-full">
-    <div className="supplier-label-row">
-      <label>Category</label>
+  <div className="supplier-label-row">
+    <label>Category</label>
+
+    <button
+      type="button"
+      className="supplier-category-plus"
+      onClick={openAddCategory}
+      title="Add new category"
+      aria-label="Add new category"
+    >
+      +
+    </button>
+  </div>
+
+  {categoryMode === "select" && (
+    <>
+      <select
+        name="category"
+        value={purchaseForm.category}
+        onChange={handleCategoryChange}
+        required
+      >
+        <option value="">
+          Select category
+        </option>
+
+        <optgroup label="Default Categories">
+          {defaultCategories.map(
+            (category) => (
+              <option
+                key={category}
+                value={category}
+              >
+                {category}
+              </option>
+            )
+          )}
+        </optgroup>
+
+        {normalizedCustomCategories.length >
+          0 && (
+          <optgroup label="Custom Categories">
+            {normalizedCustomCategories.map(
+              (category) => (
+                <option
+                  key={category.id}
+                  value={category.name}
+                >
+                  {category.name}
+                </option>
+              )
+            )}
+          </optgroup>
+        )}
+      </select>
+
+      {normalizedCustomCategories.length >
+        0 && (
+        <div className="supplier-category-manager">
+          {normalizedCustomCategories.map(
+            (category) => (
+              <div
+                key={category.id}
+                className="supplier-category-manager-item"
+              >
+                <button
+                  type="button"
+                  className="supplier-category-select-name"
+                  onClick={() =>
+                    setPurchaseForm(
+                      (previous) => ({
+                        ...previous,
+                        category:
+                          category.name,
+                      })
+                    )
+                  }
+                >
+                  {category.name}
+                </button>
+
+                <div>
+                  <button
+                    type="button"
+                    className="supplier-category-edit"
+                    onClick={() =>
+                      openEditCategory(
+                        category
+                      )
+                    }
+                    title="Edit category"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    className="supplier-category-delete"
+                    onClick={() =>
+                      requestDeleteCategory(
+                        category
+                      )
+                    }
+                    title="Delete category"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </>
+  )}
+
+  {categoryMode === "custom" && (
+    <div className="supplier-custom-category">
+      <input
+        value={newCategory}
+        onChange={(event) =>
+          setNewCategory(
+            event.target.value
+          )
+        }
+        placeholder="Enter category name"
+        autoFocus
+      />
 
       <button
         type="button"
-        className="supplier-category-plus"
-        onClick={() => {
-          setCategoryMode("custom");
-          setNewCategory("");
-        }}
-        title="Add category"
+        className="supplier-category-save"
+        onClick={saveCustomCategory}
       >
-        +
+        Save
+      </button>
+
+      <button
+        type="button"
+        className="supplier-category-back"
+        onClick={backToCategorySelect}
+      >
+        Cancel
       </button>
     </div>
+  )}
 
-    {categoryMode === "custom" && (
-      <div className="supplier-custom-category">
-        <input
-          value={newCategory}
-          onChange={(event) => setNewCategory(event.target.value)}
-          placeholder="Enter category name"
-          autoFocus
-        />
+  {categoryMode === "edit" && (
+    <div className="supplier-custom-category">
+      <input
+        value={editingCategoryName}
+        onChange={(event) =>
+          setEditingCategoryName(
+            event.target.value
+          )
+        }
+        placeholder="Edit category name"
+        autoFocus
+      />
 
-        <button
-          type="button"
-          className="supplier-category-save"
-          onClick={saveCustomCategory}
-        >
-          Save
-        </button>
+      <button
+        type="button"
+        className="supplier-category-save"
+        onClick={saveEditedCategory}
+      >
+        Update
+      </button>
 
-        <button
-          type="button"
-          className="supplier-category-back"
-          onClick={backToCategorySelect}
-        >
-          Cancel
-        </button>
-      </div>
-    )}
+      <button
+        type="button"
+        className="supplier-category-back"
+        onClick={backToCategorySelect}
+      >
+        Cancel
+      </button>
+    </div>
+  )}
 
-    {purchaseForm.category && (
-      <div className="supplier-selected-category">
+  {purchaseForm.category && (
+    <div className="supplier-selected-category">
+      Selected category:
+      <strong>
         {purchaseForm.category}
-      </div>
-    )}
-  </div>
+      </strong>
+    </div>
+  )}
+</div>
 
   <div className="supplier-form-group">
     <label>Unit</label>
@@ -2823,6 +3393,51 @@ const confirmDeletePurchase = async () => {
           type="button"
           className="supplier-delete-confirm"
           onClick={confirmDeleteBalance}
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+{deleteCategoryTarget && (
+  <div
+    className="supplier-delete-backdrop"
+    onMouseDown={() =>
+      setDeleteCategoryTarget(null)
+    }
+  >
+    <div
+      className="supplier-delete-modal"
+      onMouseDown={(event) =>
+        event.stopPropagation()
+      }
+    >
+      <h3>Delete Category</h3>
+
+      <p>
+        Are you sure you want to delete
+        <strong>
+          {" "}
+          {deleteCategoryTarget.name}
+        </strong>
+        ?
+      </p>
+
+      <div className="supplier-delete-actions">
+        <button
+          type="button"
+          onClick={() =>
+            setDeleteCategoryTarget(null)
+          }
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="danger"
+          onClick={confirmDeleteCategory}
         >
           Delete
         </button>

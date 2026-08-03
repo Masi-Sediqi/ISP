@@ -3,13 +3,14 @@ const normalizeText = (value) =>
     .trim()
     .toLowerCase();
 
+/**
+ * بررسی می‌کند که کاربر Admin یا Full Admin است یا خیر.
+ */
 export function isAdminUser(user) {
   if (!user) return false;
 
   const role = normalizeText(user.role);
-  const accountType = normalizeText(
-    user.accountType
-  );
+  const accountType = normalizeText(user.accountType);
 
   return (
     user.isDefaultAdmin === true ||
@@ -23,15 +24,16 @@ export function isAdminUser(user) {
   );
 }
 
-export function canViewModule(
-  currentUser,
-  moduleKey
-) {
+/**
+ * بررسی دسترسی کاربر برای دیدن یک بخش.
+ *
+ * مثال:
+ * canViewModule(currentUser, "suppliers")
+ */
+export function canViewModule(currentUser, moduleKey) {
   if (!currentUser) return false;
 
-  /*
-   * Admin و Full Admin تمام صفحات را می‌بینند.
-   */
+  // Admin و Full Admin تمام بخش‌ها را می‌بینند.
   if (isAdminUser(currentUser)) {
     return true;
   }
@@ -39,10 +41,18 @@ export function canViewModule(
   const permission =
     currentUser.permissions?.[moduleKey];
 
+  // حالت ساده:
+  // permissions: { suppliers: true }
   if (permission === true) {
     return true;
   }
 
+  // حالت آبجکت:
+  // permissions: {
+  //   suppliers: {
+  //     view: true
+  //   }
+  // }
   if (
     permission &&
     typeof permission === "object"
@@ -57,6 +67,13 @@ export function canViewModule(
   return false;
 }
 
+/**
+ * بررسی یک عملیات مشخص مانند:
+ * create
+ * edit
+ * delete
+ * view
+ */
 export function canPerformAction(
   currentUser,
   moduleKey,
@@ -64,9 +81,7 @@ export function canPerformAction(
 ) {
   if (!currentUser) return false;
 
-  /*
-   * Admin تمام عملیات را انجام داده می‌تواند.
-   */
+  // Admin تمام عملیات را انجام داده می‌تواند.
   if (isAdminUser(currentUser)) {
     return true;
   }
@@ -74,6 +89,8 @@ export function canPerformAction(
   const permission =
     currentUser.permissions?.[moduleKey];
 
+  // مثال:
+  // permissions: { suppliers: true }
   if (permission === true) {
     return true;
   }
@@ -85,8 +102,62 @@ export function canPerformAction(
     return false;
   }
 
-  return (
-    permission.all === true ||
-    permission[action] === true
+  if (permission.all === true) {
+    return true;
+  }
+
+  return permission[action] === true;
+}
+
+/**
+ * این تابع برای صفحات قدیمی‌تر پروژه استفاده می‌شود.
+ *
+ * مثال:
+ * hasPermission(currentUser, "suppliers", "create")
+ */
+export function hasPermission(
+  currentUser,
+  moduleKey,
+  action = "view"
+) {
+  if (!currentUser) return false;
+
+  // Admin همیشه دسترسی دارد.
+  if (isAdminUser(currentUser)) {
+    return true;
+  }
+
+  /*
+   * نام‌های مشابه دسترسی‌ها:
+   * create = add = new
+   * edit = update
+   * delete = remove
+   * view = read
+   */
+  const aliases = {
+    create: ["create", "add", "new"],
+    add: ["add", "create", "new"],
+    new: ["new", "create", "add"],
+
+    edit: ["edit", "update"],
+    update: ["update", "edit"],
+
+    delete: ["delete", "remove"],
+    remove: ["remove", "delete"],
+
+    view: ["view", "read"],
+    read: ["read", "view"],
+  };
+
+  const allowedActions =
+    aliases[action] || [action];
+
+  return allowedActions.some(
+    (permissionAction) =>
+      canPerformAction(
+        currentUser,
+        moduleKey,
+        permissionAction
+      )
   );
 }
