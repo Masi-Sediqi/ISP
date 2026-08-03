@@ -663,15 +663,15 @@ function Header({ currentUser, onLogout }) {
       <div className="header-search global-search" ref={searchRef}>
         <Search size={17} />
         <input
-          placeholder="Search MAC, Serial, Asset ID, Customer, Tower, Supplier..."
-          aria-label="Search system"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setOpenSearch(true);
-          }}
-          onFocus={() => setOpenSearch(true)}
-        />
+  placeholder="Search Customer Name, Project, Payment, Supplier..."
+  aria-label="Search customers, projects, payments and suppliers"
+  value={query}
+  onChange={(event) => {
+    setQuery(event.target.value);
+    setOpenSearch(true);
+  }}
+  onFocus={() => setOpenSearch(true)}
+/>
 
         {openSearch && query.trim().length >= 2 && (
           <div className="global-search-results">
@@ -680,18 +680,7 @@ function Header({ currentUser, onLogout }) {
               <span>{searchResults.length} result(s)</span>
             </div>
 
-            <div className="global-search-filters">
-              {["All", "Asset", "Customer", "Tower", "Supplier"].map((filter) => (
-                <button
-                  type="button"
-                  key={filter}
-                  className={resultFilter === filter ? "active" : ""}
-                  onClick={() => setResultFilter(filter)}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
+         
 
             {searchResults.map((result) => (
               <button
@@ -713,8 +702,9 @@ function Header({ currentUser, onLogout }) {
 
             {!searchResults.length && (
               <div className="global-search-empty">
-                No exact result found. Try a partial MAC, serial number, asset ID, customer, tower, or supplier name.
-              </div>
+  No matching record found. Try a customer name, project,
+  payment, phone number, or supplier name.
+</div>
             )}
           </div>
         )}
