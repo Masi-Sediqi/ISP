@@ -1,21 +1,17 @@
 import { useMemo, useState } from "react";
 import {
-  AlertTriangle,
   ArrowRight,
   BriefcaseBusiness,
   CalendarDays,
   Clapperboard,
   Cpu,
-  Eye,
   GraduationCap,
   Mail,
-  Pencil,
   MapPin,
   Phone,
   Plane,
   Plus,
   Search,
-  Trash2,
   UserRound,
   Users,
   X,
@@ -190,15 +186,6 @@ export default function Reception({ currentUser }) {
     useState("");
 
   const [search, setSearch] = useState("");
-
-  const [editingCustomerId, setEditingCustomerId] =
-    useState(null);
-
-  const [viewCustomer, setViewCustomer] =
-    useState(null);
-
-  const [deleteCustomer, setDeleteCustomer] =
-    useState(null);
 
   const [assignTarget, setAssignTarget] =
   useState(null);
@@ -409,108 +396,18 @@ async function saveCustomerAssignment(event) {
 
   function openAddForm() {
     resetForms();
-    setEditingCustomerId(null);
     setRegistrationType("consultant");
     setShowForm(true);
   }
 
   function closeForm() {
     setShowForm(false);
-    setEditingCustomerId(null);
     resetForms();
   }
 
   function selectRegistrationType(type) {
-    if (editingCustomerId) return;
-
     setRegistrationType(type);
     resetForms();
-  }
-
-  function openEditCustomer(customer) {
-    const type = String(customer.customerType || "consultant").toLowerCase();
-
-    setEditingCustomerId(customer.id);
-    setRegistrationType(type);
-
-    if (type === "travel") {
-      setTravelForm({
-        ...createTravelForm(),
-        fullName: customer.fullName || customer.customerName || "",
-        phone: customer.phone || customer.contactNumber || "",
-        source:
-          customer.source ||
-          (customer.sourceEmployeeName === "External Customer"
-            ? ""
-            : customer.sourceEmployeeName) ||
-          "",
-        assignedEmployeeId: customer.assignedEmployeeId || "",
-        assignedEmployeeName: customer.assignedEmployeeName || "",
-        purpose: customer.purpose || "",
-        date: customer.date || customer.createdAt?.slice(0, 10) || today(),
-      });
-    } else if (type === "technology") {
-      setTechnologyForm({
-        ...createTechnologyForm(),
-        fullName: customer.fullName || customer.customerName || "",
-        companyName: customer.companyName || "",
-        contactNumber: customer.contactNumber || customer.phone || "",
-        technologyPurpose:
-          customer.technologyPurpose || customer.purpose || "Website",
-        source:
-          customer.source ||
-          (customer.sourceEmployeeName === "External Customer"
-            ? ""
-            : customer.sourceEmployeeName) ||
-          "",
-        assignedEmployeeId: customer.assignedEmployeeId || "",
-        assignedEmployeeName: customer.assignedEmployeeName || "",
-        note: customer.note || customer.notes || "",
-        date: customer.date || customer.createdAt?.slice(0, 10) || today(),
-      });
-    } else {
-      setConsultantForm({
-        ...createConsultantForm(),
-        fullName:
-          customer.fullName ||
-          customer.passportFullName ||
-          customer.customerName ||
-          "",
-        phone: customer.phone || customer.contactNumber || "",
-        educationalLevel:
-          customer.educationalLevel || customer.educationLevel || "",
-        schoolUniversity:
-          customer.schoolUniversity || customer.institutionName || "",
-        email: customer.email || "",
-        source:
-          customer.source ||
-          (customer.sourceEmployeeName === "External Customer"
-            ? ""
-            : customer.sourceEmployeeName) ||
-          "",
-        assignedEmployeeId: customer.assignedEmployeeId || "",
-        assignedEmployeeName: customer.assignedEmployeeName || "",
-        purpose: customer.purpose || "",
-        date: customer.date || customer.createdAt?.slice(0, 10) || today(),
-      });
-    }
-
-    setShowForm(true);
-  }
-
-  async function confirmDeleteCustomer() {
-    if (!deleteCustomer) return;
-
-    const nextCustomers = customers.filter(
-      (customer) => String(customer.id) !== String(deleteCustomer.id)
-    );
-
-    const saved = await setCustomers(nextCustomers);
-    if (!saved) return;
-
-    notify("Customer deleted successfully.", "success");
-    setDeleteCustomer(null);
-    setViewCustomer(null);
   }
 
   function updateConsultantField(event) {
@@ -683,7 +580,10 @@ async function saveCustomerAssignment(event) {
 
   async function saveConsultantCustomer() {
     if (!consultantForm.fullName.trim()) {
-      notify("Full name in passport is required.", "error");
+      notify(
+        "Full name in passport is required.",
+        "error"
+      );
       return;
     }
 
@@ -692,62 +592,60 @@ async function saveCustomerAssignment(event) {
       return;
     }
 
-    const existingCustomer = editingCustomerId
-      ? customers.find(
-          (customer) =>
-            String(customer.id) === String(editingCustomerId)
-        )
-      : null;
-
-    const now = new Date().toISOString();
-
     const record = {
-      ...(existingCustomer || {}),
-      id: editingCustomerId || createId(),
+      id: createId(),
+
       fullName: consultantForm.fullName.trim(),
-      passportFullName: consultantForm.fullName.trim(),
+      passportFullName:
+        consultantForm.fullName.trim(),
       customerName: consultantForm.fullName.trim(),
+
       phone: consultantForm.phone.trim(),
-      educationalLevel: consultantForm.educationalLevel,
-      schoolUniversity: consultantForm.schoolUniversity,
+      educationalLevel:
+        consultantForm.educationalLevel,
+      schoolUniversity:
+        consultantForm.schoolUniversity,
       email: consultantForm.email.trim(),
+
       source: consultantForm.source.trim(),
-      assignedEmployeeId: consultantForm.assignedEmployeeId,
-      assignedEmployeeName: consultantForm.assignedEmployeeName,
+      assignedEmployeeId:
+        consultantForm.assignedEmployeeId,
+      assignedEmployeeName:
+        consultantForm.assignedEmployeeName,
+
       purpose: consultantForm.purpose.trim(),
       date: consultantForm.date,
+
       customerType: "consultant",
       specializedCustomer: true,
-      registeredFrom: existingCustomer?.registeredFrom || "reception",
-      sourceEmployeeId: consultantForm.source
-        ? employeeOptions.find(
-            (employee) =>
-              getEmployeeName(employee) === consultantForm.source
-          )?.id || ""
-        : "",
+      registeredFrom: "reception",
+
+      sourceEmployeeId:
+        consultantForm.source
+          ? employeeOptions.find(
+              employee =>
+                getEmployeeName(employee) === consultantForm.source
+            )?.id || ""
+          : "",
+
       sourceEmployeeName:
         consultantForm.source || "External Customer",
       createdByAccountId:
-        existingCustomer?.createdByAccountId || currentUser?.id || "",
-      createdAt: existingCustomer?.createdAt || now,
-      updatedAt: now,
+        currentUser?.id || "",
+
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    const nextCustomers = editingCustomerId
-      ? customers.map((customer) =>
-          String(customer.id) === String(editingCustomerId)
-            ? record
-            : customer
-        )
-      : [...customers, record];
+    const saved = await setCustomers([
+      ...customers,
+      record,
+    ]);
 
-    const saved = await setCustomers(nextCustomers);
     if (!saved) return;
 
     notify(
-      editingCustomerId
-        ? "Consultant customer updated successfully."
-        : "Consultant customer registered successfully.",
+      "Consultant customer registered successfully.",
       "success"
     );
 
@@ -756,7 +654,10 @@ async function saveCustomerAssignment(event) {
 
   async function saveTravelCustomer() {
     if (!travelForm.fullName.trim()) {
-      notify("Full name in passport is required.", "error");
+      notify(
+        "Full name in passport is required.",
+        "error"
+      );
       return;
     }
 
@@ -765,59 +666,56 @@ async function saveCustomerAssignment(event) {
       return;
     }
 
-    const existingCustomer = editingCustomerId
-      ? customers.find(
-          (customer) =>
-            String(customer.id) === String(editingCustomerId)
-        )
-      : null;
-
-    const now = new Date().toISOString();
-
     const record = {
-      ...(existingCustomer || {}),
-      id: editingCustomerId || createId(),
+      id: createId(),
+
       fullName: travelForm.fullName.trim(),
-      passportFullName: travelForm.fullName.trim(),
+      passportFullName:
+        travelForm.fullName.trim(),
       customerName: travelForm.fullName.trim(),
+
       phone: travelForm.phone.trim(),
       source: travelForm.source.trim(),
-      assignedEmployeeId: travelForm.assignedEmployeeId,
-      assignedEmployeeName: travelForm.assignedEmployeeName,
+
+      assignedEmployeeId:
+        travelForm.assignedEmployeeId,
+      assignedEmployeeName:
+        travelForm.assignedEmployeeName,
+
       purpose: travelForm.purpose.trim(),
       date: travelForm.date,
+
       customerType: "travel",
       specializedCustomer: true,
-      registeredFrom: existingCustomer?.registeredFrom || "reception",
-      sourceEmployeeId: travelForm.source
-        ? employeeOptions.find(
-            (employee) =>
-              getEmployeeName(employee) === travelForm.source
-          )?.id || ""
-        : "",
-      sourceEmployeeName:
-        travelForm.source || "External Customer",
+      registeredFrom: "reception",
+
+      sourceEmployeeId:
+  travelForm.source
+    ? employeeOptions.find(
+        employee =>
+          getEmployeeName(employee) === travelForm.source
+      )?.id || ""
+    : "",
+
+sourceEmployeeName:
+  travelForm.source || "External Customer",
+
       createdByAccountId:
-        existingCustomer?.createdByAccountId || currentUser?.id || "",
-      createdAt: existingCustomer?.createdAt || now,
-      updatedAt: now,
+        currentUser?.id || "",
+
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    const nextCustomers = editingCustomerId
-      ? customers.map((customer) =>
-          String(customer.id) === String(editingCustomerId)
-            ? record
-            : customer
-        )
-      : [...customers, record];
+    const saved = await setCustomers([
+      ...customers,
+      record,
+    ]);
 
-    const saved = await setCustomers(nextCustomers);
     if (!saved) return;
 
     notify(
-      editingCustomerId
-        ? "Travel customer updated successfully."
-        : "Travel customer registered successfully.",
+      "Travel customer registered successfully.",
       "success"
     );
 
@@ -835,63 +733,70 @@ async function saveCustomerAssignment(event) {
       return;
     }
 
-    const existingCustomer = editingCustomerId
-      ? customers.find(
-          (customer) =>
-            String(customer.id) === String(editingCustomerId)
-        )
-      : null;
-
-    const now = new Date().toISOString();
-
     const record = {
-      ...(existingCustomer || {}),
-      id: editingCustomerId || createId(),
+      id: createId(),
+
       fullName: technologyForm.fullName.trim(),
-      customerName: technologyForm.fullName.trim(),
-      companyName: technologyForm.companyName.trim(),
-      contactNumber: technologyForm.contactNumber.trim(),
-      phone: technologyForm.contactNumber.trim(),
-      technologyPurpose: technologyForm.technologyPurpose,
-      purpose: technologyForm.technologyPurpose,
+      customerName:
+        technologyForm.fullName.trim(),
+
+      companyName:
+        technologyForm.companyName.trim(),
+
+      contactNumber:
+        technologyForm.contactNumber.trim(),
+
+      phone:
+        technologyForm.contactNumber.trim(),
+
+      technologyPurpose:
+        technologyForm.technologyPurpose,
+
+      purpose:
+        technologyForm.technologyPurpose,
+
       source: technologyForm.source.trim(),
-      assignedEmployeeId: technologyForm.assignedEmployeeId,
-      assignedEmployeeName: technologyForm.assignedEmployeeName,
+
+      assignedEmployeeId:
+        technologyForm.assignedEmployeeId,
+
+      assignedEmployeeName:
+        technologyForm.assignedEmployeeName,
+
       note: technologyForm.note.trim(),
       notes: technologyForm.note.trim(),
       date: technologyForm.date,
+
       customerType: "technology",
       specializedCustomer: true,
-      registeredFrom: existingCustomer?.registeredFrom || "reception",
-      sourceEmployeeId: technologyForm.source
+      registeredFrom: "reception",
+      sourceEmployeeId:
+      travelForm.source
         ? employeeOptions.find(
-            (employee) =>
-              getEmployeeName(employee) === technologyForm.source
+            employee =>
+              getEmployeeName(employee) === travelForm.source
           )?.id || ""
         : "",
-      sourceEmployeeName:
-        technologyForm.source || "External Customer",
+    
+    sourceEmployeeName:
+      travelForm.source || "External Customer",
+
       createdByAccountId:
-        existingCustomer?.createdByAccountId || currentUser?.id || "",
-      createdAt: existingCustomer?.createdAt || now,
-      updatedAt: now,
+        currentUser?.id || "",
+
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    const nextCustomers = editingCustomerId
-      ? customers.map((customer) =>
-          String(customer.id) === String(editingCustomerId)
-            ? record
-            : customer
-        )
-      : [...customers, record];
+    const saved = await setCustomers([
+      ...customers,
+      record,
+    ]);
 
-    const saved = await setCustomers(nextCustomers);
     if (!saved) return;
 
     notify(
-      editingCustomerId
-        ? "Technology customer updated successfully."
-        : "Technology customer registered successfully.",
+      "Technology customer registered successfully.",
       "success"
     );
 
@@ -1039,7 +944,6 @@ async function saveCustomerAssignment(event) {
                 <th>Assigned To</th>
                 <th>Purpose</th>
                 <th>Date</th>
-                <th>Action</th>
               </tr>
             </thead>
 
@@ -1120,27 +1024,25 @@ async function saveCustomerAssignment(event) {
                   </td>
 
                   <td>
-                    <CalendarDays size={14} />
-                    {customer.date
-                      ? new Date(`${customer.date}T00:00:00`).toLocaleDateString()
-                      : customer.createdAt
-                        ? new Date(customer.createdAt).toLocaleDateString()
-                        : "-"}
-                  </td>
-                  <td>
-                    <div className="reception-row-actions">
-                      <button type="button" className="view" onClick={() => setViewCustomer(customer)} title="View customer"><Eye size={14} /></button>
-                      <button type="button" className="edit" onClick={() => openEditCustomer(customer)} title="Edit customer"><Pencil size={14} /></button>
-                      <button type="button" className="delete" onClick={() => setDeleteCustomer(customer)} title="Delete customer"><Trash2 size={14} /></button>
-                    </div>
-                  </td>
+  <CalendarDays size={14} />
+
+  {customer.date
+    ? new Date(
+        `${customer.date}T00:00:00`
+      ).toLocaleDateString()
+    : customer.createdAt
+      ? new Date(
+          customer.createdAt
+        ).toLocaleDateString()
+      : "-"}
+</td>
                 </tr>
               ))}
 
               {!receptionCustomers.length && (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="7"
                     className="reception-empty"
                   >
                     No reception customers registered
@@ -1392,77 +1294,6 @@ async function saveCustomerAssignment(event) {
   </div>
 )}
 
-      {viewCustomer && (
-        <div className="reception-modal-backdrop" onMouseDown={() => setViewCustomer(null)}>
-          <div className="reception-view-modal" onMouseDown={(event) => event.stopPropagation()}>
-            <header className="reception-view-header">
-              <div>
-                <span>Customer Information</span>
-                <h2>{viewCustomer.fullName || viewCustomer.customerName || "Customer Details"}</h2>
-                <p>Complete information for this customer record.</p>
-              </div>
-              <button type="button" onClick={() => setViewCustomer(null)}><X size={18} /></button>
-            </header>
-
-            <div className="reception-view-grid">
-              {[
-                ["Customer Name", viewCustomer.fullName || viewCustomer.customerName],
-                ["Phone Number", viewCustomer.phone || viewCustomer.contactNumber],
-                ["Customer Type", viewCustomer.customerType],
-                ["Source", viewCustomer.sourceEmployeeName || viewCustomer.source || "External Customer"],
-                ["Assigned To", viewCustomer.assignedEmployeeName || "Unassigned"],
-                ["Email", viewCustomer.email],
-                ["Education", viewCustomer.educationalLevel || viewCustomer.educationLevel],
-                ["School / University", viewCustomer.schoolUniversity || viewCustomer.institutionName],
-                ["Company Name", viewCustomer.companyName],
-                ["Purpose", viewCustomer.technologyPurpose || viewCustomer.purpose],
-                ["Registered Date", viewCustomer.date || viewCustomer.createdAt?.slice(0, 10)],
-                ["Registered Time", viewCustomer.createdAt ? new Date(viewCustomer.createdAt).toLocaleTimeString() : ""],
-                ["Notes", viewCustomer.note || viewCustomer.notes],
-              ].map(([label, value]) => (
-                <div key={label} className={label === "Purpose" || label === "Notes" ? "reception-view-full" : ""}>
-                  <span>{label}</span>
-                  <strong>{value || "-"}</strong>
-                </div>
-              ))}
-            </div>
-
-            <footer className="reception-view-actions">
-              <button type="button" onClick={() => setViewCustomer(null)}>Close</button>
-              <button type="button" className="primary" onClick={() => {
-                const customer = viewCustomer;
-                setViewCustomer(null);
-                openEditCustomer(customer);
-              }}>
-                <Pencil size={15} />
-                Edit Customer
-              </button>
-            </footer>
-          </div>
-        </div>
-      )}
-
-      {deleteCustomer && (
-        <div className="reception-modal-backdrop" onMouseDown={() => setDeleteCustomer(null)}>
-          <div className="reception-delete-modal" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="reception-delete-icon"><AlertTriangle size={27} /></div>
-            <h2>Delete Customer?</h2>
-            <p>
-              You are about to permanently delete{" "}
-              <strong>{deleteCustomer.fullName || deleteCustomer.customerName || "this customer"}</strong>.
-              This action cannot be undone.
-            </p>
-            <div className="reception-delete-actions">
-              <button type="button" onClick={() => setDeleteCustomer(null)}>Cancel</button>
-              <button type="button" className="danger" onClick={confirmDeleteCustomer}>
-                <Trash2 size={15} />
-                Delete Customer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showForm && (
         <div
           className="reception-modal-backdrop"
@@ -1517,7 +1348,6 @@ async function saveCustomerAssignment(event) {
                         onClick={() =>
                           selectRegistrationType(type.key)
                         }
-                        disabled={Boolean(editingCustomerId)}
                       >
                         <Icon size={18} />
 
@@ -2194,11 +2024,9 @@ async function saveCustomerAssignment(event) {
                 <button type="submit">
                   <Plus size={15} />
 
-                  {editingCustomerId
-                    ? "Update Customer"
-                    : registrationType === "media"
-                      ? "Save Media Product"
-                      : "Register Customer"}
+                  {registrationType === "media"
+                    ? "Save Media Product"
+                    : "Register Customer"}
                 </button>
               </div>
             </form>

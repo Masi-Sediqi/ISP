@@ -59,7 +59,60 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
   const [towerAssets] = useJsonCollection("towerAssets");
   const [securityDeposits] = useJsonCollection("securityDeposits");
   const [customerPackages] = useJsonCollection("customerPackages");
+  const [customers] =
+  useJsonCollection("customers");
   const today = todayDateValue();
+
+  const currentUserIds = [
+  currentUser?.id,
+  currentUser?.employeeId,
+  currentUser?.accountId,
+]
+  .filter(Boolean)
+  .map((value) => String(value));
+
+const currentUserNames = [
+  currentUser?.fullName,
+  currentUser?.username,
+  currentUser?.email,
+]
+  .filter(Boolean)
+  .map((value) =>
+    String(value).trim().toLowerCase()
+  );
+
+const assignedCustomers = customers.filter(
+  (customer) => {
+    const assignedEmployeeId = String(
+      customer.assignedEmployeeId || ""
+    );
+
+    const assignedAccountId = String(
+      customer.assignedAccountId || ""
+    );
+
+    const assignedEmployeeName = String(
+      customer.assignedEmployeeName || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    return (
+      currentUserIds.includes(
+        assignedEmployeeId
+      ) ||
+      currentUserIds.includes(
+        assignedAccountId
+      ) ||
+      currentUserNames.includes(
+        assignedEmployeeName
+      )
+    );
+  }
+);
+
+const assignedCustomerCount =
+  assignedCustomers.length;
 
   const damagedOrLostAssets = assets.filter((asset) =>
     ["Damaged", "Lost"].includes(asset.status)
@@ -232,19 +285,20 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
               <small>Expired customer packages: {expiredCustomerPackages.length}</small>
             </div>
 
-           <Link
-  to={
-    currentUser?.accountType === "employee"
-      ? "/my-account"
-      : currentUser?.employeeId
-        ? "/my-account"
-        : "/settings"
-  }
+          <Link
+  to="/my-account"
   className="dropdown-action profile-account-link"
   onClick={() => setOpenMenu(null)}
 >
   <User size={15} />
-  My Account
+
+  <span>My Account</span>
+
+  {assignedCustomerCount > 0 && (
+    <b className="profile-account-count">
+      ({assignedCustomerCount})
+    </b>
+  )}
 </Link>
 
 <button
@@ -362,9 +416,13 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
   <div className="notification-dropdown-title">
     <strong>Notifications</strong>
 
-    {alertCount > 0 && (
-      <span>{alertCount}</span>
-    )}
+   {assignedCustomerCount > 0 && (
+  <span className="account-request-badge">
+    {assignedCustomerCount > 99
+      ? "99+"
+      : assignedCustomerCount}
+  </span>
+)}
   </div>
 
   <div className="notification-header-actions">
@@ -441,12 +499,27 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
 
         <div className="header-menu profile-menu">
           <button
-            className="profile-btn"
-            onClick={() => setOpenMenu(openMenu === "profile" ? null : "profile")}
-            aria-label="Profile"
-          >
-          <User size={21} strokeWidth={1.9} />
-          </button>
+  className="profile-btn account-profile-btn"
+  onClick={() =>
+    setOpenMenu(
+      openMenu === "profile"
+        ? null
+        : "profile"
+    )
+  }
+  aria-label="Profile"
+  type="button"
+>
+  <User size={21} strokeWidth={1.9} />
+
+  {assignedCustomerCount > 0 && (
+    <span className="account-request-badge">
+      {assignedCustomerCount > 99
+        ? "99+"
+        : assignedCustomerCount}
+    </span>
+  )}
+</button>
 
           {openMenu === "profile" && (
   <div className="dropdown profile-dropdown">
@@ -462,17 +535,20 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
     </p>
 
     <Link
-      to={
-        currentUser?.employeeId
-          ? `/employees/${currentUser.employeeId}`
-          : "/settings"
-      }
-      className="dropdown-action profile-account-link"
-      onClick={() => setOpenMenu(null)}
-    >
-      <User size={15} />
-      My Account
-    </Link>
+  to="/my-account"
+  className="dropdown-action profile-account-link"
+  onClick={() => setOpenMenu(null)}
+>
+  <User size={15} />
+
+  <span>My Account</span>
+
+  {assignedCustomerCount > 0 && (
+    <b className="profile-account-count">
+      ({assignedCustomerCount})
+    </b>
+  )}
+</Link>
 
     <button
       className="dropdown-logout"

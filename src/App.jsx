@@ -165,7 +165,10 @@ function App() {
   const [settings, , loadSettings] = useJsonCollection("settings");
   const [accounts, setAccounts, , accountsLoaded] = useJsonCollection("accounts");
   const [employees] =
-  useJsonCollection("employees");
+    useJsonCollection("employees");
+    const [customers] =
+  useJsonCollection("customers");
+  
   const [sidebarInfoOpen, setSidebarInfoOpen] = useState(false);
   const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
@@ -180,104 +183,165 @@ function App() {
   const effectiveAccounts = accounts.some((account) => String(account.id) === "default-admin")
     ? accounts
     : [defaultAdminAccount, ...accounts];
-const signedInAccount = effectiveAccounts.find(
-  (account) =>
-    String(account.id) === String(sessionId)
-);
+  const signedInAccount = effectiveAccounts.find(
+    (account) =>
+      String(account.id) === String(sessionId)
+  );
 
-const linkedEmployee = employees.find(
-  (employee) =>
-    String(employee.id) ===
-    String(signedInAccount?.employeeId)
-);
+  const linkedEmployee = employees.find(
+    (employee) =>
+      String(employee.id) ===
+      String(signedInAccount?.employeeId)
+  );
 
-const linkedEmployeeRoles = Array.isArray(
-  linkedEmployee?.roles
-)
-  ? linkedEmployee.roles
-  : linkedEmployee?.role
-    ? [linkedEmployee.role]
-    : [];
+  const linkedEmployeeRoles = Array.isArray(
+    linkedEmployee?.roles
+  )
+    ? linkedEmployee.roles
+    : linkedEmployee?.role
+      ? [linkedEmployee.role]
+      : [];
 
-const employeeHasAdminRole =
-  linkedEmployeeRoles.some((role) => {
-    const normalizedRole = String(role || "")
-      .trim()
-      .toLowerCase();
+  const employeeHasAdminRole =
+    linkedEmployeeRoles.some((role) => {
+      const normalizedRole = String(role || "")
+        .trim()
+        .toLowerCase();
 
-    return (
-      normalizedRole === "admin" ||
-      normalizedRole === "full admin" ||
-      normalizedRole === "administrator"
-    );
-  });
+      return (
+        normalizedRole === "admin" ||
+        normalizedRole === "full admin" ||
+        normalizedRole === "administrator"
+      );
+    });
 
-const accountRole = String(
-  signedInAccount?.role || ""
-)
-  .trim()
-  .toLowerCase();
+  const accountRole = String(
+    signedInAccount?.role || ""
+  )
+    .trim()
+    .toLowerCase();
 
-const accountHasAdminRole =
-  signedInAccount?.isDefaultAdmin === true ||
-  signedInAccount?.isAdmin === true ||
-  signedInAccount?.isFullAdmin === true ||
-  signedInAccount?.permissions?.all === true ||
-  signedInAccount?.accountType === "admin" ||
-  accountRole === "admin" ||
-  accountRole === "full admin" ||
-  accountRole === "administrator";
+  const accountHasAdminRole =
+    signedInAccount?.isDefaultAdmin === true ||
+    signedInAccount?.isAdmin === true ||
+    signedInAccount?.isFullAdmin === true ||
+    signedInAccount?.permissions?.all === true ||
+    signedInAccount?.accountType === "admin" ||
+    accountRole === "admin" ||
+    accountRole === "full admin" ||
+    accountRole === "administrator";
 
-const isAdminAccount =
-  accountHasAdminRole ||
-  employeeHasAdminRole;
+  const isAdminAccount =
+    accountHasAdminRole ||
+    employeeHasAdminRole;
 
-/*
- * کاربر نهایی سیستم:
- * اگر کارمند نقش Admin یا Full Admin داشته باشد،
- * حساب او به‌صورت خودکار حساب Admin در نظر گرفته می‌شود.
- */
-const currentUser = signedInAccount
-  ? {
+  /*
+   * کاربر نهایی سیستم:
+   * اگر کارمند نقش Admin یا Full Admin داشته باشد،
+   * حساب او به‌صورت خودکار حساب Admin در نظر گرفته می‌شود.
+   */
+  const currentUser = signedInAccount
+    ? {
       ...signedInAccount,
 
       ...(isAdminAccount
         ? {
-            role: "Admin",
-            accountType: "admin",
-            isAdmin: true,
-            isFullAdmin: true,
+          role: "Admin",
+          accountType: "admin",
+          isAdmin: true,
+          isFullAdmin: true,
 
-            permissions: {
-              ...(signedInAccount.permissions || {}),
-              all: true,
-            },
-          }
+          permissions: {
+            ...(signedInAccount.permissions || {}),
+            all: true,
+          },
+        }
         : {}),
     }
-  : null;
+    : null;
 
-/*
- * فقط کارمند عادی باید EmployeeDashboard را ببیند.
- * Admin و Full Admin وارد داشبورد عمومی سیستم می‌شوند.
- */
-const currentUserRoles = Array.isArray(currentUser?.roles)
-  ? currentUser.roles
-  : currentUser?.primaryRole
-    ? [currentUser.primaryRole]
-    : linkedEmployeeRoles;
 
-const isReceptionAccount = currentUserRoles.some(
-  (role) =>
-    String(role || "")
+    const currentAccountIds = [
+  currentUser?.id,
+  currentUser?.employeeId,
+  linkedEmployee?.id,
+  linkedEmployee?.employeeId,
+]
+  .filter(Boolean)
+  .map((value) => String(value));
+
+const currentAccountNames = [
+  currentUser?.fullName,
+  currentUser?.username,
+  currentUser?.email,
+  linkedEmployee?.fullName,
+  linkedEmployee?.email,
+]
+  .filter(Boolean)
+  .map((value) =>
+    String(value).trim().toLowerCase()
+  );
+
+const myAssignedCustomers = customers
+  .filter((customer) => {
+    const assignedIds = [
+      customer.assignedEmployeeId,
+      customer.assignedAccountId,
+    ]
+      .filter(Boolean)
+      .map((value) => String(value));
+
+    const assignedName = String(
+      customer.assignedEmployeeName || ""
+    )
       .trim()
-      .toLowerCase() === "reception"
-);
+      .toLowerCase();
 
-const isEmployeeAccount =
-  currentUser?.accountType === "employee" &&
-  !isAdminAccount &&
-  !isReceptionAccount;
+    return (
+      assignedIds.some((assignedId) =>
+        currentAccountIds.includes(assignedId)
+      ) ||
+      currentAccountNames.includes(
+        assignedName
+      )
+    );
+  })
+  .sort(
+    (first, second) =>
+      new Date(
+        second.assignedAt ||
+          second.updatedAt ||
+          second.createdAt ||
+          0
+      ) -
+      new Date(
+        first.assignedAt ||
+          first.updatedAt ||
+          first.createdAt ||
+          0
+      )
+  );
+  /*
+   * فقط کارمند عادی باید EmployeeDashboard را ببیند.
+   * Admin و Full Admin وارد داشبورد عمومی سیستم می‌شوند.
+   */
+  const currentUserRoles = Array.isArray(currentUser?.roles)
+    ? currentUser.roles
+    : currentUser?.primaryRole
+      ? [currentUser.primaryRole]
+      : linkedEmployeeRoles;
+
+  const isReceptionAccount = currentUserRoles.some(
+    (role) =>
+      String(role || "")
+        .trim()
+        .toLowerCase() === "reception"
+  );
+
+  const isEmployeeAccount =
+    currentUser?.accountType === "employee" &&
+    !isAdminAccount &&
+    !isReceptionAccount;
 
   useEffect(() => {
     const receptionAllowedPaths = [
@@ -302,14 +366,14 @@ const employeeAllowedPaths = [
   "/team-chat",
 ];
 
-if (
-  isEmployeeAccount &&
-  !employeeAllowedPaths.includes(
-    location.pathname
-  )
-) {
-  window.location.hash = "#/";
-}
+    if (
+      isEmployeeAccount &&
+      !employeeAllowedPaths.includes(
+        location.pathname
+      )
+    ) {
+      window.location.hash = "#/";
+    }
   }, [
     isReceptionAccount,
     isEmployeeAccount,
@@ -498,42 +562,42 @@ if (
               </NavLink>
             )}
 
-                {!isEmployeeAccount &&
-                !isReceptionAccount &&
-                canViewModule(currentUser, "customers") && (
-              <div className={`sidebar-customer-menu ${customerMenuOpen ? "open" : ""}`}>
-                <button
-                  type="button"
-                  className="sidebar-customer-trigger"
-                  onClick={() => setCustomerMenuOpen((open) => !open)}
-                  aria-expanded={customerMenuOpen}
-                >
-                  <span className="sidebar-menu-label">
-                    <Users size={17} />
-                    <span>Customers</span>
-                  </span>
-                  <ChevronDown className="sidebar-menu-chevron" size={15} />
-                </button>
+            {!isEmployeeAccount &&
+              !isReceptionAccount &&
+              canViewModule(currentUser, "customers") && (
+                <div className={`sidebar-customer-menu ${customerMenuOpen ? "open" : ""}`}>
+                  <button
+                    type="button"
+                    className="sidebar-customer-trigger"
+                    onClick={() => setCustomerMenuOpen((open) => !open)}
+                    aria-expanded={customerMenuOpen}
+                  >
+                    <span className="sidebar-menu-label">
+                      <Users size={17} />
+                      <span>Customers</span>
+                    </span>
+                    <ChevronDown className="sidebar-menu-chevron" size={15} />
+                  </button>
 
-                {customerMenuOpen && (
-                  <div className="sidebar-customer-submenu">
-                    {customerMenuItems.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.to}
-                          to={item.to}
-                          className={`${location.pathname}${location.search}` === item.to ? "active" : ""}
-                        >
-                          <Icon size={14} />
-                          <span>{item.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
+                  {customerMenuOpen && (
+                    <div className="sidebar-customer-submenu">
+                      {customerMenuItems.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            className={`${location.pathname}${location.search}` === item.to ? "active" : ""}
+                          >
+                            <Icon size={14} />
+                            <span>{item.label}</span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
             {!isEmployeeAccount && canViewModule(currentUser, "dashboard") && (
               <div className={`sidebar-customer-menu ${projectMenuOpen ? "open" : ""}`}>
@@ -665,19 +729,17 @@ if (
                   element={protect("dashboard", <OfficeAssets />)}
                 />
                 <Route
-  path="/my-account"
-  element={
-    !isAdminAccount ? (
-      <MyAccount
-        currentUser={currentUser}
-        employee={linkedEmployee}
-      />
-    ) : (
-      <PermissionDenied />
-    )
-  }
-/>
-
+                  path="/my-account"
+                  element={
+                    <MyAccount
+                      currentUser={currentUser}
+                      employee={linkedEmployee}
+                      assignedCustomers={
+                        myAssignedCustomers
+                      }
+                    />
+                  }
+                />
 
 
                 <Route

@@ -4281,3 +4281,53 @@ body.dark-mode .profile-account-link:hover {
   background: #ffffff;
   color: #0f172a;
 }
+.account-profile-btn {
+  position: relative;
+}
+
+.account-request-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #ef4444;
+  color: #ffffff;
+
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+
+  box-shadow:
+    0 4px 10px rgba(239, 68, 68, 0.32);
+}
+
+.profile-account-link {
+  justify-content: flex-start;
+}
+
+.profile-account-link > span {
+  flex: 1;
+}
+
+.profile-account-count {
+  margin-left: auto;
+
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+body.dark-mode .account-request-badge {
+  border-color: #1e293b;
+}
