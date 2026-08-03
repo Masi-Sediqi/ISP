@@ -863,3 +863,255 @@ body.dark-mode .generate-license-button {
   grid-column: 2;
   grid-row: 1;
 }
+.project-sale-delete-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+
+  display: grid;
+  place-items: center;
+  padding: 18px;
+
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(5px);
+}
+
+.project-sale-delete-modal {
+  width: min(450px, 100%);
+  padding: 28px;
+
+  border: 1px solid rgba(225, 29, 72, 0.14);
+  border-radius: 22px;
+
+  background: #ffffff;
+  color: #172033;
+  text-align: center;
+
+  box-shadow:
+    0 30px 90px rgba(15, 23, 42, 0.34);
+
+  animation:
+    projectSaleDeleteOpen 180ms ease-out;
+}
+
+@keyframes projectSaleDeleteOpen {
+  from {
+    opacity: 0;
+    transform:
+      translateY(10px)
+      scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+.project-sale-delete-icon {
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 14px;
+
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+
+  background: #fff1f2;
+  color: #e11d48;
+
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(225, 29, 72, 0.08);
+}
+
+.project-sale-delete-modal > span {
+  display: block;
+
+  color: #e11d48;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.project-sale-delete-modal h2 {
+  margin: 8px 0;
+
+  color: #172033;
+  font-size: 22px;
+}
+
+.project-sale-delete-modal > p {
+  margin: 0 auto;
+
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.project-sale-delete-modal > p strong {
+  display: inline-block;
+  margin: 0 4px;
+
+  color: #172033;
+}
+
+.project-sale-delete-summary {
+  margin-top: 18px;
+
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+  gap: 8px;
+
+  text-align: left;
+}
+
+.project-sale-delete-summary > div {
+  min-width: 0;
+  padding: 11px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 11px;
+
+  background: #f8fafc;
+}
+
+.project-sale-delete-summary span,
+.project-sale-delete-summary strong {
+  display: block;
+}
+
+.project-sale-delete-summary span {
+  margin-bottom: 5px;
+
+  color: #94a3b8;
+  font-size: 9px;
+}
+
+.project-sale-delete-summary strong {
+  overflow: hidden;
+
+  color: #172033;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-sale-delete-warning {
+  margin-top: 12px;
+  padding: 11px 12px;
+
+  border: 1px solid #fecaca;
+  border-radius: 11px;
+
+  background: #fff1f2;
+  color: #991b1b;
+
+  font-size: 10px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.project-sale-delete-actions {
+  margin-top: 20px;
+
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 9px;
+}
+
+.project-sale-delete-actions button {
+  min-height: 42px;
+  padding: 0 14px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  background: #ffffff;
+  color: #172033;
+
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-sale-delete-actions .danger {
+  border-color: #e11d48;
+  background: #e11d48;
+  color: #ffffff;
+
+  box-shadow:
+    0 9px 20px
+    rgba(225, 29, 72, 0.2);
+}
+
+.project-sale-delete-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Dark mode */
+
+body.dark-mode
+  .project-sale-delete-modal {
+  border-color: #475569;
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+body.dark-mode
+  .project-sale-delete-modal h2,
+body.dark-mode
+  .project-sale-delete-modal
+  > p
+  strong,
+body.dark-mode
+  .project-sale-delete-summary
+  strong {
+  color: #f8fafc;
+}
+
+body.dark-mode
+  .project-sale-delete-summary
+  > div {
+  border-color: #334155;
+  background: #0f172a;
+}
+
+body.dark-mode
+  .project-sale-delete-warning {
+  border-color: #7f1d1d;
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+}
+
+body.dark-mode
+  .project-sale-delete-actions
+  button:first-child {
+  border-color: #475569;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+@media (max-width: 480px) {
+  .project-sale-delete-modal {
+    padding: 22px 17px;
+  }
+
+  .project-sale-delete-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .project-sale-delete-actions {
+    grid-template-columns: 1fr;
+  }
+}

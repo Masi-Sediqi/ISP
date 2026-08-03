@@ -38,6 +38,10 @@ const emptyFinanceForm = {
 };
 
 const defaultCategories = [
+  {
+    id: "project-sales",
+    title: "Project Sales",
+  },
   { id: "sales", title: "Sales Income" },
   { id: "service", title: "Services" },
   { id: "asset", title: "Assets" },
@@ -155,17 +159,16 @@ function Finance() {
           !transactions.some(
             (transaction) =>
               transaction.source ===
-                "customer-travel" &&
+              "customer-travel" &&
               String(transaction.referenceId) ===
-                String(record.id)
+              String(record.id)
           )
       )
       .map((record) => ({
         id: `legacy-travel-${record.id}`,
         type: "income",
-        title: `Travel Payment ${
-          record.travelName || ""
-        }`,
+        title: `Travel Payment ${record.travelName || ""
+          }`,
         amount: Number(record.paidAmount || 0),
         date: record.date,
         category: "Travel Income",
@@ -187,7 +190,7 @@ function Finance() {
             !transactions.some(
               (transaction) =>
                 transaction.source ===
-                  "customer-payment" &&
+                "customer-payment" &&
                 String(
                   transaction.referenceId
                 ) === String(payment.id)
@@ -227,7 +230,7 @@ function Finance() {
           !transactions.some(
             (transaction) =>
               transaction.source ===
-                "travel-expense" &&
+              "travel-expense" &&
               String(
                 transaction.referenceId
               ) === String(expense.id)
@@ -236,13 +239,11 @@ function Finance() {
       .map((expense) => ({
         id: `legacy-travel-expense-${expense.id}`,
         type: "expense",
-        title: `Travel Expense ${
-          expense.travelName || ""
-        }${
-          expense.title
+        title: `Travel Expense ${expense.travelName || ""
+          }${expense.title
             ? `: ${expense.title}`
             : ""
-        }`,
+          }`,
         amount: Number(expense.amount || 0),
         date: expense.date,
         category:
@@ -278,13 +279,11 @@ function Finance() {
       .map((expense) => ({
         id: `legacy-car-expense-${expense.id}`,
         type: "expense",
-        title: `Vehicle Expense ${
-          expense.carPlate || ""
-        }${
-          expense.title
+        title: `Vehicle Expense ${expense.carPlate || ""
+          }${expense.title
             ? `: ${expense.title}`
             : ""
-        }`,
+          }`,
         amount: Number(expense.amount || 0),
         date: expense.date,
         category:
@@ -307,7 +306,7 @@ function Finance() {
             !transactions.some(
               (transaction) =>
                 transaction.source ===
-                  "employee-payment" &&
+                "employee-payment" &&
                 String(
                   transaction.referenceId
                 ) === String(payment.id)
@@ -316,9 +315,8 @@ function Finance() {
         .map((payment) => ({
           id: `legacy-employee-payment-${payment.id}`,
           type: "expense",
-          title: `Employee Payment ${
-            payment.employeeName || ""
-          }`,
+          title: `Employee Payment ${payment.employeeName || ""
+            }`,
           amount: Number(payment.amount || 0),
           date: payment.date,
           category: "Salary",
@@ -341,9 +339,9 @@ function Finance() {
             !transactions.some(
               (item) =>
                 item.source ===
-                  "supplier-payment" &&
+                "supplier-payment" &&
                 String(item.referenceId || "") ===
-                  String(payment.id)
+                String(payment.id)
             )
         )
         .map((payment) => ({
@@ -374,9 +372,9 @@ function Finance() {
             !transactions.some(
               (transaction) =>
                 transaction.source ===
-                  "customer-device-sale" &&
+                "customer-device-sale" &&
                 String(transaction.referenceId || "") ===
-                  String(movement.id)
+                String(movement.id)
             )
         )
         .map((movement) => ({
@@ -473,16 +471,16 @@ function Finance() {
       .sort((first, second) => {
         const firstTime = new Date(
           first.createdAt ||
-            first.updatedAt ||
-            first.date ||
-            0
+          first.updatedAt ||
+          first.date ||
+          0
         ).getTime();
 
         const secondTime = new Date(
           second.createdAt ||
-            second.updatedAt ||
-            second.date ||
-            0
+          second.updatedAt ||
+          second.date ||
+          0
         ).getTime();
 
         return secondTime - firstTime;
@@ -854,22 +852,22 @@ function Finance() {
           transactions.map(
             (transaction) =>
               String(transaction.id) ===
-              String(
-                editingTransaction.id
-              )
+                String(
+                  editingTransaction.id
+                )
                 ? {
-                    ...transaction,
-                    date: formData.date,
-                    title:
-                      formData.title.trim(),
-                    category:
-                      formData.category,
-                    amount,
-                    type: formData.type,
-                    description:
-                      formData.description.trim(),
-                    updatedAt,
-                  }
+                  ...transaction,
+                  date: formData.date,
+                  title:
+                    formData.title.trim(),
+                  category:
+                    formData.category,
+                  amount,
+                  type: formData.type,
+                  description:
+                    formData.description.trim(),
+                  updatedAt,
+                }
                 : transaction
           )
         );
@@ -1007,9 +1005,9 @@ function Finance() {
 
     if (
       transaction.source ===
-        "car-expense" ||
+      "car-expense" ||
       transaction.source ===
-        "car-repair"
+      "car-repair"
     ) {
       return "Vehicle Expense";
     }
@@ -1063,11 +1061,10 @@ function Finance() {
         </div>
 
         <div
-          className={`finance-stat-card ${
-            netResult >= 0
+          className={`finance-stat-card ${netResult >= 0
               ? "profit"
               : "loss"
-          }`}
+            }`}
         >
           <span>
             {netResult >= 0
@@ -1117,11 +1114,10 @@ function Finance() {
                 <em
                   className="income"
                   style={{
-                    width: `${
-                      (totalIncome /
+                    width: `${(totalIncome /
                         maximumAmount) *
                       100
-                    }%`,
+                      }%`,
                   }}
                 />
               </i>
@@ -1142,11 +1138,10 @@ function Finance() {
                 <em
                   className="expense"
                   style={{
-                    width: `${
-                      (totalExpense /
+                    width: `${(totalExpense /
                         maximumAmount) *
                       100
-                    }%`,
+                      }%`,
                   }}
                 />
               </i>
@@ -1175,13 +1170,12 @@ function Finance() {
                       : "loss"
                   }
                   style={{
-                    width: `${
-                      (Math.abs(
-                        netResult
-                      ) /
+                    width: `${(Math.abs(
+                      netResult
+                    ) /
                         maximumAmount) *
                       100
-                    }%`,
+                      }%`,
                   }}
                 />
               </i>
@@ -1326,7 +1320,7 @@ function Finance() {
                       }
                       className={
                         transaction.type ===
-                        "income"
+                          "income"
                           ? "finance-income-row"
                           : "finance-expense-row"
                       }
@@ -1335,7 +1329,7 @@ function Finance() {
                         {formatDateTime(
                           transaction.date,
                           transaction.createdAt ||
-                            transaction.updatedAt
+                          transaction.updatedAt
                         )}
                       </td>
 
@@ -1344,7 +1338,7 @@ function Finance() {
                           className={`finance-badge ${transaction.type}`}
                         >
                           {transaction.type ===
-                          "income"
+                            "income"
                             ? "Income"
                             : "Expense"}
                         </span>
@@ -1369,11 +1363,10 @@ function Finance() {
 
                       <td>
                         <span
-                          className={`finance-source-badge ${
-                            isManual
+                          className={`finance-source-badge ${isManual
                               ? "manual"
                               : "system"
-                          }`}
+                            }`}
                         >
                           {getSourceLabel(
                             transaction
@@ -1409,9 +1402,9 @@ function Finance() {
                                     String(
                                       current
                                     ) ===
-                                    String(
-                                      transaction.id
-                                    )
+                                      String(
+                                        transaction.id
+                                      )
                                       ? ""
                                       : transaction.id
                                 )
@@ -1428,41 +1421,41 @@ function Finance() {
                               String(
                                 transaction.id
                               ) && (
-                              <div className="finance-action-menu">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openEditModal(
-                                      transaction
-                                    )
-                                  }
-                                >
-                                  <Pencil
-                                    size={15}
-                                  />
-                                  Edit
-                                </button>
+                                <div className="finance-action-menu">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openEditModal(
+                                        transaction
+                                      )
+                                    }
+                                  >
+                                    <Pencil
+                                      size={15}
+                                    />
+                                    Edit
+                                  </button>
 
-                                <button
-                                  type="button"
-                                  className="danger"
-                                  onClick={() => {
-                                    setDeleteTransaction(
-                                      transaction
-                                    );
+                                  <button
+                                    type="button"
+                                    className="danger"
+                                    onClick={() => {
+                                      setDeleteTransaction(
+                                        transaction
+                                      );
 
-                                    setOpenActionId(
-                                      ""
-                                    );
-                                  }}
-                                >
-                                  <Trash2
-                                    size={15}
-                                  />
-                                  Delete
-                                </button>
-                              </div>
-                            )}
+                                      setOpenActionId(
+                                        ""
+                                      );
+                                    }}
+                                  >
+                                    <Trash2
+                                      size={15}
+                                    />
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
                           </div>
                         ) : (
                           <span className="finance-system-record">
@@ -1477,17 +1470,17 @@ function Finance() {
 
               {filteredTransactions.length ===
                 0 && (
-                <tr>
-                  <td
-                    colSpan="8"
-                    className="finance-empty"
-                  >
-                    No financial record
-                    has been registered
-                    yet.
-                  </td>
-                </tr>
-              )}
+                  <tr>
+                    <td
+                      colSpan="8"
+                      className="finance-empty"
+                    >
+                      No financial record
+                      has been registered
+                      yet.
+                    </td>
+                  </tr>
+                )}
             </tbody>
           </table>
         </div>

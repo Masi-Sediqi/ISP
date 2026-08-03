@@ -100,6 +100,8 @@ function ProjectSales() {
   const [customers] = useJsonCollection("customers");
   const [sales, setSales] = useJsonCollection("projectSales");
   const [licenses, setLicenses] = useJsonCollection("projectLicenses");
+  const [transactions, setTransactions] =
+  useJsonCollection("transactions");
   const [form, setForm] = useState(emptySale);
   const [editId, setEditId] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -109,6 +111,12 @@ function ProjectSales() {
   const [generating, setGenerating] = useState(false);
   const [licenseGenerationError, setLicenseGenerationError] = useState("");
   const [search, setSearch] = useState("");
+
+  const [deleteTarget, setDeleteTarget] =
+  useState(null);
+
+const [deletingSale, setDeletingSale] =
+  useState(false);
 
   const customerOptions = useMemo(() => {
     const rows = customers;
@@ -192,35 +200,312 @@ function ProjectSales() {
     setShowForm(true);
   }
 
-  async function saveSale(event) {
-    event.preventDefault();
-    if (!form.projectId || !form.customerId) {
-      notify("Please select project and customer.", "error");
+  async function upsertProjectSaleIncome(sale) {
+  const paidAmount = Number(sale.paid || 0);
+
+  /*
+   * اگر هیچ مبلغی دریافت نشده باشد،
+   * عاید قبلی مربوط به این فروش حذف می‌شود.
+   */
+  if (paidAmount <= 0) {
+    return setTransactions(
+      transactions.filter(
+        (transaction) =>
+          !(
+            transaction.source ===
+              "project-sale" &&
+            String(
+              transaction.referenceId || ""
+            ) === String(sale.id)
+          )
+      )
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  const incomeRecord = {
+    id: `project-sale-income-${sale.id}`,
+
+    type: "income",
+
+    title: `Project Sale - ${
+      sale.projectName || "Project"
+    }`,
+
+    category: "Project Sales",
+
+    amount: paidAmount,
+
+    currency: sale.currency || "AFN",
+
+    date:
+      sale.saleDate ||
+      new Date().toISOString().slice(0, 10),
+
+    description: [
+      sale.customerName
+        ? `Customer: ${sale.customerName}`
+        : "",
+
+      sale.customerPhone
+        ? `Phone: ${sale.customerPhone}`
+        : "",
+
+      `Project Price: ${Number(
+        sale.price || 0
+      ).toLocaleString("en-US")} ${
+        sale.currency || "AFN"
+      }`,
+
+      `Paid: ${paidAmount.toLocaleString(
+        "en-US"
+      )} ${sale.currency || "AFN"}`,
+
+      `Remaining: ${Number(
+        sale.remaining || 0
+      ).toLocaleString("en-US")} ${
+        sale.currency || "AFN"
+      }`,
+
+      sale.saleType
+        ? `Sale Type: ${sale.saleType}`
+        : "",
+
+      sale.notes || "",
+    ]
+      .filter(Boolean)
+      .join(" | "),
+
+    source: "project-sale",
+    referenceId: sale.id,
+
+    projectId: sale.projectId || "",
+    projectName: sale.projectName || "",
+
+    customerId: sale.customerId || "",
+    customerName: sale.customerName || "",
+
+    createdAt:
+      transactions.find(
+        (transaction) =>
+          transaction.source ===
+            "project-sale" &&
+          String(
+            transaction.referenceId || ""
+          ) === String(sale.id)
+      )?.createdAt || now,
+
+    updatedAt: now,
+  };
+
+  const nextTransactions = [
+    ...transactions.filter(
+      (transaction) =>
+        !(
+          transaction.source ===
+            "project-sale" &&
+          String(
+            transaction.referenceId || ""
+          ) === String(sale.id)
+        )
+    ),
+
+    incomeRecord,
+  ];
+
+  return setTransactions(nextTransactions);
+}
+async function saveSale(event) {
+  event.preventDefault();
+
+  if (!form.projectId || !form.customerId) {
+    notify(
+      "Please select project and customer.",
+      "error"
+    );
+    return;
+  }
+
+  const price = Number(form.price || 0);
+  const paid = Number(form.paid || 0);
+
+  if (price <= 0) {
+    notify(
+      "Project price must be greater than zero.",
+      "error"
+    );
+    return;
+  }
+
+  if (paid < 0) {
+    notify(
+      "Paid amount cannot be negative.",
+      "error"
+    );
+    return;
+  }
+
+  if (paid > price) {
+    notify(
+      "Paid amount cannot be greater than project price.",
+      "error"
+    );
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const saleId =
+    editId || crypto.randomUUID();
+
+  const oldSale = sales.find(
+    (sale) =>
+      String(sale.id) === String(editId)
+  );
+
+  const saleRecord = {
+    ...(oldSale || {}),
+
+    ...form,
+
+    id: saleId,
+
+    price: String(price),
+    paid: String(paid),
+
+    remaining: String(
+      Math.max(price - paid, 0)
+    ),
+
+    saleDate:
+      form.saleDate ||
+      new Date().toISOString().slice(0, 10),
+
+    createdAt:
+      oldSale?.createdAt || now,
+
+    updatedAt: now,
+  };
+
+  const nextSales = editId
+    ? sales.map((sale) =>
+        String(sale.id) === String(editId)
+          ? saleRecord
+          : sale
+      )
+    : [...sales, saleRecord];
+
+  const saleSaved =
+    await setSales(nextSales);
+
+  if (!saleSaved) return;
+
+  /*
+   * مبلغ Paid را در بخش عواید ثبت می‌کند.
+   */
+  const incomeSaved =
+    await upsertProjectSaleIncome(
+      saleRecord
+    );
+
+  if (!incomeSaved) {
+    notify(
+      "Sale was saved, but the income record could not be linked.",
+      "error"
+    );
+    return;
+  }
+
+  notify(
+    editId
+      ? "Project sale and income updated successfully."
+      : "Project sale and income registered successfully.",
+    "success"
+  );
+
+  resetForm();
+}
+
+async function deleteSale() {
+  if (!deleteTarget || deletingSale) return;
+
+  setDeletingSale(true);
+
+  try {
+    const saleId = deleteTarget.id;
+
+    const nextSales = sales.filter(
+      (sale) =>
+        String(sale.id) !== String(saleId)
+    );
+
+    const saleDeleted =
+      await setSales(nextSales);
+
+    if (!saleDeleted) {
+      notify(
+        "Unable to delete the project sale.",
+        "error"
+      );
       return;
     }
 
-    const payload = {
-      ...form,
-      remaining: String(Math.max(0, Number(form.price || 0) - Number(form.paid || 0))),
-      updatedAt: new Date().toISOString(),
-    };
+    /*
+     * عاید مرتبط با فروش نیز حذف می‌شود.
+     */
+    const incomeDeleted =
+      await setTransactions(
+        (previousTransactions) =>
+          previousTransactions.filter(
+            (transaction) =>
+              !(
+                transaction.source ===
+                  "project-sale" &&
+                String(
+                  transaction.referenceId || ""
+                ) === String(saleId)
+              )
+          )
+      );
 
-    const saleId = editId || crypto.randomUUID();
-    const nextSales = editId
-      ? sales.map((sale) => sale.id === editId ? { ...sale, ...payload } : sale)
-      : [...sales, { ...payload, id: saleId, createdAt: new Date().toISOString() }];
+    if (!incomeDeleted) {
+      notify(
+        "Sale was deleted, but its linked income could not be removed.",
+        "error"
+      );
+      return;
+    }
 
-    const saved = await setSales(nextSales);
-    if (!saved) return;
-    notify(editId ? "Project sale updated successfully." : "Project sale registered successfully.", "success");
-    resetForm();
+    /*
+     * لایسنس‌های مرتبط با این فروش نیز حذف شوند.
+     */
+    const nextLicenses = licenses.filter(
+      (license) =>
+        String(license.saleId || "") !==
+        String(saleId)
+    );
+
+    const licensesDeleted =
+      await setLicenses(nextLicenses);
+
+    if (!licensesDeleted) {
+      notify(
+        "Sale and income were deleted, but linked licenses could not be removed.",
+        "error"
+      );
+      return;
+    }
+
+    notify(
+      "Project sale and linked records deleted successfully.",
+      "success"
+    );
+
+    setDeleteTarget(null);
+  } finally {
+    setDeletingSale(false);
   }
-
-  async function deleteSale(id) {
-    const saved = await setSales(sales.filter((sale) => sale.id !== id));
-    if (saved) notify("Project sale deleted successfully.", "success");
-  }
-
+}
   function editSale(sale) {
     setEditId(sale.id);
     setForm({ ...emptySale, ...sale });
@@ -499,23 +784,18 @@ async function saveLicense(event) {
                   <label className="project-sale-full"><span>Notes</span><textarea name="notes" value={form.notes} onChange={updateField} rows="3" /></label>
                 </div>
 
-                <div className="project-sale-actions">
+              <div className="project-sale-actions">
   <button
     type="button"
-    onClick={closeLicenseModal}
+    onClick={resetForm}
   >
     Cancel
   </button>
 
-  <button
-    type="submit"
-    disabled={
-      generating ||
-      !generatedLicense?.licenseKey
-    }
-  >
+  <button type="submit">
     <ReceiptText size={15} />
-    Save Sale
+
+    {editId ? "Save Changes" : "Register Sale"}
   </button>
 </div>
               </form>
@@ -687,7 +967,15 @@ async function saveLicense(event) {
                         </button>
                       )}
                       <button type="button" onClick={() => editSale(sale)} title="Edit" aria-label="Edit"><Pencil size={14} /></button>
-                      <button type="button" className="danger" onClick={() => deleteSale(sale.id)} title="Delete" aria-label="Delete"><Trash2 size={14} /></button>
+                      <button
+  type="button"
+  className="danger"
+  onClick={() => setDeleteTarget(sale)}
+  title="Delete"
+  aria-label="Delete"
+>
+  <Trash2 size={14} />
+</button>
                     </div>
                   </td>
                 </tr>
@@ -697,6 +985,119 @@ async function saveLicense(event) {
           </table>
         </div>
       </section>
+      {deleteTarget && (
+  <div
+    className="project-sale-delete-backdrop"
+    role="presentation"
+    onMouseDown={() => {
+      if (!deletingSale) {
+        setDeleteTarget(null);
+      }
+    }}
+  >
+    <div
+      className="project-sale-delete-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-sale-title"
+      onMouseDown={(event) =>
+        event.stopPropagation()
+      }
+    >
+      <div className="project-sale-delete-icon">
+        <Trash2 size={25} />
+      </div>
+
+      <span>Delete Project Sale</span>
+
+      <h2 id="delete-sale-title">
+        Delete this sale record?
+      </h2>
+
+      <p>
+        You are about to permanently delete the
+        sale of
+        <strong>
+          {deleteTarget.projectName ||
+            "this project"}
+        </strong>
+        for
+        <strong>
+          {deleteTarget.customerName ||
+            "this customer"}
+        </strong>
+        .
+      </p>
+
+      <div className="project-sale-delete-summary">
+        <div>
+          <span>Project</span>
+          <strong>
+            {deleteTarget.projectName || "-"}
+          </strong>
+        </div>
+
+        <div>
+          <span>Customer</span>
+          <strong>
+            {deleteTarget.customerName || "-"}
+          </strong>
+        </div>
+
+        <div>
+          <span>Price</span>
+          <strong>
+            {money(
+              deleteTarget.price,
+              deleteTarget.currency
+            )}
+          </strong>
+        </div>
+
+        <div>
+          <span>Paid</span>
+          <strong>
+            {money(
+              deleteTarget.paid,
+              deleteTarget.currency
+            )}
+          </strong>
+        </div>
+      </div>
+
+      <div className="project-sale-delete-warning">
+        The linked income record and generated
+        licenses will also be deleted. This action
+        cannot be undone.
+      </div>
+
+      <div className="project-sale-delete-actions">
+        <button
+          type="button"
+          disabled={deletingSale}
+          onClick={() =>
+            setDeleteTarget(null)
+          }
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="danger"
+          disabled={deletingSale}
+          onClick={deleteSale}
+        >
+          <Trash2 size={15} />
+
+          {deletingSale
+            ? "Deleting..."
+            : "Delete Sale"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
 
 function EditIcon() {
   return (
@@ -82,6 +85,7 @@ import { useTablePagination } from "../hooks/useTablePagination";
 import { hasPermission } from "../utils/permissions";
 
 function Suppliers({ currentUser }) {
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState("");
   const [editIndex, setEditIndex] = useState(null);
@@ -90,21 +94,23 @@ function Suppliers({ currentUser }) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteIndex, setDeleteIndex] = useState(null);
 
-  const toggleActionMenu = (event, index) => {
-  const rect = event.currentTarget.getBoundingClientRect();
-
-  setActionMenuPosition({
-    top: rect.bottom + 8,
-    left: rect.right - 150,
+  const [actionMenuPosition, setActionMenuPosition] = useState({
+    top: 0,
+    left: 0,
   });
 
-  setOpenAction(openAction === index ? null : index);
-};
+  const toggleActionMenu = (event, index) => {
+    const rect = event.currentTarget.getBoundingClientRect();
 
-  const [actionMenuPosition, setActionMenuPosition] = useState({
-  top: 0,
-  left: 0,
-});
+    setActionMenuPosition({
+      top: rect.bottom + 8,
+      left: rect.right - 150,
+    });
+
+    setOpenAction(openAction === index ? null : index);
+  };
+
+
 
   const emptyForm = {
     supplierName: "",
@@ -419,7 +425,13 @@ const confirmDelete = () => {
                 const index = supplier.originalIndex;
 
                 return (
-                  <tr key={index}>
+                  <tr
+  key={supplier.id || index}
+  className="supplier-clickable-row"
+  onClick={() =>
+    navigate(`/suppliers/${index}`)
+  }
+>
                     <td className="driver-name">{supplier.supplierName}</td>
                     <td>{supplier.companyName || "-"}</td>
                     <td>{supplier.contactPerson || "-"}</td>
@@ -440,30 +452,27 @@ const confirmDelete = () => {
                     <td>
   <div className="supplier-action-cell">
     <button
-      type="button"
-      className="action-btn"
-      onClick={(event) => toggleActionMenu(event, index)}
-    >
-      ⋮
-    </button>
+  type="button"
+  className="action-btn"
+  onClick={(event) => {
+    event.stopPropagation();
+    toggleActionMenu(event, index);
+  }}
+>
+  ⋮
+</button>
 
     {openAction === index && (
       <div
-        className="supplier-floating-menu"
-        style={{
-          top: `${actionMenuPosition.top}px`,
-          left: `${actionMenuPosition.left}px`,
-        }}
-      >
-<Link
-  className="supplier-menu-link"
-  to={`/suppliers/${index}`}
-  onClick={() => setOpenAction(null)}
+  className="supplier-floating-menu"
+  onClick={(event) =>
+    event.stopPropagation()
+  }
+  style={{
+    top: `${actionMenuPosition.top}px`,
+    left: `${actionMenuPosition.left}px`,
+  }}
 >
-  <InfoIcon />
-  <span>Full Detail</span>
-</Link>
-
 <Link
   className="supplier-menu-link"
   to={`/suppliers/${index}/analysis`}
@@ -601,62 +610,43 @@ const confirmDelete = () => {
   </div>
 
   <div className="form-group form-full">
-    <label>Item Supply</label>
+  <label>Item Supply</label>
 
-    <div className="supplier-type-picker">
-      <button
-        type="button"
-        className={
-          (formData.supplierTypes || []).includes("Product Supplier")
-            ? "active"
-            : ""
-        }
-        onClick={() => toggleSupplierType("Product Supplier")}
-      >
-        Supplies Products
-      </button>
+  <div className="supplier-custom-type-add">
+    <input
+      name="customSupplierType"
+      value={formData.customSupplierType}
+      onChange={handleChange}
+      placeholder="Add supplied item..."
+    />
 
-      <button
-        type="button"
-        className={
-          (formData.supplierTypes || []).includes("Repair Service")
-            ? "active"
-            : ""
-        }
-        onClick={() => toggleSupplierType("Repair Service")}
-      >
-        Repairs Devices
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={addCustomSupplierType}
+    >
+      Add
+    </button>
+  </div>
 
-    <div className="supplier-custom-type-add">
-      <input
-        name="customSupplierType"
-        value={formData.customSupplierType}
-        onChange={handleChange}
-        placeholder="Add supplied item..."
-      />
-
-      <button type="button" onClick={addCustomSupplierType}>
-        Add
-      </button>
-    </div>
-
-    {(formData.supplierTypes || []).length > 0 && (
-      <div className="supplier-type-chips">
-        {(formData.supplierTypes || []).map((type) => (
+  {(formData.supplierTypes || []).length > 0 && (
+    <div className="supplier-type-chips">
+      {(formData.supplierTypes || []).map(
+        (type) => (
           <button
             type="button"
             key={type}
-            onClick={() => removeSupplierType(type)}
+            onClick={() =>
+              removeSupplierType(type)
+            }
           >
             {type}
             <span>×</span>
           </button>
-        ))}
-      </div>
-    )}
-  </div>
+        )
+      )}
+    </div>
+  )}
+</div>
 
   <div className="form-group form-full">
     <label>Notes</label>
