@@ -389,35 +389,18 @@ function Projects() {
                           ))}
                         </select>
                         <button
-                          type="button"
-                          onClick={() => setShowCustomerForm((open) => !open)}
-                          title="Add customer"
-                          aria-label="Add customer"
-                        >
-                          <Plus size={17} />
-                        </button>
+  type="button"
+  onClick={() => {
+    setCustomerForm(emptyCustomer);
+    setShowCustomerForm(true);
+  }}
+  title="Add customer"
+  aria-label="Add customer"
+>
+  <Plus size={17} />
+</button>
                       </div>
                     </div>
-                    {showCustomerForm && (
-                      <div className="project-inline-customer project-form-full">
-                        <div className="project-inline-customer-title">
-                          <span><UserPlus size={16} />Register Customer</span>
-                          <button type="button" onClick={() => setShowCustomerForm(false)} aria-label="Close customer form">
-                            <X size={15} />
-                          </button>
-                        </div>
-                        <div className="project-inline-customer-grid">
-                          <label><span>Customer Name</span><input name="customerName" value={customerForm.customerName} onChange={updateCustomerField} /></label>
-                          <label><span>Customer Phone</span><input name="phone" value={customerForm.phone} onChange={updateCustomerField} /></label>
-                          <label><span>Email</span><input type="email" name="email" value={customerForm.email} onChange={updateCustomerField} /></label>
-                          <label><span>Address</span><input name="address" value={customerForm.address} onChange={updateCustomerField} /></label>
-                        </div>
-                        <button type="button" className="project-inline-customer-save" onClick={saveInlineCustomer}>
-                          <UserPlus size={15} />
-                          Save Customer
-                        </button>
-                      </div>
-                    )}
                     <label><span>Customer Name</span><input name="customerName" value={form.customerName} onChange={updateField} required /></label>
                     <label><span>Start Date</span><input type="date" name="startDate" value={form.startDate} onChange={updateField} /></label>
                     <label><span>Due Date</span><input type="date" name="dueDate" value={form.dueDate} onChange={updateField} min={form.startDate} /></label>
@@ -436,6 +419,108 @@ function Projects() {
           </div>
         </div>
       )}
+
+      {showCustomerForm && (
+  <div
+    className="customer-modal-backdrop"
+    onMouseDown={() => setShowCustomerForm(false)}
+  >
+    <div
+      className="customer-modal"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <div className="customer-modal-header">
+        <div>
+          <span className="customer-modal-icon">
+            <UserPlus size={19} />
+          </span>
+
+          <div>
+            <h2>Register Customer</h2>
+            <p>
+              Add a new customer and select it automatically for this project.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowCustomerForm(false)}
+          aria-label="Close customer form"
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="customer-modal-body">
+        <div className="customer-modal-grid">
+          <label>
+            <span>Customer Name</span>
+            <input
+              name="customerName"
+              value={customerForm.customerName}
+              onChange={updateCustomerField}
+              placeholder="Enter customer name"
+              autoFocus
+            />
+          </label>
+
+          <label>
+            <span>Customer Phone</span>
+            <input
+              name="phone"
+              value={customerForm.phone}
+              onChange={updateCustomerField}
+              placeholder="Enter phone number"
+            />
+          </label>
+
+          <label>
+            <span>Email</span>
+            <input
+              type="email"
+              name="email"
+              value={customerForm.email}
+              onChange={updateCustomerField}
+              placeholder="Enter email address"
+            />
+          </label>
+
+          <label>
+            <span>Address</span>
+            <input
+              name="address"
+              value={customerForm.address}
+              onChange={updateCustomerField}
+              placeholder="Enter customer address"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="customer-modal-actions">
+        <button
+          type="button"
+          onClick={() => {
+            setCustomerForm(emptyCustomer);
+            setShowCustomerForm(false);
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="primary"
+          onClick={saveInlineCustomer}
+        >
+          <UserPlus size={16} />
+          Save Customer
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {deleteTarget && (
         <div className="project-modal-backdrop" onMouseDown={() => setDeleteTarget(null)}>

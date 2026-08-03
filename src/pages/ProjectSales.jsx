@@ -257,97 +257,156 @@ function ProjectSales() {
     });
   }
 
-  async function saveLicense(event) {
-    event.preventDefault();
-    if (!licenseSale) return;
+async function generateLicenseCode() {
+  if (!licenseSale || generating) return;
 
-    const deviceId = normalizeDeviceId(licenseForm.deviceId);
+  const deviceId = normalizeDeviceId(licenseForm.deviceId);
 
-    if (!deviceId) {
-      notify("Device ID is required.", "error");
-      return;
-    }
-    if (deviceId.startsWith("WEB-")) {
-      const message = "Browser Device IDs cannot be used for production licenses. Copy the Device ID from the customer Electron application.";
-      setLicenseGenerationError(message);
-      notify(message, "error");
-      return;
-    }
-    if (licenseForm.licenseType !== "forever" && !licenseForm.endDate) {
-      notify("License end date is required.", "error");
-      return;
-    }
-    if (licenseForm.licenseType !== "forever" && isEndBeforeStart(licenseForm.startDate, licenseForm.endDate)) {
-      notify("License end date cannot be before the start date.", "error");
-      return;
-    }
+  if (!deviceId) {
+    notify("Device ID is required.", "error");
+    return;
+  }
 
-    const request = {
-      projectId: licenseSale.projectId,
-      projectName: licenseSale.projectName,
-      customerId: licenseSale.customerId,
-      customerName: licenseSale.customerName,
-      deviceId,
-      licenseType: licenseForm.licenseType,
-      startDate: licenseForm.startDate,
-      endDate: licenseForm.endDate,
-      status: "Active",
-      features: ["all"],
-    };
+  if (deviceId.startsWith("WEB-")) {
+    const message =
+      "Browser Device IDs cannot be used for production licenses. Copy the Device ID from the customer Electron application.";
 
-    setGenerating(true);
-    setLicenseGenerationError("");
+    setLicenseGenerationError(message);
+    notify(message, "error");
+    return;
+  }
 
-    let result;
-    try {
-      const response = await axios.post(apiUrl("license/generate"), request, {
+  if (
+    licenseForm.licenseType !== "forever" &&
+    !licenseForm.endDate
+  ) {
+    notify("License end date is required.", "error");
+    return;
+  }
+
+  if (
+    licenseForm.licenseType !== "forever" &&
+    isEndBeforeStart(
+      licenseForm.startDate,
+      licenseForm.endDate
+    )
+  ) {
+    notify(
+      "License end date cannot be before the start date.",
+      "error"
+    );
+    return;
+  }
+
+  const request = {
+    projectId: licenseSale.projectId,
+    projectName: licenseSale.projectName,
+    customerId: licenseSale.customerId,
+    customerName: licenseSale.customerName,
+    deviceId,
+    licenseType: licenseForm.licenseType,
+    startDate: licenseForm.startDate,
+    endDate: licenseForm.endDate,
+    status: "Active",
+    features: ["all"],
+  };
+
+  setGenerating(true);
+  setGeneratedLicense(null);
+  setLicenseGenerationError("");
+
+  try {
+    const response = await axios.post(
+      apiUrl("license/generate"),
+      request,
+      {
         headers: {
-          "X-ISP-Session-Id": localStorage.getItem("isp-system-session") || "",
+          "X-ISP-Session-Id":
+            localStorage.getItem("isp-system-session") || "",
         },
-      });
-      result = response.data;
-    } catch (error) {
-      result = {
-        success: false,
-        error: error?.response?.data?.error || error?.message || "License generation failed.",
-      };
-    } finally {
-      setGenerating(false);
-    }
+      }
+    );
+
+    const result = response.data;
 
     if (!result?.success) {
-      setGeneratedLicense(null);
-      setLicenseGenerationError(result?.error || "License generation failed.");
-      notify(result?.error || "License generation failed.", "error");
-      return;
+      throw new Error(
+        result?.error || "License generation failed."
+      );
     }
 
     const generated = {
       ...licenseForm,
       ...request,
-      endDate: toDateOnly(result.certificate?.payload?.expiresAt) || licenseForm.endDate,
+      endDate:
+        toDateOnly(
+          result.certificate?.payload?.expiresAt
+        ) || licenseForm.endDate,
       status: "Active",
       licenseId: result.certificate.payload.licenseId,
       licenseKey: result.licenseCode,
       certificate: result.certificate,
-      updatedAt: new Date().toISOString(),
-    };
-
-    const payload = {
-      ...generated,
       saleId: licenseSale.id,
-      projectId: licenseSale.projectId,
-      projectName: licenseSale.projectName,
-      customerId: licenseSale.customerId,
-      customerName: licenseSale.customerName,
       updatedAt: new Date().toISOString(),
     };
 
-    const saved = await setLicenses([...licenses, { ...payload, id: crypto.randomUUID(), createdAt: new Date().toISOString() }]);
-    if (!saved) return;
-    setGeneratedLicense(payload);
-    notify("Secure license saved successfully.", "success");
+    setGeneratedLicense(generated);
+    notify(
+      "License code generated successfully.",
+      "success"
+    );
+  } catch (error) {
+    const message =
+      error?.response?.data?.error ||
+      error?.message ||
+      "License generation failed.";
+
+    setGeneratedLicense(null);
+    setLicenseGenerationError(message);
+    notify(message, "error");
+  } finally {
+    setGenerating(false);
   }
+}
+
+async function saveLicense(event) {
+  event.preventDefault();
+
+  if (!licenseSale) return;
+
+  if (!generatedLicense?.licenseKey) {
+    notify(
+      "Please generate the license code first.",
+      "error"
+    );
+    return;
+  }
+
+  const payload = {
+    ...generatedLicense,
+    notes: licenseForm.notes,
+    saleId: licenseSale.id,
+    projectId: licenseSale.projectId,
+    projectName: licenseSale.projectName,
+    customerId: licenseSale.customerId,
+    customerName: licenseSale.customerName,
+    updatedAt: new Date().toISOString(),
+  };
+
+  const saved = await setLicenses([
+    ...licenses,
+    {
+      ...payload,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+    },
+  ]);
+
+  if (!saved) return;
+
+  notify("Sale and license saved successfully.", "success");
+  closeLicenseModal();
+}
 
   function copyLicense(licenseKey) {
     navigator.clipboard?.writeText(licenseKey);
@@ -441,9 +500,24 @@ function ProjectSales() {
                 </div>
 
                 <div className="project-sale-actions">
-                  <button type="button" onClick={resetForm}>Cancel</button>
-                  <button type="submit"><Plus size={15} />{editId ? "Save Changes" : "Register Sale"}</button>
-                </div>
+  <button
+    type="button"
+    onClick={closeLicenseModal}
+  >
+    Cancel
+  </button>
+
+  <button
+    type="submit"
+    disabled={
+      generating ||
+      !generatedLicense?.licenseKey
+    }
+  >
+    <ReceiptText size={15} />
+    Save Sale
+  </button>
+</div>
               </form>
 
               <aside className="project-sale-preview">
@@ -492,19 +566,47 @@ function ProjectSales() {
               </label>
 
               <label className="project-license-output project-sale-full">
-                <span>License Output</span>
-                <div>
-                  <input
-                    value={generatedLicense?.licenseKey || ""}
-                    readOnly
-                    data-no-translate
-                    placeholder={generating ? "Generating license code..." : "Click Generate License to create code"}
-                  />
-                  <button type="button" disabled={!generatedLicense?.licenseKey} onClick={() => copyLicense(generatedLicense.licenseKey)} title="Copy license" aria-label="Copy license">
-                    <Copy size={15} />
-                  </button>
-                </div>
-              </label>
+  <span>License Output</span>
+
+  <div className="project-license-output-control">
+    <input
+      value={generatedLicense?.licenseKey || ""}
+      readOnly
+      data-no-translate
+      placeholder={
+        generating
+          ? "Generating license code..."
+          : "Click Generate License to create code"
+      }
+    />
+
+    <button
+      type="button"
+      className="generate-license-button"
+      onClick={generateLicenseCode}
+      disabled={generating}
+    >
+      <KeyRound size={15} />
+
+      {generating
+        ? "Generating..."
+        : "Generate License"}
+    </button>
+
+    <button
+      type="button"
+      className="copy-license-button"
+      disabled={!generatedLicense?.licenseKey}
+      onClick={() =>
+        copyLicense(generatedLicense.licenseKey)
+      }
+      title="Copy license"
+      aria-label="Copy license"
+    >
+      <Copy size={15} />
+    </button>
+  </div>
+</label>
 
               {licenseGenerationError && (
                 <div className="project-license-error project-sale-full">

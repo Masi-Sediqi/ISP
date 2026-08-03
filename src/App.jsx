@@ -91,7 +91,12 @@ const Developer = lazy(() => import("./pages/Developer"));
 const TermsPrivacy = lazy(
   () => import("./pages/TermsPrivacy")
 );
-const FAQ = lazy(() => import("./pages/FAQ"));
+const FAQ = lazy(() =>
+  import("./pages/FAQ")
+);
+const Reception = lazy(() => import("./pages/Reception"));
+
+
 const UserGuide = lazy(() => import("./pages/UserGuide"));
 
 const defaultAdminAccount = {
@@ -154,6 +159,8 @@ function App() {
   const location = useLocation();
   const [settings, , loadSettings] = useJsonCollection("settings");
   const [accounts, setAccounts, , accountsLoaded] = useJsonCollection("accounts");
+  const [employees] =
+  useJsonCollection("employees");
   const [sidebarInfoOpen, setSidebarInfoOpen] = useState(false);
   const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
@@ -168,10 +175,90 @@ function App() {
   const effectiveAccounts = accounts.some((account) => String(account.id) === "default-admin")
     ? accounts
     : [defaultAdminAccount, ...accounts];
-  const currentUser = effectiveAccounts.find(
-    (account) => String(account.id) === String(sessionId)
-  );
-  const isEmployeeAccount = currentUser?.accountType === "employee";
+const signedInAccount = effectiveAccounts.find(
+  (account) =>
+    String(account.id) === String(sessionId)
+);
+
+const linkedEmployee = employees.find(
+  (employee) =>
+    String(employee.id) ===
+    String(signedInAccount?.employeeId)
+);
+
+const linkedEmployeeRoles = Array.isArray(
+  linkedEmployee?.roles
+)
+  ? linkedEmployee.roles
+  : linkedEmployee?.role
+    ? [linkedEmployee.role]
+    : [];
+
+const employeeHasAdminRole =
+  linkedEmployeeRoles.some((role) => {
+    const normalizedRole = String(role || "")
+      .trim()
+      .toLowerCase();
+
+    return (
+      normalizedRole === "admin" ||
+      normalizedRole === "full admin" ||
+      normalizedRole === "administrator"
+    );
+  });
+
+const accountRole = String(
+  signedInAccount?.role || ""
+)
+  .trim()
+  .toLowerCase();
+
+const accountHasAdminRole =
+  signedInAccount?.isDefaultAdmin === true ||
+  signedInAccount?.isAdmin === true ||
+  signedInAccount?.isFullAdmin === true ||
+  signedInAccount?.permissions?.all === true ||
+  signedInAccount?.accountType === "admin" ||
+  accountRole === "admin" ||
+  accountRole === "full admin" ||
+  accountRole === "administrator";
+
+const isAdminAccount =
+  accountHasAdminRole ||
+  employeeHasAdminRole;
+
+/*
+ * کاربر نهایی سیستم:
+ * اگر کارمند نقش Admin یا Full Admin داشته باشد،
+ * حساب او به‌صورت خودکار حساب Admin در نظر گرفته می‌شود.
+ */
+const currentUser = signedInAccount
+  ? {
+      ...signedInAccount,
+
+      ...(isAdminAccount
+        ? {
+            role: "Admin",
+            accountType: "admin",
+            isAdmin: true,
+            isFullAdmin: true,
+
+            permissions: {
+              ...(signedInAccount.permissions || {}),
+              all: true,
+            },
+          }
+        : {}),
+    }
+  : null;
+
+/*
+ * فقط کارمند عادی باید EmployeeDashboard را ببیند.
+ * Admin و Full Admin وارد داشبورد عمومی سیستم می‌شوند.
+ */
+const isEmployeeAccount =
+  currentUser?.accountType === "employee" &&
+  !isAdminAccount;
 
   useEffect(() => {
     if (isEmployeeAccount && location.pathname !== "/") {
@@ -234,9 +321,14 @@ function App() {
 
   const menuItems = [
     { to: "/", label: "Dashboard", moduleKey: "dashboard", icon: LayoutDashboard },
+    {
+      to: "/reception",
+      label: "Reception",
+      moduleKey: "customers",
+      icon: UserRoundCog,
+    },
     { to: "/employees", label: "Employees", moduleKey: "dashboard", icon: UserRoundCog },
     { to: "/suppliers", label: "Suppliers", moduleKey: "suppliers", icon: Building2 },
-    { to: "/expenses", label: "Expenses", moduleKey: "finance", icon: ReceiptText },
     { to: "/finance", label: "Finances", moduleKey: "finance", icon: WalletCards },
     { to: "/reports", label: "Reports", moduleKey: "reports", icon: FileBarChart },
     { to: "/settings", label: "Settings", moduleKey: "settings", icon: SettingsIcon },
@@ -480,17 +572,22 @@ function App() {
                   path="/projects"
                   element={protect("dashboard", <Projects />)}
                 />
+                <Route
+                  path="/reception"
+                  element={protect(
+                    "customers",
+                    <Reception currentUser={currentUser} />
+                  )}
+                />
                 <Route path="/employees" element={<Employees />} />
                 <Route path="/employees/:id" element={<EmployeeDetails accounts={accounts} setAccounts={setAccounts} />} />
-                <Route
-                  path="/expenses"
-                  element={protect("finance", <ModulePlaceholder title="Expenses" description="Review and manage project and business expenses." items={["Expense records", "Expense categories", "Cost summaries"]} />)}
-                />
 
                 <Route
                   path="/office-assets"
                   element={protect("dashboard", <OfficeAssets />)}
                 />
+
+
 
                 <Route
                   path="/office-assets/:assetId"

@@ -1,35 +1,92 @@
-export const MODULE_KEYS = {
-  dashboard: "dashboard",
-  suppliers: "suppliers",
-  assets: "assets",
-  mainStock: "mainStock",
-  deviceTransfer: "deviceTransfer",
-  customers: "customers",
-  packages: "packages",
-  towerAssets: "towerAssets",
-  finance: "finance",
-  reports: "reports",
-  repair: "repair",
-  userManagement: "userManagement",
-  settings: "settings",
-  agent: "agent",
-};
+const normalizeText = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
 
 export function isAdminUser(user) {
-  return String(user?.role || "").toLowerCase() === "admin";
-}
-
-export function hasPermission(user, moduleKey, action = "view") {
   if (!user) return false;
-  if (String(user.status || "Active").toLowerCase() !== "active") return false;
-  if (isAdminUser(user)) return true;
 
-  const permissions = user.permissions;
-  if (!permissions || Object.keys(permissions).length === 0) return true;
+  const role = normalizeText(user.role);
+  const accountType = normalizeText(
+    user.accountType
+  );
 
-  return Boolean(permissions?.[moduleKey]?.[action]);
+  return (
+    user.isDefaultAdmin === true ||
+    user.isAdmin === true ||
+    user.isFullAdmin === true ||
+    user.permissions?.all === true ||
+    role === "admin" ||
+    role === "full admin" ||
+    role === "administrator" ||
+    accountType === "admin"
+  );
 }
 
-export function canViewModule(user, moduleKey) {
-  return hasPermission(user, moduleKey, "view");
+export function canViewModule(
+  currentUser,
+  moduleKey
+) {
+  if (!currentUser) return false;
+
+  /*
+   * Admin و Full Admin تمام صفحات را می‌بینند.
+   */
+  if (isAdminUser(currentUser)) {
+    return true;
+  }
+
+  const permission =
+    currentUser.permissions?.[moduleKey];
+
+  if (permission === true) {
+    return true;
+  }
+
+  if (
+    permission &&
+    typeof permission === "object"
+  ) {
+    return (
+      permission.view === true ||
+      permission.read === true ||
+      permission.all === true
+    );
+  }
+
+  return false;
+}
+
+export function canPerformAction(
+  currentUser,
+  moduleKey,
+  action
+) {
+  if (!currentUser) return false;
+
+  /*
+   * Admin تمام عملیات را انجام داده می‌تواند.
+   */
+  if (isAdminUser(currentUser)) {
+    return true;
+  }
+
+  const permission =
+    currentUser.permissions?.[moduleKey];
+
+  if (permission === true) {
+    return true;
+  }
+
+  if (
+    !permission ||
+    typeof permission !== "object"
+  ) {
+    return false;
+  }
+
+  return (
+    permission.all === true ||
+    permission[action] === true
+  );
 }

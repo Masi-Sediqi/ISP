@@ -253,10 +253,52 @@ body.project-modal-open {
   letter-spacing: .02em;
 }
 
-.project-license-output > div {
+.project-license-output-control {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 46px;
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto
+    46px;
   gap: 8px;
+  align-items: stretch;
+}
+
+.project-license-output-control input {
+  min-width: 0;
+}
+
+.project-license-output-control button {
+  min-height: 44px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.generate-license-button {
+  min-width: 155px;
+  padding: 0 15px;
+  border-color: #18181b !important;
+  background: #18181b !important;
+  color: #ffffff !important;
+  white-space: nowrap;
+}
+
+.copy-license-button {
+  width: 46px;
+  padding: 0;
+  background: #ffffff;
+  color: #172033;
+}
+
+.project-license-output-control button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .project-license-output button,
@@ -480,11 +522,19 @@ body.project-modal-open {
 
 .project-sale-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content:flex-start;
   gap: 8px;
   margin-top: 14px;
 }
-
+.project-license-form .project-sale-actions {
+  grid-column: 1 / -1;
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
 .project-sale-actions button {
   min-height: 40px;
   padding: 0 14px;
@@ -787,4 +837,29 @@ body.theme-warm .project-sale-actions button:last-child {
   .project-sale-actions {
     flex-direction: column;
   }
+}
+body.dark-mode .copy-license-button {
+  border-color: #334155;
+  background: #111827;
+  color: #f8fafc;
+}
+
+body.dark-mode .generate-license-button {
+  border-color: #f8fafc !important;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+.project-license-output-control {
+  grid-template-columns: minmax(0, 1fr) 46px;
+}
+
+.generate-license-button {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+}
+
+.copy-license-button {
+  grid-column: 2;
+  grid-row: 1;
 }

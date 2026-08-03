@@ -232,10 +232,27 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
               <small>Expired customer packages: {expiredCustomerPackages.length}</small>
             </div>
 
-            <button className="dropdown-logout" onClick={onLogout} type="button">
-              <LogOut size={15} />
-              Logout
-            </button>
+            <Link
+  to={
+    currentUser?.employeeId
+      ? `/employees/${currentUser.employeeId}`
+      : "/settings"
+  }
+  className="dropdown-action profile-account-link"
+  onClick={() => setOpenMenu(null)}
+>
+  <User size={15} />
+  My Account
+</Link>
+
+<button
+  className="dropdown-logout"
+  onClick={onLogout}
+  type="button"
+>
+  <LogOut size={15} />
+  Logout
+</button>
           </div>
         )}
       </div>
@@ -430,18 +447,41 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
           </button>
 
           {openMenu === "profile" && (
-            <div className="dropdown profile-dropdown">
-              <strong>
-                {currentUser?.fullName || currentUser?.email || currentUser?.username}
-              </strong>
-              <p>{currentUser?.email || "No email configured"}</p>
+  <div className="dropdown profile-dropdown">
+    <strong>
+      {currentUser?.fullName ||
+        currentUser?.email ||
+        currentUser?.username}
+    </strong>
 
-          <button className="dropdown-logout" onClick={onLogout}>
-                <LogOut size={15} />
-                Logout
-              </button>
-            </div>
-          )}
+    <p>
+      {currentUser?.email ||
+        "No email configured"}
+    </p>
+
+    <Link
+      to={
+        currentUser?.employeeId
+          ? `/employees/${currentUser.employeeId}`
+          : "/settings"
+      }
+      className="dropdown-action profile-account-link"
+      onClick={() => setOpenMenu(null)}
+    >
+      <User size={15} />
+      My Account
+    </Link>
+
+    <button
+      className="dropdown-logout"
+      onClick={onLogout}
+      type="button"
+    >
+      <LogOut size={15} />
+      Logout
+    </button>
+  </div>
+)}
         </div>
       </div>
   );
