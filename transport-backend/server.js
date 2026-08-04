@@ -61,6 +61,8 @@ const COLLECTIONS = new Set([
   "educationInstitutions",
   "mediaProducts",
   "messages",
+  
+  "transactions",
 
 
   "officeAssets",

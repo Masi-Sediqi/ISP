@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { useLocalCollection } from "../hooks/useLocalCollection";
 import { calculateLicenseEndDate } from "../utils/licenseDuration";
 import { apiUrl } from "../utils/api";
 import { notify } from "../utils/notify";
@@ -33,6 +34,7 @@ const emptySale = {
   customerName: "",
   customerPhone: "",
   customerEmail: "",
+  sourceEmployeeId: "",
   sourceEmployeeName: "",
   assignedEmployeeName: "",
   price: "",
@@ -98,6 +100,9 @@ function toDateOnly(timestamp) {
 function ProjectSales() {
   const [projects] = useJsonCollection("projects");
   const [customers] = useJsonCollection("customers");
+  const [employees] = useJsonCollection("employees");
+  const [employeeAdjustments, setEmployeeAdjustments] =
+    useLocalCollection("employeeAdjustments");
   const [sales, setSales] = useJsonCollection("projectSales");
   const [licenses, setLicenses] = useJsonCollection("projectLicenses");
   const [transactions, setTransactions] =
@@ -173,7 +178,12 @@ const [deletingSale, setDeletingSale] =
         customerName: customerLabel(customer || {}),
         customerPhone: customer?.phone || "",
         customerEmail: customer?.email || "",
-        sourceEmployeeName: customer?.sourceEmployeeName || customer?.createdByName || "",
+        sourceEmployeeId: customer?.sourceEmployeeId || "",
+        sourceEmployeeName:
+          customer?.sourceEmployeeName ||
+          customer?.source ||
+          customer?.createdByName ||
+          "",
         assignedEmployeeName: customer?.assignedEmployeeName || "",
       }));
       return;
@@ -316,6 +326,154 @@ const [deletingSale, setDeletingSale] =
 
   return setTransactions(nextTransactions);
 }
+
+function normalizeEmployeeName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function findSourceEmployee(sale) {
+  const sourceEmployeeId = String(
+    sale.sourceEmployeeId || ""
+  );
+
+  if (sourceEmployeeId) {
+    const employeeById = employees.find(
+      (employee) =>
+        String(employee.id || employee.employeeId || "") ===
+        sourceEmployeeId
+    );
+
+    if (employeeById) return employeeById;
+  }
+
+  const sourceEmployeeName = normalizeEmployeeName(
+    sale.sourceEmployeeName
+  );
+
+  if (!sourceEmployeeName) return null;
+
+  return (
+    employees.find(
+      (employee) =>
+        [
+          employee.fullName,
+          employee.employeeName,
+          employee.name,
+          employee.email,
+        ]
+          .map(normalizeEmployeeName)
+          .includes(sourceEmployeeName)
+    ) || null
+  );
+}
+
+async function upsertSourceEmployeeCommission(sale) {
+  const referenceId = String(sale.id);
+  const paidAmount = Number(sale.paid || 0);
+
+  const recordsWithoutCurrentCommission =
+    employeeAdjustments.filter(
+      (entry) =>
+        !(
+          entry.source === "project-sale-commission" &&
+          String(entry.referenceId || "") === referenceId
+        )
+    );
+
+  const employee = findSourceEmployee(sale);
+
+  /*
+   * معاش ثابت از فروش پروژه فیصدی نمی‌گیرد.
+   * اگر کارمند، فیصدی یا مبلغ پرداختی موجود نباشد،
+   * ریکارد قبلی این فروش نیز حذف می‌شود.
+   */
+  if (
+    !employee ||
+    String(employee.salaryType || "")
+      .trim()
+      .toLowerCase() !== "percentage" ||
+    paidAmount <= 0
+  ) {
+    return setEmployeeAdjustments(
+      recordsWithoutCurrentCommission
+    );
+  }
+
+  const percentage = Number(
+    employee.salaryPercentage || 0
+  );
+
+  if (!(percentage > 0 && percentage <= 100)) {
+    return setEmployeeAdjustments(
+      recordsWithoutCurrentCommission
+    );
+  }
+
+  const commissionAmount =
+    Math.round(
+      paidAmount * percentage
+    ) / 100;
+
+  if (!(commissionAmount > 0)) {
+    return setEmployeeAdjustments(
+      recordsWithoutCurrentCommission
+    );
+  }
+
+  const now = new Date().toISOString();
+  const previousCommission = employeeAdjustments.find(
+    (entry) =>
+      entry.source === "project-sale-commission" &&
+      String(entry.referenceId || "") === referenceId
+  );
+
+  const commissionRecord = {
+    id:
+      previousCommission?.id ||
+      `project-sale-commission-${sale.id}`,
+
+    employeeId: employee.id,
+    employeeName:
+      employee.fullName ||
+      employee.employeeName ||
+      employee.name ||
+      sale.sourceEmployeeName ||
+      "Employee",
+
+    type: "credit",
+    amount: commissionAmount,
+    currency: sale.currency || "AFN",
+
+    source: "project-sale-commission",
+    referenceId: sale.id,
+
+    projectId: sale.projectId || "",
+    projectName: sale.projectName || "",
+
+    customerId: sale.customerId || "",
+    customerName: sale.customerName || "",
+
+    paidAmount,
+    salaryPercentage: percentage,
+
+    reason:
+      `${percentage}% commission from ` +
+      `${sale.projectName || "project"} payment by ` +
+      `${sale.customerName || "customer"}`,
+
+    createdAt:
+      previousCommission?.createdAt || now,
+    updatedAt: now,
+  };
+
+  return setEmployeeAdjustments([
+    ...recordsWithoutCurrentCommission,
+    commissionRecord,
+  ]);
+}
+
 async function saveSale(event) {
   event.preventDefault();
 
@@ -401,25 +559,54 @@ async function saveSale(event) {
   if (!saleSaved) return;
 
   /*
+   * فیصدی Source Employee باید مستقل از بخش عواید ثبت شود.
+   * در نسخه قبلی اگر ثبت عاید ناکام می‌شد، تابع return می‌کرد
+   * و Credit کارمند اصلاً ساخته نمی‌شد.
+   */
+  const commissionSaved =
+    await upsertSourceEmployeeCommission(
+      saleRecord
+    );
+
+  /*
    * مبلغ Paid را در بخش عواید ثبت می‌کند.
+   * خرابی بخش عواید نباید مانع ثبت فیصدی کارمند شود.
    */
   const incomeSaved =
     await upsertProjectSaleIncome(
       saleRecord
     );
 
-  if (!incomeSaved) {
+  if (!commissionSaved && !incomeSaved) {
     notify(
-      "Sale was saved, but the income record could not be linked.",
+      "Sale was saved, but neither the income nor the employee commission could be linked.",
       "error"
     );
     return;
   }
 
+  if (!commissionSaved) {
+    notify(
+      "Sale and income were saved, but the employee commission could not be updated.",
+      "error"
+    );
+    return;
+  }
+
+  if (!incomeSaved) {
+    notify(
+      "Sale and employee commission were saved, but the income record could not be linked. Make sure the transactions collection is enabled on the server.",
+      "warning"
+    );
+
+    resetForm();
+    return;
+  }
+
   notify(
     editId
-      ? "Project sale and income updated successfully."
-      : "Project sale and income registered successfully.",
+      ? "Project sale, income and employee commission updated successfully."
+      : "Project sale, income and employee commission registered successfully.",
     "success"
   );
 
@@ -431,9 +618,10 @@ async function deleteSale() {
 
   setDeletingSale(true);
 
-  try {
-    const saleId = deleteTarget.id;
+  const saleId = deleteTarget.id;
+  let saleWasDeleted = false;
 
+  try {
     const nextSales = sales.filter(
       (sale) =>
         String(sale.id) !== String(saleId)
@@ -450,31 +638,46 @@ async function deleteSale() {
       return;
     }
 
+    saleWasDeleted = true;
+
+    /*
+     * خود فروش حذف شده است؛ مودال باید فوراً بسته شود.
+     * حذف ریکاردهای مرتبط در ادامه انجام می‌شود.
+     */
+    setDeleteTarget(null);
+
     /*
      * عاید مرتبط با فروش نیز حذف می‌شود.
      */
     const incomeDeleted =
       await setTransactions(
-        (previousTransactions) =>
-          previousTransactions.filter(
-            (transaction) =>
-              !(
-                transaction.source ===
-                  "project-sale" &&
-                String(
-                  transaction.referenceId || ""
-                ) === String(saleId)
-              )
-          )
+        transactions.filter(
+          (transaction) =>
+            !(
+              transaction.source ===
+                "project-sale" &&
+              String(
+                transaction.referenceId || ""
+              ) === String(saleId)
+            )
+        )
       );
 
-    if (!incomeDeleted) {
-      notify(
-        "Sale was deleted, but its linked income could not be removed.",
-        "error"
+    /*
+     * Credit فیصدی کارمند مرتبط با این فروش نیز حذف شود.
+     */
+    const commissionDeleted =
+      await setEmployeeAdjustments(
+        employeeAdjustments.filter(
+          (entry) =>
+            !(
+              entry.source ===
+                "project-sale-commission" &&
+              String(entry.referenceId || "") ===
+                String(saleId)
+            )
+        )
       );
-      return;
-    }
 
     /*
      * لایسنس‌های مرتبط با این فروش نیز حذف شوند.
@@ -488,10 +691,14 @@ async function deleteSale() {
     const licensesDeleted =
       await setLicenses(nextLicenses);
 
-    if (!licensesDeleted) {
+    if (
+      !incomeDeleted ||
+      !commissionDeleted ||
+      !licensesDeleted
+    ) {
       notify(
-        "Sale and income were deleted, but linked licenses could not be removed.",
-        "error"
+        "The sale was deleted, but one or more linked records could not be removed.",
+        "warning"
       );
       return;
     }
@@ -500,12 +707,19 @@ async function deleteSale() {
       "Project sale and linked records deleted successfully.",
       "success"
     );
-
-    setDeleteTarget(null);
   } finally {
+    /*
+     * حتی اگر حذف یکی از ریکاردهای مرتبط خطا بدهد،
+     * مودال حذف باز باقی نمی‌ماند.
+     */
+    if (saleWasDeleted) {
+      setDeleteTarget(null);
+    }
+
     setDeletingSale(false);
   }
 }
+
   function editSale(sale) {
     setEditId(sale.id);
     setForm({ ...emptySale, ...sale });
