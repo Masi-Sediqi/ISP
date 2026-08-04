@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BarChart3,
   CalendarCheck,
   CheckCircle2,
   Clock3,
   MessageSquare,
+  Sparkles,
   UserRound,
   Users,
   WalletCards,
@@ -115,8 +117,12 @@ export default function MyAccount({
   employee,
   assignedCustomers = [],
 }) {
-  const [customers, setCustomers] =
-    useJsonCollection("customers");
+  const navigate = useNavigate();
+  const [
+    customers,
+    setCustomers,
+    loadCustomers,
+  ] = useJsonCollection("customers");
 
   const [selectedCustomer, setSelectedCustomer] =
     useState(null);
@@ -268,7 +274,10 @@ export default function MyAccount({
     try {
       const now = new Date().toISOString();
 
-      const nextCustomers = customers.map(
+      const latestCustomers =
+        await loadCustomers();
+
+      const nextCustomers = latestCustomers.map(
         (customer) =>
           String(customer.id) ===
           String(selectedCustomer.id)
@@ -357,7 +366,10 @@ export default function MyAccount({
     try {
       const now = new Date().toISOString();
 
-      const nextCustomers = customers.map(
+      const latestCustomers =
+        await loadCustomers();
+
+      const nextCustomers = latestCustomers.map(
         (customer) => {
           if (
             String(customer.id) !==
@@ -544,6 +556,7 @@ export default function MyAccount({
                 <th>Purpose</th>
                 <th>Assigned Date</th>
                 <th>Status</th>
+                <th>Follow Up</th>
               </tr>
             </thead>
 
@@ -644,6 +657,47 @@ export default function MyAccount({
                           {requestStatus}
                         </span>
                       </td>
+
+                      <td>
+                        {normalize(requestStatus) ===
+                        "accepted" ? (
+                          <button
+                            type="button"
+                            className={`my-account-followup-button ${
+                              customer.followUpCompleted
+                                ? "completed"
+                                : "pending"
+                            }`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+
+                              navigate(
+                                `/customer-follow-up/${customer.id}`
+                              );
+                            }}
+                            title={
+                              customer.followUpCompleted
+                                ? "Open completed follow-up"
+                                : "Start customer follow-up"
+                            }
+                            aria-label={
+                              customer.followUpCompleted
+                                ? "Open completed follow-up"
+                                : "Start customer follow-up"
+                            }
+                          >
+                            {customer.followUpCompleted ? (
+                              <CheckCircle2 size={15} />
+                            ) : (
+                              <Sparkles size={15} />
+                            )}
+                          </button>
+                        ) : (
+                          <span className="my-account-followup-unavailable">
+                            -
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   );
                 }
@@ -652,7 +706,7 @@ export default function MyAccount({
               {!myCustomers.length && (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="8"
                     className="my-account-empty"
                   >
                     No customer requests have
@@ -868,6 +922,31 @@ export default function MyAccount({
                   <XCircle size={16} />
                   Reject
                 </button>
+
+                {normalize(
+                  selectedCustomer.assignmentStatus
+                ) === "accepted" && (
+                  <button
+                    type="button"
+                    className={`followup ${
+                      selectedCustomer.followUpCompleted
+                        ? "completed"
+                        : ""
+                    }`}
+                    disabled={savingAction}
+                    onClick={() =>
+                      navigate(
+                        `/customer-follow-up/${selectedCustomer.id}`
+                      )
+                    }
+                  >
+                    <Sparkles size={16} />
+
+                    {selectedCustomer.followUpCompleted
+                      ? "Open Follow Up"
+                      : "Start Follow Up"}
+                  </button>
+                )}
 
                 <button
                   type="button"

@@ -205,8 +205,11 @@ function getEmployeeName(employee) {
 }
 
 export default function Reception({ currentUser }) {
-  const [customers, setCustomers] =
-    useJsonCollection("customers");
+  const [
+    customers,
+    setCustomers,
+    loadCustomers,
+  ] = useJsonCollection("customers");
 
   const [mediaProducts, setMediaProducts] =
     useJsonCollection("mediaProducts");
