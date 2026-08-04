@@ -45,7 +45,6 @@ import {
 } from "lucide-react";
 import Header from "./components/Header";
 import GlobalTableEnhancer from "./components/GlobalTableEnhancer";
-import StartupSplash from "./components/StartupSplash";
 import ToastHost from "./components/ToastHost";
 import { useJsonCollection } from "./hooks/useJsonCollection";
 import { canViewModule } from "./utils/permissions";
@@ -57,7 +56,6 @@ const MyAccount = lazy(() =>
 const Suppliers = lazy(() => import("./pages/Suppliers"));
 const TeamChat = lazy(() => import("./pages/TeamChat"));
 const SupplierDetails = lazy(() => import("./pages/SupplierDetails"));
-const SupplierAnalysis = lazy(() => import("./pages/SupplierAnalysis"));
 const Customers = lazy(() => import("./pages/Customers"));
 const ConsultantCustomers = lazy(() => import("./pages/ConsultantCustomers"));
 const CustomerDetails = lazy(() => import("./pages/CustomerDetails"));
@@ -464,7 +462,6 @@ const myAssignedCustomers = customers
   const employeeMenuItems = [
     { to: "/employees", label: "All Employees", icon: Users },
     { to: "/employees/attendance", label: "Employee Attendance", icon: CalendarCheck },
-    { to: "/employees/salaries", label: "Employee Salaries", icon: Banknote },
   ];
 
   const sidebarInfoLinks = [
@@ -835,7 +832,6 @@ const myAssignedCustomers = customers
                 />
 
                 <Route path="/suppliers" element={protect("suppliers", <Suppliers currentUser={currentUser} />)} />
-                <Route path="/suppliers/:id/analysis" element={protect("suppliers", <SupplierAnalysis />)} />
                 <Route path="/suppliers/:id" element={protect("suppliers", <SupplierDetails />)} />
 
                 <Route path="/customers" element={protect("customers", <Customers />)} />
@@ -917,7 +913,6 @@ const myAssignedCustomers = customers
 
   return (
     <>
-      <StartupSplash />
       {appContent}
       {!currentUser && <ToastHost />}
     </>

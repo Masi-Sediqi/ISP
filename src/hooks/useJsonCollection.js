@@ -9,7 +9,7 @@ const DISABLED_COLLECTIONS = new Set([
   "customerTravels", "customerDeviceBuybacks",
   "towerAssets", "towerLinks", "deviceTransfers",
   "towerAssetTransfers", "deviceHistory", "disconnections",
-  "securityDeposits", "transactions", "financeCategories",
+  "securityDeposits", "financeCategories",
   "financeBudgets", "travels", "travelExpenses", "cars", "carRepairs",
 ]);
 
