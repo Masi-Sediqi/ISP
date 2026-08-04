@@ -46,6 +46,9 @@ export default function EmployeeDetails({
   const [employees, , , loaded] =
     useJsonCollection("employees");
 
+  const [customers] =
+    useJsonCollection("customers");
+
   const [adjustments, setAdjustments] =
     useLocalCollection("employeeAdjustments");
 
@@ -84,6 +87,65 @@ export default function EmployeeDetails({
     (item) =>
       String(item.employeeId) === String(id)
   );
+
+  const employeeCustomers = useMemo(() => {
+    const employeeId = String(employee?.id || "");
+    const accountId = String(employeeAccount?.id || "");
+    const employeeName = String(employee?.fullName || "")
+      .trim()
+      .toLowerCase();
+
+    return customers
+      .filter((customer) => {
+        const sourceEmployeeId = String(
+          customer.sourceEmployeeId || ""
+        );
+
+        const createdByAccountId = String(
+          customer.createdByAccountId || ""
+        );
+
+        const assignedByEmployeeId = String(
+          customer.assignedByEmployeeId || ""
+        );
+
+        const sourceEmployeeName = String(
+          customer.sourceEmployeeName ||
+          customer.source ||
+          customer.createdByName ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+        return (
+          (employeeId && sourceEmployeeId === employeeId) ||
+          (employeeId &&
+            assignedByEmployeeId === employeeId) ||
+          (accountId &&
+            createdByAccountId === accountId) ||
+          (employeeName &&
+            sourceEmployeeName === employeeName)
+        );
+      })
+      .sort(
+        (first, second) =>
+          new Date(
+            second.createdAt ||
+            second.date ||
+            0
+          ) -
+          new Date(
+            first.createdAt ||
+            first.date ||
+            0
+          )
+      );
+  }, [
+    customers,
+    employee,
+    employeeAccount,
+  ]);
 
   const employeeAdjustments = adjustments.filter(
     (item) =>
@@ -594,8 +656,113 @@ const record = {
         </aside>
       </section>
 
+      <section className="employee-work-card">
+        <div className="employee-work-header">
+          <div>
+            <span>Employee Performance</span>
+            <h2>Registered Customers</h2>
+            <p>
+              All customers registered or referred by{" "}
+              {employee.fullName || "this employee"}.
+            </p>
+          </div>
 
+          <strong>
+            {employeeCustomers.length}
+          </strong>
+        </div>
 
+        <div className="employee-work-table-wrap">
+          <table className="employee-work-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Phone</th>
+                <th>Customer Type</th>
+                <th>Purpose</th>
+                <th>Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {employeeCustomers.map((customer) => (
+                <tr key={customer.id}>
+                  <td>
+                    <strong>
+                      {customer.fullName ||
+                        customer.customerName ||
+                        customer.personName ||
+                        "-"}
+                    </strong>
+                  </td>
+
+                  <td>
+                    {customer.phone ||
+                      customer.contactNumber ||
+                      "-"}
+                  </td>
+
+                  <td>
+                    <span className="employee-work-type">
+                      {customer.customerType ||
+                        customer.type ||
+                        "-"}
+                    </span>
+                  </td>
+
+                  <td>
+                    {customer.technologyPurpose ||
+                      customer.purpose ||
+                      customer.about ||
+                      "-"}
+                  </td>
+
+                  <td>
+                    {customer.date
+                      ? new Date(
+                          `${customer.date}T00:00:00`
+                        ).toLocaleDateString()
+                      : customer.createdAt
+                        ? new Date(
+                            customer.createdAt
+                          ).toLocaleDateString()
+                        : "-"}
+                  </td>
+
+                  <td>
+                    <span
+                      className={`employee-work-status ${String(
+                        customer.assignmentStatus ||
+                        customer.status ||
+                        "None"
+                      )
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")}`}
+                    >
+                      {customer.assignmentStatus ||
+                        customer.status ||
+                        "None"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+
+              {!employeeCustomers.length && (
+                <tr>
+                  <td
+                    colSpan="6"
+                    className="employee-work-empty"
+                  >
+                    No customers have been registered by
+                    this employee yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {accountOpen && (
         <div

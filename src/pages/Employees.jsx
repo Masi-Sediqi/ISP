@@ -20,6 +20,9 @@ const emptyEmployee = {
   contractFileName: "",
   departments: [],
   roles: [],
+  salaryType: "fixed",
+  fixedSalary: "",
+  salaryPercentage: "",
   status: "",
   notes: "",
 };
@@ -145,7 +148,19 @@ function Employees() {
 
   const updateField = (event) => {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+
+    setForm((current) => {
+      if (name === "salaryType") {
+        return {
+          ...current,
+          salaryType: value,
+          fixedSalary: value === "fixed" ? current.fixedSalary : "",
+          salaryPercentage: value === "percentage" ? current.salaryPercentage : "",
+        };
+      }
+
+      return { ...current, [name]: value };
+    });
   };
 
   const handleFile = async (event, field) => {
@@ -165,12 +180,36 @@ function Employees() {
     const hasValue = [
       form.fullName, form.phone, form.email, form.image, form.nicNumber,
       form.tazkiraFile, form.startDate, form.endDate, form.contractFile,
-      form.departments.join(" "), form.roles.join(" "), form.status, form.notes,
+      form.departments.join(" "), form.roles.join(" "), form.salaryType,
+      form.fixedSalary, form.salaryPercentage, form.status, form.notes,
     ].some((value) => String(value || "").trim());
 
     if (!hasValue) {
       notify("Please complete at least one field.", "error");
       return;
+    }
+
+    if (form.salaryType === "fixed") {
+      const salary = Number(form.fixedSalary);
+
+      if (!form.fixedSalary || !Number.isFinite(salary) || salary <= 0) {
+        notify("Please enter a valid fixed salary.", "error");
+        return;
+      }
+    }
+
+    if (form.salaryType === "percentage") {
+      const percentage = Number(form.salaryPercentage);
+
+      if (
+        !form.salaryPercentage ||
+        !Number.isFinite(percentage) ||
+        percentage <= 0 ||
+        percentage > 100
+      ) {
+        notify("Salary percentage must be between 1 and 100.", "error");
+        return;
+      }
     }
 
     const nextEmployees = editId
@@ -438,6 +477,47 @@ function Employees() {
                   {form.roles.length > 0 && <div className="employee-department-chips employee-role-chips">{form.roles.map((role) => <button type="button" key={role} onClick={() => toggleRole(role)}>{role}<X size={11} /></button>)}</div>}
                   {roleOpen && <div className="employee-department-menu"><div className="employee-department-options">{roles.map((role) => <button type="button" key={role} className={form.roles.includes(role) ? "active" : ""} onClick={() => toggleRole(role)}><span>{role}</span>{form.roles.includes(role) && <Check size={14} />}</button>)}</div><div className="employee-department-add"><input value={newRole} onChange={(event) => setNewRole(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addRole(); } }} placeholder="New role..." /><button type="button" onClick={addRole}><Plus size={14} /></button></div></div>}
                 </div>
+                <label>
+                  <span>Salary Type</span>
+                  <select
+                    name="salaryType"
+                    value={form.salaryType}
+                    onChange={updateField}
+                  >
+                    <option value="fixed">Fixed Salary</option>
+                    <option value="percentage">Percentage Salary</option>
+                  </select>
+                </label>
+
+                {form.salaryType === "fixed" ? (
+                  <label>
+                    <span>Fixed Salary Amount</span>
+                    <input
+                      type="number"
+                      name="fixedSalary"
+                      min="0"
+                      step="0.01"
+                      value={form.fixedSalary}
+                      onChange={updateField}
+                      placeholder="Enter salary amount"
+                    />
+                  </label>
+                ) : (
+                  <label>
+                    <span>Salary Percentage</span>
+                    <input
+                      type="number"
+                      name="salaryPercentage"
+                      min="1"
+                      max="100"
+                      step="0.01"
+                      value={form.salaryPercentage}
+                      onChange={updateField}
+                      placeholder="Enter percentage"
+                    />
+                  </label>
+                )}
+
                 <label><span>Status</span><select name="status" value={form.status} onChange={updateField}><option value="">Select status</option><option>Active</option><option>On Leave</option><option>Inactive</option></select></label>
                 <label className="employee-form-full"><span>Notes</span><textarea name="notes" value={form.notes} onChange={updateField} rows="4" /></label>
               </div>

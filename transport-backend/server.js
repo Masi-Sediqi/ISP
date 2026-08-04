@@ -21,7 +21,7 @@ const io = new Server(httpServer, {
     credentials: true,
   },
 });
-const DEFAULT_PORT = Number(process.env.ISP_API_PORT || 5000);
+const DEFAULT_PORT = Number(process.env.ISP_API_PORT || 5050);
 const DEFAULT_HOST = process.env.ISP_API_HOST || "127.0.0.1";
 const DEFAULT_DATA_DIR = "C:/ISP Smart";
 const LEGACY_DATA_DIR = "C:/ISP";
@@ -46,20 +46,8 @@ const COLLECTIONS = new Set([
   "suppliers",
   "supplierPurchases",
   "supplierPayments",
-
-  "assets",
-  "assetCategories",
-  "assetMovements",
-
   "customers",
-  "packages",
-  "customerPackages",
-  "customerDevices",
-
   "customerPayments",
-  "customerTravels",
-  "customerDeviceBuybacks",
-
   "employeeTypes",
   "employees",
   "employeePayrolls",
@@ -78,28 +66,10 @@ const COLLECTIONS = new Set([
   "officeAssets",
   "officeAssetItems",
   "officeAssetCategories",
-
-  "towerAssets",
-  "towerLinks",
-  "deviceTransfers",
-  "towerAssetTransfers",
-  "deviceHistory",
-
-  "disconnections",
-  "securityDeposits",
-
-  "transactions",
-  "financeCategories",
-  "financeBudgets",
   "reports",
   "projects",
   "projectSales",
   "projectLicenses",
-
-  "travels",
-  "travelExpenses",
-  "cars",
-  "carRepairs",
 ]);
 
 app.disable("x-powered-by");
@@ -445,37 +415,12 @@ async function readOperationalData() {
     "suppliers",
     "supplierPurchases",
     "supplierPayments",
-
-    "assets",
-    "assetCategories",
-    "assetMovements",
-
     "customers",
-    "packages",
-    "customerPackages",
-    "customerDevices",
-
     "customerPayments",
-    "customerTravels",
-    "customerDeviceBuybacks",
-
     "employeeTypes",
     "employeePayrolls",
     "employeeEarnings",
     "employeePayments",
-
-    "towerAssets",
-    "towerLinks",
-    "deviceTransfers",
-    "towerAssetTransfers",
-    "deviceHistory",
-
-    "disconnections",
-    "securityDeposits",
-
-    "transactions",
-    "financeCategories",
-    "financeBudgets",
     "reports",
   ];
 

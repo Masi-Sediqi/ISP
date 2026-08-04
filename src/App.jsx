@@ -16,7 +16,9 @@ import {
 
 import {
   Armchair,
+  Banknote,
   BookOpen,
+  CalendarCheck,
   Bot,
   BriefcaseBusiness,
   Building2,
@@ -56,41 +58,27 @@ const Suppliers = lazy(() => import("./pages/Suppliers"));
 const TeamChat = lazy(() => import("./pages/TeamChat"));
 const SupplierDetails = lazy(() => import("./pages/SupplierDetails"));
 const SupplierAnalysis = lazy(() => import("./pages/SupplierAnalysis"));
-const AssetInventory = lazy(() => import("./pages/AssetInventory"));
-const MainStock = lazy(() => import("./pages/MainStock"));
-const DeviceTransferManagement = lazy(() => import("./pages/DeviceTransferManagement"));
-const TowerAssets = lazy(() => import("./pages/TowerAssets"));
 const Customers = lazy(() => import("./pages/Customers"));
 const ConsultantCustomers = lazy(() => import("./pages/ConsultantCustomers"));
 const CustomerDetails = lazy(() => import("./pages/CustomerDetails"));
-const Packages = lazy(() => import("./pages/Packages"));
-const PackageFullDetail = lazy(() => import("./pages/PackageFullDetail"));
 const Accounts = lazy(() => import("./pages/Accounts"));
 const Finance = lazy(() => import("./pages/Finance"));
 const Reports = lazy(() => import("./pages/Reports"));
-const Repair = lazy(() => import("./pages/Repair"));
 const Settings = lazy(() => import("./pages/Settings"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const Agent = lazy(() => import("./pages/Agent"));
 const Employees = lazy(() => import("./pages/Employees"));
 const EmployeeDetails = lazy(() => import("./pages/EmployeeDetails"));
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard"));
+const EmployeeAttendance = lazy(() => import("./pages/EmployeeAttendance"));
 
 const OfficeAssets = lazy(() => import("./pages/OfficeAssets"));
-const OfficeAssetDetails = lazy(() =>
-  import("./pages/OfficeAssetDetails")
-);
+const OfficeAssetDetails = lazy(() => import("./pages/OfficeAssetDetails"));
 
 const Projects = lazy(() => import("./pages/Projects"));
 const ProjectLicense = lazy(() => import("./pages/ProjectLicense"));
 const ProjectSales = lazy(() => import("./pages/ProjectSales"));
 const Login = lazy(() => import("./pages/Login"));
-const AssetFullInformation = lazy(() => import("./pages/AssetFullInformation"));
-const AssetAuditTrail = lazy(() => import("./pages/AssetAuditTrail"));
-const AssetInsightDetails = lazy(() => import("./pages/AssetInsightDetails"));
-const TowerLinks = lazy(() => import("./pages/TowerLinks"));
-const CustomerIssueDevice = lazy(() => import("./pages/CustomerIssueDevice"));
-const TowerAssetDetails = lazy(() => import("./pages/TowerAssetDetails"));
 const HelpCenter = lazy(() => import("./pages/HelpCenter"));
 const Developer = lazy(() => import("./pages/Developer"));
 const TermsPrivacy = lazy(
@@ -172,6 +160,7 @@ function App() {
   const [sidebarInfoOpen, setSidebarInfoOpen] = useState(false);
   const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [employeeMenuOpen, setEmployeeMenuOpen] = useState(false);
   const sidebarInfoRef = useRef(null);
   const [sessionId, setSessionId] = useState(() =>
     localStorage.getItem("isp-system-session")
@@ -441,7 +430,6 @@ const employeeAllowedPaths = [
       moduleKey: "customers",
       icon: UserRoundCog,
     },
-    { to: "/employees", label: "Employees", moduleKey: "dashboard", icon: UserRoundCog },
     { to: "/suppliers", label: "Suppliers", moduleKey: "suppliers", icon: Building2 },
     { to: "/finance", label: "Finances", moduleKey: "finance", icon: WalletCards },
     { to: "/reports", label: "Reports", moduleKey: "reports", icon: FileBarChart },
@@ -463,6 +451,12 @@ const employeeAllowedPaths = [
     { to: "/projects", label: "Projects", icon: FolderKanban },
     { to: "/project-sales", label: "Project Sales", icon: ReceiptText },
     { to: "/project-license", label: "Project License", icon: FileText },
+  ];
+
+  const employeeMenuItems = [
+    { to: "/employees", label: "All Employees", icon: Users },
+    { to: "/employees/attendance", label: "Employee Attendance", icon: CalendarCheck },
+    { to: "/employees/salaries", label: "Employee Salaries", icon: Banknote },
   ];
 
   const sidebarInfoLinks = [
@@ -634,6 +628,51 @@ const employeeAllowedPaths = [
               </div>
             )}
 
+            {!isEmployeeAccount && canViewModule(currentUser, "dashboard") && (
+              <div className={`sidebar-customer-menu ${employeeMenuOpen ? "open" : ""}`}>
+                <button
+                  type="button"
+                  className="sidebar-customer-trigger"
+                  onClick={() => setEmployeeMenuOpen((open) => !open)}
+                  aria-expanded={employeeMenuOpen}
+                >
+                  <span className="sidebar-menu-label">
+                    <UserRoundCog size={17} />
+                    <span>Employees</span>
+                  </span>
+
+                  <ChevronDown
+                    className="sidebar-menu-chevron"
+                    size={15}
+                  />
+                </button>
+
+                {employeeMenuOpen && (
+                  <div className="sidebar-customer-submenu">
+                    {employeeMenuItems.map((item) => {
+                      const Icon = item.icon;
+
+                      return (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          className={
+                            location.pathname === item.to
+                              ? "active"
+                              : ""
+                          }
+                          onClick={() => setEmployeeMenuOpen(false)}
+                        >
+                          <Icon size={14} />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {!isEmployeeAccount && menuItems
               .filter((item) => item.to !== "/" && canViewModule(currentUser, item.moduleKey))
               .map((item) => {
@@ -722,6 +761,24 @@ const employeeAllowedPaths = [
                   )}
                 />
                 <Route path="/employees" element={<Employees />} />
+                <Route
+                  path="/employees/attendance"
+                  element={<EmployeeAttendance />}
+                />
+                <Route
+                  path="/employees/salaries"
+                  element={
+                    <ModulePlaceholder
+                      title="Employee Salaries"
+                      description="Manage fixed and percentage-based employee salaries."
+                      items={[
+                        "Fixed salaries",
+                        "Percentage salaries",
+                        "Salary payment history",
+                      ]}
+                    />
+                  }
+                />
                 <Route path="/employees/:id" element={<EmployeeDetails accounts={accounts} setAccounts={setAccounts} />} />
 
                 <Route
@@ -764,24 +821,13 @@ const employeeAllowedPaths = [
                 <Route path="/suppliers/:id/analysis" element={protect("suppliers", <SupplierAnalysis />)} />
                 <Route path="/suppliers/:id" element={protect("suppliers", <SupplierDetails />)} />
 
-                <Route path="/assets" element={protect("assets", <AssetInventory />)} />
-                <Route path="/assets/:assetId/audit-trail" element={protect("assets", <AssetAuditTrail />)} />
-                <Route path="/assets/:assetId/audit-trail/*" element={protect("assets", <AssetAuditTrail />)} />
-                <Route path="/assets/:assetId/details/audit-trail" element={protect("assets", <AssetAuditTrail />)} />
-                <Route path="/main-stock" element={protect("mainStock", <MainStock />)} />
-                <Route path="/device-transfer-management" element={protect("deviceTransfer", <DeviceTransferManagement />)} />
-
                 <Route path="/customers" element={protect("customers", <Customers />)} />
                 <Route path="/customers/consultants" element={protect("customers", <ConsultantCustomers />)} />
                 <Route path="/customers/travel" element={protect("customers", <ConsultantCustomers mode="travel" />)} />
                 <Route path="/customers/technology" element={protect("customers", <ConsultantCustomers mode="technology" />)} />
                 <Route path="/customers/:id" element={protect("customers", <CustomerDetails />)} />
-
-                <Route path="/tower-assets" element={protect("towerAssets", <TowerAssets />)} />
-                <Route path="/tower-links" element={protect("towerAssets", <TowerLinks />)} />
                 <Route path="/finance" element={protect("finance", <Finance />)} />
                 <Route path="/reports" element={protect("reports", <Reports />)} />
-                <Route path="/repair" element={protect("repair", <Repair />)} />
                 <Route path="/agent" element={protect("agent", <Agent />)} />
                 <Route
                   path="/user-management"
@@ -795,72 +841,6 @@ const employeeAllowedPaths = [
                   )}
                 />
                 <Route path="/settings" element={protect("settings", <Settings />)} />
-
-                <Route path="/packages" element={protect("packages", <Packages />)} />
-                <Route path="/packages/:packageId/details" element={protect("packages", <PackageFullDetail />)} />
-                <Route path="/customers/:id/issue-device" element={protect("customers", <CustomerIssueDevice />)} />
-                <Route path="/customers/:id/issue-device/:viewMode" element={protect("customers", <CustomerIssueDevice />)} />
-                <Route
-                  path="/tower-assets/:towerId/details"
-                  element={protect("towerAssets", <TowerAssetDetails />)}
-                />
-                <Route
-                  path="/assets/:assetId/details"
-                  element={protect("assets", <AssetFullInformation />)}
-                />
-                <Route
-                  path="/assets/:assetId/details/insights/:insightType"
-                  element={protect("assets", <AssetInsightDetails />)}
-                />
-                <Route
-                  path="/device-history"
-                  element={
-                    <ModulePlaceholder
-                      title="Device History & Audit Trail"
-                      description="Search any device by MAC address, serial number, or asset ID."
-                      items={[
-                        "Purchase history",
-                        "Stock entry",
-                        "Tower assignment",
-                        "Customer assignment",
-                        "Return to stock",
-                        "Current status",
-                      ]}
-                    />
-                  }
-                />
-
-                <Route
-                  path="/disconnections"
-                  element={
-                    <ModulePlaceholder
-                      title="Customer Disconnection Management"
-                      description="Manage inactive customers and device recovery status."
-                      items={[
-                        "Inactive customers",
-                        "Collected devices",
-                        "Pending collection",
-                        "Recovery status",
-                      ]}
-                    />
-                  }
-                />
-
-                <Route
-                  path="/security-deposits"
-                  element={
-                    <ModulePlaceholder
-                      title="Security Deposit Management"
-                      description="Manage deposits, refunds, held balances, and outstanding amounts."
-                      items={[
-                        "Deposit amount",
-                        "Refund status",
-                        "Held balance",
-                        "Outstanding balance",
-                      ]}
-                    />
-                  }
-                />
 
                 <Route
                   path="/help-center"
@@ -885,17 +865,6 @@ const employeeAllowedPaths = [
                 <Route
                   path="/terms-privacy"
                   element={<TermsPrivacy />}
-                />
-
-                <Route
-                  path="/employees"
-                  element={
-                    <ModulePlaceholder
-                      title="Employees"
-                      description="Employee management module will be added later."
-                      items={["Employee records", "Roles", "Permissions"]}
-                    />
-                  }
                 />
 
                 <Route
