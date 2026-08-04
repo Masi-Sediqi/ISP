@@ -16,6 +16,204 @@ import { notify } from "../utils/notify";
 import "./EmployeeDashboard.css";
 
 const provinces = ["Badakhshan", "Badghis", "Baghlan", "Balkh", "Bamyan", "Daykundi", "Farah", "Faryab", "Ghazni", "Ghor", "Helmand", "Herat", "Jowzjan", "Kabul", "Kandahar", "Kapisa", "Khost", "Kunar", "Kunduz", "Laghman", "Logar", "Nangarhar", "Nimroz", "Nuristan", "Paktia", "Paktika", "Panjshir", "Parwan", "Samangan", "Sar-e Pol", "Takhar", "Uruzgan", "Wardak", "Zabul"];
+const countries = [
+  "Afghanistan",
+  "Albania",
+  "Algeria",
+  "Andorra",
+  "Angola",
+  "Antigua and Barbuda",
+  "Argentina",
+  "Armenia",
+  "Australia",
+  "Austria",
+  "Azerbaijan",
+  "Bahamas",
+  "Bahrain",
+  "Bangladesh",
+  "Barbados",
+  "Belarus",
+  "Belgium",
+  "Belize",
+  "Benin",
+  "Bhutan",
+  "Bolivia",
+  "Bosnia and Herzegovina",
+  "Botswana",
+  "Brazil",
+  "Brunei",
+  "Bulgaria",
+  "Burkina Faso",
+  "Burundi",
+  "Cabo Verde",
+  "Cambodia",
+  "Cameroon",
+  "Canada",
+  "Central African Republic",
+  "Chad",
+  "Chile",
+  "China",
+  "Colombia",
+  "Comoros",
+  "Congo, Democratic Republic of the",
+  "Congo, Republic of the",
+  "Costa Rica",
+  "Côte d'Ivoire",
+  "Croatia",
+  "Cuba",
+  "Cyprus",
+  "Czechia",
+  "Denmark",
+  "Djibouti",
+  "Dominica",
+  "Dominican Republic",
+  "Ecuador",
+  "Egypt",
+  "El Salvador",
+  "Equatorial Guinea",
+  "Eritrea",
+  "Estonia",
+  "Eswatini",
+  "Ethiopia",
+  "Fiji",
+  "Finland",
+  "France",
+  "Gabon",
+  "Gambia",
+  "Georgia",
+  "Germany",
+  "Ghana",
+  "Greece",
+  "Grenada",
+  "Guatemala",
+  "Guinea",
+  "Guinea-Bissau",
+  "Guyana",
+  "Haiti",
+  "Honduras",
+  "Hungary",
+  "Iceland",
+  "India",
+  "Indonesia",
+  "Iran",
+  "Iraq",
+  "Ireland",
+  "Israel",
+  "Italy",
+  "Jamaica",
+  "Japan",
+  "Jordan",
+  "Kazakhstan",
+  "Kenya",
+  "Kiribati",
+  "Kuwait",
+  "Kyrgyzstan",
+  "Laos",
+  "Latvia",
+  "Lebanon",
+  "Lesotho",
+  "Liberia",
+  "Libya",
+  "Liechtenstein",
+  "Lithuania",
+  "Luxembourg",
+  "Madagascar",
+  "Malawi",
+  "Malaysia",
+  "Maldives",
+  "Mali",
+  "Malta",
+  "Marshall Islands",
+  "Mauritania",
+  "Mauritius",
+  "Mexico",
+  "Micronesia",
+  "Moldova",
+  "Monaco",
+  "Mongolia",
+  "Montenegro",
+  "Morocco",
+  "Mozambique",
+  "Myanmar",
+  "Namibia",
+  "Nauru",
+  "Nepal",
+  "Netherlands",
+  "New Zealand",
+  "Nicaragua",
+  "Niger",
+  "Nigeria",
+  "North Korea",
+  "North Macedonia",
+  "Norway",
+  "Oman",
+  "Pakistan",
+  "Palau",
+  "Palestine",
+  "Panama",
+  "Papua New Guinea",
+  "Paraguay",
+  "Peru",
+  "Philippines",
+  "Poland",
+  "Portugal",
+  "Qatar",
+  "Romania",
+  "Russia",
+  "Rwanda",
+  "Saint Kitts and Nevis",
+  "Saint Lucia",
+  "Saint Vincent and the Grenadines",
+  "Samoa",
+  "San Marino",
+  "São Tomé and Príncipe",
+  "Saudi Arabia",
+  "Senegal",
+  "Serbia",
+  "Seychelles",
+  "Sierra Leone",
+  "Singapore",
+  "Slovakia",
+  "Slovenia",
+  "Solomon Islands",
+  "Somalia",
+  "South Africa",
+  "South Korea",
+  "South Sudan",
+  "Spain",
+  "Sri Lanka",
+  "Sudan",
+  "Suriname",
+  "Sweden",
+  "Switzerland",
+  "Syria",
+  "Taiwan",
+  "Tajikistan",
+  "Tanzania",
+  "Thailand",
+  "Timor-Leste",
+  "Togo",
+  "Tonga",
+  "Trinidad and Tobago",
+  "Tunisia",
+  "Turkey",
+  "Turkmenistan",
+  "Tuvalu",
+  "Uganda",
+  "Ukraine",
+  "United Arab Emirates",
+  "United Kingdom",
+  "United States",
+  "Uruguay",
+  "Uzbekistan",
+  "Vanuatu",
+  "Vatican City",
+  "Venezuela",
+  "Vietnam",
+  "Yemen",
+  "Zambia",
+  "Zimbabwe"
+];
 const baseForm = {
   fullName: "",
   phone: "",
@@ -28,6 +226,9 @@ const baseForm = {
   companyName: "",
   technologyPurpose: "",
   note: "",
+  country: "",
+  scholarshipType: "",
+  price: "",
 };
 
 
@@ -156,6 +357,15 @@ const openEditModal = (customer) => {
       customer.note ||
       customer.notes ||
       "",
+
+    country:
+      customer.country || "",
+
+    scholarshipType:
+      customer.scholarshipType || "",
+
+    price:
+      customer.price || "",
   });
 
   setOpen(true);
@@ -239,6 +449,21 @@ const closeCustomerModal = () => {
     fullName: form.fullName.trim(),
     customerName: form.fullName.trim(),
     phone: form.phone.trim(),
+
+    country:
+      mode === "consultant"
+        ? form.country
+        : existingRecord?.country || "",
+
+    scholarshipType:
+      mode === "consultant"
+        ? form.scholarshipType
+        : existingRecord?.scholarshipType || "",
+
+    price:
+      mode === "consultant"
+        ? Number(form.price || 0)
+        : Number(existingRecord?.price || 0),
 
     purpose: form.purpose.trim(),
 
@@ -416,6 +641,15 @@ return <div className="employee-dashboard"><header><div><span>{mode} workspace</
         <th>Full Name</th>
         <th>Phone</th>
         <th>City</th>
+
+        {mode === "consultant" && (
+          <>
+            <th>Country</th>
+            <th>Scholarship</th>
+            <th>Price</th>
+          </>
+        )}
+
         <th>Call Type</th>
         <th>Purpose</th>
         <th>Follow-up</th>
@@ -442,6 +676,26 @@ return <div className="employee-dashboard"><header><div><span>{mode} workspace</
           <td>
             {customer.city || "-"}
           </td>
+
+          {mode === "consultant" && (
+            <>
+              <td>
+                {customer.country || "-"}
+              </td>
+
+              <td>
+                {customer.scholarshipType || "-"}
+              </td>
+
+              <td>
+                {customer.price
+                  ? `${Number(
+                      customer.price
+                    ).toLocaleString("en-US")} AFN`
+                  : "-"}
+              </td>
+            </>
+          )}
 
           <td>
             {customer.callType || "-"}
@@ -512,7 +766,11 @@ return <div className="employee-dashboard"><header><div><span>{mode} workspace</
       {!filtered.length && (
         <tr>
           <td
-            colSpan="8"
+            colSpan={
+              mode === "consultant"
+                ? "11"
+                : "8"
+            }
             className="employee-empty-record"
           >
             No customer records yet.
@@ -577,6 +835,72 @@ return <div className="employee-dashboard"><header><div><span>{mode} workspace</
       ))}
     </select>
   </label>
+
+  {mode === "consultant" && (
+    <>
+      <label>
+        Country
+
+        <select
+          name="country"
+          value={form.country}
+          onChange={update}
+        >
+          <option value="">
+            Select country
+          </option>
+
+          {countries.map((country) => (
+            <option
+              key={country}
+              value={country}
+            >
+              {country}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label>
+        Scholarship Type
+
+        <select
+          name="scholarshipType"
+          value={form.scholarshipType}
+          onChange={update}
+        >
+          <option value="">
+            Select scholarship
+          </option>
+
+          <option value="Government">
+            Government
+          </option>
+
+          <option value="Semi Government">
+            Semi Government
+          </option>
+
+          <option value="Private">
+            Private
+          </option>
+        </select>
+      </label>
+
+      <label>
+        Price (AFN)
+
+        <input
+          type="number"
+          min="0"
+          name="price"
+          value={form.price}
+          onChange={update}
+          placeholder="Enter price"
+        />
+      </label>
+    </>
+  )}
 
   <label>
     Language
@@ -684,7 +1008,7 @@ return <div className="employee-dashboard"><header><div><span>{mode} workspace</
     />
   </label>
 </div>
-    <footer><button type="button" onClick={() => setOpen(false)}>Cancel</button><button
+    <footer><button type="button" onClick={closeCustomerModal}>Cancel</button><button
   type="submit"
   className="primary"
 >

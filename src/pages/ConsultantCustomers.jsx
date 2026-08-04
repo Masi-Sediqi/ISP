@@ -9,6 +9,204 @@ import "./ConsultantCustomers.css";
 
 const employeeKey = "isp-employees-fallback";
 const provinces = ["Badakhshan","Badghis","Baghlan","Balkh","Bamyan","Daykundi","Farah","Faryab","Ghazni","Ghor","Helmand","Herat","Jowzjan","Kabul","Kandahar","Kapisa","Khost","Kunar","Kunduz","Laghman","Logar","Nangarhar","Nimroz","Nuristan","Paktia","Paktika","Panjshir","Parwan","Samangan","Sar-e Pol","Takhar","Uruzgan","Wardak","Zabul"];
+const countries = [
+  "Afghanistan",
+  "Albania",
+  "Algeria",
+  "Andorra",
+  "Angola",
+  "Antigua and Barbuda",
+  "Argentina",
+  "Armenia",
+  "Australia",
+  "Austria",
+  "Azerbaijan",
+  "Bahamas",
+  "Bahrain",
+  "Bangladesh",
+  "Barbados",
+  "Belarus",
+  "Belgium",
+  "Belize",
+  "Benin",
+  "Bhutan",
+  "Bolivia",
+  "Bosnia and Herzegovina",
+  "Botswana",
+  "Brazil",
+  "Brunei",
+  "Bulgaria",
+  "Burkina Faso",
+  "Burundi",
+  "Cabo Verde",
+  "Cambodia",
+  "Cameroon",
+  "Canada",
+  "Central African Republic",
+  "Chad",
+  "Chile",
+  "China",
+  "Colombia",
+  "Comoros",
+  "Congo, Democratic Republic of the",
+  "Congo, Republic of the",
+  "Costa Rica",
+  "Côte d\'Ivoire",
+  "Croatia",
+  "Cuba",
+  "Cyprus",
+  "Czechia",
+  "Denmark",
+  "Djibouti",
+  "Dominica",
+  "Dominican Republic",
+  "Ecuador",
+  "Egypt",
+  "El Salvador",
+  "Equatorial Guinea",
+  "Eritrea",
+  "Estonia",
+  "Eswatini",
+  "Ethiopia",
+  "Fiji",
+  "Finland",
+  "France",
+  "Gabon",
+  "Gambia",
+  "Georgia",
+  "Germany",
+  "Ghana",
+  "Greece",
+  "Grenada",
+  "Guatemala",
+  "Guinea",
+  "Guinea-Bissau",
+  "Guyana",
+  "Haiti",
+  "Honduras",
+  "Hungary",
+  "Iceland",
+  "India",
+  "Indonesia",
+  "Iran",
+  "Iraq",
+  "Ireland",
+  "Israel",
+  "Italy",
+  "Jamaica",
+  "Japan",
+  "Jordan",
+  "Kazakhstan",
+  "Kenya",
+  "Kiribati",
+  "Kuwait",
+  "Kyrgyzstan",
+  "Laos",
+  "Latvia",
+  "Lebanon",
+  "Lesotho",
+  "Liberia",
+  "Libya",
+  "Liechtenstein",
+  "Lithuania",
+  "Luxembourg",
+  "Madagascar",
+  "Malawi",
+  "Malaysia",
+  "Maldives",
+  "Mali",
+  "Malta",
+  "Marshall Islands",
+  "Mauritania",
+  "Mauritius",
+  "Mexico",
+  "Micronesia",
+  "Moldova",
+  "Monaco",
+  "Mongolia",
+  "Montenegro",
+  "Morocco",
+  "Mozambique",
+  "Myanmar",
+  "Namibia",
+  "Nauru",
+  "Nepal",
+  "Netherlands",
+  "New Zealand",
+  "Nicaragua",
+  "Niger",
+  "Nigeria",
+  "North Korea",
+  "North Macedonia",
+  "Norway",
+  "Oman",
+  "Pakistan",
+  "Palau",
+  "Palestine",
+  "Panama",
+  "Papua New Guinea",
+  "Paraguay",
+  "Peru",
+  "Philippines",
+  "Poland",
+  "Portugal",
+  "Qatar",
+  "Romania",
+  "Russia",
+  "Rwanda",
+  "Saint Kitts and Nevis",
+  "Saint Lucia",
+  "Saint Vincent and the Grenadines",
+  "Samoa",
+  "San Marino",
+  "São Tomé and Príncipe",
+  "Saudi Arabia",
+  "Senegal",
+  "Serbia",
+  "Seychelles",
+  "Sierra Leone",
+  "Singapore",
+  "Slovakia",
+  "Slovenia",
+  "Solomon Islands",
+  "Somalia",
+  "South Africa",
+  "South Korea",
+  "South Sudan",
+  "Spain",
+  "Sri Lanka",
+  "Sudan",
+  "Suriname",
+  "Sweden",
+  "Switzerland",
+  "Syria",
+  "Taiwan",
+  "Tajikistan",
+  "Tanzania",
+  "Thailand",
+  "Timor-Leste",
+  "Togo",
+  "Tonga",
+  "Trinidad and Tobago",
+  "Tunisia",
+  "Turkey",
+  "Turkmenistan",
+  "Tuvalu",
+  "Uganda",
+  "Ukraine",
+  "United Arab Emirates",
+  "United Kingdom",
+  "United States",
+  "Uruguay",
+  "Uzbekistan",
+  "Vanuatu",
+  "Vatican City",
+  "Venezuela",
+  "Vietnam",
+  "Yemen",
+  "Zambia",
+  "Zimbabwe"
+];
 
 const emptyForm = {
   passportFullName: "",
@@ -28,6 +226,9 @@ const emptyForm = {
   businessType: "",
   companyName: "",
   technologyPurpose: "Database",
+  price: "",
+  scholarshipType: "",
+  country: "",
 };
 
 const readList = (key) => {
@@ -123,7 +324,7 @@ function ConsultantCustomers({ mode = "consultant" }) {
     const query = search.trim().toLowerCase();
     if (!query) return customers;
     return customers.filter((customer) =>
-      [customer.fullName, customer.passportFullName, customer.phone, customer.city, customer.email, customer.institutionName, customer.sourceEmployeeName, customer.assignedEmployeeName, customer.purpose, customer.businessType, customer.companyName]
+      [customer.fullName, customer.passportFullName, customer.phone, customer.city, customer.email, customer.institutionName, customer.sourceEmployeeName, customer.assignedEmployeeName, customer.purpose, customer.businessType, customer.companyName, customer.country, customer.scholarshipType, customer.price]
         .some((value) => String(value || "").toLowerCase().includes(query))
     );
   }, [customers, search]);
@@ -195,8 +396,8 @@ function ConsultantCustomers({ mode = "consultant" }) {
 
       <section className="consultant-list-card">
         <div className="consultant-list-header"><div><h2>{typeLabel} List</h2><p>Registered customer records</p></div><div><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customers..." /></div></div>
-        <div className="consultant-table-wrap"><table><thead><tr><th>Full Name</th><th>Contact</th>{!isTravel && <th>Education</th>}<th>Source</th><th>Assigned To</th><th>Purpose</th><th>Action</th></tr></thead>
-          <tbody>{filtered.map((customer) => { const customerName = customer.fullName || customer.passportFullName || `Unnamed ${typeLabel}`; return <tr key={customer.id}><td><button type="button" className="consultant-name-preview" onClick={() => setViewCustomer(customer)} title="Preview customer details"><span className="consultant-name-avatar">{String(customerName).slice(0, 1).toUpperCase()}</span><span className="consultant-name-copy"><strong>{customerName}</strong><small>View details</small></span></button></td><td><div className="consultant-contact"><span><Phone size={13} />{customer.phone || "-"}</span><span><Mail size={13} />{customer.city || customer.email || "-"}</span></div></td>{!isTravel && <td>{isTechnology ? customer.businessType || "-" : customer.educationLevel || "-"}<small>{isTechnology ? customer.companyName || "" : customer.institutionName || ""}</small></td>}<td>{customer.sourceEmployeeName || "-"}</td><td><span className="consultant-assigned">{customer.assignedEmployeeName || "Unassigned"}</span></td><td>{isTechnology ? customer.technologyPurpose || "-" : customer.purpose || "-"}</td><td><div className="consultant-row-actions"><button className="view" type="button" onClick={() => setViewCustomer(customer)} title="View details"><Eye size={14} /></button><button className="edit" type="button" onClick={() => openEdit(customer)} title="Edit"><Pencil size={14} /></button><button className="delete" type="button" onClick={() => setDeleteCustomer(customer)} title="Delete"><Trash2 size={14} /></button></div></td></tr>; })}{!filtered.length && <tr><td colSpan={isTravel ? 6 : 7} className="consultant-empty">No customers registered yet.</td></tr>}</tbody>
+        <div className="consultant-table-wrap"><table><thead><tr><th>Full Name</th><th>Contact</th>{!isTravel && <th>Education</th>}{!isTravel && !isTechnology && <><th>Country</th><th>Scholarship</th><th>Price</th></>}<th>Source</th><th>Assigned To</th><th>Purpose</th><th>Action</th></tr></thead>
+          <tbody>{filtered.map((customer) => { const customerName = customer.fullName || customer.passportFullName || `Unnamed ${typeLabel}`; return <tr key={customer.id}><td><button type="button" className="consultant-name-preview" onClick={() => setViewCustomer(customer)} title="Preview customer details"><span className="consultant-name-avatar">{String(customerName).slice(0, 1).toUpperCase()}</span><span className="consultant-name-copy"><strong>{customerName}</strong><small>View details</small></span></button></td><td><div className="consultant-contact"><span><Phone size={13} />{customer.phone || "-"}</span><span><Mail size={13} />{customer.city || customer.email || "-"}</span></div></td>{!isTravel && <td>{isTechnology ? customer.businessType || "-" : customer.educationLevel || "-"}<small>{isTechnology ? customer.companyName || "" : customer.institutionName || ""}</small></td>}{!isTravel && !isTechnology && <><td>{customer.country || "-"}</td><td>{customer.scholarshipType || "-"}</td><td>{customer.price ? `${Number(customer.price).toLocaleString("en-US")} AFN` : "-"}</td></>}<td>{customer.sourceEmployeeName || "-"}</td><td><span className="consultant-assigned">{customer.assignedEmployeeName || "Unassigned"}</span></td><td>{isTechnology ? customer.technologyPurpose || "-" : customer.purpose || "-"}</td><td><div className="consultant-row-actions"><button className="view" type="button" onClick={() => setViewCustomer(customer)} title="View details"><Eye size={14} /></button><button className="edit" type="button" onClick={() => openEdit(customer)} title="Edit"><Pencil size={14} /></button><button className="delete" type="button" onClick={() => setDeleteCustomer(customer)} title="Delete"><Trash2 size={14} /></button></div></td></tr>; })}{!filtered.length && <tr><td colSpan={isTravel ? 6 : isTechnology ? 7 : 10} className="consultant-empty">No customers registered yet.</td></tr>}</tbody>
         </table></div>
       </section>
 
@@ -209,6 +410,11 @@ function ConsultantCustomers({ mode = "consultant" }) {
             <label><span>City / Province</span><select name="city" value={form.city} onChange={update}><option value="">Select province</option>{provinces.map((province) => <option key={province}>{province}</option>)}</select></label>
             <label><span>Language</span><select name="language" value={form.language} onChange={update}><option>Dari</option><option>Pashto</option><option>English</option><option>Other</option></select></label><label><span>Call Type</span><select name="callType" value={form.callType} onChange={update}><option>Incoming</option><option>Outgoing</option></select></label><label className="followup-field"><span>Need Follow-up</span><button type="button" role="switch" aria-checked={form.needFollowup === "Yes"} className={`followup-switch ${form.needFollowup === "Yes" ? "on" : "off"}`} onClick={() => setForm((current) => ({ ...current, needFollowup: current.needFollowup === "Yes" ? "No" : "Yes" }))}><span/><b>{form.needFollowup === "Yes" ? "ON" : "OFF"}</b></button></label>
             {isTechnology && <><label><span>Business Type</span><input name="businessType" value={form.businessType} onChange={update} /></label><label><span>Company Name</span><input name="companyName" value={form.companyName} onChange={update} /></label><label><span>Purpose</span><select name="technologyPurpose" value={form.technologyPurpose} onChange={update}><option>Database</option><option>Web</option><option>Application</option></select></label></>}
+            {!isTechnology && !isTravel && <>
+              <label><span>Country</span><select name="country" value={form.country} onChange={update}><option value="">Select country</option>{countries.map((country) => <option key={country} value={country}>{country}</option>)}</select></label>
+              <label><span>Scholarship Type</span><select name="scholarshipType" value={form.scholarshipType} onChange={update}><option value="">Select scholarship</option><option value="Government">Government</option><option value="Semi Government">Semi Government</option><option value="Private">Private</option></select></label>
+              <label><span>Price (AFN)</span><input type="number" min="0" name="price" value={form.price} onChange={update} placeholder="Enter price" /></label>
+            </>}
             {!isTechnology && <label className="consultant-form-full"><span>Purpose</span><textarea name="purpose" value={form.purpose} onChange={update} rows="4" /></label>}
           </> : isTechnology ? <>
             <label><span>Full Name</span><input name="passportFullName" value={form.passportFullName} onChange={update} /></label>
@@ -223,6 +429,11 @@ function ConsultantCustomers({ mode = "consultant" }) {
             <label><span>Email</span><input type="email" name="email" value={form.email} onChange={update} /></label>
             {!isTravel && <label><span>Education Level</span><select name="educationLevel" value={form.educationLevel} onChange={update}><option value="">Select education</option><option>School</option><option>University</option><option>Institute</option><option>Other</option></select></label>}
             {!isTravel && (form.educationLevel === "School" || form.educationLevel === "University") && <label className="consultant-institution"><span>{form.educationLevel === "School" ? "School Name" : "University Name"}</span><input name="institutionName" value={form.institutionName} onChange={update} placeholder={`Enter ${form.educationLevel.toLowerCase()} name`} /></label>}
+            {!isTravel && !isTechnology && <>
+              <label><span>Country</span><select name="country" value={form.country} onChange={update}><option value="">Select country</option>{countries.map((country) => <option key={country} value={country}>{country}</option>)}</select></label>
+              <label><span>Scholarship Type</span><select name="scholarshipType" value={form.scholarshipType} onChange={update}><option value="">Select scholarship</option><option value="Government">Government</option><option value="Semi Government">Semi Government</option><option value="Private">Private</option></select></label>
+              <label><span>Price (AFN)</span><input type="number" min="0" name="price" value={form.price} onChange={update} placeholder="Enter price" /></label>
+            </>}
             <EmployeePicker label="Source" employees={employees} value={form.sourceEmployeeName} selectedId={form.sourceEmployeeId} onSelect={(employee) => setForm((current) => ({ ...current, sourceEmployeeId: employee.id, sourceEmployeeName: employee.fullName }))} />
             <EmployeePicker label="Assign To" employees={employees} value={form.assignedEmployeeName} selectedId={form.assignedEmployeeId} onSelect={(employee) => setForm((current) => ({ ...current, assignedEmployeeId: employee.id, assignedEmployeeName: employee.fullName }))} />
             <label className="consultant-form-full"><span>Purpose</span><textarea name="purpose" value={form.purpose} onChange={update} rows="4" /></label>
@@ -230,7 +441,7 @@ function ConsultantCustomers({ mode = "consultant" }) {
         </div><div className="consultant-modal-actions"><button type="button" onClick={() => setShowForm(false)}>Cancel</button><button type="submit">{editId ? "Save Changes" : `Register ${typeLabel}`}</button></div></form>
       </div></div>}
 
-      {viewCustomer && <div className="consultant-modal-backdrop" onMouseDown={() => setViewCustomer(null)}><div className="consultant-detail-modal" onMouseDown={(event) => event.stopPropagation()}><div className="consultant-detail-hero"><div><b>{String(viewCustomer.fullName || viewCustomer.passportFullName || "C").slice(0,1).toUpperCase()}</b><span><small>{typeLabel}</small><h2>{viewCustomer.fullName || viewCustomer.passportFullName || `Unnamed ${typeLabel}`}</h2></span></div><button type="button" onClick={() => setViewCustomer(null)}><X size={18}/></button></div><div className="consultant-detail-grid">{[["Phone Number",viewCustomer.phone],["City / Province",viewCustomer.city],["Language",viewCustomer.language],["Call Type",viewCustomer.callType],["Need Follow-up",viewCustomer.needFollowup],["Business Type",viewCustomer.businessType],["Company Name",viewCustomer.companyName],[viewCustomer.createdByAccountId ? "Added By" : "Source Employee",viewCustomer.sourceEmployeeName],["Assigned To",viewCustomer.assignedEmployeeName],["Purpose",isTechnology ? viewCustomer.technologyPurpose : viewCustomer.purpose],[viewCustomer.createdByAccountId ? "Added Date" : "Registered",viewCustomer.createdAt ? new Date(viewCustomer.createdAt).toLocaleString() : ""]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value || "-"}</strong></div>)}</div><div className="consultant-detail-actions"><button type="button" onClick={() => { setViewCustomer(null); openEdit(viewCustomer); }}><Pencil size={15}/> Edit Information</button></div></div></div>}
+      {viewCustomer && <div className="consultant-modal-backdrop" onMouseDown={() => setViewCustomer(null)}><div className="consultant-detail-modal" onMouseDown={(event) => event.stopPropagation()}><div className="consultant-detail-hero"><div><b>{String(viewCustomer.fullName || viewCustomer.passportFullName || "C").slice(0,1).toUpperCase()}</b><span><small>{typeLabel}</small><h2>{viewCustomer.fullName || viewCustomer.passportFullName || `Unnamed ${typeLabel}`}</h2></span></div><button type="button" onClick={() => setViewCustomer(null)}><X size={18}/></button></div><div className="consultant-detail-grid">{[["Phone Number",viewCustomer.phone],["City / Province",viewCustomer.city],["Language",viewCustomer.language],["Call Type",viewCustomer.callType],["Need Follow-up",viewCustomer.needFollowup],["Country",viewCustomer.country],["Scholarship Type",viewCustomer.scholarshipType],["Price",viewCustomer.price ? `${Number(viewCustomer.price).toLocaleString("en-US")} AFN` : ""],["Business Type",viewCustomer.businessType],["Company Name",viewCustomer.companyName],[viewCustomer.createdByAccountId ? "Added By" : "Source Employee",viewCustomer.sourceEmployeeName],["Assigned To",viewCustomer.assignedEmployeeName],["Purpose",isTechnology ? viewCustomer.technologyPurpose : viewCustomer.purpose],[viewCustomer.createdByAccountId ? "Added Date" : "Registered",viewCustomer.createdAt ? new Date(viewCustomer.createdAt).toLocaleString() : ""]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value || "-"}</strong></div>)}</div><div className="consultant-detail-actions"><button type="button" onClick={() => { setViewCustomer(null); openEdit(viewCustomer); }}><Pencil size={15}/> Edit Information</button></div></div></div>}
 
       {deleteCustomer && <div className="consultant-modal-backdrop" onMouseDown={() => setDeleteCustomer(null)}><div className="consultant-delete-modal" onMouseDown={(event) => event.stopPropagation()}><div className="consultant-delete-icon"><AlertTriangle size={26}/></div><h2>Delete Consultant?</h2><p>You are about to permanently delete <strong>{deleteCustomer.passportFullName || "this consultant"}</strong>. This action cannot be undone.</p><div><button type="button" onClick={() => setDeleteCustomer(null)}>Cancel</button><button type="button" onClick={remove}><Trash2 size={15}/> Delete Consultant</button></div></div></div>}
     </div>
