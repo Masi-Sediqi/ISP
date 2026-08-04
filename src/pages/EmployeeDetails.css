@@ -491,16 +491,6 @@ body.dark-mode
 
 /* Current balance */
 
-.employee-current-balance {
-  min-height: 42px;
-  padding: 6px 14px;
-  border: 1px solid #bbf7d0;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  background: #f0fdf4;
-}
 
 .employee-current-balance span {
   color: #64748b;
@@ -571,18 +561,7 @@ body.dark-mode
   color: #dcfce7;
 }
 
-body.dark-mode .employee-current-balance {
-  border-color: #166534;
-  background: rgba(20, 83, 45, 0.35);
-}
 
-body.dark-mode .employee-current-balance span {
-  color: #bbf7d0;
-}
-
-body.dark-mode .employee-current-balance strong {
-  color: #86efac;
-}
 
 body.dark-mode .employee-details-modal {
   border-color: #334155;

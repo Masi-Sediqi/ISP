@@ -17,6 +17,7 @@ import {
 
 import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { useLocalCollection } from "../hooks/useLocalCollection";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { notify } from "../utils/notify";
 
@@ -78,6 +79,9 @@ function normalizeCategory(category) {
 function Finance() {
   const [transactions, setTransactions] =
     useJsonCollection("transactions");
+
+  const [employeeAdjustments] =
+    useLocalCollection("employeeAdjustments");
 
   const [financeCategories, setFinanceCategories] =
     useJsonCollection("financeCategories");
@@ -399,8 +403,83 @@ function Finance() {
           updatedAt: movement.updatedAt,
         }));
 
+    const legacyEmployeeAdjustments =
+      employeeAdjustments
+        .filter(
+          (adjustment) =>
+            !transactions.some(
+              (transaction) =>
+                transaction.source ===
+                  "employee-adjustment" &&
+                String(
+                  transaction.referenceId
+                ) === String(adjustment.id)
+            )
+        )
+        .map((adjustment) => {
+          const adjustmentType = String(
+            adjustment.type || ""
+          ).toLowerCase();
+
+          const isIncome =
+            adjustmentType === "penalty" ||
+            adjustmentType === "debit";
+
+          const typeLabel =
+            adjustmentType === "salary"
+              ? "Salary"
+              : adjustmentType
+                ? adjustmentType
+                    .charAt(0)
+                    .toUpperCase() +
+                  adjustmentType.slice(1)
+                : "Adjustment";
+
+          return {
+            id:
+              `employee-adjustment-${adjustment.id}`,
+            type: isIncome
+              ? "income"
+              : "expense",
+            title:
+              `Employee ${typeLabel} - ${
+                adjustment.employeeName || ""
+              }`.trim(),
+            amount: Number(
+              adjustment.amount || 0
+            ),
+            date:
+              adjustment.date ||
+              String(
+                adjustment.createdAt || ""
+              ).slice(0, 10),
+            category:
+              adjustmentType === "salary"
+                ? "Salary"
+                : "Employee Adjustment",
+            description:
+              adjustment.reason || "",
+            source:
+              "employee-adjustment",
+            referenceId: adjustment.id,
+            employeeId:
+              adjustment.employeeId || "",
+            employeeName:
+              adjustment.employeeName || "",
+            adjustmentType,
+            createdAt:
+              adjustment.createdAt ||
+              adjustment.updatedAt ||
+              adjustment.date,
+            updatedAt:
+              adjustment.updatedAt ||
+              adjustment.createdAt,
+          };
+        });
+
     return [
       ...transactions,
+      ...legacyEmployeeAdjustments,
       ...legacyTravelPayments,
       ...legacyCustomerPayments,
       ...legacyTravelExpenses,
@@ -411,6 +490,7 @@ function Finance() {
     ];
   }, [
     transactions,
+    employeeAdjustments,
     customerTravels,
     customerPayments,
     travelExpenses,
@@ -980,6 +1060,13 @@ function Finance() {
       "customer-device-sale"
     ) {
       return "Device Sale";
+    }
+
+    if (
+      transaction.source ===
+      "employee-adjustment"
+    ) {
+      return "Employee Adjustment";
     }
 
     if (

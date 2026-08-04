@@ -152,21 +152,35 @@ export default function EmployeeDetails({
       String(item.employeeId) === String(id)
   );
 
-  const totalBonus = employeeAdjustments
-    .filter((item) => item.type === "bonus")
+
+  const totalCredit = employeeAdjustments
+    .filter(
+      (item) =>
+        item.type === "bonus" ||
+        item.type === "credit" ||
+        item.type === "salary"
+    )
     .reduce(
       (sum, item) =>
         sum + Number(item.amount || 0),
       0
     );
 
-  const totalPenalty = employeeAdjustments
-    .filter((item) => item.type === "penalty")
+  const totalDebit = employeeAdjustments
+    .filter(
+      (item) =>
+        item.type === "penalty" ||
+        item.type === "debit"
+    )
     .reduce(
       (sum, item) =>
         sum + Number(item.amount || 0),
       0
     );
+
+  const netBalance =
+    totalCredit - totalDebit;
+
 
   const anyModalOpen =
   accountOpen || adjustmentOpen || detailsOpen;
@@ -465,13 +479,16 @@ const record = {
       return;
     }
 
+    const now = new Date().toISOString();
+
     const record = {
       id: createRecordId(),
       employeeId: employee.id,
       employeeName: employee.fullName,
       ...adjustmentForm,
       amount,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
 
     const saved = await setAdjustments([
@@ -482,7 +499,9 @@ const record = {
     if (!saved) return;
 
     notify(
-      "Bonus / penalty saved.",
+      adjustmentForm.type === "salary"
+        ? "Salary saved successfully."
+        : "Financial adjustment saved.",
       "success"
     );
 
@@ -557,13 +576,7 @@ const record = {
         </div>
 
         <div className="employee-profile-actions">
-          <div className="employee-current-balance">
-            <span>Current Balance</span>
 
-            <strong>
-              {(totalBonus - totalPenalty).toLocaleString("en-US")} AFN
-            </strong>
-          </div>
 
           <button
             type="button"
@@ -578,7 +591,7 @@ const record = {
             onClick={openAdjustment}
           >
             <Gift size={17} />
-            Bonus and Penalty
+            Financial Adjustment
           </button>
 
           <button
@@ -638,22 +651,22 @@ const record = {
         </div>
 
         <aside>
-          <small>Bonus balance</small>
 
-          <strong>
-            {(
-              totalBonus - totalPenalty
-            ).toLocaleString("en-US")}{" "}
-            AFN
-          </strong>
+<small>Net Balance</small>
 
-          <em>
-            Bonus{" "}
-            {totalBonus.toLocaleString()} ·
-            Penalty{" "}
-            {totalPenalty.toLocaleString()}
-          </em>
-        </aside>
+<strong>
+    {netBalance.toLocaleString()} AFN
+</strong>
+
+<em>
+
+    Credit {totalCredit.toLocaleString()} ·
+
+    Debit {totalDebit.toLocaleString()}
+
+</em>
+
+</aside>
       </section>
 
       <section className="employee-work-card">
@@ -1033,7 +1046,7 @@ const record = {
             <header>
               <div>
                 <h2 id="employee-adjustment-title">
-                  Bonus and Penalty
+                Financial Adjustment
                 </h2>
 
                 <p>
@@ -1056,22 +1069,16 @@ const record = {
               <span>Type</span>
 
               <select
-                name="type"
-                value={
-                  adjustmentForm.type
-                }
-                onChange={
-                  updateAdjustmentField
-                }
-              >
-                <option value="bonus">
-                  Bonus
-                </option>
-
-                <option value="penalty">
-                  Penalty
-                </option>
-              </select>
+    name="type"
+    value={adjustmentForm.type}
+    onChange={updateAdjustmentField}
+>
+    <option value="bonus">Bonus</option>
+    <option value="penalty">Penalty</option>
+    <option value="credit">Credit</option>
+    <option value="debit">Debit</option>
+    <option value="salary">Salary</option>
+</select>
             </label>
 
             <label>
