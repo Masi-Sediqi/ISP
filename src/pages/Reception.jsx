@@ -151,8 +151,11 @@ function getEmployeeName(employee) {
 }
 
 export default function Reception({ currentUser }) {
-  const [customers, setCustomers] =
-    useJsonCollection("customers");
+  const [
+    customers,
+    setCustomers,
+    loadCustomers,
+  ] = useJsonCollection("customers");
 
   const [mediaProducts, setMediaProducts] =
     useJsonCollection("mediaProducts");
@@ -273,7 +276,10 @@ async function saveCustomerAssignment(event) {
     const assignedAt =
       new Date().toISOString();
 
-    const nextCustomers = customers.map(
+    const latestCustomers =
+      await loadCustomers();
+
+    const nextCustomers = latestCustomers.map(
       (customer) =>
         String(customer.id) ===
         String(assignTarget.id)
@@ -545,7 +551,10 @@ async function saveCustomerAssignment(event) {
   async function confirmDeleteCustomer() {
     if (!deleteCustomer) return;
 
-    const nextCustomers = customers.filter(
+    const latestCustomers =
+      await loadCustomers();
+
+    const nextCustomers = latestCustomers.filter(
       (customer) =>
         String(customer.id) !==
         String(deleteCustomer.id)
@@ -746,8 +755,11 @@ async function saveCustomerAssignment(event) {
       return;
     }
 
+    const latestCustomers =
+      await loadCustomers();
+
     const existingCustomer = editingCustomerId
-      ? customers.find(
+      ? latestCustomers.find(
           (customer) =>
             String(customer.id) ===
             String(editingCustomerId)
@@ -812,13 +824,13 @@ async function saveCustomerAssignment(event) {
     };
 
     const nextCustomers = editingCustomerId
-      ? customers.map((customer) =>
+      ? latestCustomers.map((customer) =>
           String(customer.id) ===
           String(editingCustomerId)
             ? record
             : customer
         )
-      : [...customers, record];
+      : [...latestCustomers, record];
 
     const saved = await setCustomers(nextCustomers);
 
@@ -848,8 +860,11 @@ async function saveCustomerAssignment(event) {
       return;
     }
 
+    const latestCustomers =
+      await loadCustomers();
+
     const existingCustomer = editingCustomerId
-      ? customers.find(
+      ? latestCustomers.find(
           (customer) =>
             String(customer.id) ===
             String(editingCustomerId)
@@ -909,13 +924,13 @@ async function saveCustomerAssignment(event) {
     };
 
     const nextCustomers = editingCustomerId
-      ? customers.map((customer) =>
+      ? latestCustomers.map((customer) =>
           String(customer.id) ===
           String(editingCustomerId)
             ? record
             : customer
         )
-      : [...customers, record];
+      : [...latestCustomers, record];
 
     const saved = await setCustomers(nextCustomers);
 
@@ -942,8 +957,11 @@ async function saveCustomerAssignment(event) {
       return;
     }
 
+    const latestCustomers =
+      await loadCustomers();
+
     const existingCustomer = editingCustomerId
-      ? customers.find(
+      ? latestCustomers.find(
           (customer) =>
             String(customer.id) ===
             String(editingCustomerId)
@@ -1018,13 +1036,13 @@ async function saveCustomerAssignment(event) {
     };
 
     const nextCustomers = editingCustomerId
-      ? customers.map((customer) =>
+      ? latestCustomers.map((customer) =>
           String(customer.id) ===
           String(editingCustomerId)
             ? record
             : customer
         )
-      : [...customers, record];
+      : [...latestCustomers, record];
 
     const saved = await setCustomers(nextCustomers);
 

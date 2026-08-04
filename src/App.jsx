@@ -100,6 +100,7 @@ const FAQ = lazy(() =>
   import("./pages/FAQ")
 );
 const Reception = lazy(() => import("./pages/Reception"));
+const CustomerFollowUp = lazy(() => import("./pages/CustomerFollowUp"));
 
 
 const UserGuide = lazy(() => import("./pages/UserGuide"));
@@ -344,33 +345,40 @@ const myAssignedCustomers = customers
     !isReceptionAccount;
 
   useEffect(() => {
+    const isFollowUpPath =
+      location.pathname.startsWith(
+        "/customer-follow-up/"
+      );
+
     const receptionAllowedPaths = [
       "/reception",
       "/my-account",
       "/team-chat",
     ];
 
-if (
-  isReceptionAccount &&
-  !receptionAllowedPaths.includes(
-    location.pathname
-  )
-) {
-  window.location.hash = "#/reception";
-  return;
-}
-  
-const employeeAllowedPaths = [
-  "/",
-  "/my-account",
-  "/team-chat",
-];
+    if (
+      isReceptionAccount &&
+      !receptionAllowedPaths.includes(
+        location.pathname
+      ) &&
+      !isFollowUpPath
+    ) {
+      window.location.hash = "#/reception";
+      return;
+    }
+
+    const employeeAllowedPaths = [
+      "/",
+      "/my-account",
+      "/team-chat",
+    ];
 
     if (
       isEmployeeAccount &&
       !employeeAllowedPaths.includes(
         location.pathname
-      )
+      ) &&
+      !isFollowUpPath
     ) {
       window.location.hash = "#/";
     }
@@ -741,6 +749,15 @@ const employeeAllowedPaths = [
                   }
                 />
 
+
+                <Route
+                  path="/customer-follow-up/:id"
+                  element={
+                    <CustomerFollowUp
+                      currentUser={currentUser}
+                    />
+                  }
+                />
 
                 <Route
                   path="/office-assets/:assetId"

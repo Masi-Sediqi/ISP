@@ -645,3 +645,70 @@ body.dark-mode .my-account-message-form textarea {
     flex-direction: column;
   }
 }
+
+/* Customer follow-up action */
+
+.my-account-followup-button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid #c7d2fe;
+  border-radius: 9px;
+  display: inline-grid;
+  place-items: center;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.my-account-followup-button.pending {
+  animation: myAccountFollowUpPulse 1.4s ease-in-out infinite;
+}
+
+.my-account-followup-button.completed {
+  border-color: #bbf7d0;
+  background: #dcfce7;
+  color: #15803d;
+  animation: none;
+}
+
+.my-account-followup-unavailable {
+  color: #cbd5e1;
+}
+
+@keyframes myAccountFollowUpPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.15);
+    transform: translateY(0);
+  }
+
+  50% {
+    box-shadow: 0 0 0 7px rgba(79, 70, 229, 0);
+    transform: translateY(-1px);
+  }
+}
+
+.my-account-modal-actions .followup {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.my-account-modal-actions .followup.completed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+body.dark-mode .my-account-followup-button {
+  border-color: #6366f1;
+  background: #312e81;
+  color: #e0e7ff;
+}
+
+body.dark-mode .my-account-followup-button.completed {
+  border-color: #166534;
+  background: #14532d;
+  color: #dcfce7;
+}
