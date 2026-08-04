@@ -26,7 +26,7 @@ const accountDefaults = {
 };
 
 const adjustmentDefaults = {
-  type: "bonus",
+  type: "credit",
   amount: "",
   reason: "",
 };
@@ -58,7 +58,7 @@ export default function EmployeeDetails({
     useState(false);
 
   const [adjustmentOpen, setAdjustmentOpen] =
-  useState(false);
+    useState(false);
   
   const [detailsOpen, setDetailsOpen] =
     useState(false);
@@ -168,61 +168,66 @@ export default function EmployeeDetails({
   );
 
 
-  const totalCredit = employeeAdjustments
-    .filter(
-      (item) =>
-        item.type === "bonus" ||
-        item.type === "credit" ||
-        item.type === "salary"
-    )
+  const totalBonus = employeeAdjustments
+    .filter((item) => item.type === "bonus")
     .reduce(
       (sum, item) =>
         sum + Number(item.amount || 0),
       0
     );
 
-  const totalDebit = employeeAdjustments
-    .filter(
-      (item) =>
-        item.type === "penalty" ||
-        item.type === "debit"
-    )
+  const totalPenalty = employeeAdjustments
+    .filter((item) => item.type === "penalty")
     .reduce(
       (sum, item) =>
         sum + Number(item.amount || 0),
       0
     );
 
-  const totalCredit = employeeAdjustments
-    .filter(
-      (item) =>
-        item.type === "credit" ||
-        item.type === "bonus"
-    )
+  const totalCreditOnly = employeeAdjustments
+    .filter((item) => item.type === "credit")
     .reduce(
       (sum, item) =>
         sum + Number(item.amount || 0),
       0
     );
 
-  const totalDebit = employeeAdjustments
-    .filter(
-      (item) =>
-        item.type === "debit" ||
-        item.type === "penalty"
-    )
+  const totalDebitOnly = employeeAdjustments
+    .filter((item) => item.type === "debit")
     .reduce(
       (sum, item) =>
         sum + Number(item.amount || 0),
       0
     );
 
-  const ledgerBalance = totalCredit - totalDebit;
+  const totalSalary = employeeAdjustments
+    .filter((item) => item.type === "salary")
+    .reduce(
+      (sum, item) =>
+        sum + Number(item.amount || 0),
+      0
+    );
+
+  const totalCredit =
+    totalCreditOnly +
+    totalBonus +
+    totalSalary;
+
+  const totalDebit =
+    totalDebitOnly +
+    totalPenalty;
+
+  const ledgerBalance =
+    totalCredit - totalDebit;
+
   const netBalance = ledgerBalance;
 
   const anyModalOpen =
-  accountOpen || adjustmentOpen || detailsOpen;
-    useEffect(() => {
+    accountOpen ||
+    adjustmentOpen ||
+    detailsOpen;
+
+  useEffect(() => {
     if (!anyModalOpen) return undefined;
 
     const previousOverflow =
@@ -253,6 +258,10 @@ export default function EmployeeDetails({
 
       if (detailsOpen) {
         setDetailsOpen(false);
+      }
+
+      if (adjustmentOpen) {
+        closeAdjustment();
       }
     };
 
@@ -609,17 +618,11 @@ const record = {
 
           <p>
             Complete information, login
-            account, bonus and penalty.
+            account, customers, and employee ledger.
           </p>
         </div>
 
         <div className="employee-profile-actions">
-
-            <strong>
-              {ledgerBalance.toLocaleString("en-US")} AFN
-            </strong>
-          </div>
-
           <button
             type="button"
             onClick={() => setDetailsOpen(true)}
@@ -693,22 +696,17 @@ const record = {
         </div>
 
         <aside>
+          <small>Net Balance</small>
 
-<small>Net Balance</small>
+          <strong>
+            {netBalance.toLocaleString("en-US")} AFN
+          </strong>
 
-<strong>
-    {netBalance.toLocaleString()} AFN
-</strong>
-
-<em>
-
-    Credit {totalCredit.toLocaleString()} ·
-
-    Debit {totalDebit.toLocaleString()}
-
-</em>
-
-</aside>
+          <em>
+            Credit {totalCredit.toLocaleString("en-US")} ·
+            Debit {totalDebit.toLocaleString("en-US")}
+          </em>
+        </aside>
       </section>
 
       <section className="employee-work-tabs" aria-label="Employee work sections">
@@ -858,16 +856,16 @@ const record = {
 
           <div className="employee-ledger-summary">
             <div>
-              <span>Total Credit</span>
+              <span>Credit</span>
               <strong className="credit">
-                {totalCredit.toLocaleString("en-US")} AFN
+                {totalCreditOnly.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
             <div>
-              <span>Total Debit</span>
+              <span>Debit</span>
               <strong className="debit">
-                {totalDebit.toLocaleString("en-US")} AFN
+                {totalDebitOnly.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
@@ -886,10 +884,19 @@ const record = {
             </div>
 
             <div>
+              <span>Salary</span>
+              <strong>
+                {totalSalary.toLocaleString("en-US")} AFN
+              </strong>
+            </div>
+
+            <div>
               <span>Current Balance</span>
               <strong
                 className={
-                  ledgerBalance < 0 ? "debit" : "credit"
+                  ledgerBalance < 0
+                    ? "debit"
+                    : "credit"
                 }
               >
                 {ledgerBalance.toLocaleString("en-US")} AFN
@@ -914,7 +921,8 @@ const record = {
                   const amount = Number(entry.amount || 0);
                   const isCredit =
                     entry.type === "credit" ||
-                    entry.type === "bonus";
+                    entry.type === "bonus" ||
+                    entry.type === "salary";
 
                   return (
                     <tr key={entry.id}>
@@ -1241,8 +1249,8 @@ const record = {
                 </h2>
 
                 <p>
-                  Add debit, credit, bonus or penalty
-                  for {employee.fullName}.
+                  Add debit, credit, bonus, penalty,
+                  or salary for {employee.fullName}.
                 </p>
               </div>
 
