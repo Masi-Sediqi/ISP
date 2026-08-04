@@ -1,17 +1,21 @@
 import { useMemo, useState } from "react";
 import {
+  AlertTriangle,
   ArrowRight,
   BriefcaseBusiness,
   CalendarDays,
   Clapperboard,
   Cpu,
+  Eye,
   GraduationCap,
   Mail,
   MapPin,
+  Pencil,
   Phone,
   Plane,
   Plus,
   Search,
+  Trash2,
   UserRound,
   Users,
   X,
@@ -247,17 +251,26 @@ export default function Reception({ currentUser }) {
     useState("");
 
   const [search, setSearch] = useState("");
+  const [customerTypeFilter, setCustomerTypeFilter] =
+    useState("all");
 
-  const [customerTypeFilter, setCustomerTypeFilter] = useState("all");
-
-  const [assignTarget, setAssignTarget] =
+  const [editingCustomerId, setEditingCustomerId] =
     useState(null);
 
-  const [assignEmployeeId, setAssignEmployeeId] =
-    useState("");
+  const [viewCustomer, setViewCustomer] =
+    useState(null);
 
-  const [assignEmployeeName, setAssignEmployeeName] =
-    useState("");
+  const [deleteCustomer, setDeleteCustomer] =
+    useState(null);
+
+  const [assignTarget, setAssignTarget] =
+  useState(null);
+
+const [assignEmployeeId, setAssignEmployeeId] =
+  useState("");
+
+const [assignEmployeeName, setAssignEmployeeName] =
+  useState("");
 
   const [assignConsultantDetails, setAssignConsultantDetails] =
     useState({
@@ -270,7 +283,7 @@ export default function Reception({ currentUser }) {
 
   const [assigningRecord, setAssigningRecord] =
     useState(false);
-
+  
 
   function openAssignModal(customer) {
     setAssignTarget(customer);
@@ -576,18 +589,179 @@ const technologyCount = customers.filter(
 
   function openAddForm() {
     resetForms();
+    setEditingCustomerId(null);
     setRegistrationType("consultant");
     setShowForm(true);
   }
 
   function closeForm() {
     setShowForm(false);
+    setEditingCustomerId(null);
     resetForms();
   }
 
   function selectRegistrationType(type) {
+    if (editingCustomerId) return;
+
     setRegistrationType(type);
     resetForms();
+  }
+
+  function openEditCustomer(customer) {
+    const type = String(
+      customer.customerType || "consultant"
+    ).toLowerCase();
+
+    setEditingCustomerId(customer.id);
+    setRegistrationType(type);
+
+    if (type === "travel") {
+      setTravelForm({
+        ...createTravelForm(),
+        fullName:
+          customer.fullName ||
+          customer.customerName ||
+          "",
+        phone:
+          customer.phone ||
+          customer.contactNumber ||
+          "",
+        passportNumber: customer.passportNumber || "",
+        maritalStatus: customer.maritalStatus || "Single",
+        applicationType:
+          customer.applicationType || "Student Visa",
+        source:
+          customer.source ||
+          (customer.sourceEmployeeName ===
+          "External Customer"
+            ? ""
+            : customer.sourceEmployeeName) ||
+          "",
+        assignedEmployeeId:
+          customer.assignedEmployeeId || "",
+        assignedEmployeeName:
+          customer.assignedEmployeeName || "",
+        purpose: customer.purpose || "",
+        date:
+          customer.date ||
+          customer.createdAt?.slice(0, 10) ||
+          today(),
+      });
+    } else if (type === "technology") {
+      setTechnologyForm({
+        ...createTechnologyForm(),
+        fullName:
+          customer.fullName ||
+          customer.customerName ||
+          "",
+        companyName: customer.companyName || "",
+        contactNumber:
+          customer.contactNumber ||
+          customer.phone ||
+          "",
+        technologyPurpose:
+          customer.technologyPurpose ||
+          customer.purpose ||
+          "Website",
+        source:
+          customer.source ||
+          (customer.sourceEmployeeName ===
+          "External Customer"
+            ? ""
+            : customer.sourceEmployeeName) ||
+          "",
+        assignedEmployeeId:
+          customer.assignedEmployeeId || "",
+        assignedEmployeeName:
+          customer.assignedEmployeeName || "",
+        note:
+          customer.note ||
+          customer.notes ||
+          "",
+        date:
+          customer.date ||
+          customer.createdAt?.slice(0, 10) ||
+          today(),
+      });
+    } else {
+      setConsultantForm({
+        ...createConsultantForm(),
+        fullName:
+          customer.fullName ||
+          customer.passportFullName ||
+          customer.customerName ||
+          "",
+        phone:
+          customer.phone ||
+          customer.contactNumber ||
+          "",
+        passportNumber: customer.passportNumber || "",
+        maritalStatus: customer.maritalStatus || "Single",
+        applicationType:
+          customer.applicationType || "Student Visa",
+        educationalLevel:
+          customer.educationalLevel ||
+          customer.educationLevel ||
+          "",
+        schoolUniversity:
+          customer.schoolUniversity ||
+          customer.institutionName ||
+          "",
+        email: customer.email || "",
+        graduatedMajor: customer.graduatedMajor || "",
+        universityName:
+          customer.universityName ||
+          customer.schoolUniversity ||
+          "",
+        graduationPercentage:
+          customer.graduationPercentage ?? "",
+        graduationYear: customer.graduationYear || "",
+        desiredMajor: customer.desiredMajor || "",
+        source:
+          customer.source ||
+          (customer.sourceEmployeeName ===
+          "External Customer"
+            ? ""
+            : customer.sourceEmployeeName) ||
+          "",
+        assignedEmployeeId:
+          customer.assignedEmployeeId || "",
+        assignedEmployeeName:
+          customer.assignedEmployeeName || "",
+        purpose: customer.purpose || "",
+        date:
+          customer.date ||
+          customer.createdAt?.slice(0, 10) ||
+          today(),
+      });
+    }
+
+    setShowForm(true);
+  }
+
+  async function confirmDeleteCustomer() {
+    if (!deleteCustomer) return;
+
+    const latestCustomers =
+      await loadCustomers();
+
+    const nextCustomers = latestCustomers.filter(
+      (customer) =>
+        String(customer.id) !==
+        String(deleteCustomer.id)
+    );
+
+    const saved = await setCustomers(nextCustomers);
+
+    if (!saved) return;
+
+    notify(
+      "Customer deleted successfully.",
+      "success"
+    );
+
+    setDeleteCustomer(null);
+    setViewCustomer(null);
   }
 
   function updateConsultantField(event) {
@@ -680,71 +854,62 @@ const technologyCount = customers.filter(
     }));
   }
 
-async function addEducationInstitution() {
-  const institutionName = newInstitutionName.trim();
+  async function addEducationInstitution() {
+    const institutionName =
+      newInstitutionName.trim();
 
-  if (!institutionName) {
-    notify(
-      "School or university name is required.",
-      "error"
+    if (!institutionName) {
+      notify(
+        "School or university name is required.",
+        "error"
+      );
+      return;
+    }
+
+    const alreadyExists = educationInstitutions.some(
+      (institution) =>
+        String(
+          institution.name ||
+            institution.institutionName ||
+            ""
+        ).toLowerCase() ===
+        institutionName.toLowerCase()
     );
-    return;
-  }
 
-  const alreadyExists = educationInstitutions.some(
-    (institution) =>
-      String(
-        institution.name ||
-        institution.institutionName ||
-        ""
-      )
-        .trim()
-        .toLowerCase() === institutionName.toLowerCase()
-  );
+    if (alreadyExists) {
+      notify(
+        "This school or university already exists.",
+        "error"
+      );
+      return;
+    }
 
-  if (alreadyExists) {
+    const record = {
+      id: createId(),
+      name: institutionName,
+      createdAt: new Date().toISOString(),
+    };
+
+    const saved = await setEducationInstitutions([
+      ...educationInstitutions,
+      record,
+    ]);
+
+    if (!saved) return;
+
+    setConsultantForm((current) => ({
+      ...current,
+      schoolUniversity: institutionName,
+    }));
+
+    setNewInstitutionName("");
+    setShowInstitutionForm(false);
+
     notify(
-      "This school or university already exists.",
-      "error"
+      "School or university added successfully.",
+      "success"
     );
-    return;
   }
-
-  const record = {
-    id: createId(),
-    name: institutionName,
-    institutionName,
-    status: "Active",
-    createdByAccountId: currentUser?.id || "",
-    createdByName:
-      currentUser?.fullName ||
-      currentUser?.username ||
-      currentUser?.email ||
-      "",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  const saved = await setEducationInstitutions([
-    ...educationInstitutions,
-    record,
-  ]);
-
-  if (!saved) return;
-
-  setConsultantForm((current) => ({
-    ...current,
-    schoolUniversity: institutionName,
-  }));
-
-  setNewInstitutionName("");
-  setShowInstitutionForm(false);
-
-  notify(
-    "School or university added successfully.",
-    "success"
-  );
-}
 
   async function saveReceptionRecord(event) {
     event.preventDefault();
@@ -767,8 +932,6 @@ async function addEducationInstitution() {
     await saveMediaProduct();
   }
 
-
-
   async function saveConsultantCustomer() {
     if (!consultantForm.fullName.trim()) {
       notify(
@@ -783,8 +946,23 @@ async function addEducationInstitution() {
       return;
     }
 
+    const latestCustomers =
+      await loadCustomers();
+
+    const existingCustomer = editingCustomerId
+      ? latestCustomers.find(
+          (customer) =>
+            String(customer.id) ===
+            String(editingCustomerId)
+        )
+      : null;
+
+    const now = new Date().toISOString();
+
     const record = {
-      id: createId(),
+      ...(existingCustomer || {}),
+
+      id: editingCustomerId || createId(),
 
       fullName: consultantForm.fullName.trim(),
       passportFullName:
@@ -798,6 +976,9 @@ async function addEducationInstitution() {
         consultantForm.schoolUniversity,
       email: consultantForm.email.trim(),
 
+      passportNumber: consultantForm.passportNumber.trim(),
+      maritalStatus: consultantForm.maritalStatus,
+      applicationType: consultantForm.applicationType,
       graduatedMajor: consultantForm.graduatedMajor.trim(),
       universityName: consultantForm.universityName.trim(),
       graduationPercentage:
@@ -812,42 +993,58 @@ async function addEducationInstitution() {
         consultantForm.assignedEmployeeId,
       assignedEmployeeName:
         consultantForm.assignedEmployeeName,
-
-      assignmentStatus: "None",
+      assignmentStatus:
+        existingCustomer?.assignmentStatus || "None",
 
       purpose: consultantForm.purpose.trim(),
       date: consultantForm.date,
 
       customerType: "consultant",
       specializedCustomer: true,
-      registeredFrom: "reception",
+      registeredFrom:
+        existingCustomer?.registeredFrom ||
+        "reception",
 
       sourceEmployeeId:
         consultantForm.source
           ? employeeOptions.find(
-              employee =>
-                getEmployeeName(employee) === consultantForm.source
+              (employee) =>
+                getEmployeeName(employee) ===
+                consultantForm.source
             )?.id || ""
           : "",
 
       sourceEmployeeName:
-        consultantForm.source || "External Customer",
-      createdByAccountId:
-        currentUser?.id || "",
+        consultantForm.source ||
+        "External Customer",
 
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdByAccountId:
+        existingCustomer?.createdByAccountId ||
+        currentUser?.id ||
+        "",
+
+      createdAt:
+        existingCustomer?.createdAt || now,
+      updatedAt: now,
     };
 
-    const saved = await setCustomers([
-      ...customers,
-      record,
-    ]);
+    const nextCustomers = editingCustomerId
+      ? latestCustomers.map((customer) =>
+          String(customer.id) ===
+          String(editingCustomerId)
+            ? record
+            : customer
+        )
+      : [...latestCustomers, record];
+
+    const saved = await setCustomers(nextCustomers);
 
     if (!saved) return;
 
     notify(
-      "Consultant customer registered successfully.",
+      editingCustomerId
+        ? "Consultant customer updated successfully."
+        : "Consultant customer registered successfully.",
       "success"
     );
 
@@ -868,8 +1065,23 @@ async function addEducationInstitution() {
       return;
     }
 
+    const latestCustomers =
+      await loadCustomers();
+
+    const existingCustomer = editingCustomerId
+      ? latestCustomers.find(
+          (customer) =>
+            String(customer.id) ===
+            String(editingCustomerId)
+        )
+      : null;
+
+    const now = new Date().toISOString();
+
     const record = {
-      id: createId(),
+      ...(existingCustomer || {}),
+
+      id: editingCustomerId || createId(),
 
       fullName: travelForm.fullName.trim(),
       passportFullName:
@@ -877,59 +1089,67 @@ async function addEducationInstitution() {
       customerName: travelForm.fullName.trim(),
 
       phone: travelForm.phone.trim(),
-
-      passportNumber:
-        travelForm.passportNumber.trim(),
-
-      maritalStatus:
-        travelForm.maritalStatus,
-
-      applicationType:
-        travelForm.applicationType,
-
+      passportNumber: travelForm.passportNumber.trim(),
+      maritalStatus: travelForm.maritalStatus,
+      applicationType: travelForm.applicationType,
       source: travelForm.source.trim(),
 
       assignedEmployeeId:
         travelForm.assignedEmployeeId,
       assignedEmployeeName:
         travelForm.assignedEmployeeName,
-
-      assignmentStatus: "None",
+      assignmentStatus:
+        existingCustomer?.assignmentStatus || "None",
 
       purpose: travelForm.purpose.trim(),
       date: travelForm.date,
 
       customerType: "travel",
       specializedCustomer: true,
-      registeredFrom: "reception",
+      registeredFrom:
+        existingCustomer?.registeredFrom ||
+        "reception",
 
       sourceEmployeeId:
-  travelForm.source
-    ? employeeOptions.find(
-        employee =>
-          getEmployeeName(employee) === travelForm.source
-      )?.id || ""
-    : "",
+        technologyForm.source
+          ? employeeOptions.find(
+              (employee) =>
+                getEmployeeName(employee) ===
+                travelForm.source
+            )?.id || ""
+          : "",
 
-sourceEmployeeName:
-  travelForm.source || "External Customer",
+      sourceEmployeeName:
+        travelForm.source ||
+        "External Customer",
 
       createdByAccountId:
-        currentUser?.id || "",
+        existingCustomer?.createdByAccountId ||
+        currentUser?.id ||
+        "",
 
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt:
+        existingCustomer?.createdAt || now,
+      updatedAt: now,
     };
 
-    const saved = await setCustomers([
-      ...customers,
-      record,
-    ]);
+    const nextCustomers = editingCustomerId
+      ? latestCustomers.map((customer) =>
+          String(customer.id) ===
+          String(editingCustomerId)
+            ? record
+            : customer
+        )
+      : [...latestCustomers, record];
+
+    const saved = await setCustomers(nextCustomers);
 
     if (!saved) return;
 
     notify(
-      "Travel customer registered successfully.",
+      editingCustomerId
+        ? "Travel customer updated successfully."
+        : "Travel customer registered successfully.",
       "success"
     );
 
@@ -947,8 +1167,23 @@ sourceEmployeeName:
       return;
     }
 
+    const latestCustomers =
+      await loadCustomers();
+
+    const existingCustomer = editingCustomerId
+      ? latestCustomers.find(
+          (customer) =>
+            String(customer.id) ===
+            String(editingCustomerId)
+        )
+      : null;
+
+    const now = new Date().toISOString();
+
     const record = {
-      id: createId(),
+      ...(existingCustomer || {}),
+
+      id: editingCustomerId || createId(),
 
       fullName: technologyForm.fullName.trim(),
       customerName:
@@ -976,8 +1211,8 @@ sourceEmployeeName:
 
       assignedEmployeeName:
         technologyForm.assignedEmployeeName,
-
-      assignmentStatus: "None",
+      assignmentStatus:
+        existingCustomer?.assignmentStatus || "None",
 
       note: technologyForm.note.trim(),
       notes: technologyForm.note.trim(),
@@ -985,41 +1220,55 @@ sourceEmployeeName:
 
       customerType: "technology",
       specializedCustomer: true,
-      registeredFrom: "reception",
+      registeredFrom:
+        existingCustomer?.registeredFrom ||
+        "reception",
+
       sourceEmployeeId:
-      travelForm.source
-        ? employeeOptions.find(
-            employee =>
-              getEmployeeName(employee) === travelForm.source
-          )?.id || ""
-        : "",
-    
-    sourceEmployeeName:
-      travelForm.source || "External Customer",
+        technologyForm.source
+          ? employeeOptions.find(
+              (employee) =>
+                getEmployeeName(employee) ===
+                technologyForm.source
+            )?.id || ""
+          : "",
+
+      sourceEmployeeName:
+        technologyForm.source ||
+        "External Customer",
 
       createdByAccountId:
-        currentUser?.id || "",
+        existingCustomer?.createdByAccountId ||
+        currentUser?.id ||
+        "",
 
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt:
+        existingCustomer?.createdAt || now,
+      updatedAt: now,
     };
 
-    const saved = await setCustomers([
-      ...customers,
-      record,
-    ]);
+    const nextCustomers = editingCustomerId
+      ? latestCustomers.map((customer) =>
+          String(customer.id) ===
+          String(editingCustomerId)
+            ? record
+            : customer
+        )
+      : [...latestCustomers, record];
+
+    const saved = await setCustomers(nextCustomers);
 
     if (!saved) return;
 
     notify(
-      "Technology customer registered successfully.",
+      editingCustomerId
+        ? "Technology customer updated successfully."
+        : "Technology customer registered successfully.",
       "success"
     );
 
     closeForm();
   }
-
-
 
   async function saveMediaProduct() {
     if (!mediaForm.personName.trim()) {
@@ -1151,14 +1400,14 @@ sourceEmployeeName:
         <div className="reception-records-header">
           <div>
             <h2>
-  {customerTypeFilter === "all"
-    ? "Recent Customers"
-    : customerTypeFilter === "consultant"
-      ? "Consultant Customers"
-      : customerTypeFilter === "travel"
-        ? "Travel Customers"
-        : "Technology Customers"}
-</h2>
+              {customerTypeFilter === "all"
+                ? "Recent Customers"
+                : customerTypeFilter === "consultant"
+                  ? "Consultant Customers"
+                  : customerTypeFilter === "travel"
+                    ? "Travel Customers"
+                    : "Technology Customers"}
+            </h2>
 
             <p>
               Customers registered from the Reception
@@ -1190,7 +1439,7 @@ sourceEmployeeName:
                 <th>Assigned To</th>
                 <th>Purpose</th>
                 <th>Date</th>
-                <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
 
@@ -1234,48 +1483,40 @@ sourceEmployeeName:
                   </td>
 
                   <td>
-                    {customer.assignedEmployeeName ? (
+  {customer.assignedEmployeeName ? (
+    <button
+      type="button"
+      className="reception-assigned-employee"
+      onClick={() =>
+        openAssignModal(customer)
+      }
+      title="Change assigned employee"
+    >
+      <UserRound size={13} />
 
-                      <button
-                        type="button"
-                        className="reception-assigned-employee"
-                        onClick={() =>
-                          openAssignModal(customer)
-                        }
-                        title="Change assigned employee"
-                      >
-                        <UserRound size={13} />
+      <span>
+        {customer.assignedEmployeeName}
+      </span>
+    </button>
+  ) : (
+    <button
+      type="button"
+      className="reception-assign-arrow"
+      onClick={() =>
+        openAssignModal(customer)
+      }
+      title="Assign this customer"
+      aria-label="Assign customer"
+    >
+      <ArrowRight size={17} />
+    </button>
+  )}
+</td>
 
-                        <span>
-                          {customer.assignedEmployeeName}
-                        </span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="reception-assign-arrow"
-                        onClick={() =>
-                          openAssignModal(customer)
-                        }
-                        title="Assign this customer"
-                        aria-label="Assign customer"
-                      >
-                        <ArrowRight size={17} />
-                      </button>
-                    )}
-                  </td>
-                  <td className="reception-purpose-cell">
-                    <span
-                      title={
-                        customer.technologyPurpose ||
-                        customer.purpose ||
-                        "-"
-                      }
-                    >
-                      {customer.technologyPurpose ||
-                        customer.purpose ||
-                        "-"}
-                    </span>
+                  <td>
+                    {customer.technologyPurpose ||
+                      customer.purpose ||
+                      "-"}
                   </td>
 
                   <td>
@@ -1283,23 +1524,53 @@ sourceEmployeeName:
 
                     {customer.date
                       ? new Date(
-                        `${customer.date}T00:00:00`
-                      ).toLocaleDateString()
+                          `${customer.date}T00:00:00`
+                        ).toLocaleDateString()
                       : customer.createdAt
                         ? new Date(
-                          customer.createdAt
-                        ).toLocaleDateString()
+                            customer.createdAt
+                          ).toLocaleDateString()
                         : "-"}
                   </td>
 
                   <td>
-                    <span
-                      className={`reception-status-badge ${String(
-                        customer.assignmentStatus || "None"
-                      ).toLowerCase()}`}
-                    >
-                      {customer.assignmentStatus || "None"}
-                    </span>
+                    <div className="reception-row-actions">
+                      <button
+                        type="button"
+                        className="view"
+                        onClick={() =>
+                          setViewCustomer(customer)
+                        }
+                        title="View customer"
+                        aria-label="View customer"
+                      >
+                        <Eye size={14} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="edit"
+                        onClick={() =>
+                          openEditCustomer(customer)
+                        }
+                        title="Edit customer"
+                        aria-label="Edit customer"
+                      >
+                        <Pencil size={14} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="delete"
+                        onClick={() =>
+                          setDeleteCustomer(customer)
+                        }
+                        title="Delete customer"
+                        aria-label="Delete customer"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1696,6 +1967,196 @@ sourceEmployeeName:
                 </button>
               </footer>
             </form>
+          </div>
+        </div>
+      )}
+
+      {viewCustomer && (
+        <div
+          className="reception-modal-backdrop"
+          onMouseDown={() => setViewCustomer(null)}
+        >
+          <div
+            className="reception-view-modal"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <header className="reception-view-header">
+              <div>
+                <span>Customer Information</span>
+
+                <h2>
+                  {viewCustomer.fullName ||
+                    viewCustomer.customerName ||
+                    "Customer Details"}
+                </h2>
+
+                <p>
+                  Complete information for this customer
+                  record.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setViewCustomer(null)}
+                aria-label="Close customer details"
+              >
+                <X size={18} />
+              </button>
+            </header>
+
+            <div className="reception-view-grid">
+              {[
+                [
+                  "Customer Name",
+                  viewCustomer.fullName ||
+                    viewCustomer.customerName,
+                ],
+                [
+                  "Phone Number",
+                  viewCustomer.phone ||
+                    viewCustomer.contactNumber,
+                ],
+                [
+                  "Customer Type",
+                  viewCustomer.customerType,
+                ],
+                [
+                  "Source",
+                  viewCustomer.sourceEmployeeName ||
+                    viewCustomer.source ||
+                    "External Customer",
+                ],
+                [
+                  "Assigned To",
+                  viewCustomer.assignedEmployeeName ||
+                    "Unassigned",
+                ],
+                ["Email", viewCustomer.email],
+                [
+                  "Education",
+                  viewCustomer.educationalLevel ||
+                    viewCustomer.educationLevel,
+                ],
+                [
+                  "School / University",
+                  viewCustomer.schoolUniversity ||
+                    viewCustomer.institutionName,
+                ],
+                [
+                  "Company Name",
+                  viewCustomer.companyName,
+                ],
+                [
+                  "Purpose",
+                  viewCustomer.technologyPurpose ||
+                    viewCustomer.purpose,
+                ],
+                [
+                  "Registered Date",
+                  viewCustomer.date ||
+                    viewCustomer.createdAt?.slice(0, 10),
+                ],
+                [
+                  "Registered Time",
+                  viewCustomer.createdAt
+                    ? new Date(
+                        viewCustomer.createdAt
+                      ).toLocaleTimeString()
+                    : "",
+                ],
+                [
+                  "Notes",
+                  viewCustomer.note ||
+                    viewCustomer.notes,
+                ],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className={
+                    label === "Purpose" ||
+                    label === "Notes"
+                      ? "reception-view-full"
+                      : ""
+                  }
+                >
+                  <span>{label}</span>
+                  <strong>{value || "-"}</strong>
+                </div>
+              ))}
+            </div>
+
+            <footer className="reception-view-actions">
+              <button
+                type="button"
+                onClick={() => setViewCustomer(null)}
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  const customer = viewCustomer;
+                  setViewCustomer(null);
+                  openEditCustomer(customer);
+                }}
+              >
+                <Pencil size={15} />
+                Edit Customer
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {deleteCustomer && (
+        <div
+          className="reception-modal-backdrop"
+          onMouseDown={() => setDeleteCustomer(null)}
+        >
+          <div
+            className="reception-delete-modal"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="reception-delete-icon">
+              <AlertTriangle size={27} />
+            </div>
+
+            <h2>Delete Customer?</h2>
+
+            <p>
+              You are about to permanently delete{" "}
+              <strong>
+                {deleteCustomer.fullName ||
+                  deleteCustomer.customerName ||
+                  "this customer"}
+              </strong>
+              . This action cannot be undone.
+            </p>
+
+            <div className="reception-delete-actions">
+              <button
+                type="button"
+                onClick={() => setDeleteCustomer(null)}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="danger"
+                onClick={confirmDeleteCustomer}
+              >
+                <Trash2 size={15} />
+                Delete Customer
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -744,3 +744,196 @@ body.dark-mode .employee-details-modal section h3 {
     font-size: 18px;
   }
 }
+
+/* Employee profile work tabs */
+.employee-work-tabs {
+  margin-top: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 13px;
+  background: var(--panel-bg, #ffffff);
+}
+
+.employee-work-tabs button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--muted-text, #64748b);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.employee-work-tabs button strong {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 10px;
+}
+
+.employee-work-tabs button.active {
+  background: #252525;
+  color: #ffffff;
+  box-shadow: 0 5px 14px rgba(15, 23, 42, 0.14);
+}
+
+.employee-work-tabs button.active strong {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.employee-work-tabs + .employee-work-card {
+  margin-top: 12px;
+}
+
+/* Employee ledger */
+.employee-ledger-summary {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  background: color-mix(
+    in srgb,
+    var(--panel-bg, #ffffff) 96%,
+    #64748b 4%
+  );
+}
+
+.employee-ledger-summary > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 11px;
+  background: var(--panel-bg, #ffffff);
+}
+
+.employee-ledger-summary span,
+.employee-ledger-summary strong {
+  display: block;
+}
+
+.employee-ledger-summary span {
+  margin-bottom: 6px;
+  color: var(--muted-text, #64748b);
+  font-size: 10px;
+}
+
+.employee-ledger-summary strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.employee-ledger-summary .credit,
+.employee-ledger-credit {
+  color: #15803d;
+}
+
+.employee-ledger-summary .debit,
+.employee-ledger-debit {
+  color: #dc2626;
+}
+
+.employee-ledger-type {
+  min-width: 68px;
+  min-height: 25px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.employee-ledger-type.credit,
+.employee-ledger-type.bonus {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.employee-ledger-type.debit,
+.employee-ledger-type.penalty {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.employee-ledger-table td:nth-child(3),
+.employee-ledger-table td:nth-child(4) {
+  font-weight: 750;
+}
+
+body.dark-mode .employee-work-tabs {
+  border-color: #334155;
+  background: #1e293b;
+}
+
+body.dark-mode .employee-work-tabs button {
+  color: #cbd5e1;
+}
+
+body.dark-mode .employee-work-tabs button strong {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+body.dark-mode .employee-work-tabs button.active {
+  background: #f8fafc;
+  color: #111827;
+}
+
+body.dark-mode .employee-work-tabs button.active strong {
+  background: #e2e8f0;
+  color: #111827;
+}
+
+body.dark-mode .employee-ledger-summary,
+body.dark-mode .employee-ledger-summary > div {
+  border-color: #334155;
+  background: #111827;
+}
+
+@media (max-width: 900px) {
+  .employee-ledger-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 650px) {
+  .employee-work-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .employee-work-tabs button {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .employee-work-tabs button strong {
+    margin-left: auto;
+  }
+
+  .employee-ledger-summary {
+    grid-template-columns: 1fr;
+  }
+}

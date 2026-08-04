@@ -6,6 +6,8 @@ import {
   Gift,
   KeyRound,
   Pencil,
+  Users,
+  WalletCards,
   X,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -74,6 +76,9 @@ export default function EmployeeDetails({
 
   const [adjustmentForm, setAdjustmentForm] =
     useState(adjustmentDefaults);
+
+  const [activeWorkTab, setActiveWorkTab] =
+    useState("customers");
 
   const employee = useMemo(
     () =>
@@ -147,9 +152,19 @@ export default function EmployeeDetails({
     employeeAccount,
   ]);
 
-  const employeeAdjustments = adjustments.filter(
-    (item) =>
-      String(item.employeeId) === String(id)
+  const employeeAdjustments = useMemo(
+    () =>
+      adjustments
+        .filter(
+          (item) =>
+            String(item.employeeId) === String(id)
+        )
+        .sort(
+          (first, second) =>
+            new Date(second.createdAt || 0) -
+            new Date(first.createdAt || 0)
+        ),
+    [adjustments, id]
   );
 
   const totalBonus = employeeAdjustments
@@ -167,6 +182,32 @@ export default function EmployeeDetails({
         sum + Number(item.amount || 0),
       0
     );
+
+  const totalCredit = employeeAdjustments
+    .filter(
+      (item) =>
+        item.type === "credit" ||
+        item.type === "bonus"
+    )
+    .reduce(
+      (sum, item) =>
+        sum + Number(item.amount || 0),
+      0
+    );
+
+  const totalDebit = employeeAdjustments
+    .filter(
+      (item) =>
+        item.type === "debit" ||
+        item.type === "penalty"
+    )
+    .reduce(
+      (sum, item) =>
+        sum + Number(item.amount || 0),
+      0
+    );
+
+  const ledgerBalance = totalCredit - totalDebit;
 
   const anyModalOpen =
   accountOpen || adjustmentOpen || detailsOpen;
@@ -482,7 +523,7 @@ const record = {
     if (!saved) return;
 
     notify(
-      "Bonus / penalty saved.",
+      "Employee ledger entry saved.",
       "success"
     );
 
@@ -561,7 +602,7 @@ const record = {
             <span>Current Balance</span>
 
             <strong>
-              {(totalBonus - totalPenalty).toLocaleString("en-US")} AFN
+              {ledgerBalance.toLocaleString("en-US")} AFN
             </strong>
           </div>
 
@@ -578,7 +619,7 @@ const record = {
             onClick={openAdjustment}
           >
             <Gift size={17} />
-            Bonus and Penalty
+            Add Ledger Entry
           </button>
 
           <button
@@ -641,128 +682,275 @@ const record = {
           <small>Bonus balance</small>
 
           <strong>
-            {(
-              totalBonus - totalPenalty
-            ).toLocaleString("en-US")}{" "}
+            {ledgerBalance.toLocaleString("en-US")}{" "}
             AFN
           </strong>
 
           <em>
-            Bonus{" "}
-            {totalBonus.toLocaleString()} ·
-            Penalty{" "}
-            {totalPenalty.toLocaleString()}
+            Credit{" "}
+            {totalCredit.toLocaleString()} ·
+            Debit{" "}
+            {totalDebit.toLocaleString()}
           </em>
         </aside>
       </section>
 
-      <section className="employee-work-card">
-        <div className="employee-work-header">
-          <div>
-            <span>Employee Performance</span>
-            <h2>Registered Customers</h2>
-            <p>
-              All customers registered or referred by{" "}
-              {employee.fullName || "this employee"}.
-            </p>
+      <section className="employee-work-tabs" aria-label="Employee work sections">
+        <button
+          type="button"
+          className={activeWorkTab === "customers" ? "active" : ""}
+          onClick={() => setActiveWorkTab("customers")}
+        >
+          <Users size={17} />
+          <span>Customers Registered by Employee</span>
+          <strong>{employeeCustomers.length}</strong>
+        </button>
+
+        <button
+          type="button"
+          className={activeWorkTab === "ledger" ? "active" : ""}
+          onClick={() => setActiveWorkTab("ledger")}
+        >
+          <WalletCards size={17} />
+          <span>Employee Ledger</span>
+          <strong>{employeeAdjustments.length}</strong>
+        </button>
+      </section>
+
+      {activeWorkTab === "customers" && (
+        <section className="employee-work-card">
+          <div className="employee-work-header">
+            <div>
+              <span>Employee Performance</span>
+              <h2>Registered Customers</h2>
+              <p>
+                All customers registered or referred by{" "}
+                {employee.fullName || "this employee"}.
+              </p>
+            </div>
+
+            <strong>{employeeCustomers.length}</strong>
           </div>
 
-          <strong>
-            {employeeCustomers.length}
-          </strong>
-        </div>
-
-        <div className="employee-work-table-wrap">
-          <table className="employee-work-table">
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Phone</th>
-                <th>Customer Type</th>
-                <th>Purpose</th>
-                <th>Date</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {employeeCustomers.map((customer) => (
-                <tr key={customer.id}>
-                  <td>
-                    <strong>
-                      {customer.fullName ||
-                        customer.customerName ||
-                        customer.personName ||
-                        "-"}
-                    </strong>
-                  </td>
-
-                  <td>
-                    {customer.phone ||
-                      customer.contactNumber ||
-                      "-"}
-                  </td>
-
-                  <td>
-                    <span className="employee-work-type">
-                      {customer.customerType ||
-                        customer.type ||
-                        "-"}
-                    </span>
-                  </td>
-
-                  <td>
-                    {customer.technologyPurpose ||
-                      customer.purpose ||
-                      customer.about ||
-                      "-"}
-                  </td>
-
-                  <td>
-                    {customer.date
-                      ? new Date(
-                          `${customer.date}T00:00:00`
-                        ).toLocaleDateString()
-                      : customer.createdAt
-                        ? new Date(
-                            customer.createdAt
-                          ).toLocaleDateString()
-                        : "-"}
-                  </td>
-
-                  <td>
-                    <span
-                      className={`employee-work-status ${String(
-                        customer.assignmentStatus ||
-                        customer.status ||
-                        "None"
-                      )
-                        .toLowerCase()
-                        .replace(/\s+/g, "-")}`}
-                    >
-                      {customer.assignmentStatus ||
-                        customer.status ||
-                        "None"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-
-              {!employeeCustomers.length && (
+          <div className="employee-work-table-wrap">
+            <table className="employee-work-table">
+              <thead>
                 <tr>
-                  <td
-                    colSpan="6"
-                    className="employee-work-empty"
-                  >
-                    No customers have been registered by
-                    this employee yet.
-                  </td>
+                  <th>Customer</th>
+                  <th>Phone</th>
+                  <th>Customer Type</th>
+                  <th>Purpose</th>
+                  <th>Date</th>
+                  <th>Status</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+
+              <tbody>
+                {employeeCustomers.map((customer) => (
+                  <tr key={customer.id}>
+                    <td>
+                      <strong>
+                        {customer.fullName ||
+                          customer.customerName ||
+                          customer.personName ||
+                          "-"}
+                      </strong>
+                    </td>
+
+                    <td>
+                      {customer.phone ||
+                        customer.contactNumber ||
+                        "-"}
+                    </td>
+
+                    <td>
+                      <span className="employee-work-type">
+                        {customer.customerType ||
+                          customer.type ||
+                          "-"}
+                      </span>
+                    </td>
+
+                    <td>
+                      {customer.technologyPurpose ||
+                        customer.purpose ||
+                        customer.about ||
+                        "-"}
+                    </td>
+
+                    <td>
+                      {customer.date
+                        ? new Date(
+                            `${customer.date}T00:00:00`
+                          ).toLocaleDateString()
+                        : customer.createdAt
+                          ? new Date(
+                              customer.createdAt
+                            ).toLocaleDateString()
+                          : "-"}
+                    </td>
+
+                    <td>
+                      <span
+                        className={`employee-work-status ${String(
+                          customer.assignmentStatus ||
+                            customer.status ||
+                            "None"
+                        )
+                          .toLowerCase()
+                          .replace(/\s+/g, "-")}`}
+                      >
+                        {customer.assignmentStatus ||
+                          customer.status ||
+                          "None"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+
+                {!employeeCustomers.length && (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="employee-work-empty"
+                    >
+                      No customers have been registered by
+                      this employee yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {activeWorkTab === "ledger" && (
+        <section className="employee-work-card employee-ledger-card">
+          <div className="employee-work-header">
+            <div>
+              <span>Financial Activity</span>
+              <h2>Employee Ledger</h2>
+              <p>
+                Debit, credit, bonus and penalty records for{" "}
+                {employee.fullName || "this employee"}.
+              </p>
+            </div>
+
+            <strong>{employeeAdjustments.length}</strong>
+          </div>
+
+          <div className="employee-ledger-summary">
+            <div>
+              <span>Total Credit</span>
+              <strong className="credit">
+                {totalCredit.toLocaleString("en-US")} AFN
+              </strong>
+            </div>
+
+            <div>
+              <span>Total Debit</span>
+              <strong className="debit">
+                {totalDebit.toLocaleString("en-US")} AFN
+              </strong>
+            </div>
+
+            <div>
+              <span>Bonus</span>
+              <strong>
+                {totalBonus.toLocaleString("en-US")} AFN
+              </strong>
+            </div>
+
+            <div>
+              <span>Penalty</span>
+              <strong>
+                {totalPenalty.toLocaleString("en-US")} AFN
+              </strong>
+            </div>
+
+            <div>
+              <span>Current Balance</span>
+              <strong
+                className={
+                  ledgerBalance < 0 ? "debit" : "credit"
+                }
+              >
+                {ledgerBalance.toLocaleString("en-US")} AFN
+              </strong>
+            </div>
+          </div>
+
+          <div className="employee-work-table-wrap">
+            <table className="employee-work-table employee-ledger-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Debit</th>
+                  <th>Credit</th>
+                  <th>Reason / Note</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {employeeAdjustments.map((entry) => {
+                  const amount = Number(entry.amount || 0);
+                  const isCredit =
+                    entry.type === "credit" ||
+                    entry.type === "bonus";
+
+                  return (
+                    <tr key={entry.id}>
+                      <td>
+                        {entry.createdAt
+                          ? new Date(
+                              entry.createdAt
+                            ).toLocaleDateString()
+                          : "-"}
+                      </td>
+
+                      <td>
+                        <span
+                          className={`employee-ledger-type ${entry.type}`}
+                        >
+                          {entry.type}
+                        </span>
+                      </td>
+
+                      <td className="employee-ledger-debit">
+                        {!isCredit
+                          ? `${amount.toLocaleString("en-US")} AFN`
+                          : "-"}
+                      </td>
+
+                      <td className="employee-ledger-credit">
+                        {isCredit
+                          ? `${amount.toLocaleString("en-US")} AFN`
+                          : "-"}
+                      </td>
+
+                      <td>{entry.reason || "-"}</td>
+                    </tr>
+                  );
+                })}
+
+                {!employeeAdjustments.length && (
+                  <tr>
+                    <td
+                      colSpan="5"
+                      className="employee-work-empty"
+                    >
+                      No ledger records have been added for
+                      this employee yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {accountOpen && (
         <div
@@ -1033,11 +1221,11 @@ const record = {
             <header>
               <div>
                 <h2 id="employee-adjustment-title">
-                  Bonus and Penalty
+                  Employee Ledger Entry
                 </h2>
 
                 <p>
-                  Add a financial adjustment
+                  Add debit, credit, bonus or penalty
                   for {employee.fullName}.
                 </p>
               </div>
@@ -1064,6 +1252,14 @@ const record = {
                   updateAdjustmentField
                 }
               >
+                <option value="credit">
+                  Credit
+                </option>
+
+                <option value="debit">
+                  Debit
+                </option>
+
                 <option value="bonus">
                   Bonus
                 </option>
