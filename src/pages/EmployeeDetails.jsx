@@ -26,7 +26,7 @@ const accountDefaults = {
 };
 
 const adjustmentDefaults = {
-  type: "bonus",
+  type: "credit",
   amount: "",
   reason: "",
 };
@@ -58,7 +58,7 @@ export default function EmployeeDetails({
     useState(false);
 
   const [adjustmentOpen, setAdjustmentOpen] =
-  useState(false);
+    useState(false);
   
   const [detailsOpen, setDetailsOpen] =
     useState(false);
@@ -167,6 +167,7 @@ export default function EmployeeDetails({
     [adjustments, id]
   );
 
+
   const totalBonus = employeeAdjustments
     .filter((item) => item.type === "bonus")
     .reduce(
@@ -183,35 +184,50 @@ export default function EmployeeDetails({
       0
     );
 
-  const totalCredit = employeeAdjustments
-    .filter(
-      (item) =>
-        item.type === "credit" ||
-        item.type === "bonus"
-    )
+  const totalCreditOnly = employeeAdjustments
+    .filter((item) => item.type === "credit")
     .reduce(
       (sum, item) =>
         sum + Number(item.amount || 0),
       0
     );
 
-  const totalDebit = employeeAdjustments
-    .filter(
-      (item) =>
-        item.type === "debit" ||
-        item.type === "penalty"
-    )
+  const totalDebitOnly = employeeAdjustments
+    .filter((item) => item.type === "debit")
     .reduce(
       (sum, item) =>
         sum + Number(item.amount || 0),
       0
     );
 
-  const ledgerBalance = totalCredit - totalDebit;
+  const totalSalary = employeeAdjustments
+    .filter((item) => item.type === "salary")
+    .reduce(
+      (sum, item) =>
+        sum + Number(item.amount || 0),
+      0
+    );
+
+  const totalCredit =
+    totalCreditOnly +
+    totalBonus +
+    totalSalary;
+
+  const totalDebit =
+    totalDebitOnly +
+    totalPenalty;
+
+  const ledgerBalance =
+    totalCredit - totalDebit;
+
+  const netBalance = ledgerBalance;
 
   const anyModalOpen =
-  accountOpen || adjustmentOpen || detailsOpen;
-    useEffect(() => {
+    accountOpen ||
+    adjustmentOpen ||
+    detailsOpen;
+
+  useEffect(() => {
     if (!anyModalOpen) return undefined;
 
     const previousOverflow =
@@ -242,6 +258,10 @@ export default function EmployeeDetails({
 
       if (detailsOpen) {
         setDetailsOpen(false);
+      }
+
+      if (adjustmentOpen) {
+        closeAdjustment();
       }
     };
 
@@ -506,13 +526,16 @@ const record = {
       return;
     }
 
+    const now = new Date().toISOString();
+
     const record = {
       id: createRecordId(),
       employeeId: employee.id,
       employeeName: employee.fullName,
       ...adjustmentForm,
       amount,
-      createdAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
 
     const saved = await setAdjustments([
@@ -523,7 +546,9 @@ const record = {
     if (!saved) return;
 
     notify(
-      "Employee ledger entry saved.",
+      adjustmentForm.type === "salary"
+        ? "Salary saved successfully."
+        : "Employee ledger entry saved.",
       "success"
     );
 
@@ -593,19 +618,11 @@ const record = {
 
           <p>
             Complete information, login
-            account, bonus and penalty.
+            account, customers, and employee ledger.
           </p>
         </div>
 
         <div className="employee-profile-actions">
-          <div className="employee-current-balance">
-            <span>Current Balance</span>
-
-            <strong>
-              {ledgerBalance.toLocaleString("en-US")} AFN
-            </strong>
-          </div>
-
           <button
             type="button"
             onClick={() => setDetailsOpen(true)}
@@ -679,18 +696,15 @@ const record = {
         </div>
 
         <aside>
-          <small>Bonus balance</small>
+          <small>Net Balance</small>
 
           <strong>
-            {ledgerBalance.toLocaleString("en-US")}{" "}
-            AFN
+            {netBalance.toLocaleString("en-US")} AFN
           </strong>
 
           <em>
-            Credit{" "}
-            {totalCredit.toLocaleString()} ·
-            Debit{" "}
-            {totalDebit.toLocaleString()}
+            Credit {totalCredit.toLocaleString("en-US")} ·
+            Debit {totalDebit.toLocaleString("en-US")}
           </em>
         </aside>
       </section>
@@ -842,16 +856,16 @@ const record = {
 
           <div className="employee-ledger-summary">
             <div>
-              <span>Total Credit</span>
+              <span>Credit</span>
               <strong className="credit">
-                {totalCredit.toLocaleString("en-US")} AFN
+                {totalCreditOnly.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
             <div>
-              <span>Total Debit</span>
+              <span>Debit</span>
               <strong className="debit">
-                {totalDebit.toLocaleString("en-US")} AFN
+                {totalDebitOnly.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
@@ -870,10 +884,19 @@ const record = {
             </div>
 
             <div>
+              <span>Salary</span>
+              <strong>
+                {totalSalary.toLocaleString("en-US")} AFN
+              </strong>
+            </div>
+
+            <div>
               <span>Current Balance</span>
               <strong
                 className={
-                  ledgerBalance < 0 ? "debit" : "credit"
+                  ledgerBalance < 0
+                    ? "debit"
+                    : "credit"
                 }
               >
                 {ledgerBalance.toLocaleString("en-US")} AFN
@@ -898,7 +921,8 @@ const record = {
                   const amount = Number(entry.amount || 0);
                   const isCredit =
                     entry.type === "credit" ||
-                    entry.type === "bonus";
+                    entry.type === "bonus" ||
+                    entry.type === "salary";
 
                   return (
                     <tr key={entry.id}>
@@ -1225,8 +1249,8 @@ const record = {
                 </h2>
 
                 <p>
-                  Add debit, credit, bonus or penalty
-                  for {employee.fullName}.
+                  Add debit, credit, bonus, penalty,
+                  or salary for {employee.fullName}.
                 </p>
               </div>
 
@@ -1266,6 +1290,10 @@ const record = {
 
                 <option value="penalty">
                   Penalty
+                </option>
+
+                <option value="salary">
+                  Salary
                 </option>
               </select>
             </label>
