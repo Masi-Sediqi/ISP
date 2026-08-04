@@ -478,3 +478,167 @@
       width: 100%;
     }
   }
+
+/* Larger Application Follow-Up Form */
+.customer-followup-page {
+  width: min(1280px, calc(100% - 36px));
+  padding: 24px 0 36px;
+}
+
+.customer-followup-form {
+  gap: 16px;
+}
+
+.customer-followup-card {
+  padding: 20px 22px;
+  border-radius: 17px;
+}
+
+.customer-followup-card > header {
+  margin-bottom: 16px;
+}
+
+.customer-followup-card h2 {
+  font-size: 17px;
+}
+
+.customer-followup-card p {
+  font-size: 10px;
+}
+
+.customer-followup-grid {
+  gap: 14px;
+}
+
+.customer-followup-field {
+  gap: 7px;
+}
+
+.customer-followup-field > label {
+  font-size: 10px;
+}
+
+.customer-followup-field input,
+.customer-followup-field select {
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.customer-followup-options label {
+  min-height: 44px;
+  font-size: 10px;
+}
+
+.customer-followup-document-options > button {
+  min-height: 40px;
+  font-size: 10px;
+}
+
+.customer-followup-select-add,
+.customer-followup-document-picker {
+  grid-template-columns: minmax(0, 1fr) 44px;
+}
+
+.customer-followup-select-add > button,
+.customer-followup-document-picker > button {
+  width: 44px;
+  height: 44px;
+}
+
+.customer-followup-actions {
+  padding: 15px 18px;
+}
+
+.customer-followup-actions button {
+  min-height: 42px;
+  padding: 0 17px;
+  font-size: 10px;
+}
+
+/* Reception assignment status */
+.reception-status-badge {
+  min-width: 72px;
+  min-height: 27px;
+  padding: 4px 10px;
+  border: 1px solid #dbe3ee;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.reception-status-badge.pending {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #b45309;
+}
+
+.reception-status-badge.accepted,
+.reception-status-badge.completed {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.reception-status-badge.rejected {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+/* Compact Bank Statement and Scholarship fields */
+.customer-followup-statement-owner .customer-followup-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.customer-followup-statement-owner .customer-followup-options label {
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  justify-content: flex-start;
+}
+
+.customer-followup-bank-amount {
+  align-self: start;
+}
+
+.customer-followup-bank-amount input {
+  width: min(100%, 360px);
+  min-height: 40px;
+  max-height: 40px;
+}
+
+.customer-followup-scholarship-field {
+  align-self: start;
+}
+
+.customer-followup-scholarship-field select {
+  width: min(100%, 360px);
+  min-height: 40px;
+  max-height: 40px;
+}
+
+@media (max-width: 760px) {
+  .customer-followup-statement-owner .customer-followup-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .customer-followup-bank-amount input,
+  .customer-followup-scholarship-field select {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .customer-followup-statement-owner .customer-followup-options {
+    grid-template-columns: 1fr;
+  }
+}

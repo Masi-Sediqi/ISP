@@ -250,6 +250,29 @@ export default function Reception({ currentUser }) {
   const [newInstitutionName, setNewInstitutionName] =
     useState("");
 
+  const [majorOptions, setMajorOptions] = useState(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem("isp-consultant-majors") || "[]"
+      );
+
+      return [
+        ...new Set([
+          ...consultantMajors,
+          ...(Array.isArray(saved) ? saved : []),
+        ]),
+      ];
+    } catch {
+      return consultantMajors;
+    }
+  });
+
+  const [showMajorForm, setShowMajorForm] =
+    useState(false);
+
+  const [newMajorName, setNewMajorName] =
+    useState("");
+
   const [search, setSearch] = useState("");
   const [customerTypeFilter, setCustomerTypeFilter] =
     useState("all");
@@ -276,9 +299,6 @@ const [assignEmployeeName, setAssignEmployeeName] =
     useState({
       graduatedMajor: "",
       universityName: "",
-      graduationPercentage: "",
-      graduationYear: "",
-      desiredMajor: "",
     });
 
   const [assigningRecord, setAssigningRecord] =
@@ -302,10 +322,6 @@ const [assignEmployeeName, setAssignEmployeeName] =
         customer.universityName ||
         customer.schoolUniversity ||
         "",
-      graduationPercentage:
-        customer.graduationPercentage ?? "",
-      graduationYear: customer.graduationYear || "",
-      desiredMajor: customer.desiredMajor || "",
     });
   }
 
@@ -318,9 +334,6 @@ const [assignEmployeeName, setAssignEmployeeName] =
     setAssignConsultantDetails({
       graduatedMajor: "",
       universityName: "",
-      graduationPercentage: "",
-      graduationYear: "",
-      desiredMajor: "",
     });
   }
 
@@ -389,16 +402,6 @@ const [assignEmployeeName, setAssignEmployeeName] =
                       assignConsultantDetails.graduatedMajor.trim(),
                     universityName:
                       assignConsultantDetails.universityName.trim(),
-                    graduationPercentage:
-                      assignConsultantDetails.graduationPercentage === ""
-                        ? ""
-                        : Number(
-                            assignConsultantDetails.graduationPercentage
-                          ),
-                    graduationYear:
-                      assignConsultantDetails.graduationYear,
-                    desiredMajor:
-                      assignConsultantDetails.desiredMajor.trim(),
                   }
                 : {}),
 
@@ -585,6 +588,8 @@ const technologyCount = customers.filter(
     setMediaForm(createMediaForm());
     setShowInstitutionForm(false);
     setNewInstitutionName("");
+    setShowMajorForm(false);
+    setNewMajorName("");
   }
 
   function openAddForm() {
@@ -852,6 +857,55 @@ const technologyCount = customers.filter(
       ...current,
       [name]: value,
     }));
+  }
+
+
+  function addConsultantMajor() {
+    const majorName = newMajorName.trim();
+
+    if (!majorName) {
+      notify("Please enter a major name.", "error");
+      return;
+    }
+
+    const existingMajor = majorOptions.find(
+      (major) =>
+        String(major).trim().toLowerCase() ===
+        majorName.toLowerCase()
+    );
+
+    const finalMajorName =
+      existingMajor || majorName;
+
+    const nextMajors = existingMajor
+      ? majorOptions
+      : [...majorOptions, majorName];
+
+    setMajorOptions(nextMajors);
+
+    localStorage.setItem(
+      "isp-consultant-majors",
+      JSON.stringify(
+        nextMajors.filter(
+          (major) => !consultantMajors.includes(major)
+        )
+      )
+    );
+
+    setConsultantForm((current) => ({
+      ...current,
+      graduatedMajor: finalMajorName,
+    }));
+
+    setNewMajorName("");
+    setShowMajorForm(false);
+
+    notify(
+      existingMajor
+        ? "This major already exists and has been selected."
+        : "Major added successfully.",
+      "success"
+    );
   }
 
   async function addEducationInstitution() {
@@ -1439,6 +1493,7 @@ const technologyCount = customers.filter(
                 <th>Assigned To</th>
                 <th>Purpose</th>
                 <th>Date</th>
+                <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -1534,6 +1589,23 @@ const technologyCount = customers.filter(
                   </td>
 
                   <td>
+                    <span
+                      className={`reception-status-badge ${String(
+                        customer.assignmentStatus ||
+                          customer.followUpStatus ||
+                          "None"
+                      )
+                        .trim()
+                        .toLowerCase()
+                        .replace(/\s+/g, "-")}`}
+                    >
+                      {customer.assignmentStatus ||
+                        customer.followUpStatus ||
+                        "None"}
+                    </span>
+                  </td>
+
+                  <td>
                     <div className="reception-row-actions">
                       <button
                         type="button"
@@ -1578,7 +1650,7 @@ const technologyCount = customers.filter(
               {!receptionCustomers.length && (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="9"
                     className="reception-empty"
                   >
                     No reception customers registered
@@ -1839,52 +1911,8 @@ const technologyCount = customers.filter(
                       />
                     </label>
 
-                    <label>
-                      <span>Graduation Percentage</span>
-
-                      <input
-                        type="number"
-                        name="graduationPercentage"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={
-                          assignConsultantDetails.graduationPercentage
-                        }
-                        onChange={updateAssignConsultantDetail}
-                        placeholder="Enter percentage"
-                      />
-                    </label>
-
-                    <label>
-                      <span>Graduation Year</span>
-
-                      <input
-                        type="number"
-                        name="graduationYear"
-                        min="1950"
-                        max="2100"
-                        value={assignConsultantDetails.graduationYear}
-                        onChange={updateAssignConsultantDetail}
-                        placeholder="Enter graduation year"
-                      />
-                    </label>
-
-                    <label className="reception-assign-full">
-                      <span>Desired Major</span>
-
-                      <input
-                        type="text"
-                        name="desiredMajor"
-                        list="consultant-major-options"
-                        value={assignConsultantDetails.desiredMajor}
-                        onChange={updateAssignConsultantDetail}
-                        placeholder="Select or enter desired major"
-                      />
-                    </label>
-
                     <datalist id="consultant-major-options">
-                      {consultantMajors.map((major) => (
+                      {majorOptions.map((major) => (
                         <option key={major} value={major} />
                       ))}
                     </datalist>
@@ -2392,17 +2420,68 @@ const technologyCount = customers.filter(
                         />
                       </label>
 
-                      <label>
+                      <div className="reception-institution-field">
                         <span>Graduated Major</span>
-                        <input
-                          type="text"
-                          name="graduatedMajor"
-                          list="consultant-registration-major-options"
-                          value={consultantForm.graduatedMajor}
-                          onChange={updateConsultantField}
-                          placeholder="Select or enter graduated major"
-                        />
-                      </label>
+
+                        <div className="reception-institution-control">
+                          <select
+                            name="graduatedMajor"
+                            value={consultantForm.graduatedMajor}
+                            onChange={updateConsultantField}
+                          >
+                            <option value="">
+                              Select graduated major
+                            </option>
+
+                            {majorOptions.map((major) => (
+                              <option key={major} value={major}>
+                                {major}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowMajorForm((open) => !open)
+                            }
+                            title="Add another major"
+                            aria-label="Add another major"
+                          >
+                            <Plus size={17} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {showMajorForm && (
+                        <div className="reception-add-institution reception-form-full">
+                          <div>
+                            <GraduationCap size={17} />
+
+                            <input
+                              value={newMajorName}
+                              onChange={(event) =>
+                                setNewMajorName(event.target.value)
+                              }
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  addConsultantMajor();
+                                }
+                              }}
+                              placeholder="Enter new major name"
+                              autoFocus
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={addConsultantMajor}
+                          >
+                            Add Major
+                          </button>
+                        </div>
+                      )}
 
                       <label>
                         <span>University Name</span>
@@ -2456,7 +2535,7 @@ const technologyCount = customers.filter(
                       </label>
 
                       <datalist id="consultant-registration-major-options">
-                        {consultantMajors.map((major) => (
+                        {majorOptions.map((major) => (
                           <option key={major} value={major} />
                         ))}
                       </datalist>

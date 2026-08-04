@@ -69,6 +69,18 @@ import {
         followUp.country || "",
       scholarshipType:
         followUp.scholarshipType || "",
+      graduationPercentage:
+        followUp.graduationPercentage ??
+        customer?.graduationPercentage ??
+        "",
+      graduationYear:
+        followUp.graduationYear ||
+        customer?.graduationYear ||
+        "",
+      desiredMajor:
+        followUp.desiredMajor ||
+        customer?.desiredMajor ||
+        "",
       intake:
         followUp.intake || "",
     };
@@ -183,10 +195,14 @@ import {
   
     function updateField(event) {
       const { name, value } = event.target;
-  
+
       setForm((current) => ({
         ...current,
         [name]: value,
+        ...(name === "bankStatementOwner" &&
+        value === "None"
+          ? { bankStatementAmount: "" }
+          : {}),
       }));
     }
   
@@ -292,7 +308,10 @@ import {
         return;
       }
   
-      if (!String(form.bankStatementAmount).trim()) {
+      if (
+        form.bankStatementOwner !== "None" &&
+        !String(form.bankStatementAmount).trim()
+      ) {
         notify(
           "Please enter the bank statement amount.",
           "error"
@@ -300,6 +319,34 @@ import {
         return;
       }
   
+      if (
+        form.graduationPercentage !== "" &&
+        (
+          Number(form.graduationPercentage) < 0 ||
+          Number(form.graduationPercentage) > 100
+        )
+      ) {
+        notify(
+          "Graduation percentage must be between 0 and 100.",
+          "error"
+        );
+        return;
+      }
+
+      if (
+        form.graduationYear &&
+        (
+          Number(form.graduationYear) < 1950 ||
+          Number(form.graduationYear) > 2100
+        )
+      ) {
+        notify(
+          "Please enter a valid graduation year.",
+          "error"
+        );
+        return;
+      }
+
       if (!form.country) {
         notify(
           "Please select a country.",
@@ -338,9 +385,31 @@ import {
               ? {
                   ...item,
   
+                  
+                  graduationPercentage:
+                    form.graduationPercentage === ""
+                      ? ""
+                      : Number(form.graduationPercentage),
+                  graduationYear:
+                    form.graduationYear,
+                  desiredMajor:
+                    form.desiredMajor.trim(),
+
+                  assignmentStatus: "Accepted",
+                  acceptedAt:
+                    item.acceptedAt || now,
+
                   followUp: {
                     ...form,
-  
+                    graduationPercentage:
+                      form.graduationPercentage === ""
+                        ? ""
+                        : Number(form.graduationPercentage),
+                    graduationYear:
+                      form.graduationYear,
+                    desiredMajor:
+                      form.desiredMajor.trim(),
+
                     completedAt: now,
   
                     completedByAccountId:
@@ -596,11 +665,11 @@ import {
             </header>
   
             <div className="customer-followup-grid">
-              <div className="customer-followup-field">
+              <div className="customer-followup-field customer-followup-statement-owner">
                 <label>Statement Owner</label>
   
                 <div className="customer-followup-options">
-                  {["Self", "Family"].map(
+                  {["Self", "Family", "None"].map(
                     (owner) => (
                       <label key={owner}>
                         <input
@@ -621,7 +690,7 @@ import {
                 </div>
               </div>
   
-              <div className="customer-followup-field">
+              <div className="customer-followup-field customer-followup-bank-amount">
                 <label htmlFor="bankStatementAmount">
                   Bank Statement Amount
                 </label>
@@ -634,7 +703,14 @@ import {
                   step="0.01"
                   value={form.bankStatementAmount}
                   onChange={updateField}
-                  placeholder="Enter amount"
+                  disabled={
+                    form.bankStatementOwner === "None"
+                  }
+                  placeholder={
+                    form.bankStatementOwner === "None"
+                      ? "No bank statement"
+                      : "Enter amount"
+                  }
                 />
               </div>
             </div>
@@ -655,6 +731,55 @@ import {
             </header>
   
             <div className="customer-followup-grid">
+              <div className="customer-followup-field">
+                <label htmlFor="graduationPercentage">
+                  Graduation Percentage
+                </label>
+
+                <input
+                  id="graduationPercentage"
+                  name="graduationPercentage"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={form.graduationPercentage}
+                  onChange={updateField}
+                  placeholder="Enter percentage"
+                />
+              </div>
+
+              <div className="customer-followup-field">
+                <label htmlFor="graduationYear">
+                  Graduation Year
+                </label>
+
+                <input
+                  id="graduationYear"
+                  name="graduationYear"
+                  type="number"
+                  min="1950"
+                  max="2100"
+                  value={form.graduationYear}
+                  onChange={updateField}
+                  placeholder="Enter graduation year"
+                />
+              </div>
+
+              <div className="customer-followup-field customer-followup-full">
+                <label htmlFor="desiredMajor">
+                  Desired Major
+                </label>
+
+                <input
+                  id="desiredMajor"
+                  name="desiredMajor"
+                  value={form.desiredMajor}
+                  onChange={updateField}
+                  placeholder="Enter the major the customer wants to study"
+                />
+              </div>
+
               <div className="customer-followup-field">
                 <label htmlFor="country">
                   Country
@@ -729,7 +854,7 @@ import {
                 )}
               </div>
   
-              <div className="customer-followup-field">
+              <div className="customer-followup-field customer-followup-scholarship-field">
                 <label htmlFor="scholarshipType">
                   Scholarship Type
                 </label>
