@@ -5,6 +5,7 @@ import {
   EyeOff,
   Gift,
   KeyRound,
+  MessageCircle,
   Pencil,
   Users,
   WalletCards,
@@ -511,6 +512,22 @@ const record = {
     closeAccount();
   };
 
+  const openEmployeeChat = () => {
+    if (!employeeAccount?.id) {
+      notify(
+        "First create a login account for this employee.",
+        "error"
+      );
+      return;
+    }
+
+    navigate(
+      `/team-chat?employee=${encodeURIComponent(
+        employeeAccount.id
+      )}`
+    );
+  };
+
   const saveAdjustment = async (event) => {
     event.preventDefault();
 
@@ -625,9 +642,18 @@ const record = {
         <div className="employee-profile-actions">
           <button
             type="button"
+            className="employee-chat-action"
+            onClick={openEmployeeChat}
+          >
+            <MessageCircle size={15} />
+            Chat
+          </button>
+
+          <button
+            type="button"
             onClick={() => setDetailsOpen(true)}
           >
-            <Eye size={17} />
+            <Eye size={15} />
             View Details
           </button>
 
@@ -635,7 +661,7 @@ const record = {
             type="button"
             onClick={openAdjustment}
           >
-            <Gift size={17} />
+            <Gift size={15} />
             Add Ledger Entry
           </button>
 
@@ -645,9 +671,9 @@ const record = {
             onClick={openAccount}
           >
             {employeeAccount ? (
-              <Pencil size={17} />
+              <Pencil size={15} />
             ) : (
-              <KeyRound size={17} />
+              <KeyRound size={15} />
             )}
 
             {employeeAccount

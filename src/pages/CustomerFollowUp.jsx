@@ -1,6 +1,7 @@
 import {
     useEffect,
     useMemo,
+    useRef,
     useState,
   } from "react";
   
@@ -21,6 +22,7 @@ import {
   } from "react-router-dom";
   
   import { useJsonCollection } from "../hooks/useJsonCollection";
+  import { useLocalCollection } from "../hooks/useLocalCollection";
   import { notify } from "../utils/notify";
   import "./CustomerFollowUp.css";
   
@@ -32,13 +34,203 @@ import {
   ];
   
   const defaultCountries = [
-    "Australia",
-    "Canada",
-    "China",
-    "Germany",
-    "United Kingdom",
-    "United States",
-  ];
+  "Afghanistan",
+  "Albania",
+  "Algeria",
+  "Andorra",
+  "Angola",
+  "Antigua and Barbuda",
+  "Argentina",
+  "Armenia",
+  "Australia",
+  "Austria",
+  "Azerbaijan",
+  "Bahamas",
+  "Bahrain",
+  "Bangladesh",
+  "Barbados",
+  "Belarus",
+  "Belgium",
+  "Belize",
+  "Benin",
+  "Bhutan",
+  "Bolivia",
+  "Bosnia and Herzegovina",
+  "Botswana",
+  "Brazil",
+  "Brunei",
+  "Bulgaria",
+  "Burkina Faso",
+  "Burundi",
+  "Cabo Verde",
+  "Cambodia",
+  "Cameroon",
+  "Canada",
+  "Central African Republic",
+  "Chad",
+  "Chile",
+  "China",
+  "Colombia",
+  "Comoros",
+  "Congo, Democratic Republic of the",
+  "Congo, Republic of the",
+  "Costa Rica",
+  "Côte d'Ivoire",
+  "Croatia",
+  "Cuba",
+  "Cyprus",
+  "Czechia",
+  "Denmark",
+  "Djibouti",
+  "Dominica",
+  "Dominican Republic",
+  "Ecuador",
+  "Egypt",
+  "El Salvador",
+  "Equatorial Guinea",
+  "Eritrea",
+  "Estonia",
+  "Eswatini",
+  "Ethiopia",
+  "Fiji",
+  "Finland",
+  "France",
+  "Gabon",
+  "Gambia",
+  "Georgia",
+  "Germany",
+  "Ghana",
+  "Greece",
+  "Grenada",
+  "Guatemala",
+  "Guinea",
+  "Guinea-Bissau",
+  "Guyana",
+  "Haiti",
+  "Honduras",
+  "Hungary",
+  "Iceland",
+  "India",
+  "Indonesia",
+  "Iran",
+  "Iraq",
+  "Ireland",
+  "Israel",
+  "Italy",
+  "Jamaica",
+  "Japan",
+  "Jordan",
+  "Kazakhstan",
+  "Kenya",
+  "Kiribati",
+  "Kuwait",
+  "Kyrgyzstan",
+  "Laos",
+  "Latvia",
+  "Lebanon",
+  "Lesotho",
+  "Liberia",
+  "Libya",
+  "Liechtenstein",
+  "Lithuania",
+  "Luxembourg",
+  "Madagascar",
+  "Malawi",
+  "Malaysia",
+  "Maldives",
+  "Mali",
+  "Malta",
+  "Marshall Islands",
+  "Mauritania",
+  "Mauritius",
+  "Mexico",
+  "Micronesia",
+  "Moldova",
+  "Monaco",
+  "Mongolia",
+  "Montenegro",
+  "Morocco",
+  "Mozambique",
+  "Myanmar",
+  "Namibia",
+  "Nauru",
+  "Nepal",
+  "Netherlands",
+  "New Zealand",
+  "Nicaragua",
+  "Niger",
+  "Nigeria",
+  "North Korea",
+  "North Macedonia",
+  "Norway",
+  "Oman",
+  "Pakistan",
+  "Palau",
+  "Palestine",
+  "Panama",
+  "Papua New Guinea",
+  "Paraguay",
+  "Peru",
+  "Philippines",
+  "Poland",
+  "Portugal",
+  "Qatar",
+  "Romania",
+  "Russia",
+  "Rwanda",
+  "Saint Kitts and Nevis",
+  "Saint Lucia",
+  "Saint Vincent and the Grenadines",
+  "Samoa",
+  "San Marino",
+  "São Tomé and Príncipe",
+  "Saudi Arabia",
+  "Senegal",
+  "Serbia",
+  "Seychelles",
+  "Sierra Leone",
+  "Singapore",
+  "Slovakia",
+  "Slovenia",
+  "Solomon Islands",
+  "Somalia",
+  "South Africa",
+  "South Korea",
+  "South Sudan",
+  "Spain",
+  "Sri Lanka",
+  "Sudan",
+  "Suriname",
+  "Sweden",
+  "Switzerland",
+  "Syria",
+  "Taiwan",
+  "Tajikistan",
+  "Tanzania",
+  "Thailand",
+  "Timor-Leste",
+  "Togo",
+  "Tonga",
+  "Trinidad and Tobago",
+  "Tunisia",
+  "Turkey",
+  "Turkmenistan",
+  "Tuvalu",
+  "Uganda",
+  "Ukraine",
+  "United Arab Emirates",
+  "United Kingdom",
+  "United States",
+  "Uruguay",
+  "Uzbekistan",
+  "Vanuatu",
+  "Vatican City",
+  "Venezuela",
+  "Vietnam",
+  "Yemen",
+  "Zambia",
+  "Zimbabwe"
+];
   
   const scholarshipTypes = [
     "Government",
@@ -51,6 +243,258 @@ import {
     "September",
   ];
   
+
+  const guaranteeTypes = [
+    "Exchange",
+    "Jewelry",
+    "Property",
+    "Bank Guarantee",
+    "Personal Guarantee",
+    "Custom",
+  ];
+
+  const followUpStatuses = [
+    "Pending",
+    "Approved",
+    "Rejected",
+  ];
+
+  const defaultMediaPurposes = [
+    "Video",
+    "Photo",
+    "Logo",
+    "Poster",
+    "Social Media Post",
+    "Banner",
+    "Animation",
+    "Custom",
+  ];
+
+  const normalizeCountryName = (value) =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/[^a-zA-Z]/g, "")
+      .toLowerCase();
+
+  const countryAliases = {
+    bolivia: "BO",
+    brunei: "BN",
+    caboverde: "CV",
+    congodemocraticrepublicofthe: "CD",
+    congiorepublicofthe: "CG",
+    congorepublicofthe: "CG",
+    cotedivoire: "CI",
+    czechia: "CZ",
+    eswatini: "SZ",
+    iran: "IR",
+    laos: "LA",
+    micronesia: "FM",
+    moldova: "MD",
+    northkorea: "KP",
+    palestine: "PS",
+    russia: "RU",
+    southkorea: "KR",
+    syria: "SY",
+    taiwan: "TW",
+    tanzania: "TZ",
+    turkey: "TR",
+    unitedstates: "US",
+    vaticancity: "VA",
+    venezuela: "VE",
+    vietnam: "VN",
+  };
+
+  function buildCountryCodeMap() {
+    const map = new Map();
+
+    if (
+      typeof Intl === "undefined" ||
+      typeof Intl.DisplayNames !== "function"
+    ) {
+      return map;
+    }
+
+    const displayNames = new Intl.DisplayNames(
+      ["en"],
+      { type: "region" }
+    );
+
+    for (let first = 65; first <= 90; first += 1) {
+      for (let second = 65; second <= 90; second += 1) {
+        const code =
+          String.fromCharCode(first) +
+          String.fromCharCode(second);
+
+        const name = displayNames.of(code);
+
+        if (name && name !== code) {
+          map.set(normalizeCountryName(name), code);
+        }
+      }
+    }
+
+    return map;
+  }
+
+  const countryCodeMap = buildCountryCodeMap();
+
+  function getCountryCode(countryName) {
+    const normalized =
+      normalizeCountryName(countryName);
+
+    return (
+      countryAliases[normalized] ||
+      countryCodeMap.get(normalized) ||
+      ""
+    );
+  }
+
+  function getFlagUrl(countryName) {
+    const code = getCountryCode(countryName);
+
+    if (!code) return "";
+
+    return `https://flagcdn.com/24x18/${code.toLowerCase()}.png`;
+  }
+
+  function CountrySelect({
+    value,
+    onChange,
+    countries: countryList,
+  }) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const wrapperRef = useRef(null);
+
+    useEffect(() => {
+      function closeOnOutsideClick(event) {
+        if (
+          wrapperRef.current &&
+          !wrapperRef.current.contains(event.target)
+        ) {
+          setOpen(false);
+        }
+      }
+
+      document.addEventListener(
+        "mousedown",
+        closeOnOutsideClick
+      );
+
+      return () =>
+        document.removeEventListener(
+          "mousedown",
+          closeOnOutsideClick
+        );
+    }, []);
+
+    const filtered = useMemo(() => {
+      const query = search.trim().toLowerCase();
+
+      if (!query) return countryList;
+
+      return countryList.filter((country) =>
+        country.toLowerCase().includes(query)
+      );
+    }, [countryList, search]);
+
+    function selectCountry(country) {
+      onChange({
+        target: {
+          name: "country",
+          value: country,
+        },
+      });
+
+      setSearch("");
+      setOpen(false);
+    }
+
+    return (
+      <div
+        className={`followup-country-select ${
+          open ? "open" : ""
+        }`}
+        ref={wrapperRef}
+      >
+        <button
+          type="button"
+          className="followup-country-trigger"
+          onClick={() =>
+            setOpen((current) => !current)
+          }
+        >
+          {value ? (
+            <span>
+              <img src={getFlagUrl(value)} alt="" />
+              <b>{value}</b>
+            </span>
+          ) : (
+            <span>Select country</span>
+          )}
+
+          <i>▾</i>
+        </button>
+
+        {open && (
+          <div className="followup-country-menu">
+            <input
+              type="search"
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              placeholder="Search country..."
+              autoFocus
+            />
+
+            <div>
+              {filtered.map((country) => (
+                <button
+                  type="button"
+                  key={country}
+                  className={
+                    value === country
+                      ? "selected"
+                      : ""
+                  }
+                  onClick={() =>
+                    selectCountry(country)
+                  }
+                >
+                  <img
+                    src={getFlagUrl(country)}
+                    alt=""
+                  />
+                  <span>{country}</span>
+                </button>
+              ))}
+
+              {!filtered.length && (
+                <p>No country found.</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () =>
+        reject(
+          new Error("Unable to read the selected file.")
+        );
+
+      reader.readAsDataURL(file);
+    });
+  }
+
   function createInitialForm(customer) {
     const followUp = customer?.followUp || {};
   
@@ -65,10 +509,26 @@ import {
         followUp.bankStatementOwner || "",
       bankStatementAmount:
         followUp.bankStatementAmount || "",
+      passportNumber:
+        followUp.passportNumber ||
+        customer?.passportNumber ||
+        "",
+      maritalStatus:
+        followUp.maritalStatus ||
+        customer?.maritalStatus ||
+        "Single",
+      graduatedMajor:
+        followUp.graduatedMajor ||
+        customer?.graduatedMajor ||
+        "",
       country:
-        followUp.country || "",
+        followUp.country ||
+        customer?.country ||
+        "",
       scholarshipType:
-        followUp.scholarshipType || "",
+        followUp.scholarshipType ||
+        customer?.scholarshipType ||
+        "",
       graduationPercentage:
         followUp.graduationPercentage ??
         customer?.graduationPercentage ??
@@ -82,7 +542,57 @@ import {
         customer?.desiredMajor ||
         "",
       intake:
-        followUp.intake || "",
+        followUp.intake ||
+        customer?.intake ||
+        "",
+      customIntake:
+        followUp.customIntake || "",
+      currencyUnit:
+        followUp.currencyUnit ||
+        customer?.currencyUnit ||
+        customer?.unit ||
+        "AFN",
+      totalAmount:
+        followUp.totalAmount ??
+        customer?.totalAmount ??
+        "",
+      paidAmount:
+        followUp.paidAmount ??
+        customer?.paidAmount ??
+        "",
+      guaranteeType:
+        followUp.guaranteeType || "",
+      customGuaranteeType:
+        followUp.customGuaranteeType || "",
+      guaranteeDocument:
+        followUp.guaranteeDocument || null,
+      passportDocument:
+        followUp.passportDocument ||
+        customer?.passportDocument ||
+        null,
+      projectId:
+        followUp.projectId ||
+        customer?.projectId ||
+        "",
+      projectName:
+        followUp.projectName ||
+        customer?.projectName ||
+        "",
+      mediaPurpose:
+        followUp.mediaPurpose ||
+        customer?.mediaPurpose ||
+        "",
+      customMediaPurpose:
+        followUp.customMediaPurpose ||
+        "",
+      brandName:
+        followUp.brandName ||
+        customer?.brandName ||
+        "",
+      decisionStatus:
+        followUp.decisionStatus ||
+        customer?.followUpDecisionStatus ||
+        "Pending",
     };
   }
   
@@ -91,6 +601,14 @@ import {
       customer?.fullName ||
       customer?.customerName ||
       "Unnamed Customer"
+    );
+  }
+
+  function getCustomerSourceName(customer) {
+    return (
+      customer?.source ||
+      customer?.sourceEmployeeName ||
+      "Not specified"
     );
   }
   
@@ -106,6 +624,23 @@ import {
       loadCustomers,
       customersLoaded,
     ] = useJsonCollection("customers");
+
+
+    const [employees] =
+      useJsonCollection("employees");
+
+    const [projects] =
+      useJsonCollection("projects");
+
+    const [
+      transactions,
+      setTransactions,
+    ] = useJsonCollection("transactions");
+
+    const [
+      employeeAdjustments,
+      setEmployeeAdjustments,
+    ] = useLocalCollection("employeeAdjustments");
   
     const customer = useMemo(
       () =>
@@ -168,7 +703,157 @@ import {
   
     const [saving, setSaving] =
       useState(false);
+
+
+    const remainingAmount = Math.max(
+      Number(form.totalAmount || 0) -
+        Number(form.paidAmount || 0),
+      0
+    );
+
+    function getProjectId(project) {
+      return String(
+        project?.id ||
+        project?.projectId ||
+        project?._id ||
+        ""
+      );
+    }
+
+    function getProjectName(project) {
+      return (
+        project?.projectName ||
+        project?.name ||
+        project?.title ||
+        "Unnamed Project"
+      );
+    }
+
+    function getProjectPrice(project) {
+      return Number(
+        project?.price ??
+        project?.projectPrice ??
+        project?.totalPrice ??
+        project?.amount ??
+        0
+      );
+    }
+
+    function getProjectCurrency(project) {
+      return (
+        project?.currencyUnit ||
+        project?.unit ||
+        project?.currency ||
+        "AFN"
+      );
+    }
+
+    const selectedProject = projects.find(
+      (project) =>
+        getProjectId(project) ===
+        String(form.projectId || "")
+    );
+
+    const sourceEmployeeForPreview =
+      findSourceEmployee();
+
+    const sourceEmployeePercentage = Number(
+      sourceEmployeeForPreview?.salaryPercentage ||
+        sourceEmployeeForPreview?.percentage ||
+        0
+    );
+
+    const sourceEmployeeSalaryType = String(
+      sourceEmployeeForPreview?.salaryType || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const previewCommission =
+      sourceEmployeeSalaryType === "percentage" &&
+      sourceEmployeePercentage > 0 &&
+      sourceEmployeePercentage <= 100
+        ? Math.round(
+            Number(form.totalAmount || 0) *
+              sourceEmployeePercentage
+          ) / 100
+        : 0;
+
+    const previewEmployeeName =
+      sourceEmployeeForPreview?.fullName ||
+      sourceEmployeeForPreview?.employeeName ||
+      sourceEmployeeForPreview?.name ||
+      customer?.sourceEmployeeName ||
+      customer?.source ||
+      "Source Employee";
+
+    const sourceIsWalkIn =
+      isWalkInCustomerSource();
+
+    async function updateGuaranteeDocument(event) {
+      const file = event.target.files?.[0];
+
+      if (!file) return;
+
+      if (file.size > 4 * 1024 * 1024) {
+        notify(
+          "Guarantee document must be smaller than 4 MB.",
+          "error"
+        );
+        event.target.value = "";
+        return;
+      }
+
+      try {
+        const dataUrl =
+          await readFileAsDataUrl(file);
+
+        setForm((current) => ({
+          ...current,
+          guaranteeDocument: {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            dataUrl,
+          },
+        }));
+      } catch (error) {
+        notify(error.message, "error");
+      }
+    }
   
+
+    async function updatePassportDocument(event) {
+      const file = event.target.files?.[0];
+
+      if (!file) return;
+
+      if (file.size > 4 * 1024 * 1024) {
+        notify(
+          "Passport document must be smaller than 4 MB.",
+          "error"
+        );
+        event.target.value = "";
+        return;
+      }
+
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+
+        setForm((current) => ({
+          ...current,
+          passportDocument: {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            dataUrl,
+          },
+        }));
+      } catch (error) {
+        notify(error.message, "error");
+      }
+    }
+
     useEffect(() => {
       if (!customer) return;
   
@@ -195,6 +880,29 @@ import {
   
     function updateField(event) {
       const { name, value } = event.target;
+
+      if (name === "projectId") {
+        const project = projects.find(
+          (item) =>
+            getProjectId(item) === String(value)
+        );
+
+        setForm((current) => ({
+          ...current,
+          projectId: value,
+          projectName: project
+            ? getProjectName(project)
+            : "",
+          totalAmount: project
+            ? getProjectPrice(project)
+            : "",
+          currencyUnit: project
+            ? getProjectCurrency(project)
+            : current.currencyUnit,
+        }));
+
+        return;
+      }
 
       setForm((current) => ({
         ...current,
@@ -284,14 +992,350 @@ import {
       setShowCountryAdder(false);
     }
   
+
+    function isWalkInCustomerSource() {
+      const sourceName = String(
+        customer?.sourceEmployeeName ||
+          customer?.source ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return sourceName === "walk in customer";
+    }
+
+    /*
+     * فیصدی فقط برای همان کارمندی محاسبه می‌شود
+     * که در Reception داخل فیلد Source انتخاب شده است.
+     * Assigned To در محاسبه فیصدی هیچ نقشی ندارد.
+     */
+    function findSourceEmployee() {
+      if (isWalkInCustomerSource()) {
+        return null;
+      }
+
+      const sourceEmployeeId = String(
+        customer?.sourceEmployeeId || ""
+      );
+
+      if (sourceEmployeeId) {
+        const byId = employees.find(
+          (employee) =>
+            String(
+              employee.id ||
+                employee.employeeId ||
+                ""
+            ) === sourceEmployeeId
+        );
+
+        if (byId) return byId;
+      }
+
+      const sourceName = String(
+        customer?.sourceEmployeeName ||
+          customer?.source ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (!sourceName) return null;
+
+      return (
+        employees.find((employee) =>
+          [
+            employee.fullName,
+            employee.employeeName,
+            employee.name,
+            employee.email,
+          ]
+            .map((value) =>
+              String(value || "")
+                .trim()
+                .toLowerCase()
+            )
+            .includes(sourceName)
+        ) || null
+      );
+    }
+
+    function createLinkedRecordId(prefix) {
+      if (
+        typeof crypto !== "undefined" &&
+        typeof crypto.randomUUID === "function"
+      ) {
+        return `${prefix}-${crypto.randomUUID()}`;
+      }
+
+      return `${prefix}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 9)}`;
+    }
+
+    function getAfghanistanDateParts() {
+      const now = new Date();
+
+      return {
+        iso: now.toISOString(),
+        date: new Intl.DateTimeFormat(
+          "en-CA",
+          {
+            timeZone: "Asia/Kabul",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }
+        ).format(now),
+        time: new Intl.DateTimeFormat(
+          "en-GB",
+          {
+            timeZone: "Asia/Kabul",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false,
+          }
+        ).format(now),
+      };
+    }
+
+    async function syncCustomerPaymentIncome(
+      paidAmount,
+      totalAmount,
+      currencyUnit
+    ) {
+      const source =
+        "customer-follow-up-payment";
+      const referenceId =
+        String(customer.id);
+
+      const existing = transactions.find(
+        (entry) =>
+          entry.source === source &&
+          String(entry.referenceId || "") ===
+            referenceId
+      );
+
+      const withoutCurrent =
+        transactions.filter(
+          (entry) =>
+            !(
+              entry.source === source &&
+              String(entry.referenceId || "") ===
+                referenceId
+            )
+        );
+
+      const amount = Number(paidAmount || 0);
+
+      if (!(amount > 0)) {
+        return setTransactions(withoutCurrent);
+      }
+
+      const afghanistan =
+        getAfghanistanDateParts();
+
+      const record = {
+        ...(existing || {}),
+        id:
+          existing?.id ||
+          createLinkedRecordId(
+            "follow-up-income"
+          ),
+        type: "income",
+        title:
+          `${customer.customerType || "Customer"} Payment - ${getCustomerName(
+            customer
+          )}`,
+        category: "Customer Payment",
+        amount,
+        currencyUnit:
+          currencyUnit || "AFN",
+        currency:
+          currencyUnit || "AFN",
+        totalAmount:
+          Number(totalAmount || 0),
+        remainingAmount: Math.max(
+          Number(totalAmount || 0) - amount,
+          0
+        ),
+        customerId: customer.id,
+        customerName:
+          getCustomerName(customer),
+        customerType:
+          customer.customerType || "",
+        sourceEmployeeId:
+          customer.sourceEmployeeId || "",
+        sourceEmployeeName:
+          customer.sourceEmployeeName ||
+          customer.source ||
+          "",
+        source,
+        referenceId: customer.id,
+        description:
+          `Payment received from ${getCustomerName(
+            customer
+          )} through Application Follow-Up Form.`,
+        date:
+          existing?.date ||
+          afghanistan.date,
+        time:
+          existing?.time ||
+          afghanistan.time,
+        afghanistanDate:
+          existing?.afghanistanDate ||
+          afghanistan.date,
+        afghanistanTime:
+          existing?.afghanistanTime ||
+          afghanistan.time,
+        createdAt:
+          existing?.createdAt ||
+          afghanistan.iso,
+        updatedAt: afghanistan.iso,
+      };
+
+      return setTransactions([
+        ...withoutCurrent,
+        record,
+      ]);
+    }
+
+    async function syncCallCenterCommission(
+      status,
+      totalAmount
+    ) {
+      const referenceId =
+        String(customer.id);
+
+      const withoutCurrent =
+        employeeAdjustments.filter(
+          (entry) =>
+            !(
+              entry.source ===
+                "follow-up-approval-commission" &&
+              String(entry.referenceId || "") ===
+                referenceId
+            )
+        );
+
+      if (
+        status !== "Approved" ||
+        isWalkInCustomerSource()
+      ) {
+        return setEmployeeAdjustments(
+          withoutCurrent
+        );
+      }
+
+      const employee =
+        findSourceEmployee();
+
+      if (!employee) {
+        notify(
+          "Approved, but the employee selected in Reception Source was not found.",
+          "warning"
+        );
+
+        return setEmployeeAdjustments(
+          withoutCurrent
+        );
+      }
+
+      const salaryType = String(
+        employee.salaryType || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const percentage = Number(
+        employee.salaryPercentage ||
+          employee.percentage ||
+          0
+      );
+
+      if (
+        salaryType !== "percentage" ||
+        percentage <= 0 ||
+        percentage > 100
+      ) {
+        return setEmployeeAdjustments(
+          withoutCurrent
+        );
+      }
+
+      const commission =
+        Math.round(
+          Number(totalAmount || 0) *
+            percentage
+        ) / 100;
+
+      if (commission <= 0) {
+        return setEmployeeAdjustments(
+          withoutCurrent
+        );
+      }
+
+      const previous =
+        employeeAdjustments.find(
+          (entry) =>
+            entry.source ===
+              "follow-up-approval-commission" &&
+            String(entry.referenceId || "") ===
+              referenceId
+        );
+
+      const now =
+        new Date().toISOString();
+
+      return setEmployeeAdjustments([
+        ...withoutCurrent,
+        {
+          id:
+            previous?.id ||
+            `follow-up-commission-${customer.id}`,
+          employeeId:
+            employee.id ||
+            employee.employeeId,
+          employeeName:
+            employee.fullName ||
+            employee.employeeName ||
+            employee.name ||
+            customer.sourceEmployeeName ||
+            "Call Center",
+          type: "credit",
+          amount: commission,
+          currencyUnit:
+            form.currencyUnit || "AFN",
+          currency:
+            form.currencyUnit || "AFN",
+          salaryPercentage: percentage,
+          source:
+            "follow-up-approval-commission",
+          referenceId: customer.id,
+          customerId: customer.id,
+          customerName:
+            getCustomerName(customer),
+          reason:
+            `${percentage}% commission for Source employee ${customer.sourceEmployeeName || customer.source || ""} from approved application total amount`,
+          createdAt:
+            previous?.createdAt || now,
+          updatedAt: now,
+        },
+      ]);
+    }
+
     async function saveFollowUp(event) {
       event.preventDefault();
   
       if (!customer || saving) return;
   
       if (
-        !Array.isArray(form.englishTests) ||
-        !form.englishTests.length
+        customer.customerType === "consultant" &&
+        (
+          !Array.isArray(form.englishTests) ||
+          !form.englishTests.length
+        )
       ) {
         notify(
           "Please select at least one English test document.",
@@ -300,7 +1344,12 @@ import {
         return;
       }
   
-      if (!form.bankStatementOwner) {
+      if (
+        ["consultant", "travel"].includes(
+          customer.customerType
+        ) &&
+        !form.bankStatementOwner
+      ) {
         notify(
           "Please select the bank statement owner.",
           "error"
@@ -309,6 +1358,9 @@ import {
       }
   
       if (
+        ["consultant", "travel"].includes(
+          customer.customerType
+        ) &&
         form.bankStatementOwner !== "None" &&
         !String(form.bankStatementAmount).trim()
       ) {
@@ -320,6 +1372,7 @@ import {
       }
   
       if (
+        customer.customerType === "consultant" &&
         form.graduationPercentage !== "" &&
         (
           Number(form.graduationPercentage) < 0 ||
@@ -334,6 +1387,7 @@ import {
       }
 
       if (
+        customer.customerType === "consultant" &&
         form.graduationYear &&
         (
           Number(form.graduationYear) < 1950 ||
@@ -347,7 +1401,12 @@ import {
         return;
       }
 
-      if (!form.country) {
+      if (
+        ["consultant", "travel"].includes(
+          customer.customerType
+        ) &&
+        !form.country
+      ) {
         notify(
           "Please select a country.",
           "error"
@@ -355,7 +1414,12 @@ import {
         return;
       }
   
-      if (!form.scholarshipType) {
+      if (
+        ["consultant", "travel"].includes(
+          customer.customerType
+        ) &&
+        !form.scholarshipType
+      ) {
         notify(
           "Please select a scholarship type.",
           "error"
@@ -363,7 +1427,10 @@ import {
         return;
       }
   
-      if (!form.intake) {
+      if (
+        customer.customerType === "consultant" &&
+        !form.intake
+      ) {
         notify(
           "Please select an intake.",
           "error"
@@ -371,6 +1438,99 @@ import {
         return;
       }
   
+      if (
+        customer.customerType === "technology" &&
+        !form.projectId
+      ) {
+        notify(
+          "Please select a project.",
+          "error"
+        );
+        return;
+      }
+
+      if (
+        customer.customerType === "media" &&
+        !form.mediaPurpose
+      ) {
+        notify(
+          "Please select a media purpose.",
+          "error"
+        );
+        return;
+      }
+
+      if (
+        customer.customerType === "media" &&
+        form.mediaPurpose === "Custom" &&
+        !form.customMediaPurpose.trim()
+      ) {
+        notify(
+          "Please enter the custom media purpose.",
+          "error"
+        );
+        return;
+      }
+
+      const totalAmount =
+        Number(form.totalAmount || 0);
+      const paidAmount =
+        Number(form.paidAmount || 0);
+
+      if (totalAmount <= 0) {
+        notify(
+          "Please enter a valid total amount.",
+          "error"
+        );
+        return;
+      }
+
+      if (
+        paidAmount < 0 ||
+        paidAmount > totalAmount
+      ) {
+        notify(
+          "Paid amount cannot exceed total amount.",
+          "error"
+        );
+        return;
+      }
+
+      if (
+        ["consultant", "travel"].includes(
+          customer.customerType
+        ) &&
+        !form.guaranteeType
+      ) {
+        notify(
+          "Please select a guarantee type.",
+          "error"
+        );
+        return;
+      }
+
+      if (
+        ["consultant", "travel"].includes(
+          customer.customerType
+        ) &&
+        form.guaranteeType === "Custom" &&
+        !form.customGuaranteeType.trim()
+      ) {
+        notify(
+          "Please enter the custom guarantee type.",
+          "error"
+        );
+        return;
+      }
+
+      if (!form.decisionStatus) {
+        notify(
+          "Please select Pending, Approved or Rejected.",
+          "error"
+        );
+        return;
+      }
+
       setSaving(true);
   
       try {
@@ -386,6 +1546,13 @@ import {
                   ...item,
   
                   
+                  passportNumber:
+                    form.passportNumber.trim(),
+                  maritalStatus:
+                    form.maritalStatus,
+                  graduatedMajor:
+                    form.graduatedMajor.trim(),
+
                   graduationPercentage:
                     form.graduationPercentage === ""
                       ? ""
@@ -395,9 +1562,56 @@ import {
                   desiredMajor:
                     form.desiredMajor.trim(),
 
-                  assignmentStatus: "Accepted",
+                  country:
+                    form.country,
+
+                  passportDocument:
+                    form.passportDocument,
+
+                  projectId:
+                    form.projectId,
+                  projectName:
+                    form.projectName,
+
+                  mediaPurpose:
+                    form.mediaPurpose,
+                  customMediaPurpose:
+                    form.mediaPurpose === "Custom"
+                      ? form.customMediaPurpose.trim()
+                      : "",
+                  brandName:
+                    form.brandName.trim(),
+
+                  currencyUnit:
+                    form.currencyUnit || "AFN",
+                  unit:
+                    form.currencyUnit || "AFN",
+
+                  totalAmount:
+                    Number(form.totalAmount || 0),
+                  paidAmount:
+                    Number(form.paidAmount || 0),
+                  remainingAmount:
+                    Math.max(
+                      Number(form.totalAmount || 0) -
+                        Number(form.paidAmount || 0),
+                      0
+                    ),
+                  guaranteeType:
+                    form.guaranteeType,
+                  customGuaranteeType:
+                    form.customGuaranteeType.trim(),
+                  guaranteeDocument:
+                    form.guaranteeDocument,
+                  followUpDecisionStatus:
+                    form.decisionStatus,
+
+                  assignmentStatus:
+                    form.decisionStatus,
                   acceptedAt:
-                    item.acceptedAt || now,
+                    form.decisionStatus === "Approved"
+                      ? item.acceptedAt || now
+                      : item.acceptedAt || "",
 
                   followUp: {
                     ...form,
@@ -426,8 +1640,10 @@ import {
                       "Employee",
                   },
   
-                  followUpCompleted: true,
-                  followUpStatus: "Completed",
+                  followUpCompleted:
+                    form.decisionStatus === "Approved",
+                  followUpStatus:
+                    form.decisionStatus,
                   followUpUpdatedAt: now,
                   updatedAt: now,
                 }
@@ -444,12 +1660,43 @@ import {
           );
           return;
         }
-  
+
+        const incomeSaved =
+          await syncCustomerPaymentIncome(
+            paidAmount,
+            totalAmount,
+            form.currencyUnit || "AFN"
+          );
+
+        const commissionSaved =
+          await syncCallCenterCommission(
+            form.decisionStatus,
+            totalAmount
+          );
+
+        if (!incomeSaved) {
+          notify(
+            "Follow-up saved, but the payment could not be linked with Financial Income.",
+            "warning"
+          );
+        }
+
+        if (!commissionSaved) {
+          notify(
+            "Follow-up saved, but the approved commission could not be linked with the employee ledger.",
+            "warning"
+          );
+        }
+
         notify(
-          "Customer follow-up saved successfully.",
+          form.decisionStatus === "Approved"
+            ? "Follow-up, income and employee ledger were updated successfully."
+            : paidAmount > 0
+              ? "Follow-up and customer income were saved successfully."
+              : "Customer follow-up saved successfully.",
           "success"
         );
-  
+
         navigate("/my-account");
       } finally {
         setSaving(false);
@@ -529,10 +1776,17 @@ import {
             </div>
   
             <span>
-              <strong>
-                {getCustomerName(customer)}
-              </strong>
-  
+              <div className="customer-followup-name-source">
+                <strong>
+                  {getCustomerName(customer)}
+                </strong>
+
+                <em>
+                  Source:{" "}
+                  {getCustomerSourceName(customer)}
+                </em>
+              </div>
+
               <small>
                 {customer.customerType ||
                   "Customer"}
@@ -545,6 +1799,7 @@ import {
           className="customer-followup-form"
           onSubmit={saveFollowUp}
         >
+          {customer.customerType === "consultant" && (
           <section className="customer-followup-card">
             <header>
               <FileCheck2 size={20} />
@@ -650,78 +1905,164 @@ import {
             </div>
           </section>
   
-          <section className="customer-followup-card">
-            <header>
-              <Landmark size={20} />
-  
-              <div>
-                <h2>Bank Statement</h2>
-  
-                <p>
-                  Choose the statement owner and enter
-                  the available amount.
-                </p>
+          )}
+
+          {customer.customerType === "media" && (
+            <section className="customer-followup-card">
+              <header>
+                <Building2 size={20} />
+
+                <div>
+                  <h2>Media Production Information</h2>
+                  <p>
+                    Select the requested media service and confirm the brand.
+                  </p>
+                </div>
+              </header>
+
+              <div className="customer-followup-grid">
+                <div className="customer-followup-field">
+                  <label htmlFor="mediaPurpose">
+                    Purpose
+                  </label>
+
+                  <select
+                    id="mediaPurpose"
+                    name="mediaPurpose"
+                    value={form.mediaPurpose}
+                    onChange={updateField}
+                  >
+                    <option value="">
+                      Select purpose
+                    </option>
+
+                    {defaultMediaPurposes.map((purpose) => (
+                      <option
+                        key={purpose}
+                        value={purpose}
+                      >
+                        {purpose}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="customer-followup-field">
+                  <label htmlFor="brandName">
+                    Brand Name
+                  </label>
+
+                  <input
+                    id="brandName"
+                    name="brandName"
+                    value={form.brandName}
+                    onChange={updateField}
+                    placeholder="Enter brand name"
+                  />
+                </div>
+
+                {form.mediaPurpose === "Custom" && (
+                  <div className="customer-followup-field customer-followup-full">
+                    <label htmlFor="customMediaPurpose">
+                      Custom Purpose
+                    </label>
+
+                    <input
+                      id="customMediaPurpose"
+                      name="customMediaPurpose"
+                      value={form.customMediaPurpose}
+                      onChange={updateField}
+                      placeholder="Enter custom media purpose"
+                    />
+                  </div>
+                )}
               </div>
-            </header>
-  
-            <div className="customer-followup-grid">
-              <div className="customer-followup-field customer-followup-statement-owner">
-                <label>Statement Owner</label>
-  
-                <div className="customer-followup-options">
-                  {["Self", "Family", "None"].map(
-                    (owner) => (
-                      <label key={owner}>
-                        <input
-                          type="radio"
-                          name="bankStatementOwner"
-                          value={owner}
-                          checked={
-                            form.bankStatementOwner ===
-                            owner
-                          }
-                          onChange={updateField}
-                        />
-  
-                        <span>{owner}</span>
-                      </label>
-                    )
-                  )}
+            </section>
+          )}
+
+          {["consultant", "travel"].includes(
+            customer.customerType
+          ) && (
+            <section className="customer-followup-card">
+              <header>
+                <Landmark size={20} />
+
+                <div>
+                  <h2>Bank Statement</h2>
+
+                  <p>
+                    Choose the statement owner and enter
+                    the available amount.
+                  </p>
+                </div>
+              </header>
+
+              <div className="customer-followup-grid">
+                <div className="customer-followup-field customer-followup-statement-owner">
+                  <label>Statement Owner</label>
+
+                  <div className="customer-followup-options">
+                    {["Self", "Family", "None"].map(
+                      (owner) => (
+                        <label key={owner}>
+                          <input
+                            type="radio"
+                            name="bankStatementOwner"
+                            value={owner}
+                            checked={
+                              form.bankStatementOwner ===
+                              owner
+                            }
+                            onChange={updateField}
+                          />
+
+                          <span>{owner}</span>
+                        </label>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <div className="customer-followup-field customer-followup-bank-amount">
+                  <label htmlFor="bankStatementAmount">
+                    Bank Statement Amount
+                  </label>
+
+                  <input
+                    id="bankStatementAmount"
+                    name="bankStatementAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.bankStatementAmount}
+                    onChange={updateField}
+                    disabled={
+                      form.bankStatementOwner === "None"
+                    }
+                    placeholder={
+                      form.bankStatementOwner === "None"
+                        ? "No bank statement"
+                        : "Enter amount"
+                    }
+                  />
                 </div>
               </div>
-  
-              <div className="customer-followup-field customer-followup-bank-amount">
-                <label htmlFor="bankStatementAmount">
-                  Bank Statement Amount
-                </label>
-  
-                <input
-                  id="bankStatementAmount"
-                  name="bankStatementAmount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.bankStatementAmount}
-                  onChange={updateField}
-                  disabled={
-                    form.bankStatementOwner === "None"
-                  }
-                  placeholder={
-                    form.bankStatementOwner === "None"
-                      ? "No bank statement"
-                      : "Enter amount"
-                  }
-                />
-              </div>
-            </div>
-          </section>
-  
-          <section className="customer-followup-card">
+            </section>
+          )}
+
+          {["consultant", "travel"].includes(
+            customer.customerType
+          ) && (
+            <section className="customer-followup-card">
             <header>
               <Building2 size={20} />
   
               <div>
-                <h2>Study Preferences</h2>
+                <h2>
+                  {customer.customerType === "travel"
+                    ? "Travel Destination"
+                    : "Study Preferences"}
+                </h2>
   
                 <p>
                   Select the destination, scholarship,
@@ -732,131 +2073,20 @@ import {
   
             <div className="customer-followup-grid">
               <div className="customer-followup-field">
-                <label htmlFor="graduationPercentage">
-                  Graduation Percentage
-                </label>
+                <label>Country</label>
 
-                <input
-                  id="graduationPercentage"
-                  name="graduationPercentage"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={form.graduationPercentage}
+                <CountrySelect
+                  value={form.country}
                   onChange={updateField}
-                  placeholder="Enter percentage"
+                  countries={countries}
                 />
               </div>
 
-              <div className="customer-followup-field">
-                <label htmlFor="graduationYear">
-                  Graduation Year
-                </label>
-
-                <input
-                  id="graduationYear"
-                  name="graduationYear"
-                  type="number"
-                  min="1950"
-                  max="2100"
-                  value={form.graduationYear}
-                  onChange={updateField}
-                  placeholder="Enter graduation year"
-                />
-              </div>
-
-              <div className="customer-followup-field customer-followup-full">
-                <label htmlFor="desiredMajor">
-                  Desired Major
-                </label>
-
-                <input
-                  id="desiredMajor"
-                  name="desiredMajor"
-                  value={form.desiredMajor}
-                  onChange={updateField}
-                  placeholder="Enter the major the customer wants to study"
-                />
-              </div>
-
-              <div className="customer-followup-field">
-                <label htmlFor="country">
-                  Country
-                </label>
-  
-                <div className="customer-followup-select-add">
-                  <select
-                    id="country"
-                    name="country"
-                    value={form.country}
-                    onChange={updateField}
-                  >
-                    <option value="">
-                      Select country
-                    </option>
-  
-                    {countries.map((country) => (
-                      <option
-                        key={country}
-                        value={country}
-                      >
-                        {country}
-                      </option>
-                    ))}
-                  </select>
-  
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setShowCountryAdder(
-                        (open) => !open
-                      )
-                    }
-                    title="Add another country"
-                  >
-                    <Plus size={17} />
-                  </button>
-                </div>
-  
-                {showCountryAdder && (
-                  <div className="customer-followup-inline-adder">
-                    <input
-                      value={newCountry}
-                      onChange={(event) =>
-                        setNewCountry(
-                          event.target.value
-                        )
-                      }
-                      placeholder="Enter country name"
-                      autoFocus
-                    />
-  
-                    <button
-                      type="button"
-                      onClick={addCountry}
-                    >
-                      Add
-                    </button>
-  
-                    <button
-                      type="button"
-                      className="close"
-                      onClick={() => {
-                        setShowCountryAdder(false);
-                        setNewCountry("");
-                      }}
-                      aria-label="Close"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                )}
-              </div>
-  
               <div className="customer-followup-field customer-followup-scholarship-field">
                 <label htmlFor="scholarshipType">
-                  Scholarship Type
+                  {customer.customerType === "travel"
+                    ? "Visa Type"
+                    : "Scholarship Type"}
                 </label>
   
                 <select
@@ -866,7 +2096,9 @@ import {
                   onChange={updateField}
                 >
                   <option value="">
-                    Select scholarship type
+                    {customer.customerType === "travel"
+                      ? "Select visa type"
+                      : "Select scholarship type"}
                   </option>
   
                   {scholarshipTypes.map(
@@ -882,11 +2114,12 @@ import {
                 </select>
               </div>
   
+              {customer.customerType === "consultant" && (
               <div className="customer-followup-field customer-followup-full">
                 <label>Intake</label>
-  
+
                 <div className="customer-followup-options intake">
-                  {intakes.map((intake) => (
+                  {[...intakes, "Custom"].map((intake) => (
                     <label key={intake}>
                       <input
                         type="radio"
@@ -897,15 +2130,431 @@ import {
                         }
                         onChange={updateField}
                       />
-  
+
                       <span>{intake}</span>
                     </label>
                   ))}
                 </div>
+
+                {form.intake === "Custom" && (
+                  <input
+                    name="customIntake"
+                    value={form.customIntake}
+                    onChange={updateField}
+                    placeholder="Enter custom intake"
+                  />
+                )}
               </div>
+              )}
             </div>
           </section>
   
+          )}
+
+          {(customer.customerType === "consultant" ||
+            customer.customerType === "travel") && (
+            <section className="customer-followup-card">
+              <header>
+                <Building2 size={20} />
+
+                <div>
+                  <h2>Application Information</h2>
+                  <p>
+                    Complete the customer passport and
+                    application details.
+                  </p>
+                </div>
+              </header>
+
+              <div className="customer-followup-grid">
+                <div className="customer-followup-field">
+                  <label htmlFor="passportNumber">
+                    Passport Number
+                  </label>
+
+                  <input
+                    id="passportNumber"
+                    name="passportNumber"
+                    value={form.passportNumber}
+                    onChange={updateField}
+                    placeholder="Enter passport number"
+                  />
+                </div>
+
+                <div className="customer-followup-field">
+                  <label htmlFor="maritalStatus">
+                    Marital Status
+                  </label>
+
+                  <select
+                    id="maritalStatus"
+                    name="maritalStatus"
+                    value={form.maritalStatus}
+                    onChange={updateField}
+                  >
+                    <option value="Single">Single</option>
+                    <option value="Married">Married</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Widowed">Widowed</option>
+                  </select>
+                </div>
+
+                <div className="customer-followup-field customer-followup-full">
+                  <label htmlFor="passportDocument">
+                    Passport Upload
+                  </label>
+
+                  <input
+                    id="passportDocument"
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp"
+                    onChange={updatePassportDocument}
+                  />
+
+                  {form.passportDocument?.name && (
+                    <small className="customer-followup-help">
+                      {form.passportDocument.name}
+                    </small>
+                  )}
+                </div>
+
+                {customer.customerType === "consultant" && (
+                  <>
+                    <div className="customer-followup-field">
+                      <label htmlFor="graduatedMajor">
+                        Graduated Major
+                      </label>
+
+                      <input
+                        id="graduatedMajor"
+                        name="graduatedMajor"
+                        value={form.graduatedMajor}
+                        onChange={updateField}
+                        placeholder="Enter graduated major"
+                      />
+                    </div>
+
+                    <div className="customer-followup-field">
+                      <label htmlFor="graduationPercentage">
+                        Graduation Percentage
+                      </label>
+
+                      <input
+                        id="graduationPercentage"
+                        name="graduationPercentage"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={form.graduationPercentage}
+                        onChange={updateField}
+                        placeholder="Enter percentage"
+                      />
+                    </div>
+
+                    <div className="customer-followup-field">
+                      <label htmlFor="graduationYear">
+                        Graduation Year
+                      </label>
+
+                      <input
+                        id="graduationYear"
+                        name="graduationYear"
+                        type="number"
+                        min="1950"
+                        max="2100"
+                        value={form.graduationYear}
+                        onChange={updateField}
+                        placeholder="Enter graduation year"
+                      />
+                    </div>
+
+                    <div className="customer-followup-field">
+                      <label htmlFor="desiredMajor">
+                        Desired Major
+                      </label>
+
+                      <input
+                        id="desiredMajor"
+                        name="desiredMajor"
+                        value={form.desiredMajor}
+                        onChange={updateField}
+                        placeholder="Enter desired major"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+          )}
+
+
+          <section className="customer-followup-card">
+            <header>
+              <Landmark size={20} />
+
+              <div>
+                <h2>Financial and Guarantee Information</h2>
+                <p>
+                  Record amounts, guarantee details,
+                  document and final decision.
+                </p>
+              </div>
+            </header>
+
+            <div className="customer-followup-grid">
+              {customer.customerType === "technology" && (
+                <>
+                  <div className="customer-followup-field">
+                    <label htmlFor="projectId">
+                      Select Project
+                    </label>
+
+                    <select
+                      id="projectId"
+                      name="projectId"
+                      value={form.projectId}
+                      onChange={updateField}
+                    >
+                      <option value="">
+                        Select project
+                      </option>
+
+                      {projects.map((project) => (
+                        <option
+                          key={getProjectId(project)}
+                          value={getProjectId(project)}
+                        >
+                          {getProjectName(project)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="customer-followup-field">
+                    <label>Customer</label>
+                    <input
+                      value={getCustomerName(customer)}
+                      readOnly
+                    />
+                  </div>
+
+                  <div className="customer-followup-field">
+                    <label>Source</label>
+                    <input
+                      value={getCustomerSourceName(customer)}
+                      readOnly
+                    />
+                  </div>
+
+                  <div className="customer-followup-field">
+                    <label htmlFor="technologyProjectAmount">
+                      Project Amount
+                    </label>
+
+                    <input
+                      id="technologyProjectAmount"
+                      name="totalAmount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.totalAmount}
+                      onChange={updateField}
+                      placeholder="Enter or change project amount"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="customer-followup-field">
+                <label htmlFor="currencyUnit">
+                  Currency Unit
+                </label>
+
+                <select
+                  id="currencyUnit"
+                  name="currencyUnit"
+                  value={form.currencyUnit}
+                  onChange={updateField}
+                >
+                  <option value="AFN">
+                    AFN - Afghani
+                  </option>
+
+                  <option value="USD">
+                    USD - Dollar
+                  </option>
+                </select>
+              </div>
+
+              {customer.customerType !== "technology" && (
+                <div className="customer-followup-field">
+                  <label htmlFor="totalAmount">
+                    Total Amount
+                  </label>
+
+                  <input
+                    id="totalAmount"
+                    name="totalAmount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.totalAmount}
+                    onChange={updateField}
+                    placeholder="Enter total amount"
+                  />
+                </div>
+              )}
+
+              <div className="customer-followup-field">
+                <label htmlFor="paidAmount">
+                  Paid Amount
+                </label>
+
+                <input
+                  id="paidAmount"
+                  name="paidAmount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.paidAmount}
+                  onChange={updateField}
+                  placeholder="Enter paid amount"
+                />
+              </div>
+
+              <div className="customer-followup-field">
+                <label>Remaining Amount</label>
+
+                <input
+                  value={`${remainingAmount.toLocaleString(
+                    "en-US"
+                  )} ${form.currencyUnit || "AFN"}`}
+                  readOnly
+                />
+              </div>
+
+              {!["technology", "media"].includes(
+                customer.customerType
+              ) && (
+                <>
+              <div className="customer-followup-field">
+                <label htmlFor="guaranteeType">
+                  Guarantee Type
+                </label>
+
+                <select
+                  id="guaranteeType"
+                  name="guaranteeType"
+                  value={form.guaranteeType}
+                  onChange={updateField}
+                >
+                  <option value="">
+                    Select guarantee type
+                  </option>
+
+                  {guaranteeTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {form.guaranteeType === "Custom" && (
+                <div className="customer-followup-field">
+                  <label htmlFor="customGuaranteeType">
+                    Custom Guarantee
+                  </label>
+
+                  <input
+                    id="customGuaranteeType"
+                    name="customGuaranteeType"
+                    value={form.customGuaranteeType}
+                    onChange={updateField}
+                    placeholder="Enter guarantee type"
+                  />
+                </div>
+              )}
+
+              <div className="customer-followup-field">
+                <label htmlFor="guaranteeDocument">
+                  Guarantee Document
+                </label>
+
+                <input
+                  id="guaranteeDocument"
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp"
+                  onChange={updateGuaranteeDocument}
+                />
+
+                {form.guaranteeDocument?.name && (
+                  <small className="customer-followup-help">
+                    {form.guaranteeDocument.name}
+                  </small>
+                )}
+              </div>
+
+                </>
+              )}
+
+              <div className="customer-followup-field customer-followup-full">
+                <label>Application Status</label>
+
+                <div className="customer-followup-options followup-status-options">
+                  {followUpStatuses.map((status) => (
+                    <label
+                      key={status}
+                      className={status.toLowerCase()}
+                    >
+                      <input
+                        type="radio"
+                        name="decisionStatus"
+                        value={status}
+                        checked={
+                          form.decisionStatus === status
+                        }
+                        onChange={updateField}
+                      />
+
+                      <span>{status}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {form.decisionStatus === "Approved" && (
+                  <div className="followup-commission-preview">
+                    {previewCommission > 0 ? (
+                      <>
+                        <strong>
+                          {sourceEmployeePercentage}% of the
+                          total amount will be credited to{" "}
+                          {previewEmployeeName}.
+                        </strong>
+
+                        <span>
+                          {previewCommission.toLocaleString(
+                            "en-US"
+                          )}{" "}
+                          {form.currencyUnit || "AFN"} will be
+                          added to the employee ledger after
+                          saving this approved application.
+                        </span>
+                      </>
+                    ) : (
+                      <span>
+                        {sourceIsWalkIn
+                          ? "Source is Walk in Customer, so no employee commission will be created."
+                          : "No percentage commission will be created because the employee selected in Reception Source does not have a valid percentage salary."}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
           <footer className="customer-followup-actions">
             <button
               type="button"

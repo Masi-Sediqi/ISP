@@ -24,6 +24,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { todayDateValue } from "../utils/afghanDate";
 import { applyInterfaceLanguage } from "../utils/interfaceLanguage";
+import { notify } from "../utils/notify";
 
 const normalize = (value) => String(value || "").toLowerCase().trim();
 const compact = (value) => normalize(value).replace(/[^a-z0-9]/g, "");
@@ -47,6 +48,14 @@ const formatLocationName = (record) =>
 
 function HeaderActions({ currentUser, onLogout, compact = false }) {
   const [openMenu, setOpenMenu] = useState(null);
+
+  const [
+    dismissedNotificationKeys,
+    setDismissedNotificationKeys,
+  ] = useState(() => new Set());
+
+  const responseAlertReadyRef = useRef(false);
+  const responseSoundRef = useRef(null);
   const [selectedCurrency, setSelectedCurrency] = useState(
     () => localStorage.getItem("isp-currency") || "AFN"
   );
@@ -59,8 +68,12 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
   const [towerAssets] = useJsonCollection("towerAssets");
   const [securityDeposits] = useJsonCollection("securityDeposits");
   const [customerPackages] = useJsonCollection("customerPackages");
-  const [customers] =
-  useJsonCollection("customers");
+  const [
+    customers,
+    ,
+    loadCustomers,
+    customersLoaded,
+  ] = useJsonCollection("customers");
   const today = todayDateValue();
 
   const currentUserIds = [
@@ -111,8 +124,320 @@ const assignedCustomers = customers.filter(
   }
 );
 
+const pendingAssignedCustomers =
+  assignedCustomers.filter((customer) =>
+    ["pending", "assigned"].includes(
+      normalize(
+        customer.assignmentStatus ||
+          customer.followUpStatus ||
+          "pending"
+      )
+    )
+  );
+
 const assignedCustomerCount =
-  assignedCustomers.length;
+  pendingAssignedCustomers.length;
+
+const responseOwnerIds = [
+  currentUser?.id,
+  currentUser?.employeeId,
+  currentUser?.accountId,
+]
+  .filter(Boolean)
+  .map(String);
+
+const responseOwnerNames = [
+  currentUser?.fullName,
+  currentUser?.username,
+  currentUser?.email,
+]
+  .filter(Boolean)
+  .map(normalize);
+
+const receptionResponseEvents =
+  customers.flatMap((customer) => {
+    const creatorIds = [
+      customer.createdByAccountId,
+      customer.assignedByAccountId,
+      customer.assignedById,
+      customer.receptionAccountId,
+    ]
+      .filter(Boolean)
+      .map(String);
+
+    const creatorNames = [
+      customer.createdByName,
+      customer.assignedByName,
+      customer.receptionName,
+    ]
+      .filter(Boolean)
+      .map(normalize);
+
+    const belongsToCurrentReception =
+      creatorIds.some((id) =>
+        responseOwnerIds.includes(id)
+      ) ||
+      creatorNames.some((name) =>
+        responseOwnerNames.includes(name)
+      );
+
+    if (!belongsToCurrentReception) {
+      return [];
+    }
+
+    const events = [];
+    const status = normalize(
+      customer.assignmentStatus
+    );
+
+    if (
+      ["accepted", "rejected"].includes(
+        status
+      ) &&
+      customer.assignmentRespondedAt
+    ) {
+      events.push({
+        key: [
+          customer.id,
+          "response",
+          status,
+          customer.assignmentRespondedAt,
+        ].join("|"),
+        customer,
+        action:
+          status === "accepted"
+            ? "accepted"
+            : "rejected",
+        actorName:
+          customer.assignmentRespondedByName ||
+          customer.assignedEmployeeName ||
+          "Employee",
+        happenedAt:
+          customer.assignmentRespondedAt,
+        toastType:
+          status === "accepted"
+            ? "success"
+            : "error",
+      });
+    }
+
+    const transfers = Array.isArray(
+      customer.assignmentTransfers
+    )
+      ? customer.assignmentTransfers
+      : [];
+
+    transfers.forEach((transfer) => {
+      if (!transfer?.transferredAt) return;
+
+      events.push({
+        key: [
+          customer.id,
+          "reassigned",
+          transfer.id ||
+            transfer.transferredAt,
+        ].join("|"),
+        customer,
+        action: `assigned the request to ${
+          transfer.toEmployeeName ||
+          "another employee"
+        }`,
+        actorName:
+          transfer.transferredByName ||
+          transfer.fromEmployeeName ||
+          "Employee",
+        happenedAt:
+          transfer.transferredAt,
+        toastType: "info",
+      });
+    });
+
+    return events;
+  });
+
+/*
+ * Keep notification badges current without requiring a
+ * browser refresh. A custom event updates immediately in
+ * the same tab, while polling also covers other tabs or
+ * another logged-in browser window.
+ */
+useEffect(() => {
+  if (!customersLoaded) return undefined;
+
+  let loading = false;
+
+  const refreshCustomers = async () => {
+    if (loading) return;
+
+    loading = true;
+
+    try {
+      await loadCustomers();
+    } finally {
+      loading = false;
+    }
+  };
+
+  const intervalId = window.setInterval(
+    refreshCustomers,
+    1500
+  );
+
+  const handleCustomerUpdate = () => {
+    refreshCustomers();
+  };
+
+  window.addEventListener(
+    "isp-customer-assignment-updated",
+    handleCustomerUpdate
+  );
+
+  window.addEventListener(
+    "storage",
+    handleCustomerUpdate
+  );
+
+  return () => {
+    window.clearInterval(intervalId);
+
+    window.removeEventListener(
+      "isp-customer-assignment-updated",
+      handleCustomerUpdate
+    );
+
+    window.removeEventListener(
+      "storage",
+      handleCustomerUpdate
+    );
+  };
+}, [customersLoaded, loadCustomers]);
+
+/*
+ * Reception receives a response alert when an assigned
+ * employee accepts or rejects a request. The first load is
+ * silently remembered so old responses are not replayed.
+ */
+useEffect(() => {
+  if (
+    !customersLoaded ||
+    !currentUser
+  ) {
+    return;
+  }
+
+  const accountKey = String(
+    currentUser.id ||
+      currentUser.employeeId ||
+      currentUser.accountId ||
+      "unknown"
+  );
+
+  const storageKey =
+    `isp-seen-assignment-responses:${accountKey}`;
+
+  let seen = [];
+
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(storageKey) ||
+        "[]"
+    );
+
+    seen = Array.isArray(parsed)
+      ? parsed
+      : [];
+  } catch {
+    seen = [];
+  }
+
+  const seenSet = new Set(seen);
+
+  if (!responseAlertReadyRef.current) {
+    receptionResponseEvents.forEach((event) =>
+      seenSet.add(event.key)
+    );
+
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(
+        [...seenSet].slice(-300)
+      )
+    );
+
+    responseAlertReadyRef.current = true;
+    return;
+  }
+
+  const newResponses =
+    receptionResponseEvents.filter(
+      (event) =>
+        !seenSet.has(event.key)
+    );
+
+  if (!newResponses.length) {
+    return;
+  }
+
+  newResponses.forEach((event) => {
+    seenSet.add(event.key);
+
+    const customerName =
+      event.customer.fullName ||
+      event.customer.customerName ||
+      event.customer.personName ||
+      "Customer";
+
+    notify(
+      `${event.actorName} ${event.action} for ${customerName}.`,
+      event.toastType
+    );
+  });
+
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify(
+      [...seenSet].slice(-300)
+    )
+  );
+
+  try {
+    if (!responseSoundRef.current) {
+      responseSoundRef.current = new Audio(
+        "/sounds/soft-bells-495.mp3"
+      );
+
+      responseSoundRef.current.preload =
+        "auto";
+
+      responseSoundRef.current.volume =
+        0.8;
+    }
+
+    responseSoundRef.current.currentTime =
+      0;
+
+    const playPromise =
+      responseSoundRef.current.play();
+
+    if (
+      playPromise &&
+      typeof playPromise.catch ===
+        "function"
+    ) {
+      playPromise.catch(() => {
+        // Browser may require one user interaction first.
+      });
+    }
+  } catch {
+    // Visual notification remains available if audio fails.
+  }
+}, [
+  customers,
+  customersLoaded,
+  currentUser?.id,
+  currentUser?.employeeId,
+  currentUser?.accountId,
+]);
 
   const damagedOrLostAssets = assets.filter((asset) =>
     ["Damaged", "Lost"].includes(asset.status)
@@ -139,6 +464,23 @@ const assignedCustomerCount =
   });
 
   const notificationGroups = [
+    {
+      key: "assigned-customers",
+      title: "Customer Requests",
+      count: assignedCustomerCount,
+      icon: Users,
+      items: pendingAssignedCustomers.map(
+        (customer) => ({
+          title: "New Customer Request",
+          description: `${
+            customer.fullName ||
+            customer.customerName ||
+            customer.personName ||
+            "Customer"
+          } was assigned to your account`,
+        })
+      ),
+    },
     {
       key: "stock",
       title: "Stock Alerts",
@@ -191,16 +533,67 @@ const assignedCustomerCount =
     },
   ].filter((group) => group.count > 0);
 
-  const notificationItems = notificationGroups.flatMap((group) =>
-    group.items.map((item) => ({ ...item, groupTitle: group.title, icon: group.icon }))
+  const notificationItems = notificationGroups.flatMap(
+    (group) =>
+      group.items.map((item, index) => ({
+        ...item,
+        key: [
+          group.key,
+          item.title,
+          item.description,
+          index,
+        ].join("|"),
+        groupKey: group.key,
+        groupTitle: group.title,
+        icon: group.icon,
+      }))
   );
 
+  const visibleNotificationItems =
+    notificationItems.filter(
+      (item) =>
+        !dismissedNotificationKeys.has(item.key)
+    );
+
+  const visibleNotificationGroups =
+    notificationGroups
+      .map((group) => {
+        const visibleItems =
+          visibleNotificationItems.filter(
+            (item) =>
+              item.groupKey === group.key
+          );
+
+        return {
+          ...group,
+          count: visibleItems.length,
+          items: visibleItems,
+        };
+      })
+      .filter((group) => group.count > 0);
+
   const alertCount =
-    lowStockAssets.length +
-    damagedOrLostAssets.length +
-    pendingTowerAssets.length +
-    outstandingDeposits.length +
-    expiredCustomerPackages.length;
+    visibleNotificationItems.length;
+
+  function dismissNotification(notificationKey) {
+    setDismissedNotificationKeys((current) => {
+      const next = new Set(current);
+      next.add(notificationKey);
+      return next;
+    });
+  }
+
+  function clearAllNotifications() {
+    setDismissedNotificationKeys((current) => {
+      const next = new Set(current);
+
+      notificationItems.forEach((item) => {
+        next.add(item.key);
+      });
+
+      return next;
+    });
+  }
 
   const themes = [
     { key: "light", label: "Light", color: "#f7f5f1" },
@@ -430,6 +823,7 @@ const assignedCustomerCount =
       type="button"
       aria-label="Mark all notifications as read"
       title="Mark all as read"
+      onClick={clearAllNotifications}
     >
       <CheckCheck size={14} />
     </button>
@@ -439,16 +833,17 @@ const assignedCustomerCount =
       className="notification-clear-btn"
       aria-label="Clear all notifications"
       title="Clear notifications"
+      onClick={clearAllNotifications}
     >
       <Trash2 size={14} />
     </button>
   </div>
 </div>
 
-              {notificationGroups.length > 0 ? (
+              {visibleNotificationGroups.length > 0 ? (
                 <>
                   <div className="notification-group-list">
-                    {notificationGroups.map((group) => {
+                    {visibleNotificationGroups.map((group) => {
                       const Icon = group.icon;
                       return (
                         <div key={group.key} className="notification-group-row">
@@ -460,13 +855,15 @@ const assignedCustomerCount =
                   </div>
 
                   <div className="notification-item-list">
-                    {notificationItems.slice(0, 8).map((item, index) => {
-                      const Icon = item.icon;
-                      return (
-                        <div
-  key={`${item.groupTitle}-${index}`}
-  className="notification-item"
->
+                    {visibleNotificationItems
+                      .slice(0, 8)
+                      .map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <div
+                            key={item.key}
+                            className="notification-item"
+                          >
   <span className="notification-icon">
     <Icon size={15} strokeWidth={1.9} />
   </span>
@@ -482,6 +879,9 @@ const assignedCustomerCount =
     className="notification-remove-btn"
     aria-label={`Remove ${item.title}`}
     title="Remove notification"
+    onClick={() =>
+      dismissNotification(item.key)
+    }
   >
     <Trash2 size={13} />
   </button>

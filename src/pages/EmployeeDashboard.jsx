@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Filter,
   Plus,
@@ -223,208 +223,505 @@ const baseForm = {
   purpose: "",
   needFollowup: "No",
   businessType: "",
-  companyName: "",
   technologyPurpose: "",
   note: "",
   country: "",
   scholarshipType: "",
+  currencyUnit: "AFN",
   price: "",
 };
 
+const normalizeDepartment = (value) => {
+  const text = String(value || "Consultant").toLowerCase();
 
-const normalizeDepartment = (value) => { const text = String(value || "Consultant").toLowerCase(); return text.includes("tech") ? "technology" : text.includes("travel") ? "travel" : "consultant"; };
+  if (text.includes("media")) return "media";
+  if (text.includes("tech")) return "technology";
+  if (text.includes("travel")) return "travel";
 
-export default function EmployeeDashboard({ currentUser }) {
-  const mode = normalizeDepartment(currentUser.department);
-  const currentEmployeeId =
-  currentUser.employeeId ||
-  currentUser.id ||
-  "";
-
-const currentEmployeeName =
-  currentUser.fullName ||
-  currentUser.username ||
-  currentUser.email ||
-  "Employee";
-  const [serverCustomers, setServerCustomers, , customersLoaded] = useJsonCollection("customers");
-  const [localCustomers] = useLocalCollection("employeeCustomers");
-  const [legacyCustomers] = useLocalCollection(`${mode}Customers`);
-  const [transactions] = useJsonCollection("transactions");
-  const [adjustments] = useLocalCollection("employeeAdjustments");
-  const [form, setForm] = useState(baseForm);
-  const [open, setOpen] = useState(false);
-  const [filter, setFilter] = useState("all");
-  const [editId, setEditId] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  useEffect(() => {
-    if (!customersLoaded) return;
-    const localRecords = [...localCustomers, ...legacyCustomers].map((item) => ({ ...item, customerType: item.customerType || mode, specializedCustomer: true }));
-    const missing = localRecords.filter((item) => !serverCustomers.some((saved) => String(saved.id) === String(item.id)));
-    if (missing.length) setServerCustomers([...serverCustomers, ...missing]);
-  }, [customersLoaded, legacyCustomers, localCustomers, mode, serverCustomers, setServerCustomers]);
-  const customers = useMemo(() => serverCustomers.filter((item) => item.specializedCustomer && item.customerType === mode), [serverCustomers, mode]);
-  const mine = useMemo(
-  () =>
-    customers.filter(
-      (customer) =>
-        String(customer.sourceEmployeeId || "") ===
-          String(currentEmployeeId) ||
-        String(customer.createdByAccountId || "") ===
-          String(currentUser.id || "")
-    ),
-  [
-    customers,
-    currentEmployeeId,
-    currentUser.id,
-  ]
-);
-  const filtered = mine.filter(c => filter === "all" || c.callType?.toLowerCase() === filter);
-  const income = transactions.filter(t => String(t.employeeId) === String(currentUser.employeeId) && String(t.type || "").toLowerCase() === "income").reduce((s, t) => s + Number(t.amount || 0), 0);
-  const bonus = adjustments.filter(a => String(a.employeeId) === String(currentUser.employeeId)).reduce((s, a) => s + (a.type === "penalty" ? -1 : 1) * Number(a.amount || 0), 0);
-  const update = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-
-  const openCreateModal = () => {
-  setEditId(null);
-
-  setForm({
-    ...baseForm,
-    technologyPurpose:
-      mode === "technology"
-        ? "Database"
-        : "",
-  });
-
-  setOpen(true);
+  return "consultant";
 };
 
-const openEditModal = (customer) => {
-  const ownsRecord =
-    String(customer.sourceEmployeeId || "") ===
-      String(currentEmployeeId) ||
-    String(customer.createdByAccountId || "") ===
-      String(currentUser.id || "");
+const normalizeCountryName = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-zA-Z]/g, "")
+    .toLowerCase();
 
-  if (!ownsRecord) {
-    notify(
-      "You can only edit records registered by your account.",
-      "error"
-    );
-
-    return;
-  }
-
-  setEditId(customer.id);
-
-  setForm({
-    fullName:
-      customer.fullName ||
-      customer.customerName ||
-      "",
-
-    phone:
-      customer.phone ||
-      customer.contactNumber ||
-      "",
-
-    city: customer.city || "",
-
-    language:
-      customer.language || "Dari",
-
-    callType:
-      customer.callType || "Incoming",
-
-    purpose:
-      customer.purpose || "",
-
-    needFollowup:
-      customer.needFollowup || "No",
-
-    businessType:
-      customer.businessType || "",
-
-    companyName:
-      customer.companyName || "",
-
-    technologyPurpose:
-      customer.technologyPurpose ||
-      (mode === "technology"
-        ? "Database"
-        : ""),
-
-    note:
-      customer.note ||
-      customer.notes ||
-      "",
-
-    country:
-      customer.country || "",
-
-    scholarshipType:
-      customer.scholarshipType || "",
-
-    price:
-      customer.price || "",
-  });
-
-  setOpen(true);
+const countryNameAliases = {
+  bolivia: "BO",
+  brunei: "BN",
+  caboverde: "CV",
+  congodemocraticrepublicofthe: "CD",
+  congiorepublicofthe: "CG",
+  congorepublicofthe: "CG",
+  "cote d ivoire": "CI",
+  cotedivoire: "CI",
+  czechia: "CZ",
+  eswatini: "SZ",
+  iran: "IR",
+  laos: "LA",
+  micronesia: "FM",
+  moldova: "MD",
+  northkorea: "KP",
+  palestine: "PS",
+  russia: "RU",
+  southkorea: "KR",
+  syria: "SY",
+  taiwan: "TW",
+  tanzania: "TZ",
+  turkey: "TR",
+  unitedstates: "US",
+  vaticancity: "VA",
+  venezuela: "VE",
+  vietnam: "VN",
 };
 
-const closeCustomerModal = () => {
-  setOpen(false);
-  setEditId(null);
-
-  setForm({
-    ...baseForm,
-    technologyPurpose:
-      mode === "technology"
-        ? "Database"
-        : "",
-  });
-};
-
- const save = async (event) => {
-  event.preventDefault();
+function buildCountryCodeMap() {
+  const map = new Map();
 
   if (
-    !form.fullName.trim() ||
-    !form.phone.trim()
+    typeof Intl === "undefined" ||
+    typeof Intl.DisplayNames !== "function"
   ) {
-    notify(
-      "Full name and phone number are required.",
-      "error"
-    );
-
-    return;
+    return map;
   }
 
-  const now = new Date().toISOString();
+  const displayNames = new Intl.DisplayNames(
+    ["en"],
+    { type: "region" }
+  );
 
-  const existingRecord = editId
-    ? serverCustomers.find(
-        (customer) =>
-          String(customer.id) ===
-          String(editId)
+  for (let first = 65; first <= 90; first += 1) {
+    for (let second = 65; second <= 90; second += 1) {
+      const code =
+        String.fromCharCode(first) +
+        String.fromCharCode(second);
+
+      const name = displayNames.of(code);
+
+      if (name && name !== code) {
+        map.set(normalizeCountryName(name), code);
+      }
+    }
+  }
+
+  return map;
+}
+
+const countryCodeMap = buildCountryCodeMap();
+
+function getCountryCode(countryName) {
+  const normalized = normalizeCountryName(countryName);
+
+  return (
+    countryNameAliases[normalized] ||
+    countryCodeMap.get(normalized) ||
+    ""
+  );
+}
+
+function countryCodeToFlag(code) {
+  if (!/^[A-Z]{2}$/.test(code)) return "🌐";
+
+  return String.fromCodePoint(
+    ...code
+      .split("")
+      .map(
+        (letter) =>
+          127397 + letter.charCodeAt(0)
       )
-    : null;
+  );
+}
 
-  if (editId && !existingRecord) {
-    notify(
-      "Customer record was not found.",
-      "error"
+function getCountryLabel(countryName) {
+  return `${countryCodeToFlag(
+    getCountryCode(countryName)
+  )} ${countryName}`;
+}
+
+function getCountryFlagUrl(countryName) {
+  const code = getCountryCode(countryName);
+
+  if (!code) return "";
+
+  return `https://flagcdn.com/24x18/${code.toLowerCase()}.png`;
+}
+
+
+function CountrySelect({
+  value,
+  onChange,
+  countries: countryList,
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleOutsideClick(event) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener(
+      "mousedown",
+      handleOutsideClick
     );
 
-    return;
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+    };
+  }, []);
+
+  const filteredCountries = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return countryList;
+
+    return countryList.filter((country) =>
+      country.toLowerCase().includes(query)
+    );
+  }, [countryList, search]);
+
+  function chooseCountry(country) {
+    onChange({
+      target: {
+        name: "country",
+        value: country,
+      },
+    });
+
+    setSearch("");
+    setOpen(false);
   }
 
-  if (existingRecord) {
+  return (
+    <div
+      className={`employee-country-select ${
+        open ? "open" : ""
+      }`}
+      ref={wrapperRef}
+    >
+      <button
+        type="button"
+        className="employee-country-trigger"
+        onClick={() =>
+          setOpen((current) => !current)
+        }
+      >
+        {value ? (
+          <span className="employee-country-selected">
+            <img
+              src={getCountryFlagUrl(value)}
+              alt=""
+            />
+
+            <span>{value}</span>
+          </span>
+        ) : (
+          <span>Select country</span>
+        )}
+
+        <span className="employee-country-arrow">
+          ▾
+        </span>
+      </button>
+
+      {open && (
+        <div className="employee-country-menu">
+          <input
+            type="search"
+            value={search}
+            onChange={(event) =>
+              setSearch(event.target.value)
+            }
+            placeholder="Search country..."
+            autoFocus
+          />
+
+          <div className="employee-country-options">
+            {filteredCountries.map((country) => (
+              <button
+                type="button"
+                key={country}
+                className={
+                  value === country
+                    ? "selected"
+                    : ""
+                }
+                onClick={() =>
+                  chooseCountry(country)
+                }
+              >
+                <img
+                  src={getCountryFlagUrl(country)}
+                  alt=""
+                />
+
+                <span>{country}</span>
+              </button>
+            ))}
+
+            {!filteredCountries.length && (
+              <p>No country found.</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getAfghanistanDateTime() {
+  const now = new Date();
+
+  const formatter = new Intl.DateTimeFormat(
+    "en-CA",
+    {
+      timeZone: "Asia/Kabul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }
+  );
+
+  const parts = Object.fromEntries(
+    formatter
+      .formatToParts(now)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  );
+
+  const date =
+    `${parts.year}-${parts.month}-${parts.day}`;
+  const time =
+    `${parts.hour}:${parts.minute}:${parts.second}`;
+
+  return {
+    date,
+    time,
+    dateTime: `${date}T${time}+04:30`,
+    iso: now.toISOString(),
+  };
+}
+
+function getModeTitle(mode) {
+  if (mode === "media") {
+    return "Media Production";
+  }
+
+  if (mode === "technology") {
+    return "Technology";
+  }
+
+  if (mode === "travel") {
+    return "Travel";
+  }
+
+  return "Consultant";
+}
+
+export default function EmployeeDashboard({
+  currentUser,
+}) {
+  const mode = normalizeDepartment(
+    currentUser.department
+  );
+
+  const currentEmployeeId =
+    currentUser.employeeId ||
+    currentUser.id ||
+    "";
+
+  const currentEmployeeName =
+    currentUser.fullName ||
+    currentUser.username ||
+    currentUser.email ||
+    "Employee";
+
+  const [
+    serverCustomers,
+    setServerCustomers,
+    ,
+    customersLoaded,
+  ] = useJsonCollection("customers");
+
+  const [localCustomers] =
+    useLocalCollection("employeeCustomers");
+
+  const [legacyCustomers] =
+    useLocalCollection(`${mode}Customers`);
+
+  const [transactions] =
+    useJsonCollection("transactions");
+
+  const [adjustments] =
+    useLocalCollection("employeeAdjustments");
+
+  const [form, setForm] =
+    useState(baseForm);
+
+  const [open, setOpen] =
+    useState(false);
+
+  const [filter, setFilter] =
+    useState("all");
+
+  const [editId, setEditId] =
+    useState(null);
+
+  const [deleteTarget, setDeleteTarget] =
+    useState(null);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  useEffect(() => {
+    if (!customersLoaded) return;
+
+    const localRecords = [
+      ...localCustomers,
+      ...legacyCustomers,
+    ].map((item) => ({
+      ...item,
+      customerType:
+        item.customerType || mode,
+      specializedCustomer: true,
+    }));
+
+    const missing = localRecords.filter(
+      (item) =>
+        !serverCustomers.some(
+          (saved) =>
+            String(saved.id) ===
+            String(item.id)
+        )
+    );
+
+    if (missing.length) {
+      setServerCustomers([
+        ...serverCustomers,
+        ...missing,
+      ]);
+    }
+  }, [
+    customersLoaded,
+    legacyCustomers,
+    localCustomers,
+    mode,
+    serverCustomers,
+    setServerCustomers,
+  ]);
+
+  const customers = useMemo(
+    () =>
+      serverCustomers.filter(
+        (item) =>
+          item.specializedCustomer &&
+          item.customerType === mode
+      ),
+    [serverCustomers, mode]
+  );
+
+  const mine = useMemo(
+    () =>
+      customers.filter(
+        (customer) =>
+          String(
+            customer.sourceEmployeeId || ""
+          ) === String(currentEmployeeId) ||
+          String(
+            customer.createdByAccountId || ""
+          ) === String(currentUser.id || "")
+      ),
+    [
+      customers,
+      currentEmployeeId,
+      currentUser.id,
+    ]
+  );
+
+  const filtered = mine.filter(
+    (customer) =>
+      filter === "all" ||
+      customer.callType?.toLowerCase() ===
+        filter
+  );
+
+  const income = transactions
+    .filter(
+      (transaction) =>
+        String(transaction.employeeId) ===
+          String(currentUser.employeeId) &&
+        String(transaction.type || "")
+          .toLowerCase() === "income"
+    )
+    .reduce(
+      (sum, transaction) =>
+        sum + Number(transaction.amount || 0),
+      0
+    );
+
+  const bonus = adjustments
+    .filter(
+      (adjustment) =>
+        String(adjustment.employeeId) ===
+        String(currentUser.employeeId)
+    )
+    .reduce(
+      (sum, adjustment) =>
+        sum +
+        (adjustment.type === "penalty"
+          ? -1
+          : 1) *
+          Number(adjustment.amount || 0),
+      0
+    );
+
+  const update = (event) => {
+    const { name, value } = event.target;
+
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const resetForm = () => {
+    setForm({
+      ...baseForm,
+      technologyPurpose:
+        mode === "technology"
+          ? "Database"
+          : "",
+    });
+  };
+
+  const openCreateModal = () => {
+    setEditId(null);
+    resetForm();
+    setOpen(true);
+  };
+
+  const openEditModal = (customer) => {
     const ownsRecord =
       String(
-        existingRecord.sourceEmployeeId || ""
+        customer.sourceEmployeeId || ""
       ) === String(currentEmployeeId) ||
       String(
-        existingRecord.createdByAccountId || ""
+        customer.createdByAccountId || ""
       ) === String(currentUser.id || "");
 
     if (!ownsRecord) {
@@ -432,167 +729,286 @@ const closeCustomerModal = () => {
         "You can only edit records registered by your account.",
         "error"
       );
-
       return;
     }
-  }
 
-  const record = {
-    ...(existingRecord || {}),
+    setEditId(customer.id);
 
-    ...form,
+    setForm({
+      ...baseForm,
+      fullName:
+        customer.fullName ||
+        customer.customerName ||
+        "",
+      phone:
+        customer.phone ||
+        customer.contactNumber ||
+        "",
+      city: customer.city || "",
+      language:
+        customer.language || "Dari",
+      callType:
+        customer.callType || "Incoming",
+      purpose:
+        customer.purpose || "",
+      needFollowup:
+        customer.needFollowup || "No",
+      businessType:
+        customer.businessType || "",
+      technologyPurpose:
+        customer.technologyPurpose ||
+        (mode === "technology"
+          ? "Database"
+          : ""),
+      note:
+        customer.note ||
+        customer.notes ||
+        "",
+      country:
+        customer.country || "",
+      scholarshipType:
+        customer.scholarshipType || "",
+      currencyUnit:
+        customer.currencyUnit ||
+        customer.unit ||
+        "AFN",
+      price:
+        customer.price ?? "",
+    });
 
-    id:
-      existingRecord?.id ||
-      createRecordId(),
-
-    fullName: form.fullName.trim(),
-    customerName: form.fullName.trim(),
-    phone: form.phone.trim(),
-
-    country:
-      mode === "consultant"
-        ? form.country
-        : existingRecord?.country || "",
-
-    scholarshipType:
-      mode === "consultant"
-        ? form.scholarshipType
-        : existingRecord?.scholarshipType || "",
-
-    price:
-      mode === "consultant"
-        ? Number(form.price || 0)
-        : Number(existingRecord?.price || 0),
-
-    purpose: form.purpose.trim(),
-
-    note: form.note.trim(),
-    notes: form.note.trim(),
-
-    customerType: mode,
-    specializedCustomer: true,
-
-    /*
-     * Source همیشه همان شخصی می‌ماند
-     * که ریکارد را نخست ثبت کرده است.
-     */
-    sourceEmployeeId:
-      existingRecord?.sourceEmployeeId ||
-      currentEmployeeId,
-
-    sourceEmployeeName:
-      existingRecord?.sourceEmployeeName ||
-      currentEmployeeName,
-
-    source:
-      existingRecord?.source ||
-      currentEmployeeName,
-
-    /*
-     * هنگام Edit معلومات Assign تغییر نکند.
-     */
-    assignedEmployeeId:
-      existingRecord?.assignedEmployeeId ||
-      "",
-
-    assignedEmployeeName:
-      existingRecord?.assignedEmployeeName ||
-      "",
-
-    assignedAccountId:
-      existingRecord?.assignedAccountId ||
-      "",
-
-    assignedAt:
-      existingRecord?.assignedAt ||
-      "",
-
-    assignmentStatus:
-      existingRecord?.assignmentStatus ||
-      "None",
-
-    registeredFrom:
-      existingRecord?.registeredFrom ||
-      "employee-dashboard",
-
-    date:
-      existingRecord?.date ||
-      now.slice(0, 10),
-
-    createdByAccountId:
-      existingRecord?.createdByAccountId ||
-      currentUser.id ||
-      "",
-
-    createdByName:
-      existingRecord?.createdByName ||
-      currentEmployeeName,
-
-    createdAt:
-      existingRecord?.createdAt ||
-      now,
-
-    updatedAt: now,
+    setOpen(true);
   };
 
-  const nextCustomers = existingRecord
-    ? serverCustomers.map((customer) =>
-        String(customer.id) ===
-        String(existingRecord.id)
-          ? record
-          : customer
-      )
-    : [...serverCustomers, record];
+  const closeCustomerModal = () => {
+    setOpen(false);
+    setEditId(null);
+    resetForm();
+  };
 
-  const saved =
-    await setServerCustomers(
-      nextCustomers
-    );
+  const save = async (event) => {
+    event.preventDefault();
 
-  if (!saved) return;
+    if (
+      !form.fullName.trim() ||
+      !form.phone.trim()
+    ) {
+      notify(
+        "Full name and phone number are required.",
+        "error"
+      );
+      return;
+    }
 
-  notify(
-    existingRecord
-      ? "Customer updated successfully."
-      : "Customer saved successfully.",
-    "success"
-  );
+    const afghanistanTime =
+      getAfghanistanDateTime();
 
-  closeCustomerModal();
-};
+    const existingRecord = editId
+      ? serverCustomers.find(
+          (customer) =>
+            String(customer.id) ===
+            String(editId)
+        )
+      : null;
 
-const requestDelete = (customer) => {
-  const ownsRecord =
-    String(customer.sourceEmployeeId || "") ===
-      String(currentEmployeeId) ||
-    String(customer.createdByAccountId || "") ===
-      String(currentUser.id || "");
+    if (editId && !existingRecord) {
+      notify(
+        "Customer record was not found.",
+        "error"
+      );
+      return;
+    }
 
-  if (!ownsRecord) {
+    if (existingRecord) {
+      const ownsRecord =
+        String(
+          existingRecord.sourceEmployeeId || ""
+        ) === String(currentEmployeeId) ||
+        String(
+          existingRecord.createdByAccountId || ""
+        ) === String(currentUser.id || "");
+
+      if (!ownsRecord) {
+        notify(
+          "You can only edit records registered by your account.",
+          "error"
+        );
+        return;
+      }
+    }
+
+    const record = {
+      ...(existingRecord || {}),
+      ...form,
+
+      id:
+        existingRecord?.id ||
+        createRecordId(),
+
+      fullName: form.fullName.trim(),
+      customerName: form.fullName.trim(),
+      phone: form.phone.trim(),
+
+      country:
+        mode === "consultant" ||
+        mode === "travel"
+          ? form.country
+          : "",
+
+      scholarshipType:
+        mode === "consultant"
+          ? form.scholarshipType
+          : "",
+
+      currencyUnit:
+        form.currencyUnit || "AFN",
+
+      unit:
+        form.currencyUnit || "AFN",
+
+      price:
+        Number(form.price || 0),
+
+      businessType:
+        mode === "technology" ||
+        mode === "media"
+          ? form.businessType.trim()
+          : "",
+
+      technologyPurpose:
+        mode === "technology"
+          ? form.technologyPurpose
+          : "",
+
+      purpose:
+        form.purpose.trim(),
+
+      note:
+        mode === "media"
+          ? ""
+          : form.note.trim(),
+
+      notes:
+        mode === "media"
+          ? ""
+          : form.note.trim(),
+
+      needFollowup:
+        mode === "media"
+          ? "No"
+          : form.needFollowup,
+
+      customerType: mode,
+      specializedCustomer: true,
+
+      sourceEmployeeId:
+        existingRecord?.sourceEmployeeId ||
+        currentEmployeeId,
+
+      sourceEmployeeName:
+        existingRecord?.sourceEmployeeName ||
+        currentEmployeeName,
+
+      source:
+        existingRecord?.source ||
+        currentEmployeeName,
+
+      assignedEmployeeId:
+        existingRecord?.assignedEmployeeId ||
+        "",
+
+      assignedEmployeeName:
+        existingRecord?.assignedEmployeeName ||
+        "",
+
+      assignedAccountId:
+        existingRecord?.assignedAccountId ||
+        "",
+
+      assignedAt:
+        existingRecord?.assignedAt ||
+        "",
+
+      assignmentStatus:
+        existingRecord?.assignmentStatus ||
+        "None",
+
+      registeredFrom:
+        existingRecord?.registeredFrom ||
+        "employee-dashboard",
+
+      date:
+        existingRecord?.date ||
+        afghanistanTime.date,
+
+      time:
+        existingRecord?.time ||
+        afghanistanTime.time,
+
+      afghanistanDate:
+        existingRecord?.afghanistanDate ||
+        afghanistanTime.date,
+
+      afghanistanTime:
+        existingRecord?.afghanistanTime ||
+        afghanistanTime.time,
+
+      afghanistanDateTime:
+        existingRecord?.afghanistanDateTime ||
+        afghanistanTime.dateTime,
+
+      createdByAccountId:
+        existingRecord?.createdByAccountId ||
+        currentUser.id ||
+        "",
+
+      createdByName:
+        existingRecord?.createdByName ||
+        currentEmployeeName,
+
+      createdAt:
+        existingRecord?.createdAt ||
+        afghanistanTime.iso,
+
+      updatedAt:
+        afghanistanTime.iso,
+
+      updatedAfghanistanDateTime:
+        afghanistanTime.dateTime,
+    };
+
+    const nextCustomers = existingRecord
+      ? serverCustomers.map((customer) =>
+          String(customer.id) ===
+          String(existingRecord.id)
+            ? record
+            : customer
+        )
+      : [...serverCustomers, record];
+
+    const saved =
+      await setServerCustomers(
+        nextCustomers
+      );
+
+    if (!saved) return;
+
     notify(
-      "You can only delete records registered by your account.",
-      "error"
+      existingRecord
+        ? "Customer updated successfully."
+        : "Customer saved successfully.",
+      "success"
     );
 
-    return;
-  }
+    closeCustomerModal();
+  };
 
-  setDeleteTarget(customer);
-};
-
-const confirmDelete = async () => {
-  if (!deleteTarget || deleting) return;
-
-  setDeleting(true);
-
-  try {
+  const requestDelete = (customer) => {
     const ownsRecord =
       String(
-        deleteTarget.sourceEmployeeId || ""
+        customer.sourceEmployeeId || ""
       ) === String(currentEmployeeId) ||
       String(
-        deleteTarget.createdByAccountId || ""
+        customer.createdByAccountId || ""
       ) === String(currentUser.id || "");
 
     if (!ownsRecord) {
@@ -600,480 +1016,677 @@ const confirmDelete = async () => {
         "You can only delete records registered by your account.",
         "error"
       );
-
-      setDeleteTarget(null);
       return;
     }
 
-    const saved =
-      await setServerCustomers(
-        serverCustomers.filter(
-          (customer) =>
-            String(customer.id) !==
-            String(deleteTarget.id)
-        )
+    setDeleteTarget(customer);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || deleting) return;
+
+    setDeleting(true);
+
+    try {
+      const saved =
+        await setServerCustomers(
+          serverCustomers.filter(
+            (customer) =>
+              String(customer.id) !==
+              String(deleteTarget.id)
+          )
+        );
+
+      if (!saved) return;
+
+      notify(
+        "Customer deleted successfully.",
+        "success"
       );
 
-    if (!saved) return;
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
-    notify(
-      "Customer deleted successfully.",
-      "success"
-    );
+  const modeTitle = getModeTitle(mode);
 
-    setDeleteTarget(null);
-  } finally {
-    setDeleting(false);
-  }
-};
-return <div className="employee-dashboard"><header><div><span>{mode} workspace</span><h1>Welcome, {currentUser.fullName}</h1><p>Your private dashboard and customer records.</p></div>
-<button
-  type="button"
-  onClick={openCreateModal}
->
-  <Plus size={17} /> Add {mode === "consultant" ? "Consultant" : mode === "travel" ? "Travel" : "Technology"} Customer</button></header>
-    <section className="employee-dashboard-cards"><div><Users /><span>Total Customers</span><strong>{mine.length}</strong></div><div><WalletCards /><span>Total Income</span><strong>{income.toLocaleString()} AFN</strong></div><div><Gift /><span>Bonus and Penalty</span><strong>{bonus.toLocaleString()} AFN</strong></div></section>
-    <section className="employee-dashboard-list"><div className="employee-dashboard-list-head"><div><h2>My Customers</h2><p>Every record is linked to your employee profile.</p></div><label><Filter size={15} /><select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All calls</option><option value="incoming">Incoming</option><option value="outgoing">Outgoing</option></select></label></div>
-    <div className="employee-dashboard-table">
-  <table>
-    <thead>
-      <tr>
-        <th>Full Name</th>
-        <th>Phone</th>
-        <th>City</th>
+  const modalTitle = editId
+    ? `Edit ${modeTitle} Customer`
+    : mode === "media"
+      ? "Add Media Production Customer"
+      : `Add ${modeTitle} Customer`;
 
-        {mode === "consultant" && (
-          <>
-            <th>Country</th>
-            <th>Scholarship</th>
-            <th>Price</th>
-          </>
-        )}
+  const tableColumnCount =
+    mode === "media"
+      ? 8
+      : 10 +
+        (mode === "consultant" ? 2 : 0) +
+        (mode === "travel" ? 1 : 0);
 
-        <th>Call Type</th>
-        <th>Purpose</th>
-        <th>Follow-up</th>
-        <th>Status</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
+  return (
+    <div className="employee-dashboard">
+      <header>
+        <div>
+          <span>{mode} workspace</span>
 
-    <tbody>
-      {filtered.map((customer) => (
-        <tr key={customer.id}>
-          <td>
-            <strong>
-              {customer.fullName ||
-                customer.customerName ||
-                "-"}
-            </strong>
-          </td>
+          <h1>
+            Welcome, {currentUser.fullName}
+          </h1>
 
-          <td>
-            {customer.phone || "-"}
-          </td>
+          <p>
+            Your private dashboard and customer records.
+          </p>
+        </div>
 
-          <td>
-            {customer.city || "-"}
-          </td>
+        <button
+          type="button"
+          onClick={openCreateModal}
+        >
+          <Plus size={17} />
+          {mode === "media"
+            ? "Add Media Production Customer"
+            : `Add ${modeTitle} Customer`}
+        </button>
+      </header>
 
-          {mode === "consultant" && (
-            <>
-              <td>
-                {customer.country || "-"}
-              </td>
+      <section className="employee-dashboard-cards">
+        <div>
+          <Users />
+          <span>Total Customers</span>
+          <strong>{mine.length}</strong>
+        </div>
 
-              <td>
-                {customer.scholarshipType || "-"}
-              </td>
+        <div>
+          <WalletCards />
+          <span>Total Income</span>
+          <strong>
+            {income.toLocaleString()} AFN
+          </strong>
+        </div>
 
-              <td>
-                {customer.price
-                  ? `${Number(
-                      customer.price
-                    ).toLocaleString("en-US")} AFN`
-                  : "-"}
-              </td>
-            </>
+        <div>
+          <Gift />
+          <span>Bonus and Penalty</span>
+          <strong>
+            {bonus.toLocaleString()} AFN
+          </strong>
+        </div>
+      </section>
+
+      <section className="employee-dashboard-list">
+        <div className="employee-dashboard-list-head">
+          <div>
+            <h2>My Customers</h2>
+            <p>
+              Every record is linked to your employee profile.
+            </p>
+          </div>
+
+          {mode !== "media" && (
+            <label>
+              <Filter size={15} />
+
+              <select
+                value={filter}
+                onChange={(event) =>
+                  setFilter(event.target.value)
+                }
+              >
+                <option value="all">
+                  All calls
+                </option>
+
+                <option value="incoming">
+                  Incoming
+                </option>
+
+                <option value="outgoing">
+                  Outgoing
+                </option>
+              </select>
+            </label>
           )}
+        </div>
 
-          <td>
-            {customer.callType || "-"}
-          </td>
+        <div className="employee-dashboard-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Full Name</th>
+                <th>Phone</th>
+                <th>City</th>
 
-          <td className="employee-purpose-cell">
-            <span
-              title={
-                mode === "technology"
-                  ? customer.technologyPurpose ||
-                    "-"
-                  : customer.purpose || "-"
-              }
-            >
-              {mode === "technology"
-                ? customer.technologyPurpose ||
-                  "-"
-                : customer.purpose || "-"}
-            </span>
-          </td>
+                {(mode === "consultant" ||
+                  mode === "travel") && (
+                  <th>Country</th>
+                )}
 
-          <td>
-            {customer.needFollowup || "-"}
-          </td>
+                {mode === "consultant" && (
+                  <th>Scholarship</th>
+                )}
 
-          <td>
-            <span
-              className={`employee-customer-status ${String(
-                customer.assignmentStatus ||
-                  "None"
-              ).toLowerCase()}`}
-            >
-              {customer.assignmentStatus ||
-                "None"}
-            </span>
-          </td>
+                <th>Unit</th>
+                <th>Price</th>
 
-          <td>
-            <div className="employee-record-actions">
+                {mode !== "media" && (
+                  <th>Call Type</th>
+                )}
+
+                <th>Purpose</th>
+
+                {mode !== "media" && (
+                  <th>Follow-up</th>
+                )}
+
+                <th>Date & Time</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filtered.map((customer) => (
+                <tr key={customer.id}>
+                  <td>
+                    <strong>
+                      {customer.fullName ||
+                        customer.customerName ||
+                        "-"}
+                    </strong>
+                  </td>
+
+                  <td>
+                    {customer.phone || "-"}
+                  </td>
+
+                  <td>
+                    {customer.city || "-"}
+                  </td>
+
+                  {(mode === "consultant" ||
+                    mode === "travel") && (
+                    <td>
+                      {customer.country ? (
+                        <span className="employee-table-country">
+                          <img
+                            src={getCountryFlagUrl(
+                              customer.country
+                            )}
+                            alt=""
+                          />
+
+                          <span>
+                            {customer.country}
+                          </span>
+                        </span>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                  )}
+
+                  {mode === "consultant" && (
+                    <td>
+                      {customer.scholarshipType ||
+                        "-"}
+                    </td>
+                  )}
+
+                  <td>
+                    {customer.currencyUnit ||
+                      customer.unit ||
+                      "AFN"}
+                  </td>
+
+                  <td>
+                    {Number(customer.price || 0)
+                      ? Number(
+                          customer.price
+                        ).toLocaleString("en-US")
+                      : "-"}
+                  </td>
+
+                  {mode !== "media" && (
+                    <td>
+                      {customer.callType || "-"}
+                    </td>
+                  )}
+
+                  <td className="employee-purpose-cell">
+                    <span
+                      title={
+                        mode === "technology"
+                          ? customer.technologyPurpose ||
+                            "-"
+                          : customer.purpose || "-"
+                      }
+                    >
+                      {mode === "technology"
+                        ? customer.technologyPurpose ||
+                          "-"
+                        : customer.purpose || "-"}
+                    </span>
+                  </td>
+
+                  {mode !== "media" && (
+                    <td>
+                      {customer.needFollowup ||
+                        "-"}
+                    </td>
+                  )}
+
+                  <td>
+                    <div className="employee-table-datetime">
+                      <strong>
+                        {customer.afghanistanDate ||
+                          customer.date ||
+                          "-"}
+                      </strong>
+
+                      <span>
+                        {customer.afghanistanTime ||
+                          customer.time ||
+                          "-"}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td>
+                    <div className="employee-record-actions">
+                      <button
+                        type="button"
+                        className="edit"
+                        onClick={() =>
+                          openEditModal(customer)
+                        }
+                        title="Edit customer"
+                        aria-label="Edit customer"
+                      >
+                        <Pencil size={14} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="delete"
+                        onClick={() =>
+                          requestDelete(customer)
+                        }
+                        title="Delete customer"
+                        aria-label="Delete customer"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {!filtered.length && (
+                <tr>
+                  <td
+                    colSpan={tableColumnCount}
+                    className="employee-empty-record"
+                  >
+                    No customer records yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {open && (
+        <div
+          className="employee-dashboard-modal"
+          onMouseDown={closeCustomerModal}
+        >
+          <form
+            onSubmit={save}
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <header>
+              <div>
+                <h2>{modalTitle}</h2>
+
+                <p>
+                  {editId
+                    ? "Update the customer information."
+                    : `This record will also appear in the general ${mode} customer list.`}
+                </p>
+              </div>
+
               <button
                 type="button"
-                className="edit"
-                onClick={() =>
-                  openEditModal(customer)
-                }
-                title="Edit customer"
-                aria-label="Edit customer"
+                onClick={closeCustomerModal}
               >
-                <Pencil size={14} />
+                <X />
+              </button>
+            </header>
+
+            <div className="employee-customer-grid">
+              <label>
+                Full Name
+
+                <input
+                  name="fullName"
+                  value={form.fullName}
+                  onChange={update}
+                />
+              </label>
+
+              <label>
+                Phone Number
+
+                <input
+                  name="phone"
+                  value={form.phone}
+                  onChange={update}
+                />
+              </label>
+
+              {(mode === "technology" ||
+                mode === "media") && (
+                <label>
+                  Business Type
+
+                  <input
+                    name="businessType"
+                    value={form.businessType}
+                    onChange={update}
+                    placeholder="Enter business type"
+                  />
+                </label>
+              )}
+
+              <label>
+                City / Province
+
+                <select
+                  name="city"
+                  value={form.city}
+                  onChange={update}
+                >
+                  <option value="">
+                    Select province
+                  </option>
+
+                  {provinces.map((province) => (
+                    <option
+                      key={province}
+                      value={province}
+                    >
+                      {province}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {(mode === "consultant" ||
+                mode === "travel") && (
+                <label>
+  Country
+
+  <CountrySelect
+    value={form.country}
+    onChange={update}
+    countries={countries}
+  />
+</label>
+              )}
+
+              <label>
+                Language
+
+                <select
+                  name="language"
+                  value={form.language}
+                  onChange={update}
+                >
+                  <option>Dari</option>
+                  <option>Pashto</option>
+                  <option>English</option>
+                  <option>Other</option>
+                </select>
+              </label>
+
+              {mode !== "media" && (
+                <label>
+                  Call Type
+
+                  <select
+                    name="callType"
+                    value={form.callType}
+                    onChange={update}
+                  >
+                    <option>Incoming</option>
+                    <option>Outgoing</option>
+                  </select>
+                </label>
+              )}
+
+              <label>
+                Unit
+
+                <select
+                  name="currencyUnit"
+                  value={form.currencyUnit}
+                  onChange={update}
+                >
+                  <option value="AFN">
+                    AFN - افغانی
+                  </option>
+
+                  <option value="USD">
+                    USD - Dollar
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Price
+
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  name="price"
+                  value={form.price}
+                  onChange={update}
+                  placeholder="Enter price"
+                />
+              </label>
+
+              {mode === "consultant" && (
+                <label>
+                  Scholarship Type
+
+                  <select
+                    name="scholarshipType"
+                    value={form.scholarshipType}
+                    onChange={update}
+                  >
+                    <option value="">
+                      Select scholarship
+                    </option>
+
+                    <option value="Fully Funded">
+                      Fully Funded
+                    </option>
+
+                    <option value="Partial Funded">
+                      Partial Funded
+                    </option>
+
+                    <option value="Private">
+                      Private
+                    </option>
+                  </select>
+                </label>
+              )}
+
+              {mode === "technology" && (
+                <label>
+                  Purpose
+
+                  <select
+                    name="technologyPurpose"
+                    value={form.technologyPurpose}
+                    onChange={update}
+                  >
+                    <option>Database</option>
+                    <option>Web</option>
+                    <option>Application</option>
+                  </select>
+                </label>
+              )}
+
+              {mode !== "technology" && (
+                <label className="wide">
+                  Purpose
+
+                  <textarea
+                    name="purpose"
+                    value={form.purpose}
+                    onChange={update}
+                    placeholder="Enter customer purpose"
+                  />
+                </label>
+              )}
+
+              {mode !== "media" && (
+                <label className="followup-field wide">
+                  Need Follow-up
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={
+                      form.needFollowup === "Yes"
+                    }
+                    className={`followup-switch ${
+                      form.needFollowup === "Yes"
+                        ? "on"
+                        : "off"
+                    }`}
+                    onClick={() =>
+                      setForm((current) => ({
+                        ...current,
+                        needFollowup:
+                          current.needFollowup === "Yes"
+                            ? "No"
+                            : "Yes",
+                      }))
+                    }
+                  >
+                    <span />
+
+                    <b>
+                      {form.needFollowup === "Yes"
+                        ? "ON"
+                        : "OFF"}
+                    </b>
+                  </button>
+                </label>
+              )}
+
+              {mode !== "media" && (
+                <label className="wide">
+                  Note
+
+                  <textarea
+                    name="note"
+                    value={form.note}
+                    onChange={update}
+                    placeholder="Write additional customer notes..."
+                    rows={4}
+                  />
+                </label>
+              )}
+            </div>
+
+            <footer>
+              <button
+                type="button"
+                onClick={closeCustomerModal}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="primary"
+              >
+                {editId
+                  ? "Save Changes"
+                  : "Save Customer"}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div
+          className="employee-delete-backdrop"
+          onMouseDown={() => {
+            if (!deleting) {
+              setDeleteTarget(null);
+            }
+          }}
+        >
+          <div
+            className="employee-delete-modal"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="employee-delete-icon">
+              <Trash2 size={22} />
+            </div>
+
+            <h2>Delete Customer</h2>
+
+            <p>
+              Are you sure you want to delete{" "}
+              <strong>
+                {deleteTarget.fullName ||
+                  deleteTarget.customerName ||
+                  "this customer"}
+              </strong>
+              ?
+            </p>
+
+            <div className="employee-delete-actions">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() =>
+                  setDeleteTarget(null)
+                }
+              >
+                Cancel
               </button>
 
               <button
                 type="button"
-                className="delete"
-                onClick={() =>
-                  requestDelete(customer)
-                }
-                title="Delete customer"
-                aria-label="Delete customer"
+                className="danger"
+                disabled={deleting}
+                onClick={confirmDelete}
               >
                 <Trash2 size={14} />
+
+                {deleting
+                  ? "Deleting..."
+                  : "Delete"}
               </button>
             </div>
-          </td>
-        </tr>
-      ))}
-
-      {!filtered.length && (
-        <tr>
-          <td
-            colSpan={
-              mode === "consultant"
-                ? "11"
-                : "8"
-            }
-            className="employee-empty-record"
-          >
-            No customer records yet.
-          </td>
-        </tr>
+          </div>
+        </div>
       )}
-    </tbody>
-  </table>
-</div>
-</section>
-    {open && <div
-  className="employee-dashboard-modal"
-  onMouseDown={closeCustomerModal}
-><form onSubmit={save} onMouseDown={e => e.stopPropagation()}><header><div><h2>
-  {editId
-    ? "Edit Customer"
-    : "Add Customer"}
-</h2><p>
-  {editId
-    ? "Update the customer information."
-    : `This record will also appear in the general ${mode} customer list.`}
-</p>
-</div><button
-  type="button"
-  onClick={closeCustomerModal}
->
-  <X />
-</button>
-</header>
-    <div className="employee-customer-grid">
-  <label>
-    Full Name
-    <input
-      name="fullName"
-      value={form.fullName}
-      onChange={update}
-    />
-  </label>
-
-  <label>
-    Phone Number
-    <input
-      name="phone"
-      value={form.phone}
-      onChange={update}
-    />
-  </label>
-
-  <label>
-    City / Province
-    <select
-      name="city"
-      value={form.city}
-      onChange={update}
-    >
-      <option value="">Select province</option>
-
-      {provinces.map((province) => (
-        <option key={province} value={province}>
-          {province}
-        </option>
-      ))}
-    </select>
-  </label>
-
-  {mode === "consultant" && (
-    <>
-      <label>
-        Country
-
-        <select
-          name="country"
-          value={form.country}
-          onChange={update}
-        >
-          <option value="">
-            Select country
-          </option>
-
-          {countries.map((country) => (
-            <option
-              key={country}
-              value={country}
-            >
-              {country}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        Scholarship Type
-
-        <select
-          name="scholarshipType"
-          value={form.scholarshipType}
-          onChange={update}
-        >
-          <option value="">
-            Select scholarship
-          </option>
-
-          <option value="Government">
-            Government
-          </option>
-
-          <option value="Semi Government">
-            Semi Government
-          </option>
-
-          <option value="Private">
-            Private
-          </option>
-        </select>
-      </label>
-
-      <label>
-        Price (AFN)
-
-        <input
-          type="number"
-          min="0"
-          name="price"
-          value={form.price}
-          onChange={update}
-          placeholder="Enter price"
-        />
-      </label>
-    </>
-  )}
-
-  <label>
-    Language
-    <select
-      name="language"
-      value={form.language}
-      onChange={update}
-    >
-      <option>Dari</option>
-      <option>Pashto</option>
-      <option>English</option>
-      <option>Other</option>
-    </select>
-  </label>
-
-  <label>
-    Call Type
-    <select
-      name="callType"
-      value={form.callType}
-      onChange={update}
-    >
-      <option>Incoming</option>
-      <option>Outgoing</option>
-    </select>
-  </label>
-
-  {mode !== "technology" && (
-    <label className="wide">
-      Purpose
-      <textarea
-        name="purpose"
-        value={form.purpose}
-        onChange={update}
-      />
-    </label>
-  )}
-
-  {mode === "technology" && (
-    <>
-      <label>
-        Business Type
-        <input
-          name="businessType"
-          value={form.businessType}
-          onChange={update}
-        />
-      </label>
-
-      <label>
-        Company Name
-        <input
-          name="companyName"
-          value={form.companyName}
-          onChange={update}
-        />
-      </label>
-
-      <label>
-        Purpose
-        <select
-          name="technologyPurpose"
-          value={form.technologyPurpose}
-          onChange={update}
-        >
-          <option>Database</option>
-          <option>Web</option>
-          <option>Application</option>
-        </select>
-      </label>
-    </>
-  )}
-
-  <label className="followup-field wide">
-    Need Follow-up
-
-    <button
-      type="button"
-      role="switch"
-      aria-checked={form.needFollowup === "Yes"}
-      className={`followup-switch ${
-        form.needFollowup === "Yes" ? "on" : "off"
-      }`}
-      onClick={() =>
-        setForm({
-          ...form,
-          needFollowup:
-            form.needFollowup === "Yes" ? "No" : "Yes",
-        })
-      }
-    >
-      <span />
-      <b>{form.needFollowup === "Yes" ? "ON" : "OFF"}</b>
-    </button>
-  </label>
-
-  <label className="wide">
-    Note
-    <textarea
-      name="note"
-      value={form.note}
-      onChange={update}
-      placeholder="Write additional customer notes..."
-      rows={4}
-    />
-  </label>
-</div>
-    <footer><button type="button" onClick={closeCustomerModal}>Cancel</button><button
-  type="submit"
-  className="primary"
->
-  {editId
-    ? "Save Changes"
-    : "Save Customer"}
-</button></footer></form></div>}
-{deleteTarget && (
-  <div
-    className="employee-delete-backdrop"
-    onMouseDown={() => {
-      if (!deleting) {
-        setDeleteTarget(null);
-      }
-    }}
-  >
-    <div
-      className="employee-delete-modal"
-      onMouseDown={(event) =>
-        event.stopPropagation()
-      }
-    >
-      <div className="employee-delete-icon">
-        <Trash2 size={22} />
-      </div>
-
-      <h2>Delete Customer</h2>
-
-      <p>
-        Are you sure you want to delete
-        <strong>
-          {" "}
-          {deleteTarget.fullName ||
-            deleteTarget.customerName ||
-            "this customer"}
-        </strong>
-        ?
-      </p>
-
-      <div className="employee-delete-actions">
-        <button
-          type="button"
-          disabled={deleting}
-          onClick={() =>
-            setDeleteTarget(null)
-          }
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          className="danger"
-          disabled={deleting}
-          onClick={confirmDelete}
-        >
-          <Trash2 size={14} />
-
-          {deleting
-            ? "Deleting..."
-            : "Delete"}
-        </button>
-      </div>
     </div>
-  </div>
-)}
-  </div>;
+  );
 }

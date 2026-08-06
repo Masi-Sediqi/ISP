@@ -723,3 +723,250 @@ body.dark-mode
     grid-template-columns: 1fr;
   }
 }
+
+/* Country dropdown — compact, ordered and searchable */
+.employee-country-select {
+  position: relative;
+  width: 100%;
+}
+
+.employee-dashboard-modal
+.employee-country-trigger {
+  width: 100% !important;
+  min-height: 42px !important;
+  padding: 10px 11px !important;
+  border: 1px solid #dfe3e9 !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 9px !important;
+  background: #ffffff !important;
+  color: #172033 !important;
+  font: inherit !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.employee-country-select.open
+.employee-country-trigger {
+  border-color: #7c3aed !important;
+  box-shadow: 0 0 0 3px
+    rgba(124, 58, 237, 0.1) !important;
+}
+
+.employee-country-selected {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.employee-country-selected img,
+.employee-country-options img {
+  width: 22px;
+  height: 16px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  border-radius: 2px;
+}
+
+.employee-country-selected span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-country-arrow {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.employee-country-menu {
+  position: absolute;
+  z-index: 10080;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  padding: 7px;
+  overflow: hidden;
+  border: 1px solid #dfe3e9;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 14px 32px
+    rgba(15, 23, 42, 0.16);
+}
+
+.employee-country-menu > input {
+  width: 100% !important;
+  min-height: 38px !important;
+  margin: 0 0 6px !important;
+  padding: 8px 10px !important;
+  border: 1px solid #dfe3e9 !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  color: #172033 !important;
+  font: inherit !important;
+  font-size: 11px !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.employee-country-menu > input:focus {
+  border-color: #7c3aed !important;
+  box-shadow: 0 0 0 3px
+    rgba(124, 58, 237, 0.08) !important;
+}
+
+.employee-country-options {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 0;
+  scrollbar-width: thin;
+}
+
+.employee-dashboard-modal
+.employee-country-options > button {
+  width: 100% !important;
+  min-height: 34px !important;
+  padding: 7px 8px !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 9px !important;
+  background: transparent !important;
+  color: #334155 !important;
+  font: inherit !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  text-align: left !important;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.employee-dashboard-modal
+.employee-country-options > button:hover {
+  background: #f4f1ff !important;
+  color: #5b21b6 !important;
+}
+
+.employee-dashboard-modal
+.employee-country-options > button.selected {
+  background: #ede9fe !important;
+  color: #5b21b6 !important;
+  font-weight: 700 !important;
+}
+
+.employee-country-options > p {
+  margin: 0;
+  padding: 14px 8px;
+  color: #64748b;
+  font-size: 11px;
+  text-align: center;
+}
+
+body.dark-mode
+.employee-dashboard-modal
+.employee-country-trigger,
+body.dark-mode
+.employee-country-menu,
+body.dark-mode
+.employee-country-menu > input {
+  border-color: #3f3f46 !important;
+  background: #18181b !important;
+  color: #f8fafc !important;
+}
+
+body.dark-mode
+.employee-dashboard-modal
+.employee-country-options > button {
+  color: #e2e8f0 !important;
+}
+
+body.dark-mode
+.employee-dashboard-modal
+.employee-country-options > button:hover {
+  background: #27272a !important;
+  color: #c4b5fd !important;
+}
+
+body.dark-mode
+.employee-dashboard-modal
+.employee-country-options > button.selected {
+  background: #312e81 !important;
+  color: #e0e7ff !important;
+}
+
+@media (max-width: 760px) {
+  .employee-country-menu {
+    position: fixed;
+    z-index: 2147483647;
+    top: 50%;
+    left: 14px;
+    right: 14px;
+    transform: translateY(-50%);
+    max-height: 70vh;
+  }
+
+  .employee-country-options {
+    max-height: calc(70vh - 60px);
+  }
+}
+
+/* Country flag inside customer table */
+.employee-table-country {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.employee-table-country img {
+  width: 24px;
+  height: 18px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  border-radius: 2px;
+}
+
+.employee-table-country span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Afghanistan registration date and time */
+.employee-table-datetime {
+  min-width: 105px;
+  display: grid;
+  gap: 3px;
+}
+
+.employee-table-datetime strong {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.employee-table-datetime span {
+  color: #64748b;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+body.dark-mode .employee-table-country img {
+  border-color: #475569;
+}
+
+body.dark-mode .employee-table-datetime span {
+  color: #94a3b8;
+}

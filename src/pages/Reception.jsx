@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -113,28 +113,455 @@ const technologyPurposes = [
   "Other",
 ];
 
+const countries = [
+  "Afghanistan",
+  "Albania",
+  "Algeria",
+  "Andorra",
+  "Angola",
+  "Antigua and Barbuda",
+  "Argentina",
+  "Armenia",
+  "Australia",
+  "Austria",
+  "Azerbaijan",
+  "Bahamas",
+  "Bahrain",
+  "Bangladesh",
+  "Barbados",
+  "Belarus",
+  "Belgium",
+  "Belize",
+  "Benin",
+  "Bhutan",
+  "Bolivia",
+  "Bosnia and Herzegovina",
+  "Botswana",
+  "Brazil",
+  "Brunei",
+  "Bulgaria",
+  "Burkina Faso",
+  "Burundi",
+  "Cabo Verde",
+  "Cambodia",
+  "Cameroon",
+  "Canada",
+  "Central African Republic",
+  "Chad",
+  "Chile",
+  "China",
+  "Colombia",
+  "Comoros",
+  "Congo, Democratic Republic of the",
+  "Congo, Republic of the",
+  "Costa Rica",
+  "Côte d'Ivoire",
+  "Croatia",
+  "Cuba",
+  "Cyprus",
+  "Czechia",
+  "Denmark",
+  "Djibouti",
+  "Dominica",
+  "Dominican Republic",
+  "Ecuador",
+  "Egypt",
+  "El Salvador",
+  "Equatorial Guinea",
+  "Eritrea",
+  "Estonia",
+  "Eswatini",
+  "Ethiopia",
+  "Fiji",
+  "Finland",
+  "France",
+  "Gabon",
+  "Gambia",
+  "Georgia",
+  "Germany",
+  "Ghana",
+  "Greece",
+  "Grenada",
+  "Guatemala",
+  "Guinea",
+  "Guinea-Bissau",
+  "Guyana",
+  "Haiti",
+  "Honduras",
+  "Hungary",
+  "Iceland",
+  "India",
+  "Indonesia",
+  "Iran",
+  "Iraq",
+  "Ireland",
+  "Israel",
+  "Italy",
+  "Jamaica",
+  "Japan",
+  "Jordan",
+  "Kazakhstan",
+  "Kenya",
+  "Kiribati",
+  "Kuwait",
+  "Kyrgyzstan",
+  "Laos",
+  "Latvia",
+  "Lebanon",
+  "Lesotho",
+  "Liberia",
+  "Libya",
+  "Liechtenstein",
+  "Lithuania",
+  "Luxembourg",
+  "Madagascar",
+  "Malawi",
+  "Malaysia",
+  "Maldives",
+  "Mali",
+  "Malta",
+  "Marshall Islands",
+  "Mauritania",
+  "Mauritius",
+  "Mexico",
+  "Micronesia",
+  "Moldova",
+  "Monaco",
+  "Mongolia",
+  "Montenegro",
+  "Morocco",
+  "Mozambique",
+  "Myanmar",
+  "Namibia",
+  "Nauru",
+  "Nepal",
+  "Netherlands",
+  "New Zealand",
+  "Nicaragua",
+  "Niger",
+  "Nigeria",
+  "North Korea",
+  "North Macedonia",
+  "Norway",
+  "Oman",
+  "Pakistan",
+  "Palau",
+  "Palestine",
+  "Panama",
+  "Papua New Guinea",
+  "Paraguay",
+  "Peru",
+  "Philippines",
+  "Poland",
+  "Portugal",
+  "Qatar",
+  "Romania",
+  "Russia",
+  "Rwanda",
+  "Saint Kitts and Nevis",
+  "Saint Lucia",
+  "Saint Vincent and the Grenadines",
+  "Samoa",
+  "San Marino",
+  "São Tomé and Príncipe",
+  "Saudi Arabia",
+  "Senegal",
+  "Serbia",
+  "Seychelles",
+  "Sierra Leone",
+  "Singapore",
+  "Slovakia",
+  "Slovenia",
+  "Solomon Islands",
+  "Somalia",
+  "South Africa",
+  "South Korea",
+  "South Sudan",
+  "Spain",
+  "Sri Lanka",
+  "Sudan",
+  "Suriname",
+  "Sweden",
+  "Switzerland",
+  "Syria",
+  "Taiwan",
+  "Tajikistan",
+  "Tanzania",
+  "Thailand",
+  "Timor-Leste",
+  "Togo",
+  "Tonga",
+  "Trinidad and Tobago",
+  "Tunisia",
+  "Turkey",
+  "Turkmenistan",
+  "Tuvalu",
+  "Uganda",
+  "Ukraine",
+  "United Arab Emirates",
+  "United Kingdom",
+  "United States",
+  "Uruguay",
+  "Uzbekistan",
+  "Vanuatu",
+  "Vatican City",
+  "Venezuela",
+  "Vietnam",
+  "Yemen",
+  "Zambia",
+  "Zimbabwe"
+];
+
+const normalizeCountryName = (value) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-zA-Z]/g, "")
+    .toLowerCase();
+
+const countryNameAliases = {
+  bolivia: "BO",
+  brunei: "BN",
+  caboverde: "CV",
+  congodemocraticrepublicofthe: "CD",
+  congiorepublicofthe: "CG",
+  congorepublicofthe: "CG",
+  cotedivoire: "CI",
+  czechia: "CZ",
+  eswatini: "SZ",
+  iran: "IR",
+  laos: "LA",
+  micronesia: "FM",
+  moldova: "MD",
+  northkorea: "KP",
+  palestine: "PS",
+  russia: "RU",
+  southkorea: "KR",
+  syria: "SY",
+  taiwan: "TW",
+  tanzania: "TZ",
+  turkey: "TR",
+  unitedstates: "US",
+  vaticancity: "VA",
+  venezuela: "VE",
+  vietnam: "VN",
+};
+
+function buildCountryCodeMap() {
+  const map = new Map();
+
+  if (
+    typeof Intl === "undefined" ||
+    typeof Intl.DisplayNames !== "function"
+  ) {
+    return map;
+  }
+
+  const displayNames = new Intl.DisplayNames(
+    ["en"],
+    { type: "region" }
+  );
+
+  for (let first = 65; first <= 90; first += 1) {
+    for (let second = 65; second <= 90; second += 1) {
+      const code =
+        String.fromCharCode(first) +
+        String.fromCharCode(second);
+
+      const name = displayNames.of(code);
+
+      if (name && name !== code) {
+        map.set(normalizeCountryName(name), code);
+      }
+    }
+  }
+
+  return map;
+}
+
+const countryCodeMap = buildCountryCodeMap();
+
+function getCountryCode(countryName) {
+  const normalized = normalizeCountryName(countryName);
+
+  return (
+    countryNameAliases[normalized] ||
+    countryCodeMap.get(normalized) ||
+    ""
+  );
+}
+
+function getCountryFlagUrl(countryName) {
+  const code = getCountryCode(countryName);
+
+  if (!code) return "";
+
+  return `https://flagcdn.com/24x18/${code.toLowerCase()}.png`;
+}
+
+function getAfghanistanDateTime() {
+  const now = new Date();
+
+  const formatter = new Intl.DateTimeFormat(
+    "en-CA",
+    {
+      timeZone: "Asia/Kabul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }
+  );
+
+  const parts = Object.fromEntries(
+    formatter
+      .formatToParts(now)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value])
+  );
+
+  const date =
+    `${parts.year}-${parts.month}-${parts.day}`;
+  const time =
+    `${parts.hour}:${parts.minute}:${parts.second}`;
+
+  return {
+    date,
+    time,
+    dateTime: `${date}T${time}+04:30`,
+    iso: now.toISOString(),
+  };
+}
+
+function CountrySelect({
+  value,
+  onChange,
+  name = "country",
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function closeOnOutside(event) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", closeOnOutside);
+
+    return () =>
+      document.removeEventListener(
+        "mousedown",
+        closeOnOutside
+      );
+  }, []);
+
+  const filteredCountries = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return countries;
+
+    return countries.filter((country) =>
+      country.toLowerCase().includes(query)
+    );
+  }, [search]);
+
+  function chooseCountry(country) {
+    onChange({
+      target: {
+        name,
+        value: country,
+      },
+    });
+
+    setSearch("");
+    setOpen(false);
+  }
+
+  return (
+    <div
+      className={`reception-country-select ${
+        open ? "open" : ""
+      }`}
+      ref={wrapperRef}
+    >
+      <button
+        type="button"
+        className="reception-country-trigger"
+        onClick={() => setOpen((current) => !current)}
+      >
+        {value ? (
+          <span>
+            <img
+              src={getCountryFlagUrl(value)}
+              alt=""
+            />
+            {value}
+          </span>
+        ) : (
+          <span>Select country</span>
+        )}
+
+        <b>▾</b>
+      </button>
+
+      {open && (
+        <div className="reception-country-menu">
+          <input
+            type="search"
+            value={search}
+            onChange={(event) =>
+              setSearch(event.target.value)
+            }
+            placeholder="Search country..."
+            autoFocus
+          />
+
+          <div>
+            {filteredCountries.map((country) => (
+              <button
+                type="button"
+                key={country}
+                className={
+                  value === country ? "selected" : ""
+                }
+                onClick={() => chooseCountry(country)}
+              >
+                <img
+                  src={getCountryFlagUrl(country)}
+                  alt=""
+                />
+                <span>{country}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function createConsultantForm() {
   return {
     fullName: "",
     phone: "",
-
-    passportNumber: "",
-    maritalStatus: "Single",
     applicationType: "Student Visa",
-
     educationalLevel: "",
     schoolUniversity: "",
     email: "",
-    graduatedMajor: "",
-    universityName: "",
-    graduationPercentage: "",
-    graduationYear: "",
-    desiredMajor: "",
+    country: "",
     source: "",
     assignedEmployeeId: "",
     assignedEmployeeName: "",
     purpose: "",
-    date: today(),
   };
 }
 
@@ -142,16 +569,12 @@ function createTravelForm() {
   return {
     fullName: "",
     phone: "",
-
-    passportNumber: "",
-    maritalStatus: "Single",
     applicationType: "Student Visa",
-
+    country: "",
     source: "",
     assignedEmployeeId: "",
     assignedEmployeeName: "",
     purpose: "",
-    date: today(),
   };
 }
 
@@ -165,18 +588,17 @@ function createTechnologyForm() {
     assignedEmployeeId: "",
     assignedEmployeeName: "",
     note: "",
-    date: today(),
   };
 }
 
 function createMediaForm() {
   return {
     personName: "",
+    phone: "",
     brandName: "",
-    purpose: "Video",
     source: "",
-    about: "",
-    date: today(),
+    assignedEmployeeId: "",
+    assignedEmployeeName: "",
     note: "",
   };
 }
@@ -208,11 +630,89 @@ function getEmployeeName(employee) {
   );
 }
 
+/*
+ * Assignment Accept/Reject must replace the initial Pending
+ * status immediately. A later completed follow-up decision
+ * such as Approved or Rejected has the highest priority.
+ */
+function getLatestAssignmentTransfer(customer) {
+  const transfers = Array.isArray(
+    customer?.assignmentTransfers
+  )
+    ? customer.assignmentTransfers
+    : [];
+
+  if (!transfers.length) {
+    return null;
+  }
+
+  return transfers[transfers.length - 1] || null;
+}
+
+function getCustomerDisplayStatus(customer) {
+  const latestTransfer =
+    getLatestAssignmentTransfer(customer);
+
+  /*
+   * When an admin or employee forwards the customer to
+   * another employee, Reception must see who forwarded it
+   * and who currently owns the request.
+   */
+  if (
+    latestTransfer?.toEmployeeName &&
+    latestTransfer?.transferredByName
+  ) {
+    return `${latestTransfer.transferredByName} assigned to ${latestTransfer.toEmployeeName}`;
+  }
+
+  if (latestTransfer?.toEmployeeName) {
+    return `Assigned to ${latestTransfer.toEmployeeName}`;
+  }
+
+  const decisionStatus = String(
+    customer?.followUpDecisionStatus || ""
+  ).trim();
+
+  const assignmentStatus = String(
+    customer?.assignmentStatus || ""
+  ).trim();
+
+  const followUpStatus = String(
+    customer?.followUpStatus || ""
+  ).trim();
+
+  if (
+    decisionStatus &&
+    !["pending", "none"].includes(
+      decisionStatus.toLowerCase()
+    )
+  ) {
+    return decisionStatus;
+  }
+
+  if (
+    assignmentStatus &&
+    !["pending", "none", "assigned"].includes(
+      assignmentStatus.toLowerCase()
+    )
+  ) {
+    return assignmentStatus;
+  }
+
+  return (
+    assignmentStatus ||
+    followUpStatus ||
+    decisionStatus ||
+    "None"
+  );
+}
+
 export default function Reception({ currentUser }) {
   const [
     customers,
     setCustomers,
     loadCustomers,
+    customersLoaded,
   ] = useJsonCollection("customers");
 
   const [mediaProducts, setMediaProducts] =
@@ -295,15 +795,97 @@ const [assignEmployeeId, setAssignEmployeeId] =
 const [assignEmployeeName, setAssignEmployeeName] =
   useState("");
 
-  const [assignConsultantDetails, setAssignConsultantDetails] =
-    useState({
-      graduatedMajor: "",
-      universityName: "",
-    });
-
   const [assigningRecord, setAssigningRecord] =
     useState(false);
+
+  const customerRefreshRunningRef =
+    useRef(false);
   
+
+  /*
+   * Keep Reception records synchronized without requiring
+   * Ctrl+R. Polling covers changes made in another account,
+   * tab or browser. Custom events update the same tab
+   * immediately.
+   */
+  useEffect(() => {
+    if (!customersLoaded) {
+      return undefined;
+    }
+
+    const refreshCustomers = async () => {
+      if (customerRefreshRunningRef.current) {
+        return;
+      }
+
+      customerRefreshRunningRef.current = true;
+
+      try {
+        await loadCustomers();
+      } finally {
+        customerRefreshRunningRef.current = false;
+      }
+    };
+
+    const intervalId = window.setInterval(
+      refreshCustomers,
+      1000
+    );
+
+    const handleImmediateRefresh = () => {
+      refreshCustomers();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshCustomers();
+      }
+    };
+
+    window.addEventListener(
+      "isp-customer-assignment-updated",
+      handleImmediateRefresh
+    );
+
+    window.addEventListener(
+      "focus",
+      handleImmediateRefresh
+    );
+
+    window.addEventListener(
+      "storage",
+      handleImmediateRefresh
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
+
+    return () => {
+      window.clearInterval(intervalId);
+
+      window.removeEventListener(
+        "isp-customer-assignment-updated",
+        handleImmediateRefresh
+      );
+
+      window.removeEventListener(
+        "focus",
+        handleImmediateRefresh
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleImmediateRefresh
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+    };
+  }, [customersLoaded, loadCustomers]);
 
   function openAssignModal(customer) {
     setAssignTarget(customer);
@@ -315,14 +897,6 @@ const [assignEmployeeName, setAssignEmployeeName] =
     setAssignEmployeeName(
       customer.assignedEmployeeName || ""
     );
-
-    setAssignConsultantDetails({
-      graduatedMajor: customer.graduatedMajor || "",
-      universityName:
-        customer.universityName ||
-        customer.schoolUniversity ||
-        "",
-    });
   }
 
   function closeAssignModal() {
@@ -331,10 +905,6 @@ const [assignEmployeeName, setAssignEmployeeName] =
     setAssignTarget(null);
     setAssignEmployeeId("");
     setAssignEmployeeName("");
-    setAssignConsultantDetails({
-      graduatedMajor: "",
-      universityName: "",
-    });
   }
 
   function updateAssignEmployee(event) {
@@ -356,15 +926,6 @@ const [assignEmployeeName, setAssignEmployeeName] =
         ? getEmployeeName(selectedEmployee)
         : ""
     );
-  }
-
-  function updateAssignConsultantDetail(event) {
-    const { name, value } = event.target;
-
-    setAssignConsultantDetails((current) => ({
-      ...current,
-      [name]: value,
-    }));
   }
 
   async function saveCustomerAssignment(event) {
@@ -396,15 +957,6 @@ const [assignEmployeeName, setAssignEmployeeName] =
               assignedEmployeeName: assignEmployeeName,
               assignedAt,
 
-              ...(assignTarget.customerType === "consultant"
-                ? {
-                    graduatedMajor:
-                      assignConsultantDetails.graduatedMajor.trim(),
-                    universityName:
-                      assignConsultantDetails.universityName.trim(),
-                  }
-                : {}),
-
               assignedByAccountId:
                 currentUser?.id || "",
 
@@ -419,7 +971,17 @@ const [assignEmployeeName, setAssignEmployeeName] =
                 currentUser?.email ||
                 "Current User",
 
+              /*
+               * هر بار که پذیرش مشتری را راجع می‌کند،
+               * درخواست باید از حالت Pending آغاز شود.
+               * بعداً کارمند آن را قبول یا رد می‌کند.
+               */
               assignmentStatus: "Pending",
+              followUpStatus: "Pending",
+              followUpDecisionStatus: "Pending",
+              followUpCompleted: false,
+              acceptedAt: "",
+              rejectedAt: "",
 
               updatedAt: assignedAt,
             }
@@ -528,14 +1090,34 @@ const employeeOptions = useMemo(() => {
   );
 }, [employees, accounts]);
 
+/*
+ * Only records created from the Reception workspace belong
+ * to the Reception cards and Recent Customers table.
+ * Customers created by Call Center, Employee Dashboard or
+ * any other module are intentionally excluded.
+ */
+const receptionRegisteredCustomers = useMemo(
+  () =>
+    customers.filter(
+      (customer) =>
+        String(
+          customer.registeredFrom || ""
+        )
+          .trim()
+          .toLowerCase() === "reception"
+    ),
+  [customers]
+);
+
 const receptionCustomers = useMemo(() => {
   const query = search.trim().toLowerCase();
 
-  return customers
+  return receptionRegisteredCustomers
     .filter((customer) => {
       if (
         customerTypeFilter !== "all" &&
-        customer.customerType !== customerTypeFilter
+        customer.customerType !==
+          customerTypeFilter
       ) {
         return false;
       }
@@ -553,6 +1135,12 @@ const receptionCustomers = useMemo(() => {
         customer.source,
         customer.sourceEmployeeName,
         customer.assignedEmployeeName,
+        customer.assignmentTransfers?.[
+          customer.assignmentTransfers.length - 1
+        ]?.transferredByName,
+        customer.assignmentTransfers?.[
+          customer.assignmentTransfers.length - 1
+        ]?.toEmployeeName,
         customer.purpose,
         customer.technologyPurpose,
       ].some((value) =>
@@ -563,22 +1151,46 @@ const receptionCustomers = useMemo(() => {
     })
     .sort(
       (first, second) =>
-        new Date(second.createdAt || second.date || 0) -
-        new Date(first.createdAt || first.date || 0)
+        new Date(
+          second.createdAt ||
+            second.date ||
+            0
+        ) -
+        new Date(
+          first.createdAt ||
+            first.date ||
+            0
+        )
     );
-}, [customers, search, customerTypeFilter]);
+}, [
+  receptionRegisteredCustomers,
+  search,
+  customerTypeFilter,
+]);
 
-const consultantCount = customers.filter(
-  (customer) => customer.customerType === "consultant"
-).length;
+const consultantCount =
+  receptionRegisteredCustomers.filter(
+    (customer) =>
+      customer.customerType === "consultant"
+  ).length;
 
-const travelCount = customers.filter(
-  (customer) => customer.customerType === "travel"
-).length;
+const travelCount =
+  receptionRegisteredCustomers.filter(
+    (customer) =>
+      customer.customerType === "travel"
+  ).length;
 
-const technologyCount = customers.filter(
-  (customer) => customer.customerType === "technology"
-).length;
+const technologyCount =
+  receptionRegisteredCustomers.filter(
+    (customer) =>
+      customer.customerType === "technology"
+  ).length;
+
+const mediaCount =
+  receptionRegisteredCustomers.filter(
+    (customer) =>
+      customer.customerType === "media"
+  ).length;
 
 
   function resetForms() {
@@ -687,6 +1299,35 @@ const technologyCount = customers.filter(
           customer.date ||
           customer.createdAt?.slice(0, 10) ||
           today(),
+      });
+    } else if (type === "media") {
+      setMediaForm({
+        ...createMediaForm(),
+        personName:
+          customer.personName ||
+          customer.fullName ||
+          customer.customerName ||
+          "",
+        phone:
+          customer.phone ||
+          customer.contactNumber ||
+          "",
+        brandName: customer.brandName || "",
+        source:
+          customer.source ||
+          (customer.sourceEmployeeName ===
+          "External Customer"
+            ? ""
+            : customer.sourceEmployeeName) ||
+          "",
+        assignedEmployeeId:
+          customer.assignedEmployeeId || "",
+        assignedEmployeeName:
+          customer.assignedEmployeeName || "",
+        note:
+          customer.note ||
+          customer.notes ||
+          "",
       });
     } else {
       setConsultantForm({
@@ -853,6 +1494,24 @@ const technologyCount = customers.filter(
   function updateMediaField(event) {
     const { name, value } = event.target;
 
+    if (name === "assignedEmployeeId") {
+      const employee = employeeOptions.find(
+        (item) =>
+          String(item.id || item.employeeId) ===
+          String(value)
+      );
+
+      setMediaForm((current) => ({
+        ...current,
+        assignedEmployeeId: value,
+        assignedEmployeeName: employee
+          ? getEmployeeName(employee)
+          : "",
+      }));
+
+      return;
+    }
+
     setMediaForm((current) => ({
       ...current,
       [name]: value,
@@ -938,6 +1597,9 @@ const technologyCount = customers.filter(
       return;
     }
 
+    const afghanistanTime =
+      getAfghanistanDateTime();
+
     const record = {
       id: createId(),
       name: institutionName,
@@ -1011,7 +1673,9 @@ const technologyCount = customers.filter(
         )
       : null;
 
-    const now = new Date().toISOString();
+    const afghanistanTime =
+      getAfghanistanDateTime();
+    const now = afghanistanTime.iso;
 
     const record = {
       ...(existingCustomer || {}),
@@ -1029,29 +1693,137 @@ const technologyCount = customers.filter(
       schoolUniversity:
         consultantForm.schoolUniversity,
       email: consultantForm.email.trim(),
+      country: consultantForm.country,
 
-      passportNumber: consultantForm.passportNumber.trim(),
-      maritalStatus: consultantForm.maritalStatus,
       applicationType: consultantForm.applicationType,
-      graduatedMajor: consultantForm.graduatedMajor.trim(),
-      universityName: consultantForm.universityName.trim(),
-      graduationPercentage:
-        consultantForm.graduationPercentage === ""
-          ? ""
-          : Number(consultantForm.graduationPercentage),
-      graduationYear: consultantForm.graduationYear,
-      desiredMajor: consultantForm.desiredMajor.trim(),
-
       source: consultantForm.source.trim(),
       assignedEmployeeId:
         consultantForm.assignedEmployeeId,
       assignedEmployeeName:
         consultantForm.assignedEmployeeName,
+
+      /*
+       * اگر هنگام ثبت یا ویرایش، مشتری به کارمندی راجع شود،
+       * درخواست باید ابتدا در حالت Pending ذخیره شود.
+       * وضعیت Accepted/Approved/Rejected فقط بعداً توسط
+       * کارمند در Application Follow-Up تغییر می‌کند.
+       */
       assignmentStatus:
-        existingCustomer?.assignmentStatus || "None",
+        consultantForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                consultantForm.assignedEmployeeId
+              )
+                ? "Pending"
+                : existingCustomer.assignmentStatus ||
+                  "Pending"
+            )
+          : "None",
+
+      followUpStatus:
+        consultantForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                consultantForm.assignedEmployeeId
+              )
+                ? "Pending"
+                : existingCustomer.followUpStatus ||
+                  existingCustomer.assignmentStatus ||
+                  "Pending"
+            )
+          : "None",
+
+      followUpDecisionStatus:
+        consultantForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                consultantForm.assignedEmployeeId
+              )
+                ? "Pending"
+                : existingCustomer.followUpDecisionStatus ||
+                  existingCustomer.followUpStatus ||
+                  existingCustomer.assignmentStatus ||
+                  "Pending"
+            )
+          : "None",
+
+      followUpCompleted:
+        consultantForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                consultantForm.assignedEmployeeId
+              )
+                ? false
+                : Boolean(
+                    existingCustomer.followUpCompleted
+                  )
+            )
+          : false,
+
+      acceptedAt:
+        consultantForm.assignedEmployeeId &&
+        existingCustomer &&
+        String(
+          existingCustomer.assignedEmployeeId || ""
+        ) === String(
+          consultantForm.assignedEmployeeId
+        )
+          ? existingCustomer.acceptedAt || ""
+          : "",
+
+      rejectedAt:
+        consultantForm.assignedEmployeeId &&
+        existingCustomer &&
+        String(
+          existingCustomer.assignedEmployeeId || ""
+        ) === String(
+          consultantForm.assignedEmployeeId
+        )
+          ? existingCustomer.rejectedAt || ""
+          : "",
 
       purpose: consultantForm.purpose.trim(),
-      date: consultantForm.date,
+      /*
+       * تاریخ و ساعت ثبت اولیه ثابت می‌ماند.
+       * هنگام Edit فقط updatedAt تغییر می‌کند.
+       */
+      date:
+        existingCustomer?.date ||
+        existingCustomer?.afghanistanDate ||
+        afghanistanTime.date,
+      time:
+        existingCustomer?.time ||
+        existingCustomer?.afghanistanTime ||
+        afghanistanTime.time,
+      afghanistanDate:
+        existingCustomer?.afghanistanDate ||
+        existingCustomer?.date ||
+        afghanistanTime.date,
+      afghanistanTime:
+        existingCustomer?.afghanistanTime ||
+        existingCustomer?.time ||
+        afghanistanTime.time,
+      afghanistanDateTime:
+        existingCustomer?.afghanistanDateTime ||
+        (existingCustomer?.afghanistanDate &&
+        existingCustomer?.afghanistanTime
+          ? `${existingCustomer.afghanistanDate}T${existingCustomer.afghanistanTime}+04:30`
+          : existingCustomer?.date &&
+              existingCustomer?.time
+            ? `${existingCustomer.date}T${existingCustomer.time}+04:30`
+            : afghanistanTime.dateTime),
 
       customerType: "consultant",
       specializedCustomer: true,
@@ -1059,8 +1831,13 @@ const technologyCount = customers.filter(
         existingCustomer?.registeredFrom ||
         "reception",
 
+      /*
+       * Source determines who brought this customer.
+       * Walk in Customer has no employee commission.
+       */
       sourceEmployeeId:
-        consultantForm.source
+        consultantForm.source &&
+        consultantForm.source !== "Walk in Customer"
           ? employeeOptions.find(
               (employee) =>
                 getEmployeeName(employee) ===
@@ -1130,7 +1907,9 @@ const technologyCount = customers.filter(
         )
       : null;
 
-    const now = new Date().toISOString();
+    const afghanistanTime =
+      getAfghanistanDateTime();
+    const now = afghanistanTime.iso;
 
     const record = {
       ...(existingCustomer || {}),
@@ -1143,20 +1922,137 @@ const technologyCount = customers.filter(
       customerName: travelForm.fullName.trim(),
 
       phone: travelForm.phone.trim(),
-      passportNumber: travelForm.passportNumber.trim(),
-      maritalStatus: travelForm.maritalStatus,
       applicationType: travelForm.applicationType,
+      country: travelForm.country,
       source: travelForm.source.trim(),
 
       assignedEmployeeId:
         travelForm.assignedEmployeeId,
       assignedEmployeeName:
         travelForm.assignedEmployeeName,
+
+      /*
+       * اگر هنگام ثبت یا ویرایش، مشتری به کارمندی راجع شود،
+       * درخواست باید ابتدا در حالت Pending ذخیره شود.
+       * وضعیت Accepted/Approved/Rejected فقط بعداً توسط
+       * کارمند در Application Follow-Up تغییر می‌کند.
+       */
       assignmentStatus:
-        existingCustomer?.assignmentStatus || "None",
+        travelForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                travelForm.assignedEmployeeId
+              )
+                ? "Pending"
+                : existingCustomer.assignmentStatus ||
+                  "Pending"
+            )
+          : "None",
+
+      followUpStatus:
+        travelForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                travelForm.assignedEmployeeId
+              )
+                ? "Pending"
+                : existingCustomer.followUpStatus ||
+                  existingCustomer.assignmentStatus ||
+                  "Pending"
+            )
+          : "None",
+
+      followUpDecisionStatus:
+        travelForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                travelForm.assignedEmployeeId
+              )
+                ? "Pending"
+                : existingCustomer.followUpDecisionStatus ||
+                  existingCustomer.followUpStatus ||
+                  existingCustomer.assignmentStatus ||
+                  "Pending"
+            )
+          : "None",
+
+      followUpCompleted:
+        travelForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                travelForm.assignedEmployeeId
+              )
+                ? false
+                : Boolean(
+                    existingCustomer.followUpCompleted
+                  )
+            )
+          : false,
+
+      acceptedAt:
+        travelForm.assignedEmployeeId &&
+        existingCustomer &&
+        String(
+          existingCustomer.assignedEmployeeId || ""
+        ) === String(
+          travelForm.assignedEmployeeId
+        )
+          ? existingCustomer.acceptedAt || ""
+          : "",
+
+      rejectedAt:
+        travelForm.assignedEmployeeId &&
+        existingCustomer &&
+        String(
+          existingCustomer.assignedEmployeeId || ""
+        ) === String(
+          travelForm.assignedEmployeeId
+        )
+          ? existingCustomer.rejectedAt || ""
+          : "",
 
       purpose: travelForm.purpose.trim(),
-      date: travelForm.date,
+      /*
+       * تاریخ و ساعت ثبت اولیه ثابت می‌ماند.
+       * هنگام Edit فقط updatedAt تغییر می‌کند.
+       */
+      date:
+        existingCustomer?.date ||
+        existingCustomer?.afghanistanDate ||
+        afghanistanTime.date,
+      time:
+        existingCustomer?.time ||
+        existingCustomer?.afghanistanTime ||
+        afghanistanTime.time,
+      afghanistanDate:
+        existingCustomer?.afghanistanDate ||
+        existingCustomer?.date ||
+        afghanistanTime.date,
+      afghanistanTime:
+        existingCustomer?.afghanistanTime ||
+        existingCustomer?.time ||
+        afghanistanTime.time,
+      afghanistanDateTime:
+        existingCustomer?.afghanistanDateTime ||
+        (existingCustomer?.afghanistanDate &&
+        existingCustomer?.afghanistanTime
+          ? `${existingCustomer.afghanistanDate}T${existingCustomer.afghanistanTime}+04:30`
+          : existingCustomer?.date &&
+              existingCustomer?.time
+            ? `${existingCustomer.date}T${existingCustomer.time}+04:30`
+            : afghanistanTime.dateTime),
 
       customerType: "travel",
       specializedCustomer: true,
@@ -1164,8 +2060,13 @@ const technologyCount = customers.filter(
         existingCustomer?.registeredFrom ||
         "reception",
 
+      /*
+       * Source determines who brought this customer.
+       * Walk in Customer has no employee commission.
+       */
       sourceEmployeeId:
-        technologyForm.source
+        travelForm.source &&
+        travelForm.source !== "Walk in Customer"
           ? employeeOptions.find(
               (employee) =>
                 getEmployeeName(employee) ===
@@ -1232,7 +2133,9 @@ const technologyCount = customers.filter(
         )
       : null;
 
-    const now = new Date().toISOString();
+    const afghanistanTime =
+      getAfghanistanDateTime();
+    const now = afghanistanTime.iso;
 
     const record = {
       ...(existingCustomer || {}),
@@ -1265,12 +2168,130 @@ const technologyCount = customers.filter(
 
       assignedEmployeeName:
         technologyForm.assignedEmployeeName,
+
+      /*
+       * اگر هنگام ثبت یا ویرایش، مشتری به کارمندی راجع شود،
+       * درخواست باید ابتدا در حالت Pending ذخیره شود.
+       * وضعیت Accepted/Approved/Rejected فقط بعداً توسط
+       * کارمند در Application Follow-Up تغییر می‌کند.
+       */
       assignmentStatus:
-        existingCustomer?.assignmentStatus || "None",
+        technologyForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                technologyForm.assignedEmployeeId
+              )
+                ? "Pending"
+                : existingCustomer.assignmentStatus ||
+                  "Pending"
+            )
+          : "None",
+
+      followUpStatus:
+        technologyForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                technologyForm.assignedEmployeeId
+              )
+                ? "Pending"
+                : existingCustomer.followUpStatus ||
+                  existingCustomer.assignmentStatus ||
+                  "Pending"
+            )
+          : "None",
+
+      followUpDecisionStatus:
+        technologyForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                technologyForm.assignedEmployeeId
+              )
+                ? "Pending"
+                : existingCustomer.followUpDecisionStatus ||
+                  existingCustomer.followUpStatus ||
+                  existingCustomer.assignmentStatus ||
+                  "Pending"
+            )
+          : "None",
+
+      followUpCompleted:
+        technologyForm.assignedEmployeeId
+          ? (
+              !existingCustomer ||
+              String(
+                existingCustomer.assignedEmployeeId || ""
+              ) !== String(
+                technologyForm.assignedEmployeeId
+              )
+                ? false
+                : Boolean(
+                    existingCustomer.followUpCompleted
+                  )
+            )
+          : false,
+
+      acceptedAt:
+        technologyForm.assignedEmployeeId &&
+        existingCustomer &&
+        String(
+          existingCustomer.assignedEmployeeId || ""
+        ) === String(
+          technologyForm.assignedEmployeeId
+        )
+          ? existingCustomer.acceptedAt || ""
+          : "",
+
+      rejectedAt:
+        technologyForm.assignedEmployeeId &&
+        existingCustomer &&
+        String(
+          existingCustomer.assignedEmployeeId || ""
+        ) === String(
+          technologyForm.assignedEmployeeId
+        )
+          ? existingCustomer.rejectedAt || ""
+          : "",
 
       note: technologyForm.note.trim(),
       notes: technologyForm.note.trim(),
-      date: technologyForm.date,
+      /*
+       * تاریخ و ساعت ثبت اولیه ثابت می‌ماند.
+       * هنگام Edit فقط updatedAt تغییر می‌کند.
+       */
+      date:
+        existingCustomer?.date ||
+        existingCustomer?.afghanistanDate ||
+        afghanistanTime.date,
+      time:
+        existingCustomer?.time ||
+        existingCustomer?.afghanistanTime ||
+        afghanistanTime.time,
+      afghanistanDate:
+        existingCustomer?.afghanistanDate ||
+        existingCustomer?.date ||
+        afghanistanTime.date,
+      afghanistanTime:
+        existingCustomer?.afghanistanTime ||
+        existingCustomer?.time ||
+        afghanistanTime.time,
+      afghanistanDateTime:
+        existingCustomer?.afghanistanDateTime ||
+        (existingCustomer?.afghanistanDate &&
+        existingCustomer?.afghanistanTime
+          ? `${existingCustomer.afghanistanDate}T${existingCustomer.afghanistanTime}+04:30`
+          : existingCustomer?.date &&
+              existingCustomer?.time
+            ? `${existingCustomer.date}T${existingCustomer.time}+04:30`
+            : afghanistanTime.dateTime),
 
       customerType: "technology",
       specializedCustomer: true,
@@ -1278,8 +2299,13 @@ const technologyCount = customers.filter(
         existingCustomer?.registeredFrom ||
         "reception",
 
+      /*
+       * Source determines who brought this customer.
+       * Walk in Customer has no employee commission.
+       */
       sourceEmployeeId:
-        technologyForm.source
+        technologyForm.source &&
+        technologyForm.source !== "Walk in Customer"
           ? employeeOptions.find(
               (employee) =>
                 getEmployeeName(employee) ===
@@ -1330,43 +2356,303 @@ const technologyCount = customers.filter(
       return;
     }
 
+    if (!mediaForm.phone.trim()) {
+      notify("Phone number is required.", "error");
+      return;
+    }
+
     if (!mediaForm.brandName.trim()) {
       notify("Brand name is required.", "error");
       return;
     }
 
-    const record = {
-      id: createId(),
+    if (!mediaForm.assignedEmployeeId) {
+      notify(
+        "Please select an employee in Assign To.",
+        "error"
+      );
+      return;
+    }
 
+    const latestCustomers =
+      await loadCustomers();
+
+    const existingCustomer = editingCustomerId
+      ? latestCustomers.find(
+          (customer) =>
+            String(customer.id) ===
+            String(editingCustomerId)
+        )
+      : null;
+
+    if (editingCustomerId && !existingCustomer) {
+      notify(
+        "The selected customer could not be found for editing.",
+        "error"
+      );
+      return;
+    }
+
+    const afghanistanTime =
+      getAfghanistanDateTime();
+
+    const sourceEmployee =
+      mediaForm.source &&
+      mediaForm.source !== "Walk in Customer"
+        ? employeeOptions.find(
+            (employee) =>
+              getEmployeeName(employee) ===
+              mediaForm.source
+          )
+        : null;
+
+    const customerId =
+      existingCustomer?.id ||
+      editingCustomerId ||
+      createId();
+
+    const assignmentChanged =
+      Boolean(existingCustomer) &&
+      String(
+        existingCustomer.assignedEmployeeId || ""
+      ) !== String(
+        mediaForm.assignedEmployeeId || ""
+      );
+
+    const customerRecord = {
+      ...(existingCustomer || {}),
+
+      id: customerId,
+      fullName: mediaForm.personName.trim(),
+      customerName: mediaForm.personName.trim(),
+      personName: mediaForm.personName.trim(),
+      phone: mediaForm.phone.trim(),
+      contactNumber: mediaForm.phone.trim(),
+      brandName: mediaForm.brandName.trim(),
+
+      customerType: "media",
+      specializedCustomer: true,
+      registeredFrom:
+        existingCustomer?.registeredFrom ||
+        "reception",
+
+      source: mediaForm.source.trim(),
+      sourceEmployeeId:
+        sourceEmployee?.id ||
+        sourceEmployee?.employeeId ||
+        "",
+      sourceEmployeeName:
+        mediaForm.source ||
+        "External Customer",
+
+      assignedEmployeeId:
+        mediaForm.assignedEmployeeId,
+      assignedEmployeeName:
+        mediaForm.assignedEmployeeName,
+
+      assignedAt:
+        !existingCustomer || assignmentChanged
+          ? afghanistanTime.iso
+          : existingCustomer.assignedAt ||
+            afghanistanTime.iso,
+
+      assignmentStatus:
+        !existingCustomer || assignmentChanged
+          ? "Pending"
+          : existingCustomer.assignmentStatus ||
+            "Pending",
+
+      followUpStatus:
+        !existingCustomer || assignmentChanged
+          ? "Pending"
+          : existingCustomer.followUpStatus ||
+            existingCustomer.assignmentStatus ||
+            "Pending",
+
+      followUpDecisionStatus:
+        !existingCustomer || assignmentChanged
+          ? "Pending"
+          : existingCustomer.followUpDecisionStatus ||
+            existingCustomer.followUpStatus ||
+            existingCustomer.assignmentStatus ||
+            "Pending",
+
+      followUpCompleted:
+        !existingCustomer || assignmentChanged
+          ? false
+          : Boolean(
+              existingCustomer.followUpCompleted
+            ),
+
+      acceptedAt:
+        !existingCustomer || assignmentChanged
+          ? ""
+          : existingCustomer.acceptedAt || "",
+
+      rejectedAt:
+        !existingCustomer || assignmentChanged
+          ? ""
+          : existingCustomer.rejectedAt || "",
+
+      note: mediaForm.note.trim(),
+      notes: mediaForm.note.trim(),
+
+      date:
+        existingCustomer?.date ||
+        existingCustomer?.afghanistanDate ||
+        afghanistanTime.date,
+
+      time:
+        existingCustomer?.time ||
+        existingCustomer?.afghanistanTime ||
+        afghanistanTime.time,
+
+      afghanistanDate:
+        existingCustomer?.afghanistanDate ||
+        existingCustomer?.date ||
+        afghanistanTime.date,
+
+      afghanistanTime:
+        existingCustomer?.afghanistanTime ||
+        existingCustomer?.time ||
+        afghanistanTime.time,
+
+      afghanistanDateTime:
+        existingCustomer?.afghanistanDateTime ||
+        afghanistanTime.dateTime,
+
+      createdByAccountId:
+        existingCustomer?.createdByAccountId ||
+        currentUser?.id ||
+        "",
+
+      createdByName:
+        existingCustomer?.createdByName ||
+        currentUser?.fullName ||
+        "",
+
+      createdAt:
+        existingCustomer?.createdAt ||
+        afghanistanTime.iso,
+
+      updatedAt: afghanistanTime.iso,
+    };
+
+    const nextCustomers = existingCustomer
+      ? latestCustomers.map((customer) =>
+          String(customer.id) ===
+          String(customerId)
+            ? customerRecord
+            : customer
+        )
+      : [...latestCustomers, customerRecord];
+
+    const customerSaved =
+      await setCustomers(nextCustomers);
+
+    if (!customerSaved) return;
+
+    const existingProduct = mediaProducts.find(
+      (product) =>
+        String(product.customerId || "") ===
+        String(customerId)
+    );
+
+    const productRecord = {
+      ...(existingProduct || {}),
+
+      id:
+        existingProduct?.id ||
+        createId(),
+
+      customerId,
       personName: mediaForm.personName.trim(),
       brandName: mediaForm.brandName.trim(),
-      purpose: mediaForm.purpose,
       source: mediaForm.source.trim(),
-      about: mediaForm.about.trim(),
-      date: mediaForm.date,
+
+      assignedEmployeeId:
+        mediaForm.assignedEmployeeId,
+
+      assignedEmployeeName:
+        mediaForm.assignedEmployeeName,
+
+      assignmentStatus:
+        customerRecord.assignmentStatus,
+
       note: mediaForm.note.trim(),
+
+      date:
+        existingProduct?.date ||
+        customerRecord.date,
+
+      time:
+        existingProduct?.time ||
+        customerRecord.time,
+
+      afghanistanDate:
+        existingProduct?.afghanistanDate ||
+        customerRecord.afghanistanDate,
+
+      afghanistanTime:
+        existingProduct?.afghanistanTime ||
+        customerRecord.afghanistanTime,
+
+      afghanistanDateTime:
+        existingProduct?.afghanistanDateTime ||
+        customerRecord.afghanistanDateTime,
 
       registeredFrom: "reception",
 
       createdByAccountId:
-        currentUser?.id || "",
+        existingProduct?.createdByAccountId ||
+        currentUser?.id ||
+        "",
 
       createdByName:
-        currentUser?.fullName || "",
+        existingProduct?.createdByName ||
+        currentUser?.fullName ||
+        "",
 
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt:
+        existingProduct?.createdAt ||
+        afghanistanTime.iso,
+
+      updatedAt: afghanistanTime.iso,
     };
 
-    const saved = await setMediaProducts([
-      ...mediaProducts,
-      record,
-    ]);
+    const nextMediaProducts = existingProduct
+      ? mediaProducts.map((product) =>
+          String(product.id) ===
+          String(existingProduct.id)
+            ? productRecord
+            : product
+        )
+      : [...mediaProducts, productRecord];
 
-    if (!saved) return;
+    const productSaved =
+      await setMediaProducts(nextMediaProducts);
+
+    if (!productSaved) return;
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "isp-customer-assignment-updated",
+        {
+          detail: {
+            action: existingCustomer
+              ? "updated"
+              : "created",
+            customerId,
+            updatedAt: afghanistanTime.iso,
+          },
+        }
+      )
+    );
 
     notify(
-      "Media product added successfully.",
+      existingCustomer
+        ? "Media customer updated successfully."
+        : `Media customer assigned to ${mediaForm.assignedEmployeeName} with Pending status.`,
       "success"
     );
 
@@ -1401,7 +2687,7 @@ const technologyCount = customers.filter(
   >
     <Users />
     <span>Total Customers</span>
-    <strong>{customers.length}</strong>
+    <strong>{receptionRegisteredCustomers.length}</strong>
     <small>Registered through reception</small>
   </button>
 
@@ -1440,12 +2726,18 @@ const technologyCount = customers.filter(
 
   <button
     type="button"
-    className="reception-media-stat"
-    onClick={() => setCustomerTypeFilter("all")}
+    className={`reception-media-stat ${
+      customerTypeFilter === "media"
+        ? "active"
+        : ""
+    }`}
+    onClick={() =>
+      setCustomerTypeFilter("media")
+    }
   >
     <Clapperboard />
     <span>Media Products</span>
-    <strong>{mediaProducts.length}</strong>
+    <strong>{mediaCount}</strong>
     <small>Videos and posts</small>
   </button>
 </section>
@@ -1575,33 +2867,59 @@ const technologyCount = customers.filter(
                   </td>
 
                   <td>
-                    <CalendarDays size={14} />
+                    <div className="reception-record-datetime">
+                      <CalendarDays size={14} />
 
-                    {customer.date
-                      ? new Date(
-                          `${customer.date}T00:00:00`
-                        ).toLocaleDateString()
-                      : customer.createdAt
-                        ? new Date(
-                            customer.createdAt
-                          ).toLocaleDateString()
-                        : "-"}
+                      <span>
+                        <strong>
+                          {customer.afghanistanDate ||
+                          customer.date
+                            ? new Date(
+                                `${
+                                  customer.afghanistanDate ||
+                                  customer.date
+                                }T00:00:00`
+                              ).toLocaleDateString()
+                            : customer.createdAt
+                              ? new Date(
+                                  customer.createdAt
+                                ).toLocaleDateString()
+                              : "-"}
+                        </strong>
+
+                        <small>
+                          {customer.afghanistanTime ||
+                            customer.time ||
+                            (customer.createdAt
+                              ? new Date(
+                                  customer.createdAt
+                                ).toLocaleTimeString(
+                                  "en-US",
+                                  {
+                                    timeZone:
+                                      "Asia/Kabul",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    second: "2-digit",
+                                    hour12: true,
+                                  }
+                                )
+                              : "-")}
+                        </small>
+                      </span>
+                    </div>
                   </td>
 
                   <td>
                     <span
-                      className={`reception-status-badge ${String(
-                        customer.assignmentStatus ||
-                          customer.followUpStatus ||
-                          "None"
+                      className={`reception-status-badge ${getCustomerDisplayStatus(
+                        customer
                       )
                         .trim()
                         .toLowerCase()
                         .replace(/\s+/g, "-")}`}
                     >
-                      {customer.assignmentStatus ||
-                        customer.followUpStatus ||
-                        "None"}
+                      {getCustomerDisplayStatus(customer)}
                     </span>
                   </td>
 
@@ -1722,34 +3040,6 @@ const technologyCount = customers.filter(
                     readOnly
                   />
                 </label>
-
-
-{assignTarget.passportNumber && (
-  <label>
-    <span>Passport Number</span>
-
-    <input
-      value={
-        assignTarget.passportNumber
-      }
-      readOnly
-    />
-  </label>
-)}
-
-{assignTarget.maritalStatus && (
-  <label>
-    <span>Marital Status</span>
-
-    <input
-      value={
-        assignTarget.maritalStatus
-      }
-      readOnly
-    />
-  </label>
-)}
-
 {assignTarget.applicationType && (
   <label>
     <span>Application Type</span>
@@ -1882,64 +3172,7 @@ const technologyCount = customers.filter(
                     readOnly
                   />
                 </label>
-
-                {assignTarget.customerType === "consultant" && (
-                  <>
-                    <label>
-                      <span>Graduated Major</span>
-
-                      <input
-                        type="text"
-                        name="graduatedMajor"
-                        list="consultant-major-options"
-                        value={assignConsultantDetails.graduatedMajor}
-                        onChange={updateAssignConsultantDetail}
-                        placeholder="Select or enter graduated major"
-                      />
-                    </label>
-
-                    <label>
-                      <span>University Name</span>
-
-                      <input
-                        type="text"
-                        name="universityName"
-                        list="consultant-university-options"
-                        value={assignConsultantDetails.universityName}
-                        onChange={updateAssignConsultantDetail}
-                        placeholder="Select or enter university name"
-                      />
-                    </label>
-
-                    <datalist id="consultant-major-options">
-                      {majorOptions.map((major) => (
-                        <option key={major} value={major} />
-                      ))}
-                    </datalist>
-
-                    <datalist id="consultant-university-options">
-                      {educationInstitutions.map((institution) => {
-  const institutionName =
-    institution.name ||
-    institution.institutionName ||
-    "";
-
-  if (!institutionName) return null;
-
-  return (
-    <option
-      key={institution.id || institutionName}
-      value={institutionName}
-    >
-      {institutionName}
-    </option>
-  );
-})}
-                    </datalist>
-                  </>
-                )}
-
-                <label className="reception-assign-full reception-assign-select">
+<label className="reception-assign-full reception-assign-select">
                   <span>Assign To</span>
 
                   <select
@@ -2282,40 +3515,6 @@ const technologyCount = customers.filter(
                       </label>
 
                       <label>
-                        <span>Date</span>
-                        <input
-                          type="date"
-                          name="date"
-                          value={consultantForm.date}
-                          onChange={updateConsultantField}
-                        />
-                      </label>
-
-                      <label>
-                        <span>Passport Number</span>
-                        <input
-                          name="passportNumber"
-                          value={consultantForm.passportNumber}
-                          onChange={updateConsultantField}
-                          placeholder="Enter passport number"
-                        />
-                      </label>
-
-                      <label>
-                        <span>Marital Status</span>
-                        <select
-                          name="maritalStatus"
-                          value={consultantForm.maritalStatus}
-                          onChange={updateConsultantField}
-                        >
-                          <option value="Single">Single</option>
-                          <option value="Married">Married</option>
-                          <option value="Divorced">Divorced</option>
-                          <option value="Widowed">Widowed</option>
-                        </select>
-                      </label>
-
-                      <label>
                         <span>Application Type</span>
                         <select
                           name="applicationType"
@@ -2326,6 +3525,15 @@ const technologyCount = customers.filter(
                           <option value="Scholarship">Scholarship</option>
                           <option value="Both">Both</option>
                         </select>
+                      </label>
+
+                      <label>
+                        <span>Country</span>
+                        <CountrySelect
+                          name="country"
+                          value={consultantForm.country}
+                          onChange={updateConsultantField}
+                        />
                       </label>
 
                       <label>
@@ -2420,142 +3628,6 @@ const technologyCount = customers.filter(
                         />
                       </label>
 
-                      <div className="reception-institution-field">
-                        <span>Graduated Major</span>
-
-                        <div className="reception-institution-control">
-                          <select
-                            name="graduatedMajor"
-                            value={consultantForm.graduatedMajor}
-                            onChange={updateConsultantField}
-                          >
-                            <option value="">
-                              Select graduated major
-                            </option>
-
-                            {majorOptions.map((major) => (
-                              <option key={major} value={major}>
-                                {major}
-                              </option>
-                            ))}
-                          </select>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setShowMajorForm((open) => !open)
-                            }
-                            title="Add another major"
-                            aria-label="Add another major"
-                          >
-                            <Plus size={17} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {showMajorForm && (
-                        <div className="reception-add-institution reception-form-full">
-                          <div>
-                            <GraduationCap size={17} />
-
-                            <input
-                              value={newMajorName}
-                              onChange={(event) =>
-                                setNewMajorName(event.target.value)
-                              }
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  addConsultantMajor();
-                                }
-                              }}
-                              placeholder="Enter new major name"
-                              autoFocus
-                            />
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={addConsultantMajor}
-                          >
-                            Add Major
-                          </button>
-                        </div>
-                      )}
-
-                      <label>
-                        <span>University Name</span>
-                        <input
-                          type="text"
-                          name="universityName"
-                          list="consultant-registration-university-options"
-                          value={consultantForm.universityName}
-                          onChange={updateConsultantField}
-                          placeholder="Select or enter university name"
-                        />
-                      </label>
-
-                      <label>
-                        <span>Graduation Percentage</span>
-                        <input
-                          type="number"
-                          name="graduationPercentage"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          value={consultantForm.graduationPercentage}
-                          onChange={updateConsultantField}
-                          placeholder="Enter percentage"
-                        />
-                      </label>
-
-                      <label>
-                        <span>Graduation Year</span>
-                        <input
-                          type="number"
-                          name="graduationYear"
-                          min="1950"
-                          max="2100"
-                          value={consultantForm.graduationYear}
-                          onChange={updateConsultantField}
-                          placeholder="Enter graduation year"
-                        />
-                      </label>
-
-                      <label className="reception-form-full">
-                        <span>Desired Major</span>
-                        <input
-                          type="text"
-                          name="desiredMajor"
-                          list="consultant-registration-major-options"
-                          value={consultantForm.desiredMajor}
-                          onChange={updateConsultantField}
-                          placeholder="Select or enter desired major"
-                        />
-                      </label>
-
-                      <datalist id="consultant-registration-major-options">
-                        {majorOptions.map((major) => (
-                          <option key={major} value={major} />
-                        ))}
-                      </datalist>
-
-                      <datalist id="consultant-registration-university-options">
-                        {educationInstitutions.map((institution) => {
-                          const institutionName =
-                            institution.name ||
-                            institution.institutionName ||
-                            "";
-
-                          return institutionName ? (
-                            <option
-                              key={institution.id || institutionName}
-                              value={institutionName}
-                            />
-                          ) : null;
-                        })}
-                      </datalist>
-
                       <label>
                         <span>Source</span>
                         <select
@@ -2564,6 +3636,9 @@ const technologyCount = customers.filter(
                           onChange={updateConsultantField}
                         >
                           <option value="">Select source employee</option>
+                          <option value="Walk in Customer">
+                            Walk in Customer
+                          </option>
                           {employeeOptions.map((employee) => {
                             const employeeName = getEmployeeName(employee);
 
@@ -2622,10 +3697,7 @@ const technologyCount = customers.filter(
                 {registrationType === "travel" && (
                   <div className="reception-form-grid">
                     <label>
-                      <span>
-                        Full Name In Passport
-                      </span>
-
+                      <span>Full Name In Passport</span>
                       <input
                         name="fullName"
                         value={travelForm.fullName}
@@ -2637,7 +3709,6 @@ const technologyCount = customers.filter(
 
                     <label>
                       <span>Phone Number</span>
-
                       <input
                         name="phone"
                         value={travelForm.phone}
@@ -2646,71 +3717,51 @@ const technologyCount = customers.filter(
                       />
                     </label>
 
-<label>
-  <span>Passport Number</span>
+                    <label>
+                      <span>Application Type</span>
+                      <select
+                        name="applicationType"
+                        value={travelForm.applicationType}
+                        onChange={updateTravelField}
+                      >
+                        <option value="Student Visa">Student Visa</option>
+                        <option value="Tourist Visa">Tourist Visa</option>
+                        <option value="Work Visa">Work Visa</option>
+                        <option value="Visit Visa">Visit Visa</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </label>
 
-  <input
-    name="passportNumber"
-    value={
-      travelForm.passportNumber
-    }
-    onChange={
-      updateTravelField
-    }
-    placeholder="Enter passport number"
-  />
-</label>
-
-<label>
-  <span>Marital Status</span>
-
-  <select
-    name="maritalStatus"
-    value={
-      travelForm.maritalStatus
-    }
-    onChange={
-      updateTravelField
-    }
-  >
-    <option value="Single">
-      Single
-    </option>
-
-    <option value="Married">
-      Married
-    </option>
-
-    <option value="Divorced">
-      Divorced
-    </option>
-
-    <option value="Widowed">
-      Widowed
-    </option>
-  </select>
-</label>
-
+                    <label>
+                      <span>Country</span>
+                      <CountrySelect
+                        name="country"
+                        value={travelForm.country}
+                        onChange={updateTravelField}
+                      />
+                    </label>
 
                     <label>
                       <span>Source</span>
-
                       <select
                         name="source"
                         value={travelForm.source}
                         onChange={updateTravelField}
                       >
                         <option value="">Select source employee</option>
-
+                          <option value="Walk in Customer">
+                            Walk in Customer
+                          </option>
                         {employeeOptions.map((employee) => {
                           const employeeName = getEmployeeName(employee);
 
                           return (
                             <option
-                              key={`travel-source-${employee.id ||
+                              key={`travel-source-${
+                                employee.id ||
                                 employee.employeeId ||
                                 employee.email
-                                }`}
+                              }`}
                               value={employeeName}
                             >
                               {employeeName}
@@ -2722,54 +3773,29 @@ const technologyCount = customers.filter(
 
                     <label>
                       <span>Assign To</span>
-
                       <select
                         name="assignedEmployeeId"
-                        value={
-                          travelForm.assignedEmployeeId
-                        }
+                        value={travelForm.assignedEmployeeId}
                         onChange={updateTravelField}
                       >
-                        <option value="">
-                          Select employee
-                        </option>
-
-                        {employeeOptions.map(
-                          (employee) => (
-                            <option
-                              key={
-                                employee.id ||
-                                employee.employeeId ||
-                                employee.email
-                              }
-                              value={
-                                employee.id ||
-                                employee.employeeId
-                              }
-                            >
-                              {getEmployeeName(
-                                employee
-                              )}
-                            </option>
-                          )
-                        )}
+                        <option value="">Select employee</option>
+                        {employeeOptions.map((employee) => (
+                          <option
+                            key={
+                              employee.id ||
+                              employee.employeeId ||
+                              employee.email
+                            }
+                            value={employee.id || employee.employeeId}
+                          >
+                            {getEmployeeName(employee)}
+                          </option>
+                        ))}
                       </select>
-                    </label>
-
-                    <label>
-                      <span>Date</span>
-
-                      <input
-                        type="date"
-                        name="date"
-                        value={travelForm.date}
-                        onChange={updateTravelField}
-                      />
                     </label>
 
                     <label className="reception-form-full">
                       <span>Purpose</span>
-
                       <textarea
                         name="purpose"
                         value={travelForm.purpose}
@@ -2864,6 +3890,9 @@ const technologyCount = customers.filter(
                           onChange={updateTechnologyField}
                         >
                           <option value="">Select source employee</option>
+                          <option value="Walk in Customer">
+                            Walk in Customer
+                          </option>
 
                           {employeeOptions.map((employee) => {
                             const employeeName = getEmployeeName(employee);
@@ -2920,19 +3949,6 @@ const technologyCount = customers.filter(
                         </select>
                       </label>
 
-                      <label>
-                        <span>Date</span>
-
-                        <input
-                          type="date"
-                          name="date"
-                          value={technologyForm.date}
-                          onChange={
-                            updateTechnologyField
-                          }
-                        />
-                      </label>
-
                       <label className="reception-form-full">
                         <span>Note</span>
 
@@ -2964,6 +3980,18 @@ const technologyCount = customers.filter(
                     </label>
 
                     <label>
+                      <span>Phone Number</span>
+
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={mediaForm.phone}
+                        onChange={updateMediaField}
+                        placeholder="Enter phone number"
+                      />
+                    </label>
+
+                    <label>
                       <span>Brand Name</span>
 
                       <input
@@ -2975,24 +4003,6 @@ const technologyCount = customers.filter(
                     </label>
 
                     <label>
-                      <span>Purpose</span>
-
-                      <select
-                        name="purpose"
-                        value={mediaForm.purpose}
-                        onChange={updateMediaField}
-                      >
-                        <option value="Video">
-                          Video
-                        </option>
-
-                        <option value="Post">
-                          Post
-                        </option>
-                      </select>
-                    </label>
-
-                    <label>
                       <span>Source</span>
 
                       <select
@@ -3001,6 +4011,9 @@ const technologyCount = customers.filter(
                         onChange={updateMediaField}
                       >
                         <option value="">Select source employee</option>
+                          <option value="Walk in Customer">
+                            Walk in Customer
+                          </option>
 
                         {employeeOptions.map((employee) => {
                           const employeeName = getEmployeeName(employee);
@@ -3021,26 +4034,35 @@ const technologyCount = customers.filter(
                     </label>
 
                     <label>
-                      <span>Date</span>
+                      <span>Assign To</span>
 
-                      <input
-                        type="date"
-                        name="date"
-                        value={mediaForm.date}
+                      <select
+                        name="assignedEmployeeId"
+                        value={mediaForm.assignedEmployeeId}
                         onChange={updateMediaField}
-                      />
-                    </label>
+                      >
+                        <option value="">
+                          Select employee
+                        </option>
 
-                    <label className="reception-form-full">
-                      <span>About</span>
+                        {employeeOptions.map((employee) => {
+                          const employeeId =
+                            employee.id ||
+                            employee.employeeId ||
+                            "";
+                          const employeeName =
+                            getEmployeeName(employee);
 
-                      <textarea
-                        name="about"
-                        value={mediaForm.about}
-                        onChange={updateMediaField}
-                        placeholder="Write information about the media product"
-                        rows="4"
-                      />
+                          return (
+                            <option
+                              key={`media-assign-${employeeId}`}
+                              value={employeeId}
+                            >
+                              {employeeName}
+                            </option>
+                          );
+                        })}
+                      </select>
                     </label>
 
                     <label className="reception-form-full">

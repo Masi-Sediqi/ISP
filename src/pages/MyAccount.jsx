@@ -1,15 +1,18 @@
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  BarChart3,
-  CalendarCheck,
   CheckCircle2,
   Clock3,
   MessageSquare,
   Sparkles,
   UserRound,
+  UserRoundPlus,
   Users,
-  WalletCards,
   X,
   XCircle,
 } from "lucide-react";
@@ -90,27 +93,123 @@ function formatValue(value) {
   return String(value);
 }
 
-const detailFields = [
-  ["Customer Name", (record) => getCustomerName(record)],
-  ["Phone Number", (record) => getCustomerPhone(record)],
-  ["Email", (record) => record.email],
-  ["Customer Type", (record) => record.customerType],
-  ["Company Name", (record) => record.companyName],
-  ["Educational Level", (record) => record.educationalLevel],
-  ["School / University", (record) => record.schoolUniversity],
-  ["Brand Name", (record) => record.brandName],
-  ["Purpose", (record) => getCustomerPurpose(record)],
-  ["About", (record) => record.about],
-  ["Source", (record) => getCustomerSource(record)],
-  ["Assigned To", (record) => record.assignedEmployeeName],
-  ["Assigned By", (record) => record.assignedByName],
-  ["Assigned Date", (record) => formatDateTime(record.assignedAt)],
-  ["Registration Date", (record) =>
-    formatDateTime(record.createdAt || record.date)],
-  ["Status", (record) => record.assignmentStatus || "Pending"],
-  ["Note", (record) => record.note || record.notes],
-  ["Last Message", (record) => record.lastAssignmentMessage],
-];
+function getEmployeeName(employee) {
+  return (
+    employee?.fullName ||
+    employee?.employeeName ||
+    employee?.name ||
+    employee?.email ||
+    "Unnamed Employee"
+  );
+}
+
+function getEmployeeId(employee) {
+  return String(
+    employee?.id ||
+      employee?.employeeId ||
+      employee?._id ||
+      ""
+  );
+}
+
+function getDepartmentDetailFields(record) {
+  const common = [
+    ["Customer Name", getCustomerName(record)],
+    ["Phone Number", getCustomerPhone(record)],
+    ["Email", record.email],
+    ["Customer Type", record.customerType],
+    ["Source", getCustomerSource(record)],
+    ["Assigned To", record.assignedEmployeeName],
+    ["Assigned By", record.assignedByName || record.createdByName],
+    ["Assigned Date", formatDateTime(record.assignedAt)],
+    [
+      "Registration Date",
+      formatDateTime(
+        record.createdAt ||
+          record.afghanistanDateTime ||
+          record.date
+      ),
+    ],
+    ["Status", record.assignmentStatus || "Pending"],
+    ["Purpose", getCustomerPurpose(record)],
+    ["City / Province", record.city || record.province],
+    ["Language", record.language],
+    ["Call Type", record.callType],
+    ["Note", record.note || record.notes],
+    ["Last Message", record.lastAssignmentMessage],
+  ];
+
+  const type = normalize(record.customerType);
+
+  if (type === "consultant") {
+    return [
+      ...common,
+      ["Country", record.country],
+      ["Educational Level", record.educationalLevel],
+      ["School / University", record.schoolUniversity],
+      ["Scholarship Type", record.scholarshipType],
+      ["Passport Number", record.passportNumber],
+      ["Marital Status", record.maritalStatus],
+      ["Graduated Major", record.graduatedMajor],
+      ["Graduation Percentage", record.graduationPercentage],
+      ["Graduation Year", record.graduationYear],
+      ["Desired Major", record.desiredMajor],
+      ["Intake", record.intake],
+      ["Bank Statement Owner", record.bankStatementOwner],
+      ["Bank Statement Amount", record.bankStatementAmount],
+      ["Currency Unit", record.currencyUnit || record.unit],
+      ["Total Amount", record.totalAmount],
+      ["Paid Amount", record.paidAmount],
+      ["Remaining Amount", record.remainingAmount],
+      ["Guarantee Type", record.guaranteeType],
+    ];
+  }
+
+  if (type === "travel") {
+    return [
+      ...common,
+      ["Destination Country", record.country],
+      ["Visa Type", record.visaType || record.scholarshipType],
+      ["Passport Number", record.passportNumber],
+      ["Marital Status", record.maritalStatus],
+      ["Bank Statement Owner", record.bankStatementOwner],
+      ["Bank Statement Amount", record.bankStatementAmount],
+      ["Currency Unit", record.currencyUnit || record.unit],
+      ["Total Amount", record.totalAmount],
+      ["Paid Amount", record.paidAmount],
+      ["Remaining Amount", record.remainingAmount],
+    ];
+  }
+
+  if (type === "technology") {
+    return [
+      ...common,
+      ["Business Type", record.businessType],
+      ["Technology Purpose", record.technologyPurpose],
+      ["Project", record.projectName],
+      ["Project Amount", record.totalAmount],
+      ["Currency Unit", record.currencyUnit || record.unit],
+      ["Paid Amount", record.paidAmount],
+      ["Remaining Amount", record.remainingAmount],
+    ];
+  }
+
+  if (type === "media") {
+    return [
+      ...common,
+      ["Brand Name", record.brandName],
+      ["Media Purpose", record.mediaPurpose],
+      ["Custom Purpose", record.customMediaPurpose],
+      ["Business Type", record.businessType],
+      ["Currency Unit", record.currencyUnit || record.unit],
+      ["Total Amount", record.totalAmount],
+      ["Paid Amount", record.paidAmount],
+      ["Remaining Amount", record.remainingAmount],
+    ];
+  }
+
+  return common;
+}
 
 export default function MyAccount({
   currentUser,
@@ -122,7 +221,11 @@ export default function MyAccount({
     customers,
     setCustomers,
     loadCustomers,
+    customersLoaded,
   ] = useJsonCollection("customers");
+
+  const [employees] =
+    useJsonCollection("employees");
 
   const [selectedCustomer, setSelectedCustomer] =
     useState(null);
@@ -135,6 +238,18 @@ export default function MyAccount({
 
   const [savingAction, setSavingAction] =
     useState(false);
+
+  const [reassignOpen, setReassignOpen] =
+    useState(false);
+
+  const [reassignEmployeeId, setReassignEmployeeId] =
+    useState("");
+
+  const [reassignNote, setReassignNote] =
+    useState("");
+
+  const customerRefreshRunningRef =
+    useRef(false);
 
   const fullName =
     employee?.fullName ||
@@ -151,6 +266,90 @@ export default function MyAccount({
     employee?.image ||
     currentUser?.image ||
     "";
+
+  /*
+   * New Reception assignments must appear automatically.
+   * The custom event handles updates made in the same tab,
+   * while polling handles another account, tab or browser.
+   */
+  useEffect(() => {
+    if (!customersLoaded) {
+      return undefined;
+    }
+
+    const refreshCustomers = async () => {
+      if (customerRefreshRunningRef.current) {
+        return;
+      }
+
+      customerRefreshRunningRef.current = true;
+
+      try {
+        await loadCustomers();
+      } finally {
+        customerRefreshRunningRef.current = false;
+      }
+    };
+
+    const intervalId = window.setInterval(
+      refreshCustomers,
+      1000
+    );
+
+    const refreshImmediately = () => {
+      refreshCustomers();
+    };
+
+    const refreshWhenVisible = () => {
+      if (!document.hidden) {
+        refreshCustomers();
+      }
+    };
+
+    window.addEventListener(
+      "isp-customer-assignment-updated",
+      refreshImmediately
+    );
+
+    window.addEventListener(
+      "focus",
+      refreshImmediately
+    );
+
+    window.addEventListener(
+      "storage",
+      refreshImmediately
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      refreshWhenVisible
+    );
+
+    return () => {
+      window.clearInterval(intervalId);
+
+      window.removeEventListener(
+        "isp-customer-assignment-updated",
+        refreshImmediately
+      );
+
+      window.removeEventListener(
+        "focus",
+        refreshImmediately
+      );
+
+      window.removeEventListener(
+        "storage",
+        refreshImmediately
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        refreshWhenVisible
+      );
+    };
+  }, [customersLoaded, loadCustomers]);
 
   const accountIds = useMemo(
     () =>
@@ -192,6 +391,77 @@ export default function MyAccount({
     ]
   );
 
+  function getTransferMadeByCurrentEmployee(customer) {
+    const transfers = Array.isArray(
+      customer?.assignmentTransfers
+    )
+      ? customer.assignmentTransfers
+      : [];
+
+    return [...transfers]
+      .reverse()
+      .find((transfer) => {
+        const fromId = String(
+          transfer?.fromEmployeeId || ""
+        );
+
+        const fromName = normalize(
+          transfer?.fromEmployeeName
+        );
+
+        return (
+          (fromId &&
+            accountIds.includes(fromId)) ||
+          (fromName &&
+            accountNames.includes(fromName))
+        );
+      });
+  }
+
+  function isCurrentAssignment(customer) {
+    const assignedIds = [
+      customer?.assignedEmployeeId,
+      customer?.assignedAccountId,
+    ]
+      .filter(Boolean)
+      .map(String);
+
+    const assignedName = normalize(
+      customer?.assignedEmployeeName
+    );
+
+    return (
+      assignedIds.some((id) =>
+        accountIds.includes(id)
+      ) ||
+      (assignedName &&
+        accountNames.includes(assignedName))
+    );
+  }
+
+  function getWorkspaceStatus(customer) {
+    if (isCurrentAssignment(customer)) {
+      return (
+        customer?.assignmentStatus ||
+        "Pending"
+      );
+    }
+
+    const transfer =
+      getTransferMadeByCurrentEmployee(
+        customer
+      );
+
+    if (transfer?.toEmployeeName) {
+      return `Referred to ${transfer.toEmployeeName}`;
+    }
+
+    return (
+      customer?.assignmentStatus ||
+      "Pending"
+    );
+  }
+
   const myCustomers = useMemo(() => {
     const source =
       customers.length > 0
@@ -200,25 +470,18 @@ export default function MyAccount({
 
     return source
       .filter((customer) => {
-        const assignedIds = [
-          customer.assignedEmployeeId,
-          customer.assignedAccountId,
-        ]
-          .filter(Boolean)
-          .map(String);
-
-        const assignedName = normalize(
-          customer.assignedEmployeeName
-        );
-
+        /*
+         * The request remains visible to:
+         * 1. the employee who currently owns it;
+         * 2. an employee who previously referred it.
+         */
         return (
-          assignedIds.some((id) =>
-            accountIds.includes(id)
-          ) ||
-          (assignedName &&
-            accountNames.includes(
-              assignedName
-            ))
+          isCurrentAssignment(customer) ||
+          Boolean(
+            getTransferMadeByCurrentEmployee(
+              customer
+            )
+          )
         );
       })
       .sort(
@@ -237,8 +500,33 @@ export default function MyAccount({
     accountNames,
   ]);
 
+  /*
+   * If the currently opened request changes, refresh the
+   * modal content too instead of showing stale information.
+   */
+  useEffect(() => {
+    if (!selectedCustomer) return;
+
+    const latestRecord = customers.find(
+      (customer) =>
+        String(customer.id) ===
+        String(selectedCustomer.id)
+    );
+
+    if (
+      latestRecord &&
+      latestRecord !== selectedCustomer
+    ) {
+      setSelectedCustomer(latestRecord);
+    }
+  }, [customers, selectedCustomer?.id]);
+
   const pendingCount = myCustomers.filter(
     (customer) => {
+      if (!isCurrentAssignment(customer)) {
+        return false;
+      }
+
       const status = normalize(
         customer.assignmentStatus ||
           "pending"
@@ -257,6 +545,9 @@ export default function MyAccount({
     setSelectedCustomer(null);
     setMessageOpen(false);
     setMessageText("");
+    setReassignOpen(false);
+    setReassignEmployeeId("");
+    setReassignNote("");
   }
 
   async function updateCustomerStatus(
@@ -318,6 +609,20 @@ export default function MyAccount({
 
       setSelectedCustomer(updatedRecord);
 
+      window.dispatchEvent(
+        new CustomEvent(
+          "isp-customer-assignment-updated",
+          {
+            detail: {
+              customerId:
+                selectedCustomer.id,
+              status: nextStatus,
+              respondedAt: now,
+            },
+          }
+        )
+      );
+
       notify(
         nextStatus === "Accepted"
           ? "Customer request accepted."
@@ -326,6 +631,237 @@ export default function MyAccount({
           ? "success"
           : "error"
       );
+    } finally {
+      setSavingAction(false);
+    }
+  }
+
+  function openReassign() {
+    setReassignEmployeeId(
+      selectedCustomer?.assignedEmployeeId || ""
+    );
+
+    setReassignNote(
+      selectedCustomer?.lastReassignmentNote || ""
+    );
+
+    setMessageOpen(false);
+    setReassignOpen(true);
+  }
+
+  function closeReassign() {
+    if (savingAction) return;
+
+    setReassignOpen(false);
+    setReassignEmployeeId("");
+    setReassignNote("");
+  }
+
+  async function saveReassignment(event) {
+    event.preventDefault();
+
+    if (!selectedCustomer || savingAction) {
+      return;
+    }
+
+    if (!reassignEmployeeId) {
+      notify(
+        "Please select an employee.",
+        "error"
+      );
+      return;
+    }
+
+    if (
+      String(reassignEmployeeId) ===
+      String(
+        selectedCustomer.assignedEmployeeId || ""
+      )
+    ) {
+      notify(
+        "Please select a different employee.",
+        "error"
+      );
+      return;
+    }
+
+    const selectedEmployee = employees.find(
+      (item) =>
+        getEmployeeId(item) ===
+        String(reassignEmployeeId)
+    );
+
+    if (!selectedEmployee) {
+      notify(
+        "Selected employee was not found.",
+        "error"
+      );
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const newEmployeeName =
+      getEmployeeName(selectedEmployee);
+    const cleanNote = reassignNote.trim();
+
+    setSavingAction(true);
+
+    try {
+      const latestCustomers =
+        await loadCustomers();
+
+      const nextCustomers = latestCustomers.map(
+        (customer) => {
+          if (
+            String(customer.id) !==
+            String(selectedCustomer.id)
+          ) {
+            return customer;
+          }
+
+          const previousTransfers =
+            Array.isArray(
+              customer.assignmentTransfers
+            )
+              ? customer.assignmentTransfers
+              : [];
+
+          return {
+            ...customer,
+
+            assignedEmployeeId:
+              selectedEmployee.id ||
+              selectedEmployee.employeeId ||
+              "",
+
+            assignedAccountId:
+              selectedEmployee.accountId ||
+              selectedEmployee.userId ||
+              "",
+
+            assignedEmployeeName:
+              newEmployeeName,
+
+            assignedAt: now,
+
+            assignmentStatus: "Pending",
+            followUpStatus: "Pending",
+            followUpDecisionStatus:
+              "Pending",
+            followUpCompleted: false,
+
+            acceptedAt: "",
+            rejectedAt: "",
+
+            lastReassignmentNote:
+              cleanNote,
+
+            lastTransferredById:
+              currentUser?.employeeId ||
+              currentUser?.id ||
+              "",
+
+            lastTransferredByName:
+              fullName,
+
+            lastTransferredToId:
+              selectedEmployee.id ||
+              selectedEmployee.employeeId ||
+              "",
+
+            lastTransferredToName:
+              newEmployeeName,
+
+            lastTransferredAt:
+              now,
+
+            assignmentTransfers: [
+              ...previousTransfers,
+              {
+                id:
+                  typeof crypto !==
+                    "undefined" &&
+                  crypto.randomUUID
+                    ? crypto.randomUUID()
+                    : `${Date.now()}`,
+
+                fromEmployeeId:
+                  selectedCustomer
+                    .assignedEmployeeId ||
+                  "",
+
+                fromEmployeeName:
+                  selectedCustomer
+                    .assignedEmployeeName ||
+                  "",
+
+                toEmployeeId:
+                  selectedEmployee.id ||
+                  selectedEmployee.employeeId ||
+                  "",
+
+                toEmployeeName:
+                  newEmployeeName,
+
+                note: cleanNote,
+
+                transferredAt: now,
+
+                transferredById:
+                  currentUser?.employeeId ||
+                  currentUser?.id ||
+                  "",
+
+                transferredByName:
+                  fullName,
+              },
+            ],
+
+            updatedAt: now,
+          };
+        }
+      );
+
+      const saved =
+        await setCustomers(nextCustomers);
+
+      if (!saved) {
+        notify(
+          "Unable to assign the request to another employee.",
+          "error"
+        );
+        return;
+      }
+
+      window.dispatchEvent(
+        new CustomEvent(
+          "isp-customer-assignment-updated",
+          {
+            detail: {
+              customerId:
+                selectedCustomer.id,
+              status: "Pending",
+              assignedEmployeeName:
+                newEmployeeName,
+              transferredByName:
+                fullName,
+              transferStatus:
+                `${fullName} assigned to ${newEmployeeName}`,
+              assignedAt: now,
+            },
+          }
+        )
+      );
+
+      notify(
+        `Customer request assigned to ${newEmployeeName}.`,
+        "success"
+      );
+
+      setSelectedCustomer(null);
+      setReassignOpen(false);
+      setReassignEmployeeId("");
+      setReassignNote("");
     } finally {
       setSavingAction(false);
     }
@@ -489,32 +1025,6 @@ export default function MyAccount({
         </div>
       </header>
 
-      <section className="my-account-coming-actions">
-        <button type="button" disabled>
-          <BarChart3 size={17} />
-          <span>
-            <strong>Performance</strong>
-            <small>Coming soon</small>
-          </span>
-        </button>
-
-        <button type="button" disabled>
-          <WalletCards size={17} />
-          <span>
-            <strong>Balance</strong>
-            <small>Coming soon</small>
-          </span>
-        </button>
-
-        <button type="button" disabled>
-          <CalendarCheck size={17} />
-          <span>
-            <strong>Attendance</strong>
-            <small>Coming soon</small>
-          </span>
-        </button>
-      </section>
-
       <section className="my-account-records">
         <header>
           <div>
@@ -564,15 +1074,19 @@ export default function MyAccount({
               {myCustomers.map(
                 (customer) => {
                   const requestStatus =
-                    customer.assignmentStatus ||
-                    "Pending";
+                    getWorkspaceStatus(customer);
+
+                  const transferredAway =
+                    !isCurrentAssignment(customer);
 
                   return (
                     <tr
                       key={customer.id}
                       tabIndex={0}
                       role="button"
-                      className="my-account-record-row"
+                      className={`my-account-record-row department-${normalize(
+                        customer.customerType || "other"
+                      )}`}
                       onClick={() =>
                         setSelectedCustomer(
                           customer
@@ -622,7 +1136,11 @@ export default function MyAccount({
                       </td>
 
                       <td>
-                        <span className="my-account-type">
+                        <span
+                            className={`my-account-type ${normalize(
+                              customer.customerType || "other"
+                            )}`}
+                          >
                           {customer.customerType ||
                             "-"}
                         </span>
@@ -650,17 +1168,22 @@ export default function MyAccount({
 
                       <td>
                         <span
-                          className={`my-account-status ${normalize(
-                            requestStatus
-                          )}`}
+                          className={`my-account-status ${
+                            transferredAway
+                              ? "referred"
+                              : normalize(
+                                  requestStatus
+                                )
+                          }`}
                         >
                           {requestStatus}
                         </span>
                       </td>
 
                       <td>
-                        {normalize(requestStatus) ===
-                        "accepted" ? (
+                        {!transferredAway &&
+                        normalize(requestStatus) ===
+                          "accepted" ? (
                           <button
                             type="button"
                             className={`my-account-followup-button ${
@@ -726,7 +1249,9 @@ export default function MyAccount({
           onMouseDown={closeDetails}
         >
           <div
-            className="my-account-detail-modal"
+            className={`my-account-detail-modal department-${normalize(
+              selectedCustomer.customerType || "other"
+            )}`}
             role="dialog"
             aria-modal="true"
             onMouseDown={(event) =>
@@ -781,61 +1306,57 @@ export default function MyAccount({
               </div>
 
               <span
-                className={`my-account-status ${normalize(
-                  selectedCustomer
-                    .assignmentStatus ||
-                    "Pending"
-                )}`}
+                className={`my-account-status ${
+                  isCurrentAssignment(
+                    selectedCustomer
+                  )
+                    ? normalize(
+                        selectedCustomer
+                          .assignmentStatus ||
+                          "Pending"
+                      )
+                    : "referred"
+                }`}
               >
-                {selectedCustomer
-                  .assignmentStatus ||
-                  "Pending"}
+                {getWorkspaceStatus(
+                  selectedCustomer
+                )}
               </span>
             </div>
 
             <div className="my-account-detail-grid">
-              {detailFields.map(
-                ([label, resolver]) => {
-                  const value =
-                    resolver(
-                      selectedCustomer
-                    );
-
-                  if (
-                    value === undefined ||
-                    value === null ||
-                    value === ""
-                  ) {
-                    return null;
-                  }
-
-                  const wide = [
-                    "Purpose",
-                    "About",
-                    "Note",
-                    "Last Message",
-                  ].includes(label);
-
-                  return (
-                    <div
-                      key={label}
-                      className={
-                        wide
-                          ? "wide"
-                          : ""
-                      }
-                    >
-                      <span>{label}</span>
-
-                      <strong>
-                        {formatValue(
-                          value
-                        )}
-                      </strong>
-                    </div>
-                  );
+              {getDepartmentDetailFields(
+                selectedCustomer
+              ).map(([label, value]) => {
+                if (
+                  value === undefined ||
+                  value === null ||
+                  value === ""
+                ) {
+                  return null;
                 }
-              )}
+
+                const wide = [
+                  "Purpose",
+                  "Note",
+                  "Last Message",
+                ].includes(label);
+
+                return (
+                  <div
+                    key={label}
+                    className={
+                      wide ? "wide" : ""
+                    }
+                  >
+                    <span>{label}</span>
+
+                    <strong>
+                      {formatValue(value)}
+                    </strong>
+                  </div>
+                );
+              })}
             </div>
 
             {Array.isArray(
@@ -879,7 +1400,148 @@ export default function MyAccount({
                 </section>
               )}
 
-            {!messageOpen ? (
+            {!isCurrentAssignment(
+              selectedCustomer
+            ) && !reassignOpen ? (
+              <div className="my-account-referred-section">
+                <div className="my-account-referred-notice">
+                  <UserRoundPlus size={17} />
+
+                  <div>
+                    <strong>
+                      {getWorkspaceStatus(
+                        selectedCustomer
+                      )}
+                    </strong>
+
+                    <span>
+                      This request remains in your history
+                      and is currently managed by another
+                      employee.
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="my-account-edit-assignment"
+                  disabled={savingAction}
+                  onClick={openReassign}
+                >
+                  <UserRoundPlus size={15} />
+                  Edit Assignment
+                </button>
+              </div>
+            ) : reassignOpen ? (
+              <form
+                className="my-account-reassign-form"
+                onSubmit={saveReassignment}
+              >
+                <div className="my-account-reassign-summary">
+                  <div>
+                    <span>Customer</span>
+                    <strong>
+                      {getCustomerName(
+                        selectedCustomer
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Currently Assigned To</span>
+                    <strong>
+                      {selectedCustomer
+                        .assignedEmployeeName ||
+                        "-"}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Department</span>
+                    <strong>
+                      {selectedCustomer
+                        .customerType ||
+                        "-"}
+                    </strong>
+                  </div>
+                </div>
+
+                <label>
+                  Assign To
+
+                  <select
+                    value={reassignEmployeeId}
+                    onChange={(event) =>
+                      setReassignEmployeeId(
+                        event.target.value
+                      )
+                    }
+                    autoFocus
+                  >
+                    <option value="">
+                      Select employee
+                    </option>
+
+                    {employees
+                      .filter(
+                        (item) =>
+                          getEmployeeId(item) &&
+                          getEmployeeId(item) !==
+                            String(
+                              selectedCustomer
+                                .assignedEmployeeId ||
+                                ""
+                            )
+                      )
+                      .map((item) => (
+                        <option
+                          key={getEmployeeId(item)}
+                          value={getEmployeeId(item)}
+                        >
+                          {getEmployeeName(item)}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+
+                <label>
+                  Note
+
+                  <textarea
+                    rows="4"
+                    value={reassignNote}
+                    onChange={(event) =>
+                      setReassignNote(
+                        event.target.value
+                      )
+                    }
+                    placeholder="Write the reason or instructions for this transfer..."
+                  />
+                </label>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={closeReassign}
+                    disabled={savingAction}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="primary"
+                    disabled={savingAction}
+                  >
+                    <UserRoundPlus size={15} />
+
+                    {savingAction
+                      ? "Assigning..."
+                      : "Assign Customer"}
+                  </button>
+                </div>
+              </form>
+            ) : !messageOpen ? (
               <footer className="my-account-modal-actions">
                 <button
                   type="button"
@@ -921,6 +1583,16 @@ export default function MyAccount({
                 >
                   <XCircle size={16} />
                   Reject
+                </button>
+
+                <button
+                  type="button"
+                  className="reassign"
+                  disabled={savingAction}
+                  onClick={openReassign}
+                >
+                  <UserRoundPlus size={16} />
+                  Assign to another
                 </button>
 
                 {normalize(

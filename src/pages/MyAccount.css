@@ -75,57 +75,6 @@
   font-size: 9px;
 }
 
-.my-account-coming-actions {
-  margin-bottom: 16px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.my-account-coming-actions button {
-  min-height: 58px;
-  padding: 0 15px;
-  border: 1px solid #e6e8ee;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #ffffff;
-  color: #64748b;
-  font-family: inherit;
-  text-align: left;
-}
-
-.my-account-coming-actions button > svg {
-  width: 36px;
-  height: 36px;
-  padding: 9px;
-  border-radius: 10px;
-  background: #f1f5f9;
-  color: #6366f1;
-}
-
-.my-account-coming-actions span,
-.my-account-coming-actions strong,
-.my-account-coming-actions small {
-  display: block;
-}
-
-.my-account-coming-actions strong {
-  color: #334155;
-  font-size: 11px;
-}
-
-.my-account-coming-actions small {
-  margin-top: 3px;
-  color: #94a3b8;
-  font-size: 8px;
-}
-
-.my-account-coming-actions button:disabled {
-  opacity: 1;
-  cursor: not-allowed;
-}
 
 .my-account-records {
   overflow: hidden;
@@ -568,7 +517,6 @@ body.dark-mode .my-account-page {
   color: #f8fafc;
 }
 
-body.dark-mode .my-account-coming-actions button,
 body.dark-mode .my-account-records,
 body.dark-mode .my-account-detail-modal,
 body.dark-mode .my-account-detail-grid > div {
@@ -618,10 +566,6 @@ body.dark-mode .my-account-message-form textarea {
   .my-account-heading {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .my-account-coming-actions {
-    grid-template-columns: 1fr;
   }
 
   .my-account-detail-grid {
@@ -711,4 +655,354 @@ body.dark-mode .my-account-followup-button.completed {
   border-color: #166534;
   background: #14532d;
   color: #dcfce7;
+}
+
+/* Department colors */
+.my-account-type.consultant {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.my-account-type.travel {
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.my-account-type.technology {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.my-account-type.media {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.my-account-record-row.department-consultant {
+  box-shadow: inset 3px 0 0 #6366f1;
+}
+
+.my-account-record-row.department-travel {
+  box-shadow: inset 3px 0 0 #06b6d4;
+}
+
+.my-account-record-row.department-technology {
+  box-shadow: inset 3px 0 0 #22c55e;
+}
+
+.my-account-record-row.department-media {
+  box-shadow: inset 3px 0 0 #f97316;
+}
+
+.my-account-record-row.department-consultant:hover {
+  background: #f7f7ff;
+}
+
+.my-account-record-row.department-travel:hover {
+  background: #f0fdff;
+}
+
+.my-account-record-row.department-technology:hover {
+  background: #f4fdf7;
+}
+
+.my-account-record-row.department-media:hover {
+  background: #fffaf5;
+}
+
+.my-account-detail-modal.department-consultant {
+  border-top: 4px solid #6366f1;
+}
+
+.my-account-detail-modal.department-travel {
+  border-top: 4px solid #06b6d4;
+}
+
+.my-account-detail-modal.department-technology {
+  border-top: 4px solid #22c55e;
+}
+
+.my-account-detail-modal.department-media {
+  border-top: 4px solid #f97316;
+}
+
+/* Assign to another */
+.my-account-modal-actions .reassign {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.my-account-reassign-form {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.my-account-reassign-summary {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.my-account-reassign-summary > div {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.my-account-reassign-summary span,
+.my-account-reassign-summary strong {
+  display: block;
+}
+
+.my-account-reassign-summary span {
+  margin-bottom: 5px;
+  color: #94a3b8;
+  font-size: 8px;
+}
+
+.my-account-reassign-summary strong {
+  overflow: hidden;
+  color: #334155;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-account-reassign-form label {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.my-account-reassign-form select,
+.my-account-reassign-form textarea {
+  width: 100%;
+  border: 1px solid #dfe3ea;
+  border-radius: 11px;
+  padding: 11px;
+  background: #ffffff;
+  color: #172033;
+  font-family: inherit;
+  outline: none;
+}
+
+.my-account-reassign-form select {
+  min-height: 42px;
+}
+
+.my-account-reassign-form textarea {
+  min-height: 105px;
+  resize: vertical;
+}
+
+.my-account-reassign-form select:focus,
+.my-account-reassign-form textarea:focus {
+  border-color: #6366f1;
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.my-account-reassign-form > div:last-child {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.my-account-reassign-form button {
+  min-height: 39px;
+  padding: 0 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #ffffff;
+  color: #172033;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.my-account-reassign-form .primary {
+  border-color: #252525;
+  background: #252525;
+  color: #ffffff;
+}
+
+body.dark-mode
+  .my-account-reassign-summary > div {
+  border-color: #334155;
+  background: #0f172a;
+}
+
+body.dark-mode
+  .my-account-reassign-summary strong,
+body.dark-mode
+  .my-account-reassign-form label {
+  color: #f8fafc;
+}
+
+body.dark-mode
+  .my-account-reassign-form select,
+body.dark-mode
+  .my-account-reassign-form textarea {
+  border-color: #334155;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+@media (max-width: 700px) {
+  .my-account-reassign-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .my-account-reassign-form > div:last-child {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .my-account-reassign-form button {
+    width: 100%;
+  }
+}
+
+
+/* Referred request status */
+.my-account-status.referred {
+  background: #e0f2fe;
+  color: #0369a1;
+  text-transform: none;
+}
+
+.my-account-referred-notice {
+  margin-top: 17px;
+  padding: 13px 14px;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f0f9ff;
+  color: #075985;
+}
+
+.my-account-referred-notice > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.my-account-referred-notice > div {
+  display: grid;
+  gap: 4px;
+}
+
+.my-account-referred-notice strong {
+  font-size: 10px;
+}
+
+.my-account-referred-notice span {
+  color: #0369a1;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+body.dark-mode .my-account-status.referred {
+  background: #0c4a6e;
+  color: #bae6fd;
+}
+
+body.dark-mode .my-account-referred-notice {
+  border-color: #075985;
+  background: rgba(7, 89, 133, 0.2);
+  color: #bae6fd;
+}
+
+body.dark-mode .my-account-referred-notice span {
+  color: #7dd3fc;
+}
+
+/* Referred request action */
+.my-account-referred-section {
+  margin-top: 16px;
+  display: grid;
+  gap: 9px;
+}
+
+.my-account-referred-section .my-account-referred-notice {
+  margin-top: 0;
+}
+
+.my-account-edit-assignment {
+  width: fit-content;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #bae6fd;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #ffffff;
+  color: #0369a1;
+  font-family: inherit;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(3, 105, 161, 0.08);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.my-account-edit-assignment:hover {
+  border-color: #38bdf8;
+  background: #f0f9ff;
+  color: #075985;
+  transform: translateY(-1px);
+  box-shadow: 0 7px 16px rgba(3, 105, 161, 0.13);
+}
+
+.my-account-edit-assignment:active {
+  transform: translateY(0);
+}
+
+.my-account-edit-assignment:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.my-account-edit-assignment svg {
+  flex: 0 0 auto;
+}
+
+body.dark-mode .my-account-edit-assignment {
+  border-color: #075985;
+  background: #0f172a;
+  color: #7dd3fc;
+}
+
+body.dark-mode .my-account-edit-assignment:hover {
+  border-color: #0ea5e9;
+  background: rgba(7, 89, 133, 0.22);
+  color: #bae6fd;
+}
+
+@media (max-width: 520px) {
+  .my-account-edit-assignment {
+    width: 100%;
+  }
 }

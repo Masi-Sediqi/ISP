@@ -1383,3 +1383,168 @@ body.dark-mode .reception-stats > button.active {
 body.dark-mode .reception-stats > button.active span {
   color: #c7d2fe;
 }
+
+
+/* Searchable country selector with real flags */
+.reception-country-select {
+  position: relative;
+  width: 100%;
+}
+
+.reception-country-trigger {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reception-country-trigger > span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reception-country-trigger img,
+.reception-country-menu button img {
+  width: 24px;
+  height: 18px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  border-radius: 2px;
+}
+
+.reception-country-trigger b {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.reception-country-select.open
+.reception-country-trigger {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.reception-country-menu {
+  position: absolute;
+  z-index: 10070;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  padding: 7px;
+  border: 1px solid #dfe3e8;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.18);
+}
+
+.reception-country-menu > input {
+  width: 100%;
+  min-height: 38px;
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  font: inherit;
+  outline: none;
+}
+
+.reception-country-menu > div {
+  max-height: 230px;
+  overflow-y: auto;
+}
+
+.reception-country-menu > div > button {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.reception-country-menu > div > button:hover,
+.reception-country-menu > div > button.selected {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+body.dark-mode .reception-country-trigger,
+body.dark-mode .reception-country-menu,
+body.dark-mode .reception-country-menu > input {
+  border-color: #334155;
+  background: #111827;
+  color: #f8fafc;
+}
+
+body.dark-mode
+.reception-country-menu > div > button {
+  color: #e2e8f0;
+}
+
+body.dark-mode
+.reception-country-menu > div > button:hover,
+body.dark-mode
+.reception-country-menu > div > button.selected {
+  background: #312e81;
+  color: #e0e7ff;
+}
+
+/* Registration date with Afghanistan time below it */
+.reception-record-datetime {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.reception-record-datetime > svg {
+  flex: 0 0 auto;
+  width: 14px;
+  margin-top: 2px;
+  color: #6366f1;
+}
+
+.reception-record-datetime > span {
+  min-width: 88px;
+  display: grid;
+  gap: 3px;
+}
+
+.reception-record-datetime strong {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.reception-record-datetime small {
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+body.dark-mode .reception-record-datetime small {
+  color: #94a3b8;
+}

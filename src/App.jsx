@@ -48,13 +48,13 @@ import GlobalTableEnhancer from "./components/GlobalTableEnhancer";
 import ToastHost from "./components/ToastHost";
 import { useJsonCollection } from "./hooks/useJsonCollection";
 import { canViewModule } from "./utils/permissions";
+import { notify } from "./utils/notify";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const MyAccount = lazy(() =>
   import("./pages/MyAccount")
 );
 const Suppliers = lazy(() => import("./pages/Suppliers"));
-const TeamChat = lazy(() => import("./pages/TeamChat"));
 const SupplierDetails = lazy(() => import("./pages/SupplierDetails"));
 const Customers = lazy(() => import("./pages/Customers"));
 const ConsultantCustomers = lazy(() => import("./pages/ConsultantCustomers"));
@@ -69,7 +69,7 @@ const Employees = lazy(() => import("./pages/Employees"));
 const EmployeeDetails = lazy(() => import("./pages/EmployeeDetails"));
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard"));
 const EmployeeAttendance = lazy(() => import("./pages/EmployeeAttendance"));
-
+import ProjectReport from "./pages/ProjectReport";
 const OfficeAssets = lazy(() => import("./pages/OfficeAssets"));
 const OfficeAssetDetails = lazy(() => import("./pages/OfficeAssetDetails"));
 
@@ -79,6 +79,8 @@ const ProjectSales = lazy(() => import("./pages/ProjectSales"));
 const Login = lazy(() => import("./pages/Login"));
 const HelpCenter = lazy(() => import("./pages/HelpCenter"));
 const Developer = lazy(() => import("./pages/Developer"));
+
+import CustomerReport from "./pages/CustomerReport";
 const TermsPrivacy = lazy(
   () => import("./pages/TermsPrivacy")
 );
@@ -153,14 +155,25 @@ function App() {
   const [accounts, setAccounts, , accountsLoaded] = useJsonCollection("accounts");
   const [employees] =
     useJsonCollection("employees");
-    const [customers] =
-  useJsonCollection("customers");
+    const [
+      customers,
+      ,
+      loadCustomers,
+      customersLoaded,
+    ] = useJsonCollection("customers");
   
   const [sidebarInfoOpen, setSidebarInfoOpen] = useState(false);
   const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [employeeMenuOpen, setEmployeeMenuOpen] = useState(false);
   const sidebarInfoRef = useRef(null);
+
+  const assignmentAlertReadyRef =
+    useRef(false);
+
+  const assignmentSoundRef =
+    useRef(null);
+
   const [sessionId, setSessionId] = useState(() =>
     localStorage.getItem("isp-system-session")
   );
@@ -331,6 +344,229 @@ const myAssignedCustomers = customers
     !isAdminAccount &&
     !isReceptionAccount;
 
+  /*
+   * Refresh the customer collection while the app is open.
+   * This makes newly assigned requests appear without a
+   * manual browser refresh.
+   */
+  useEffect(() => {
+    if (!currentUser || !customersLoaded) {
+      return undefined;
+    }
+
+    let refreshing = false;
+
+    const refreshAssignments = async () => {
+      if (refreshing) return;
+
+      refreshing = true;
+
+      try {
+        await loadCustomers();
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    const intervalId = window.setInterval(
+      refreshAssignments,
+      1500
+    );
+
+    const reloadFromSystemEvent = () => {
+      refreshAssignments();
+    };
+
+    window.addEventListener(
+      "isp-customer-assignment-updated",
+      reloadFromSystemEvent
+    );
+
+    return () => {
+      window.clearInterval(intervalId);
+
+      window.removeEventListener(
+        "isp-customer-assignment-updated",
+        reloadFromSystemEvent
+      );
+    };
+  }, [
+    currentUser?.id,
+    customersLoaded,
+    loadCustomers,
+  ]);
+
+  /*
+   * Notify the currently assigned account whenever a new
+   * request reaches it. Seen assignment keys are stored per
+   * account so refreshing the browser does not replay old
+   * alerts.
+   */
+  useEffect(() => {
+    if (
+      !currentUser ||
+      !customersLoaded
+    ) {
+      return;
+    }
+
+    const accountKey = String(
+      currentUser.id ||
+        currentUser.employeeId ||
+        linkedEmployee?.id ||
+        "unknown"
+    );
+
+    const storageKey =
+      `isp-seen-customer-assignments:${accountKey}`;
+
+    let seenKeys = [];
+
+    try {
+      const parsed = JSON.parse(
+        localStorage.getItem(storageKey) ||
+          "[]"
+      );
+
+      seenKeys = Array.isArray(parsed)
+        ? parsed
+        : [];
+    } catch {
+      seenKeys = [];
+    }
+
+    const seenSet = new Set(seenKeys);
+
+    const assignmentKey = (customer) =>
+      [
+        customer.id,
+        customer.assignedEmployeeId ||
+          customer.assignedAccountId ||
+          "",
+        customer.assignedAt ||
+          customer.updatedAt ||
+          customer.createdAt ||
+          "",
+      ].join("|");
+
+    const currentAssignments =
+      myAssignedCustomers.filter(
+        (customer) =>
+          String(
+            customer.assignmentStatus ||
+              "Pending"
+          ).toLowerCase() === "pending"
+      );
+
+    /*
+     * On the first collection load, remember already-existing
+     * requests without playing a sound. Later assignments
+     * trigger both the toast and the audio.
+     */
+    if (!assignmentAlertReadyRef.current) {
+      currentAssignments.forEach(
+        (customer) => {
+          seenSet.add(
+            assignmentKey(customer)
+          );
+        }
+      );
+
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify(
+          [...seenSet].slice(-300)
+        )
+      );
+
+      assignmentAlertReadyRef.current = true;
+      return;
+    }
+
+    const newAssignments =
+      currentAssignments.filter(
+        (customer) =>
+          !seenSet.has(
+            assignmentKey(customer)
+          )
+      );
+
+    if (!newAssignments.length) {
+      return;
+    }
+
+    newAssignments.forEach((customer) => {
+      seenSet.add(
+        assignmentKey(customer)
+      );
+
+      const customerName =
+        customer.fullName ||
+        customer.customerName ||
+        customer.personName ||
+        "New customer";
+
+      const customerType =
+        customer.customerType ||
+        "customer";
+
+      notify(
+        `${customerName} (${customerType}) has been assigned to you.`,
+        "info"
+      );
+    });
+
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(
+        [...seenSet].slice(-300)
+      )
+    );
+
+    try {
+      if (!assignmentSoundRef.current) {
+        assignmentSoundRef.current =
+          new Audio(
+            "/sounds/open-up-587.mp3"
+          );
+
+        assignmentSoundRef.current.preload =
+          "auto";
+
+        assignmentSoundRef.current.volume =
+          0.8;
+      }
+
+      assignmentSoundRef.current.currentTime =
+        0;
+
+      const playResult =
+        assignmentSoundRef.current.play();
+
+      if (
+        playResult &&
+        typeof playResult.catch ===
+          "function"
+      ) {
+        playResult.catch(() => {
+          /*
+           * Some browsers block audio until the user first
+           * interacts with the page. The visual notification
+           * still appears in that case.
+           */
+        });
+      }
+    } catch {
+      // Keep visual alerts working if audio is unavailable.
+    }
+  }, [
+    customers,
+    customersLoaded,
+    currentUser?.id,
+    currentUser?.employeeId,
+    linkedEmployee?.id,
+  ]);
+
   useEffect(() => {
     const isFollowUpPath =
       location.pathname.startsWith(
@@ -340,7 +576,6 @@ const myAssignedCustomers = customers
     const receptionAllowedPaths = [
       "/reception",
       "/my-account",
-      "/team-chat",
     ];
 
     if (
@@ -357,7 +592,6 @@ const myAssignedCustomers = customers
     const employeeAllowedPaths = [
       "/",
       "/my-account",
-      "/team-chat",
     ];
 
     if (
@@ -449,7 +683,7 @@ const myAssignedCustomers = customers
     { to: "/customers/consultants", label: "Consultant Customers", icon: BriefcaseBusiness },
     { to: "/customers/travel", label: "Travel Customers", icon: Plane },
     { to: "/customers/technology", label: "Technology Customers", icon: Cpu },
-    { to: "/customers?type=media", label: "Media Customers", icon: Clapperboard },
+    { to: "/customers/media", label: "Media Customers", icon: Clapperboard },
 
   ];
 
@@ -548,10 +782,6 @@ const myAssignedCustomers = customers
     <span>My Account</span>
   </NavLink>
 
-  <NavLink to="/team-chat">
-    <MessageCircle size={17}/>
-    <span>Team Chat</span>
-  </NavLink>
 </>
 )}
           {!isReceptionAccount && (
@@ -748,15 +978,14 @@ const myAssignedCustomers = customers
                   path="/projects"
                   element={protect("dashboard", <Projects />)}
                 />
-               <Route
-  path="/team-chat"
-  element={
-    !isAdminAccount ? (
-      <TeamChat currentUser={currentUser} />
-    ) : (
-      <PermissionDenied />
-    )
-  }
+
+                <Route
+  path="/reports/customers"
+  element={<CustomerReport company={company} />}
+/>
+            <Route
+  path="/reports/projects"
+  element={<ProjectReport company={company} />}
 />
                 <Route
                   path="/reception"
@@ -838,6 +1067,7 @@ const myAssignedCustomers = customers
                 <Route path="/customers/consultants" element={protect("customers", <ConsultantCustomers />)} />
                 <Route path="/customers/travel" element={protect("customers", <ConsultantCustomers mode="travel" />)} />
                 <Route path="/customers/technology" element={protect("customers", <ConsultantCustomers mode="technology" />)} />
+                <Route path="/customers/media" element={protect("customers", <ConsultantCustomers mode="media" />)} />
                 <Route path="/customers/:id" element={protect("customers", <CustomerDetails />)} />
                 <Route path="/finance" element={protect("finance", <Finance />)} />
                 <Route path="/reports" element={protect("reports", <Reports />)} />

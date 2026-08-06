@@ -1,277 +1,1559 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import AfghanDateInput from "../components/AfghanDateInput";
+import { useNavigate } from "react-router-dom";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ComposedChart,
-  Legend,
-  Line,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import TablePagination from "../components/TablePagination";
+  Building2,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  FileSpreadsheet,
+  FolderKanban,
+  Download,
+  FileText,
+  Landmark,
+  Minus,
+  Plus,
+  Printer,
+  Search,
+  Settings2,
+  Share2,
+  Truck,
+  UserRoundCheck,
+  Users,
+  X,
+} from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useTablePagination } from "../hooks/useTablePagination";
-import { formatAfghanDate, formatDateTime } from "../utils/afghanDate";
-import { getDateRange, parseDate, toDateValue } from "../utils/financialAnalysis";
 import "./Reports.css";
-import "./CustomerReport.css";
 
-const money = (value) => Number(value || 0).toLocaleString("en-US");
-const number = (value) => Number(value || 0);
-const accountColors = {
-  بدهکار: "#dc2626",
-  تسویه: "#16a34a",
-  بستانکار: "#2563eb",
-  "بدون فعالیت": "#64748b",
+const reportCards = [
+  {
+    key: "customers",
+    title: "Customers",
+    description: "All customers from every department",
+    icon: Users,
+  },
+  {
+    key: "projects",
+    title: "Projects",
+    description: "Project records and current status",
+    icon: FolderKanban,
+  },
+  {
+    key: "employees",
+    title: "Employee",
+    description: "Employee records and departments",
+    icon: UserRoundCheck,
+  },
+  {
+    key: "suppliers",
+    title: "Suppliers",
+    description: "Suppliers, purchases and balances",
+    icon: Truck,
+  },
+  {
+    key: "reception",
+    title: "Reception",
+    description: "Reception registrations and referrals",
+    icon: Building2,
+  },
+  {
+    key: "financial",
+    title: "Financial",
+    description: "Income, expenses and balances",
+    icon: Landmark,
+  },
+];
+
+const departmentLabels = {
+  consultant: "Consultant",
+  travel: "Travel",
+  technology: "Technology",
+  media: "Media",
 };
 
-const periodLabels = { all: "تمام تاریخ‌ها", daily: "روزانه", weekly: "هفته‌وار", monthly: "ماهانه" };
-const tooltipProps = {
-  contentStyle: { borderRadius: 12, border: "1px solid #e2e8f0", fontFamily: "Vazirmatn", direction: "rtl" },
-  formatter: (value) => money(value),
-};
+function normalizeDate(value) {
+  if (!value) return "";
 
-function CustomerReport() {
-  const [customers] = useJsonCollection("customers");
-  const [customerTravels] = useJsonCollection("customerTravels");
-  const [customerPayments] = useJsonCollection("customerPayments");
-  const [travelExpenses] = useJsonCollection("travelExpenses");
-  const [period, setPeriod] = useState("all");
-  const [selectedDate, setSelectedDate] = useState("");
-  const [accountStatus, setAccountStatus] = useState("all");
-  const [search, setSearch] = useState("");
+  const date = new Date(value);
 
-  const latestDate = useMemo(() => {
-    const dates = [...customerTravels, ...customerPayments].map((item) => item.date).filter(Boolean);
-    return dates.sort().at(-1) || toDateValue(new Date());
-  }, [customerPayments, customerTravels]);
-  const activeDate = selectedDate || latestDate;
-  const { start, end } = getDateRange(activeDate, period);
-  const inRange = (date) => period === "all" || (date && date >= start && date <= end);
-  const inactivityReference = parseDate(latestDate) || new Date();
+  if (Number.isNaN(date.getTime())) {
+    return String(value).slice(0, 10);
+  }
 
-  const customerData = customers.map((customer, customerIndex) => {
-    const allRecords = customerTravels.filter((record) => Number(record.customerIndex) === customerIndex);
-    const records = allRecords.filter((record) => inRange(record.date));
-    const allPayments = customerPayments.filter((payment) => Number(payment.customerIndex) === customerIndex);
-    const payments = allPayments.filter((payment) => inRange(payment.date));
-    const billed = records.reduce((sum, record) => sum + Math.max(number(record.fare) - number(record.discount), 0), 0);
-    const initialPaid = records.reduce((sum, record) => sum + number(record.paidAmount), 0);
-    const laterPaid = payments.reduce((sum, payment) => sum + number(payment.amount), 0);
-    const paid = initialPaid + laterPaid;
-    const discount = records.reduce((sum, record) => sum + number(record.discount), 0);
-    const debt = Math.max(billed - paid, 0);
-    const credit = Math.max(paid - billed, 0);
-    const destinations = records.reduce((result, record) => {
-      const destination = record.to || "نامعلوم";
-      result[destination] = (result[destination] || 0) + 1;
-      return result;
-    }, {});
-    const favoriteDestination = Object.entries(destinations).sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
-    const allocatedExpense = records.reduce((sum, record) => {
-      const tripIndex = Number(record.travelIndex);
-      const tripCustomers = customerTravels.filter((item) => Number(item.travelIndex) === tripIndex).length || 1;
-      const tripExpense = travelExpenses
-        .filter((expense) => Number(expense.travelIndex) === tripIndex)
-        .reduce((expenseSum, expense) => expenseSum + number(expense.amount), 0);
-      return sum + tripExpense / tripCustomers;
-    }, 0);
-    const activityDates = [...allRecords, ...allPayments].map((item) => item.date).filter(Boolean).sort();
-    const firstActivity = activityDates[0] || "-";
-    const lastActivity = activityDates.at(-1) || "-";
-    const lastDate = parseDate(lastActivity);
-    const inactiveDays = lastDate ? Math.floor((inactivityReference - lastDate) / 86400000) : null;
-    const isInactive = inactiveDays === null || inactiveDays > 90;
-    const status = debt > 0 ? "بدهکار" : credit > 0 ? "بستانکار" : allRecords.length + allPayments.length === 0 ? "بدون فعالیت" : "تسویه";
+  return date.toISOString().slice(0, 10);
+}
 
-    return {
-      ...customer,
-      customerIndex,
-      fullName: `${customer.firstName || ""} ${customer.lastName || ""}`.trim() || "مشتری بدون نام",
-      tripCount: records.length,
-      lifetimeTrips: allRecords.length,
-      paymentCount: records.filter((record) => number(record.paidAmount) > 0).length + payments.length,
-      billed,
-      paid,
-      discount,
-      debt,
-      credit,
-      netValue: paid - allocatedExpense,
-      allocatedExpense,
-      favoriteDestination,
-      destinationCount: Object.keys(destinations).length,
-      firstActivity,
-      lastActivity,
-      inactiveDays,
-      isInactive,
-      status,
-    };
-  });
+function formatDate(value) {
+  if (!value) return "-";
 
-  const visibleCustomers = customerData.filter((customer) => {
-    if (accountStatus === "inactive") return customer.isInactive;
-    if (accountStatus === "overdue") return customer.debt > 0 && customer.inactiveDays !== null && customer.inactiveDays > 30;
-    return accountStatus === "all" || customer.status === accountStatus;
-  });
-  const searchedCustomers = visibleCustomers
-    .filter((customer) =>
-      customer.fullName.includes(search) ||
-      (customer.phone || "").includes(search) ||
-      (customer.tazkiraNo || "").includes(search) ||
-      customer.favoriteDestination.includes(search)
-    )
-    .sort((a, b) => b.paid - a.paid || b.tripCount - a.tripCount);
+  const date = new Date(value);
 
-  const totals = visibleCustomers.reduce(
-    (sum, customer) => ({
-      trips: sum.trips + customer.tripCount,
-      billed: sum.billed + customer.billed,
-      paid: sum.paid + customer.paid,
-      debt: sum.debt + customer.debt,
-      discount: sum.discount + customer.discount,
-      netValue: sum.netValue + customer.netValue,
-    }),
-    { trips: 0, billed: 0, paid: 0, debt: 0, discount: 0, netValue: 0 }
-  );
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
 
-  const accountData = Object.entries(
-    customerData.reduce((result, customer) => {
-      result[customer.status] = (result[customer.status] || 0) + 1;
-      return result;
-    }, {})
-  ).map(([name, value]) => ({ name, value }));
+  return date.toLocaleDateString("en-GB");
+}
 
-  const financeByDate = (() => {
-    const days = new Map();
-    customerTravels.filter((record) => inRange(record.date)).forEach((record) => {
-      const current = days.get(record.date) || { date: record.date || "-", dateLabel: formatAfghanDate(record.date, { numeric: true }), billed: 0, paid: 0, discount: 0 };
-      current.billed += Math.max(number(record.fare) - number(record.discount), 0);
-      current.paid += number(record.paidAmount);
-      current.discount += number(record.discount);
-      days.set(record.date, current);
-    });
-    customerPayments.filter((payment) => inRange(payment.date)).forEach((payment) => {
-      const current = days.get(payment.date) || { date: payment.date || "-", dateLabel: formatAfghanDate(payment.date, { numeric: true }), billed: 0, paid: 0, discount: 0 };
-      current.paid += number(payment.amount);
-      days.set(payment.date, current);
-    });
-    return [...days.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)));
-  })();
-
-  const destinationData = Object.entries(
-    customerTravels.filter((record) => inRange(record.date)).reduce((result, record) => {
-      const name = record.to || "نامعلوم";
-      result[name] = (result[name] || 0) + 1;
-      return result;
-    }, {})
-  ).map(([name, trips]) => ({ name, trips })).sort((a, b) => b.trips - a.trips).slice(0, 8);
-
-  const topCustomers = [...visibleCustomers].sort((a, b) => b.paid - a.paid || b.tripCount - a.tripCount).slice(0, 8);
-  const topDebtors = [...visibleCustomers].filter((customer) => customer.debt > 0).sort((a, b) => b.debt - a.debt).slice(0, 6);
-  const newCustomersCount = customerData.filter((customer) => customer.firstActivity !== "-" && inRange(customer.firstActivity)).length;
-  const overdueCount = customerData.filter((customer) => customer.debt > 0 && customer.inactiveDays !== null && customer.inactiveDays > 30).length;
-  const { page, setPage, totalPages, pageItems, pageSize, setPageSize } = useTablePagination(
-    searchedCustomers,
-    `${search}-${accountStatus}-${period}-${activeDate}`
-  );
-
+function getCustomerName(customer) {
   return (
-    <div className="reports-page customer-report-page">
-      <div className="customer-report-hero">
-        <div><span>مرکز تحلیل مشتریان</span><h1>راپور جامع مشتری‌ها</h1><p>تحلیل سفرها، پرداخت‌ها، بدهی‌ها، تخفیف‌ها، فعالیت و ارزش مالی هر مشتری</p></div>
-        <div className="customer-hero-balance"><span>مجموع طلب از مشتری‌ها</span><strong>{money(totals.debt)} افغانی</strong><small>{periodLabels[period]}</small></div>
-      </div>
-
-      <div className="report-filters customer-report-filters">
-        <div className="report-filter-group"><label>حالت راپور</label><select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="all">تمام تاریخ‌ها</option><option value="daily">روزانه</option><option value="weekly">هفته‌وار</option><option value="monthly">ماهانه</option></select></div>
-        <div className="report-filter-group"><label>انتخاب تاریخ</label><AfghanDateInput value={activeDate} onChange={setSelectedDate} disabled={period === "all"} /></div>
-        <div className="report-filter-group"><label>وضعیت مشتری</label><select value={accountStatus} onChange={(event) => setAccountStatus(event.target.value)}><option value="all">همه مشتری‌ها</option><option value="بدهکار">بدهکار</option><option value="overdue">بدهی سررسیدشده بیشتر از ۳۰ روز</option><option value="تسویه">تسویه‌شده</option><option value="بستانکار">پرداخت اضافه</option><option value="inactive">غیرفعال بیشتر از ۹۰ روز</option></select></div>
-        <div className="report-filter-summary"><span>بازه راپور</span><strong>{period === "all" ? "تمام تاریخ‌های ثبت‌شده" : start === end ? formatAfghanDate(start) : `${formatAfghanDate(start)} تا ${formatAfghanDate(end)}`}</strong></div>
-      </div>
-
-      <div className="customer-report-stats">
-        <div><span>مشتری قابل نمایش</span><strong>{visibleCustomers.length}</strong><p>از مجموع {customers.length} مشتری</p></div>
-        <div><span>سفرهای مشتری‌ها</span><strong>{money(totals.trips)}</strong><p>سفر در بازه انتخاب‌شده</p></div>
-        <div className="income"><span>پرداخت دریافت‌شده</span><strong>{money(totals.paid)}</strong><p>افغانی پرداخت مشتریان</p></div>
-        <div className="debt"><span>طلب باقی‌مانده</span><strong>{money(totals.debt)}</strong><p>افغانی قابل دریافت</p></div>
-        <div className="discount"><span>مجموع تخفیف</span><strong>{money(totals.discount)}</strong><p>افغانی تخفیف داده‌شده</p></div>
-        <div className="new"><span>مشتری‌های جدید</span><strong>{newCustomersCount}</strong><p>{overdueCount} بدهی سررسیدشده</p></div>
-      </div>
-
-      <div className="customer-report-charts">
-        <section className="customer-chart-card account-chart">
-          <div className="customer-chart-title"><div><span>وضعیت حساب‌ها</span><h3>توزیع مشتری‌ها</h3></div><b>{customers.length}</b></div>
-          <div className="customer-chart-body"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={accountData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={88} paddingAngle={4}>{accountData.map((item) => <Cell key={item.name} fill={accountColors[item.name] || "#64748b"} />)}</Pie><Tooltip {...tooltipProps} /><Legend /></PieChart></ResponsiveContainer></div>
-        </section>
-        <section className="customer-chart-card customer-finance-chart">
-          <div className="customer-chart-title"><div><span>جریان مالی مشتری‌ها</span><h3>کرایه، پرداخت و تخفیف بر اساس تاریخ</h3></div><small>{periodLabels[period]}</small></div>
-          <div className="customer-chart-body"><ResponsiveContainer width="100%" height="100%"><ComposedChart data={financeByDate}><CartesianGrid strokeDasharray="4 4" vertical={false} /><XAxis dataKey="dateLabel" tick={{ fontSize: 9 }} /><YAxis tick={{ fontSize: 9 }} /><Tooltip {...tooltipProps} /><Legend /><Bar dataKey="billed" name="کرایه خالص" fill="#4f46e5" radius={[5,5,0,0]} /><Bar dataKey="paid" name="پرداخت" fill="#16a34a" radius={[5,5,0,0]} /><Line dataKey="discount" name="تخفیف" stroke="#f59e0b" strokeWidth={3} /></ComposedChart></ResponsiveContainer></div>
-        </section>
-        <section className="customer-chart-card destination-chart">
-          <div className="customer-chart-title"><div><span>مسیرهای محبوب</span><h3>مقصدهای انتخاب‌شده مشتری‌ها</h3></div><small>۸ مقصد اول</small></div>
-          <div className="customer-chart-body"><ResponsiveContainer width="100%" height="100%"><BarChart data={destinationData} layout="vertical"><CartesianGrid strokeDasharray="4 4" horizontal={false} /><XAxis type="number" tick={{ fontSize: 9 }} /><YAxis type="category" dataKey="name" width={75} tick={{ fontSize: 9 }} /><Tooltip {...tooltipProps} /><Bar dataKey="trips" name="تعداد سفر" fill="#2563eb" radius={[0,6,6,0]} /></BarChart></ResponsiveContainer></div>
-        </section>
-      </div>
-
-      <div className="customer-insight-grid">
-        <section className="customer-ranking-card">
-          <div className="customer-ranking-title"><div><span>مشتری‌های ممتاز</span><h3>پُردرآمد و پُرسفر</h3></div></div>
-          <div className="customer-ranking-list">
-            {topCustomers.slice(0, 6).map((customer, index) => (
-              <Link to={`/customers/${customer.customerIndex}`} key={customer.customerIndex}>
-                <b>{index + 1}</b><div><strong>{customer.fullName}</strong><span>{customer.tripCount} سفر · {customer.favoriteDestination}</span></div><em>{money(customer.paid)}</em>
-              </Link>
-            ))}
-            {topCustomers.length === 0 && <p className="customer-report-empty">فعالیتی در این بازه ثبت نشده است.</p>}
-          </div>
-        </section>
-        <section className="customer-ranking-card debtor-card">
-          <div className="customer-ranking-title"><div><span>پیگیری مالی</span><h3>بزرگ‌ترین بدهکاران</h3></div><strong>{topDebtors.length}</strong></div>
-          <div className="customer-ranking-list">
-            {topDebtors.map((customer, index) => (
-              <Link to={`/customers/${customer.customerIndex}`} key={customer.customerIndex}>
-                <b>{index + 1}</b><div><strong>{customer.fullName}</strong><span>آخرین فعالیت: {formatDateTime(customer.lastActivity)}</span></div><em>{money(customer.debt)}</em>
-              </Link>
-            ))}
-            {topDebtors.length === 0 && <p className="customer-report-empty">هیچ مشتری بدهکار نیست.</p>}
-          </div>
-        </section>
-      </div>
-
-      <div className="travel-report-table customer-report-table">
-        <div className="travel-map-title report-table-title customer-report-table-title">
-          <div><h3>جدول جامع مشتری‌ها</h3><p>صورت حساب، فعالیت، مسیر محبوب و ارزش مالی هر مشتری</p></div>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="جستجوی نام، تلفن، تذکره یا مقصد..." />
-        </div>
-        <div className="customer-report-table-wrap">
-          <table>
-            <thead><tr><th>مشتری</th><th>وضعیت</th><th>سفر</th><th>کرایه خالص</th><th>پرداخت</th><th>بدهی</th><th>تخفیف</th><th>ارزش خالص تقریبی</th><th>مسیر محبوب</th><th>اولین فعالیت</th><th>آخرین فعالیت</th><th>جزئیات</th></tr></thead>
-            <tbody>
-              {pageItems.map((customer) => (
-                <tr key={customer.customerIndex}>
-                  <td><strong>{customer.fullName}</strong><small>{customer.phone || "-"} · {customer.tazkiraNo || "بدون تذکره"}</small></td>
-                  <td><span className={`customer-account-status ${customer.status === "بدهکار" ? "debt" : customer.status === "بستانکار" ? "credit" : customer.status === "تسویه" ? "settled" : "inactive"}`}>{customer.status}</span></td>
-                  <td>{customer.tripCount}</td><td>{money(customer.billed)}</td><td className="customer-report-income">{money(customer.paid)}</td><td className="customer-report-debt">{money(customer.debt)}</td><td>{money(customer.discount)}</td>
-                  <td className={customer.netValue >= 0 ? "customer-report-income" : "customer-report-debt"}>{money(customer.netValue)}</td><td>{customer.favoriteDestination}</td><td>{formatDateTime(customer.firstActivity)}</td><td>{formatDateTime(customer.lastActivity)}</td>
-                  <td><div className="customer-report-actions"><Link className="customer-report-link" to={`/customers/${customer.customerIndex}`}>مشاهده</Link><Link className="customer-report-link print" to={`/customers/${customer.customerIndex}/statement`}>صورت‌حساب</Link></div></td>
-                </tr>
-              ))}
-              {searchedCustomers.length === 0 && <tr><td colSpan="12" className="report-empty">مشتری مطابق فیلتر یا جستجو پیدا نشد.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-        <TablePagination page={page} totalPages={totalPages} setPage={setPage} totalItems={searchedCustomers.length} pageSize={pageSize} setPageSize={setPageSize} />
-      </div>
-    </div>
+    customer.fullName ||
+    customer.customerName ||
+    customer.personName ||
+    "Unnamed Customer"
   );
 }
 
-export default CustomerReport;
+function getCustomerPhone(customer) {
+  return (
+    customer.phone ||
+    customer.contactNumber ||
+    customer.phoneNumber ||
+    "-"
+  );
+}
+
+function getCustomerDepartment(customer) {
+  return String(
+    customer.customerType ||
+      customer.department ||
+      "other"
+  ).toLowerCase();
+}
+
+function getCustomerSource(customer) {
+  return (
+    customer.source ||
+    customer.sourceEmployeeName ||
+    "Not specified"
+  );
+}
+
+function getCustomerDate(customer) {
+  return (
+    customer.afghanistanDate ||
+    customer.date ||
+    customer.createdAt ||
+    ""
+  );
+}
+
+function getCustomerTime(customer) {
+  return (
+    customer.afghanistanTime ||
+    customer.time ||
+    ""
+  );
+}
+
+function formatTimeWithMeridiem(value, fallbackDate) {
+  if (!value && !fallbackDate) return "-";
+
+  const rawValue = String(value || "").trim();
+
+  if (/\b(?:AM|PM)\b/i.test(rawValue)) {
+    return rawValue.toUpperCase();
+  }
+
+  if (rawValue) {
+    const match = rawValue.match(
+      /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/
+    );
+
+    if (match) {
+      let hour = Number(match[1]);
+      const minute = match[2];
+      const second = match[3] || "00";
+      const meridiem = hour >= 12 ? "PM" : "AM";
+
+      hour %= 12;
+      if (hour === 0) hour = 12;
+
+      return `${String(hour).padStart(
+        2,
+        "0"
+      )}:${minute}:${second} ${meridiem}`;
+    }
+  }
+
+  const date = new Date(fallbackDate || value);
+
+  if (Number.isNaN(date.getTime())) {
+    return rawValue || "-";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kabul",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  }).format(date);
+}
+
+export default function CustomerReport({
+  company = {},
+}) {
+  const [customers] =
+    useJsonCollection("customers");
+
+  const navigate = useNavigate();
+
+  const activeReport = "customers";
+
+  const openReport = () => {
+    navigate("/reports/customers");
+  };
+
+  const closeReport = () => {
+    navigate("/reports");
+  };
+
+  const [search, setSearch] = useState("");
+  const [department, setDepartment] =
+    useState("all");
+  const [source, setSource] =
+    useState("all");
+  const [startDate, setStartDate] =
+    useState("");
+  const [endDate, setEndDate] =
+    useState("");
+
+  const [printOptionsOpen, setPrintOptionsOpen] =
+    useState(false);
+
+  const [printOptions, setPrintOptions] =
+    useState({
+      paperSize: "A4",
+      orientation: "portrait",
+      margin: "narrow",
+      rowsPerPage: 20,
+      template: "blue",
+      zoom: 82,
+      titleSize: 22,
+      subtitleSize: 11,
+      headerSize: 9,
+      bodySize: 9,
+      footerSize: 8,
+    });
+
+  const [printPreviewPage, setPrintPreviewPage] =
+    useState(0);
+
+  const systemName =
+    company.companyName ||
+    company.systemName ||
+    "ISP Smart";
+
+  const systemLogo =
+    company.logo ||
+    company.logoUrl ||
+    "";
+
+  const sourceOptions = useMemo(
+    () =>
+      [...new Set(
+        customers
+          .map(getCustomerSource)
+          .filter(Boolean)
+      )].sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [customers]
+  );
+
+  const filteredCustomers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return customers
+      .filter((customer) => {
+        const customerDepartment =
+          getCustomerDepartment(customer);
+
+        if (
+          department !== "all" &&
+          customerDepartment !== department
+        ) {
+          return false;
+        }
+
+        const customerSource =
+          getCustomerSource(customer);
+
+        if (
+          source !== "all" &&
+          customerSource !== source
+        ) {
+          return false;
+        }
+
+        const customerDate =
+          normalizeDate(getCustomerDate(customer));
+
+        if (
+          startDate &&
+          customerDate &&
+          customerDate < startDate
+        ) {
+          return false;
+        }
+
+        if (
+          endDate &&
+          customerDate &&
+          customerDate > endDate
+        ) {
+          return false;
+        }
+
+        if (!query) return true;
+
+        return [
+          getCustomerName(customer),
+          getCustomerPhone(customer),
+          customer.email,
+          customerSource,
+          customer.assignedEmployeeName,
+          customerDepartment,
+        ].some((value) =>
+          String(value || "")
+            .toLowerCase()
+            .includes(query)
+        );
+      })
+      .sort(
+        (first, second) =>
+          new Date(
+            second.createdAt ||
+              second.date ||
+              0
+          ) -
+          new Date(
+            first.createdAt ||
+              first.date ||
+              0
+          )
+      );
+  }, [
+    customers,
+    department,
+    source,
+    startDate,
+    endDate,
+    search,
+  ]);
+
+  const printPages = useMemo(() => {
+    if (!filteredCustomers.length) {
+      return [[]];
+    }
+
+    const rowsPerPage = Math.max(
+      1,
+      Number(printOptions.rowsPerPage) || 25
+    );
+
+    const pages = [];
+
+    for (
+      let index = 0;
+      index < filteredCustomers.length;
+      index += rowsPerPage
+    ) {
+      pages.push(
+        filteredCustomers.slice(
+          index,
+          index + rowsPerPage
+        )
+      );
+    }
+
+    return pages;
+  }, [
+    filteredCustomers,
+    printOptions.rowsPerPage,
+  ]);
+
+  function resetFilters() {
+    setSearch("");
+    setDepartment("all");
+    setSource("all");
+    setStartDate("");
+    setEndDate("");
+  }
+
+  function applyPrintSettings() {
+    const styleId =
+      "reports-dynamic-print-settings";
+
+    let styleElement =
+      document.getElementById(styleId);
+
+    if (!styleElement) {
+      styleElement =
+        document.createElement("style");
+
+      styleElement.id = styleId;
+      document.head.appendChild(styleElement);
+    }
+
+    const marginMap = {
+      narrow: "7mm",
+      normal: "14mm",
+      wide: "20mm",
+    };
+
+    styleElement.textContent = `
+      @media print {
+        @page {
+          size: ${printOptions.paperSize} ${printOptions.orientation};
+          margin: ${
+            marginMap[printOptions.margin] ||
+            marginMap.normal
+          };
+        }
+
+        .reports-print-title h1 {
+          font-size: ${printOptions.titleSize}px !important;
+        }
+
+        .reports-print-title p {
+          font-size: ${printOptions.subtitleSize}px !important;
+        }
+
+        .reports-print-table-card th {
+          font-size: ${printOptions.headerSize}px !important;
+        }
+
+        .reports-print-table-card td {
+          font-size: ${printOptions.bodySize}px !important;
+        }
+
+        .reports-print-page-footer {
+          font-size: ${printOptions.footerSize}px !important;
+        }
+      }
+    `;
+
+    document.body.dataset.reportTemplate =
+      printOptions.template;
+  }
+
+  function printReport() {
+    applyPrintSettings();
+    setPrintOptionsOpen(false);
+
+    window.setTimeout(() => {
+      window.print();
+    }, 120);
+  }
+
+  async function exportPdf() {
+    applyPrintSettings();
+
+    try {
+      const [{ default: html2canvas }, { jsPDF }] =
+        await Promise.all([
+          import("html2canvas"),
+          import("jspdf"),
+        ]);
+
+      document.body.classList.add(
+        "reports-pdf-exporting"
+      );
+
+      await new Promise((resolve) =>
+        window.setTimeout(resolve, 160)
+      );
+
+      const pages = Array.from(
+        document.querySelectorAll(
+          ".reports-print-page"
+        )
+      );
+
+      if (!pages.length) {
+        throw new Error(
+          "No report pages were found."
+        );
+      }
+
+      const isLandscape =
+        printOptions.orientation === "landscape";
+
+      const pdf = new jsPDF({
+        orientation: isLandscape
+          ? "landscape"
+          : "portrait",
+        unit: "mm",
+        format: printOptions.paperSize.toLowerCase(),
+        compress: true,
+      });
+
+      for (let index = 0; index < pages.length; index += 1) {
+        const page = pages[index];
+
+        const canvas = await html2canvas(page, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+        });
+
+        const image = canvas.toDataURL(
+          "image/jpeg",
+          0.96
+        );
+
+        const pageWidth =
+          pdf.internal.pageSize.getWidth();
+        const pageHeight =
+          pdf.internal.pageSize.getHeight();
+
+        const ratio = Math.min(
+          pageWidth / canvas.width,
+          pageHeight / canvas.height
+        );
+
+        const imageWidth = canvas.width * ratio;
+        const imageHeight = canvas.height * ratio;
+        const x = (pageWidth - imageWidth) / 2;
+        const y = (pageHeight - imageHeight) / 2;
+
+        if (index > 0) {
+          pdf.addPage();
+        }
+
+        pdf.addImage(
+          image,
+          "JPEG",
+          x,
+          y,
+          imageWidth,
+          imageHeight,
+          undefined,
+          "FAST"
+        );
+      }
+
+      pdf.save(
+        `Customers-Report-${new Date()
+          .toISOString()
+          .slice(0, 10)}.pdf`
+      );
+    } catch (error) {
+      console.error(error);
+
+      window.alert(
+        "PDF export requires html2canvas and jspdf. Run: npm install html2canvas jspdf"
+      );
+    } finally {
+      document.body.classList.remove(
+        "reports-pdf-exporting"
+      );
+    }
+  }
+
+  if (activeReport === "customers") {
+    return (
+      <div className="reports-page">
+        <header className="reports-page-heading no-print">
+          <div>
+            <span>REPORTING CENTER</span>
+            <h1>Customer Report</h1>
+            <p>
+              Review customers from all departments,
+              sources and registration dates.
+            </p>
+          </div>
+
+          <div className="reports-heading-actions">
+            <button
+              type="button"
+              className="reports-back-button"
+              onClick={closeReport}
+            >
+              Reports
+            </button>
+
+            <button
+              type="button"
+              className="reports-print-button"
+              onClick={() =>
+                setPrintOptionsOpen(true)
+              }
+            >
+              <Printer size={16} />
+              Print Report
+            </button>
+          </div>
+        </header>
+
+        <section className="reports-print-header reports-screen-print-header">
+          <div className="reports-print-logo">
+            {systemLogo ? (
+              <img
+                src={systemLogo}
+                alt={systemName}
+              />
+            ) : (
+              <span>
+                {systemName.charAt(0)}
+              </span>
+            )}
+          </div>
+
+          <div className="reports-print-title">
+            <small>OFFICIAL REPORT</small>
+            <h1>Customers Report</h1>
+            <p>
+              Generated customer records from all
+              departments
+            </p>
+          </div>
+
+          <div className="reports-print-company">
+            <strong>{systemName}</strong>
+            <span>
+              {new Date().toLocaleDateString(
+                "en-GB"
+              )}
+            </span>
+          </div>
+        </section>
+
+        <section className="reports-customer-summary reports-screen-summary">
+          <div>
+            <span>Total Customers</span>
+            <strong>
+              {filteredCustomers.length}
+            </strong>
+          </div>
+
+          <div>
+            <span>Consultant</span>
+            <strong>
+              {
+                filteredCustomers.filter(
+                  (customer) =>
+                    getCustomerDepartment(
+                      customer
+                    ) === "consultant"
+                ).length
+              }
+            </strong>
+          </div>
+
+          <div>
+            <span>Travel</span>
+            <strong>
+              {
+                filteredCustomers.filter(
+                  (customer) =>
+                    getCustomerDepartment(
+                      customer
+                    ) === "travel"
+                ).length
+              }
+            </strong>
+          </div>
+
+          <div>
+            <span>Technology & Media</span>
+            <strong>
+              {
+                filteredCustomers.filter(
+                  (customer) =>
+                    ["technology", "media"].includes(
+                      getCustomerDepartment(
+                        customer
+                      )
+                    )
+                ).length
+              }
+            </strong>
+          </div>
+        </section>
+
+        <section className="reports-filter-panel no-print">
+          <div className="reports-search-box">
+            <Search size={17} />
+
+            <input
+              type="search"
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              placeholder="Search by customer name..."
+            />
+          </div>
+
+          <select
+            value={department}
+            onChange={(event) =>
+              setDepartment(event.target.value)
+            }
+          >
+            <option value="all">
+              All Departments
+            </option>
+            <option value="consultant">
+              Consultant
+            </option>
+            <option value="travel">
+              Travel
+            </option>
+            <option value="technology">
+              Technology
+            </option>
+            <option value="media">
+              Media
+            </option>
+          </select>
+
+          <select
+            value={source}
+            onChange={(event) =>
+              setSource(event.target.value)
+            }
+          >
+            <option value="all">
+              All Sources
+            </option>
+
+            {sourceOptions.map((item) => (
+              <option
+                key={item}
+                value={item}
+              >
+                {item}
+              </option>
+            ))}
+          </select>
+
+          <label className="reports-date-filter">
+            <CalendarDays size={15} />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(event) =>
+                setStartDate(event.target.value)
+              }
+              aria-label="Start date"
+            />
+          </label>
+
+          <label className="reports-date-filter">
+            <CalendarDays size={15} />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(event) =>
+                setEndDate(event.target.value)
+              }
+              aria-label="End date"
+            />
+          </label>
+
+          <button
+            type="button"
+            className="reports-reset-button"
+            onClick={resetFilters}
+            title="Clear filters"
+          >
+            <X size={16} />
+          </button>
+        </section>
+
+        <section className="reports-table-card reports-screen-table">
+          <div className="reports-table-heading">
+            <div>
+              <h2>Customer Records</h2>
+              <p>
+                Showing {filteredCustomers.length}{" "}
+                customer records
+              </p>
+            </div>
+          </div>
+
+          <div className="reports-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>No.</th>
+                  <th>Customer</th>
+                  <th>Phone</th>
+                  <th>Department</th>
+                  <th>Source</th>
+                  <th>Assigned To</th>
+                  <th>Status</th>
+                  <th>Date & Time</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredCustomers.map(
+                  (customer, index) => {
+                    const customerDepartment =
+                      getCustomerDepartment(
+                        customer
+                      );
+
+                    return (
+                      <tr key={customer.id || index}>
+                        <td>{index + 1}</td>
+
+                        <td>
+                          <div className="reports-customer-cell">
+                            <span>
+                              {getCustomerName(
+                                customer
+                              )
+                                .charAt(0)
+                                .toUpperCase()}
+                            </span>
+
+                            <div>
+                              <strong>
+                                {getCustomerName(
+                                  customer
+                                )}
+                              </strong>
+                              <small>
+                                {customer.email || "-"}
+                              </small>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td>
+                          {getCustomerPhone(
+                            customer
+                          )}
+                        </td>
+
+                        <td>
+                          <span
+                            className={`reports-department-badge ${customerDepartment}`}
+                          >
+                            {departmentLabels[
+                              customerDepartment
+                            ] || "Other"}
+                          </span>
+                        </td>
+
+                        <td>
+                          {getCustomerSource(
+                            customer
+                          )}
+                        </td>
+
+                        <td>
+                          {customer.assignedEmployeeName ||
+                            "-"}
+                        </td>
+
+                        <td>
+                          <span
+                            className={`reports-status-badge ${String(
+                              customer.followUpDecisionStatus ||
+                                customer.followUpStatus ||
+                                customer.assignmentStatus ||
+                                "None"
+                            )
+                              .trim()
+                              .toLowerCase()}`}
+                          >
+                            {customer.followUpDecisionStatus ||
+                              customer.followUpStatus ||
+                              customer.assignmentStatus ||
+                              "None"}
+                          </span>
+                        </td>
+
+                        <td>
+                          <div className="reports-date-cell">
+                            <strong>
+                              {formatDate(
+                                getCustomerDate(
+                                  customer
+                                )
+                              )}
+                            </strong>
+                            <small>
+                              {formatTimeWithMeridiem(
+                                getCustomerTime(customer),
+                                customer.createdAt ||
+                                  customer.date
+                              )}
+                            </small>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+                )}
+
+                {!filteredCustomers.length && (
+                  <tr>
+                    <td
+                      colSpan="8"
+                      className="reports-empty-state"
+                    >
+                      No customer records match the
+                      selected filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="reports-print-pages">
+          {printPages.map((pageCustomers, pageIndex) => {
+            const firstRecordNumber =
+              pageIndex *
+                Number(
+                  printOptions.rowsPerPage || 20
+                ) +
+              1;
+
+            return (
+              <article
+                className="reports-print-page"
+                key={`print-page-${pageIndex}`}
+              >
+                <section className="reports-print-page-header">
+                  <div className="reports-print-logo">
+                    {systemLogo ? (
+                      <img
+                        src={systemLogo}
+                        alt={systemName}
+                      />
+                    ) : (
+                      <span>
+                        {systemName.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="reports-print-title">
+                    <small>OFFICIAL REPORT</small>
+                    <h1>Customers Report</h1>
+                    <p>
+                      Generated customer records from all
+                      departments
+                    </p>
+                  </div>
+
+                  <div className="reports-print-company">
+                    <strong>{systemName}</strong>
+                    <span>
+                      {new Date().toLocaleDateString(
+                        "en-GB"
+                      )}
+                    </span>
+                  </div>
+                </section>
+
+                {pageIndex === 0 && (
+                  <section className="reports-customer-summary reports-print-summary">
+                    <div>
+                      <span>Total Customers</span>
+                      <strong>
+                        {filteredCustomers.length}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Consultant</span>
+                      <strong>
+                        {
+                          filteredCustomers.filter(
+                            (customer) =>
+                              getCustomerDepartment(
+                                customer
+                              ) === "consultant"
+                          ).length
+                        }
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>Travel</span>
+                      <strong>
+                        {
+                          filteredCustomers.filter(
+                            (customer) =>
+                              getCustomerDepartment(
+                                customer
+                              ) === "travel"
+                          ).length
+                        }
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Technology & Media
+                      </span>
+                      <strong>
+                        {
+                          filteredCustomers.filter(
+                            (customer) =>
+                              [
+                                "technology",
+                                "media",
+                              ].includes(
+                                getCustomerDepartment(
+                                  customer
+                                )
+                              )
+                          ).length
+                        }
+                      </strong>
+                    </div>
+                  </section>
+                )}
+
+                <section className="reports-table-card reports-print-table-card">
+                  <div className="reports-table-heading">
+                    <div>
+                      <h2>Customer Records</h2>
+                      <p>
+                        Page {pageIndex + 1} of{" "}
+                        {printPages.length}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="reports-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>No.</th>
+                          <th>Customer</th>
+                          <th>Phone</th>
+                          <th>Department</th>
+                          <th>Source</th>
+                          <th>Assigned To</th>
+                          <th>Status</th>
+                          <th>Date & Time</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {pageCustomers.map(
+                          (customer, rowIndex) => {
+                            const customerDepartment =
+                              getCustomerDepartment(
+                                customer
+                              );
+
+                            const absoluteIndex =
+                              firstRecordNumber +
+                              rowIndex;
+
+                            return (
+                              <tr
+                                key={
+                                  customer.id ||
+                                  `${pageIndex}-${rowIndex}`
+                                }
+                              >
+                                <td>{absoluteIndex}</td>
+
+                                <td>
+                                  <div className="reports-customer-cell">
+                                    <span>
+                                      {getCustomerName(
+                                        customer
+                                      )
+                                        .charAt(0)
+                                        .toUpperCase()}
+                                    </span>
+
+                                    <div>
+                                      <strong>
+                                        {getCustomerName(
+                                          customer
+                                        )}
+                                      </strong>
+                                      <small>
+                                        {customer.email ||
+                                          "-"}
+                                      </small>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                <td>
+                                  {getCustomerPhone(
+                                    customer
+                                  )}
+                                </td>
+
+                                <td>
+                                  <span
+                                    className={`reports-department-badge ${customerDepartment}`}
+                                  >
+                                    {departmentLabels[
+                                      customerDepartment
+                                    ] || "Other"}
+                                  </span>
+                                </td>
+
+                                <td>
+                                  {getCustomerSource(
+                                    customer
+                                  )}
+                                </td>
+
+                                <td>
+                                  {customer.assignedEmployeeName ||
+                                    "-"}
+                                </td>
+
+                                <td>
+                                  <span
+                                    className={`reports-status-badge ${String(
+                                      customer.followUpDecisionStatus ||
+                                        customer.followUpStatus ||
+                                        customer.assignmentStatus ||
+                                        "None"
+                                    )
+                                      .trim()
+                                      .toLowerCase()}`}
+                                  >
+                                    {customer.followUpDecisionStatus ||
+                                      customer.followUpStatus ||
+                                      customer.assignmentStatus ||
+                                      "None"}
+                                  </span>
+                                </td>
+
+                                <td>
+                                  <div className="reports-date-cell">
+                                    <strong>
+                                      {formatDate(
+                                        getCustomerDate(
+                                          customer
+                                        )
+                                      )}
+                                    </strong>
+                                    <small>
+                                      {formatTimeWithMeridiem(
+                                        getCustomerTime(
+                                          customer
+                                        ),
+                                        customer.createdAt ||
+                                          customer.date
+                                      )}
+                                    </small>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          }
+                        )}
+
+                        {!pageCustomers.length && (
+                          <tr>
+                            <td
+                              colSpan="8"
+                              className="reports-empty-state"
+                            >
+                              No customer records match
+                              the selected filters.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <footer className="reports-print-page-footer">
+                  <span>{systemName}</span>
+                  <span>Customers Report</span>
+                  <span>
+                    Page {pageIndex + 1} of{" "}
+                    {printPages.length}
+                  </span>
+                </footer>
+              </article>
+            );
+          })}
+        </section>
+
+        {printOptionsOpen && (
+          <div
+            className="simple-print-backdrop no-print"
+            onMouseDown={() =>
+              setPrintOptionsOpen(false)
+            }
+          >
+            <section
+              className="simple-print-studio"
+              onMouseDown={(event) =>
+                event.stopPropagation()
+              }
+            >
+              <header className="simple-print-toolbar">
+                <div className="simple-print-title">
+                  <Printer size={17} />
+                  <strong>Customers Report</strong>
+                </div>
+
+                <div className="simple-print-orientation">
+                  <button
+                    type="button"
+                    className={
+                      printOptions.orientation ===
+                      "portrait"
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      setPrintOptions((current) => ({
+                        ...current,
+                        orientation: "portrait",
+                      }))
+                    }
+                  >
+                    Portrait
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      printOptions.orientation ===
+                      "landscape"
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      setPrintOptions((current) => ({
+                        ...current,
+                        orientation: "landscape",
+                      }))
+                    }
+                  >
+                    Landscape
+                  </button>
+                </div>
+
+                <div className="simple-print-actions">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPrintPreviewPage((page) =>
+                        Math.max(0, page - 1)
+                      )
+                    }
+                    disabled={printPreviewPage === 0}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+
+                  <span>
+                    {printPreviewPage + 1}/
+                    {printPages.length}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPrintPreviewPage((page) =>
+                        Math.min(
+                          printPages.length - 1,
+                          page + 1
+                        )
+                      )
+                    }
+                    disabled={
+                      printPreviewPage >=
+                      printPages.length - 1
+                    }
+                    aria-label="Next page"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="pdf"
+                    onClick={exportPdf}
+                  >
+                    <Download size={15} />
+                    PDF
+                  </button>
+
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={printReport}
+                  >
+                    <Printer size={15} />
+                    Print
+                  </button>
+
+                  <button
+                    type="button"
+                    className="close"
+                    onClick={() =>
+                      setPrintOptionsOpen(false)
+                    }
+                    aria-label="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </header>
+
+              <main className="simple-print-preview">
+                <article
+                  className={`simple-print-paper ${printOptions.orientation}`}
+                >
+                  <header className="simple-print-report-header">
+                    <div className="simple-print-logo">
+                      {systemLogo ? (
+                        <img
+                          src={systemLogo}
+                          alt={systemName}
+                        />
+                      ) : (
+                        <span>
+                          {systemName.charAt(0)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <small>OFFICIAL REPORT</small>
+                      <h1>Customers Report</h1>
+                      <p>
+                        Generated customer records from
+                        all departments
+                      </p>
+                    </div>
+
+                    <aside>
+                      <strong>{systemName}</strong>
+                      <span>
+                        {new Date().toLocaleDateString(
+                          "en-GB"
+                        )}
+                      </span>
+                    </aside>
+                  </header>
+
+                  {printPreviewPage === 0 && (
+                    <section className="simple-print-summary">
+                      <div>
+                        <span>Total Customers</span>
+                        <strong>
+                          {filteredCustomers.length}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Consultant</span>
+                        <strong>
+                          {
+                            filteredCustomers.filter(
+                              (customer) =>
+                                getCustomerDepartment(
+                                  customer
+                                ) === "consultant"
+                            ).length
+                          }
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Travel</span>
+                        <strong>
+                          {
+                            filteredCustomers.filter(
+                              (customer) =>
+                                getCustomerDepartment(
+                                  customer
+                                ) === "travel"
+                            ).length
+                          }
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>
+                          Technology & Media
+                        </span>
+                        <strong>
+                          {
+                            filteredCustomers.filter(
+                              (customer) =>
+                                [
+                                  "technology",
+                                  "media",
+                                ].includes(
+                                  getCustomerDepartment(
+                                    customer
+                                  )
+                                )
+                            ).length
+                          }
+                        </strong>
+                      </div>
+                    </section>
+                  )}
+
+                  <section className="simple-print-table">
+                    <header>
+                      <strong>Customer Records</strong>
+                      <span>
+                        Page {printPreviewPage + 1} of{" "}
+                        {printPages.length}
+                      </span>
+                    </header>
+
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>No.</th>
+                          <th>Customer</th>
+                          <th>Phone</th>
+                          <th>Department</th>
+                          <th>Source</th>
+                          <th>Assigned To</th>
+                          <th>Status</th>
+                          <th>Date & Time</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {(
+                          printPages[
+                            printPreviewPage
+                          ] || []
+                        ).map(
+                          (customer, rowIndex) => {
+                            const customerDepartment =
+                              getCustomerDepartment(
+                                customer
+                              );
+
+                            return (
+                              <tr
+                                key={
+                                  customer.id ||
+                                  rowIndex
+                                }
+                              >
+                                <td>
+                                  {printPreviewPage *
+                                    Number(
+                                      printOptions.rowsPerPage ||
+                                        20
+                                    ) +
+                                    rowIndex +
+                                    1}
+                                </td>
+
+                                <td>
+                                  <strong>
+                                    {getCustomerName(
+                                      customer
+                                    )}
+                                  </strong>
+                                  <small>
+                                    {customer.email ||
+                                      "-"}
+                                  </small>
+                                </td>
+
+                                <td>
+                                  {getCustomerPhone(
+                                    customer
+                                  )}
+                                </td>
+
+                                <td>
+                                  {departmentLabels[
+                                    customerDepartment
+                                  ] || "Other"}
+                                </td>
+
+                                <td>
+                                  {getCustomerSource(
+                                    customer
+                                  )}
+                                </td>
+
+                                <td>
+                                  {customer.assignedEmployeeName ||
+                                    "-"}
+                                </td>
+
+                                <td>
+                                  {customer.followUpDecisionStatus ||
+                                    customer.followUpStatus ||
+                                    customer.assignmentStatus ||
+                                    "None"}
+                                </td>
+
+                                <td>
+                                  <strong>
+                                    {formatDate(
+                                      getCustomerDate(
+                                        customer
+                                      )
+                                    )}
+                                  </strong>
+                                  <small>
+                                    {formatTimeWithMeridiem(
+                                      getCustomerTime(
+                                        customer
+                                      ),
+                                      customer.createdAt ||
+                                        customer.date
+                                    )}
+                                  </small>
+                                </td>
+                              </tr>
+                            );
+                          }
+                        )}
+                      </tbody>
+                    </table>
+                  </section>
+
+                  <footer className="simple-print-footer">
+                    <span>{systemName}</span>
+                    <span>Customers Report</span>
+                    <span>
+                      Page {printPreviewPage + 1} of{" "}
+                      {printPages.length}
+                    </span>
+                  </footer>
+                </article>
+              </main>
+            </section>
+          </div>
+        )}
+
+        <footer className="reports-print-footer reports-screen-footer">
+          <span>{systemName}</span>
+          <span>Customers Report</span>
+          <span>
+            Printed on{" "}
+            {new Date().toLocaleString("en-GB")}
+          </span>
+        </footer>
+      </div>
+    );
+  }
+
+}
