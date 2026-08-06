@@ -30,28 +30,28 @@ const reportCards = [
     title: "Employee",
     description: "Employee records and departments",
     icon: UserRoundCheck,
-    available: false,
+    available: true,
   },
   {
     key: "suppliers",
     title: "Suppliers",
     description: "Suppliers, purchases and balances",
     icon: Truck,
-    available: false,
+    available: true,
   },
   {
     key: "reception",
     title: "Reception",
     description: "Reception registrations and referrals",
     icon: Building2,
-    available: false,
+    available: true,
   },
   {
     key: "financial",
     title: "Financial",
     description: "Income, expenses and balances",
     icon: Landmark,
-    available: false,
+    available: true,
   },
 ];
 
@@ -61,13 +61,33 @@ export default function Reports() {
   const openReport = (report) => {
     if (!report.available) return;
 
-    if (report.key === "customers") {
-      navigate("/reports/customers");
-      return;
-    }
+    switch (report.key) {
+      case "customers":
+        navigate("/reports/customers");
+        break;
 
-    if (report.key === "projects") {
-      navigate("/reports/projects");
+      case "projects":
+        navigate("/reports/projects");
+        break;
+
+      case "employees":
+        navigate("/reports/employees");
+        break;
+
+      case "suppliers":
+        navigate("/reports/suppliers");
+        break;
+
+      case "reception":
+        navigate("/reports/reception");
+        break;
+
+      case "financial":
+        navigate("/reports/financial");
+        break;
+
+      default:
+        break;
     }
   };
 
@@ -99,6 +119,7 @@ export default function Reports() {
                 </span>
 
                 <h2>{report.title}</h2>
+
                 <p>{report.description}</p>
               </div>
 

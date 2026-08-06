@@ -640,14 +640,6 @@ const record = {
         </div>
 
         <div className="employee-profile-actions">
-          <button
-            type="button"
-            className="employee-chat-action"
-            onClick={openEmployeeChat}
-          >
-            <MessageCircle size={15} />
-            Chat
-          </button>
 
           <button
             type="button"

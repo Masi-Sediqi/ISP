@@ -49,6 +49,7 @@ import ToastHost from "./components/ToastHost";
 import { useJsonCollection } from "./hooks/useJsonCollection";
 import { canViewModule } from "./utils/permissions";
 import { notify } from "./utils/notify";
+import ReportFinancial from "./pages/ReportFinancial";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const MyAccount = lazy(() =>
@@ -70,6 +71,9 @@ const EmployeeDetails = lazy(() => import("./pages/EmployeeDetails"));
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard"));
 const EmployeeAttendance = lazy(() => import("./pages/EmployeeAttendance"));
 import ProjectReport from "./pages/ProjectReport";
+import EmployeeReport from "./pages/EmployeeReport";
+import SupplierReport from "./pages/SupplierReport";
+import ReceptionReport from "./pages/ReceptionReport";
 const OfficeAssets = lazy(() => import("./pages/OfficeAssets"));
 const OfficeAssetDetails = lazy(() => import("./pages/OfficeAssetDetails"));
 
@@ -986,6 +990,22 @@ const myAssignedCustomers = customers
             <Route
   path="/reports/projects"
   element={<ProjectReport company={company} />}
+/>
+            <Route
+  path="/reports/employees"
+  element={<EmployeeReport company={company} />}
+/>
+            <Route
+  path="/reports/suppliers"
+  element={<SupplierReport company={company} />}
+/>
+<Route
+  path="/reports/reception"
+  element={<ReceptionReport company={company} />}
+/>
+<Route
+  path="/reports/financial"
+  element={<ReportFinancial company={company} />}
 />
                 <Route
                   path="/reception"

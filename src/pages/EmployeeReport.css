@@ -1,0 +1,225 @@
+.employee-report-page {
+    background:
+      linear-gradient(
+        180deg,
+        #f8faff 0,
+        #ffffff 430px
+      );
+  }
+  
+  .employee-report-summary {
+    display: grid;
+    grid-template-columns:
+      repeat(6, minmax(0, 1fr));
+    gap: 12px;
+  }
+  
+  .employee-report-summary > div {
+    min-width: 0;
+    padding: 15px 17px;
+    border: 1px solid
+      var(--border, #e6e8ed);
+    border-radius: 14px;
+    display: grid;
+    gap: 6px;
+    background:
+      var(--panel-bg, #ffffff);
+  }
+  
+  .employee-report-summary > div:nth-child(1) {
+    border-top: 3px solid #4f46e5;
+  }
+  
+  .employee-report-summary > div:nth-child(2) {
+    border-top: 3px solid #16a34a;
+  }
+  
+  .employee-report-summary > div:nth-child(3) {
+    border-top: 3px solid #64748b;
+  }
+  
+  .employee-report-summary > div:nth-child(4) {
+    border-top: 3px solid #2563eb;
+  }
+  
+  .employee-report-summary > div:nth-child(5) {
+    border-top: 3px solid #f59e0b;
+  }
+  
+  .employee-report-summary > div:nth-child(6) {
+    border-top: 3px solid #8b5cf6;
+  }
+  
+  .employee-report-summary span {
+    overflow: hidden;
+    color: var(--muted, #718096);
+    font-size: 9px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .employee-report-summary strong {
+    overflow: hidden;
+    color: var(--text, #151a2d);
+    font-size: 19px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .employee-report-filters {
+    grid-template-columns:
+      minmax(230px, 1.4fr)
+      repeat(3, minmax(135px, 0.72fr))
+      repeat(2, minmax(135px, 0.68fr))
+      42px;
+  }
+  
+  .employee-report-table-card table {
+    min-width: 1550px;
+  }
+  
+  .employee-report-status {
+    min-height: 24px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 9px;
+    font-weight: 800;
+  }
+  
+  .employee-report-status.active {
+    background: #dcfce7;
+    color: #15803d;
+  }
+  
+  .employee-report-status.on-leave {
+    background: #fef3c7;
+    color: #b45309;
+  }
+  
+  .employee-report-status.inactive {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+  
+  .employee-report-credit {
+    color: #15803d !important;
+    font-weight: 800;
+  }
+  
+  .employee-report-debit {
+    color: #dc2626 !important;
+    font-weight: 800;
+  }
+  
+  .employee-report-print-table table {
+    min-width: 0 !important;
+  }
+  
+  .employee-report-print-table td small,
+  .employee-simple-print-table td small {
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 0.82em;
+  }
+  
+  .employee-simple-print-table table {
+    table-layout: fixed;
+  }
+  
+  body.dark-mode .employee-report-page {
+    background: #1e293b;
+  }
+  
+  body.dark-mode
+    .employee-report-summary > div {
+    border-color: #334155;
+    background: #1e293b;
+  }
+  
+  @media (max-width: 1450px) {
+    .employee-report-summary {
+      grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+    }
+  
+    .employee-report-filters {
+      grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+    }
+  }
+  
+  @media (max-width: 850px) {
+    .employee-report-summary,
+    .employee-report-filters {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media print {
+    .employee-report-summary.reports-print-summary {
+      grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+    }
+  
+    .employee-report-print-table th,
+    .employee-report-print-table td {
+      padding: 3px 4px !important;
+      font-size: 5.2px !important;
+    }
+  
+    .employee-report-print-table th:nth-child(1),
+    .employee-report-print-table td:nth-child(1) {
+      width: 4%;
+    }
+  
+    .employee-report-print-table th:nth-child(2),
+    .employee-report-print-table td:nth-child(2) {
+      width: 16%;
+    }
+  
+    .employee-report-print-table th:nth-child(3),
+    .employee-report-print-table td:nth-child(3) {
+      width: 11%;
+    }
+  
+    .employee-report-print-table th:nth-child(4),
+    .employee-report-print-table td:nth-child(4) {
+      width: 11%;
+    }
+  
+    .employee-report-print-table th:nth-child(5),
+    .employee-report-print-table td:nth-child(5) {
+      width: 8%;
+    }
+  
+    .employee-report-print-table th:nth-child(6),
+    .employee-report-print-table td:nth-child(6) {
+      width: 10%;
+    }
+  
+    .employee-report-print-table th:nth-child(7),
+    .employee-report-print-table td:nth-child(7) {
+      width: 7%;
+    }
+  
+    .employee-report-print-table th:nth-child(8),
+    .employee-report-print-table td:nth-child(8),
+    .employee-report-print-table th:nth-child(9),
+    .employee-report-print-table td:nth-child(9),
+    .employee-report-print-table th:nth-child(10),
+    .employee-report-print-table td:nth-child(10) {
+      width: 8%;
+    }
+  
+    .employee-report-print-table th:nth-child(11),
+    .employee-report-print-table td:nth-child(11) {
+      width: 13%;
+    }
+  }
+  

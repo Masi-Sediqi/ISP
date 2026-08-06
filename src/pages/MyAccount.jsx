@@ -1620,17 +1620,7 @@ export default function MyAccount({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  className="message"
-                  disabled={savingAction}
-                  onClick={openMessage}
-                >
-                  <MessageSquare
-                    size={16}
-                  />
-                  Message
-                </button>
+
               </footer>
             ) : (
               <form

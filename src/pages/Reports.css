@@ -3369,3 +3369,389 @@ body.project-report-pdf-exporting
     grid-template-columns: 1fr 1fr;
   }
 }
+/* =========================================================
+   FINAL UNIFIED PRINT OVERRIDE
+   Keep this section at the very end of Reports.css.
+   It overrides older conflicting print rules for all reports.
+   ========================================================= */
+
+@media screen {
+  .reports-print-pages {
+    position: fixed !important;
+    left: -100000px !important;
+    top: 0 !important;
+    width: 297mm !important;
+    height: auto !important;
+    overflow: visible !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 7mm;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  body {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .reports-print-pages,
+  .reports-print-pages * {
+    visibility: visible !important;
+  }
+
+  .reports-print-pages {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .reports-print-page {
+    position: relative !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 196mm !important;
+    min-height: 196mm !important;
+    max-height: 196mm !important;
+    margin: 0 !important;
+    padding: 5mm !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    transform: none !important;
+    zoom: 1 !important;
+  }
+
+  .reports-print-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .reports-print-page-header {
+    flex: 0 0 auto !important;
+    min-height: 17mm !important;
+    margin: 0 0 3mm !important;
+    padding: 0 0 2.5mm !important;
+    border-bottom: 1.5px solid var(--report-print-accent, #4f46e5) !important;
+    display: grid !important;
+    grid-template-columns: 25mm minmax(0, 1fr) 38mm !important;
+    align-items: center !important;
+    gap: 4mm !important;
+  }
+
+  .reports-print-logo {
+    width: 14mm !important;
+    height: 14mm !important;
+    border: 1px solid var(--report-print-accent, #4f46e5) !important;
+    border-radius: 3mm !important;
+    display: grid !important;
+    place-items: center !important;
+    overflow: hidden !important;
+  }
+
+  .reports-print-logo img {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none !important;
+    object-fit: contain !important;
+  }
+
+  .reports-print-logo span {
+    width: auto !important;
+    height: auto !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    color: var(--report-print-accent, #4f46e5) !important;
+    font-size: 12px !important;
+    font-weight: 900 !important;
+  }
+
+  .reports-print-title {
+    min-width: 0 !important;
+    text-align: center !important;
+  }
+
+  .reports-print-title small {
+    display: block !important;
+    margin: 0 0 0.8mm !important;
+    color: var(--report-print-accent, #4f46e5) !important;
+    font-size: 6.5px !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .reports-print-title h1 {
+    margin: 0 !important;
+    color: #111827 !important;
+    font-size: 16px !important;
+    line-height: 1.1 !important;
+  }
+
+  .reports-print-title p {
+    margin: 1mm 0 0 !important;
+    color: #64748b !important;
+    font-size: 7px !important;
+    line-height: 1.2 !important;
+  }
+
+  .reports-print-company {
+    min-width: 0 !important;
+    text-align: right !important;
+  }
+
+  .reports-print-company strong,
+  .reports-print-company span {
+    display: block !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .reports-print-company strong {
+    color: var(--report-print-accent, #4f46e5) !important;
+    font-size: 7px !important;
+  }
+
+  .reports-print-company span {
+    margin-top: 1mm !important;
+    color: #64748b !important;
+    font-size: 6px !important;
+  }
+
+  .reports-print-summary {
+    flex: 0 0 auto !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 2mm !important;
+    margin: 0 0 3mm !important;
+  }
+
+  .reports-print-summary > div {
+    min-width: 0 !important;
+    min-height: 13mm !important;
+    padding: 2.2mm 2.8mm !important;
+    border: 1px solid #dbe2ea !important;
+    border-top: 2px solid var(--report-print-accent, #4f46e5) !important;
+    border-radius: 2mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    background: var(--report-print-soft, #eef2ff) !important;
+    break-inside: avoid !important;
+  }
+
+  .reports-print-summary span {
+    overflow: hidden !important;
+    color: #64748b !important;
+    font-size: 6px !important;
+    line-height: 1.2 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .reports-print-summary strong {
+    display: block !important;
+    margin-top: 1mm !important;
+    overflow: hidden !important;
+    color: #111827 !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .reports-print-table-card {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 2mm !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  .reports-print-table-card .reports-table-heading {
+    min-height: 9mm !important;
+    padding: 1.5mm 2.5mm !important;
+    border-bottom: 1px solid #dbe2ea !important;
+    border-left: 3px solid var(--report-print-accent, #4f46e5) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    background: var(--report-print-soft, #eef2ff) !important;
+  }
+
+  .reports-print-table-card .reports-table-heading h2 {
+    margin: 0 !important;
+    color: #111827 !important;
+    font-size: 8px !important;
+  }
+
+  .reports-print-table-card .reports-table-heading p {
+    margin: 0.5mm 0 0 !important;
+    color: #64748b !important;
+    font-size: 5.5px !important;
+  }
+
+  .reports-print-table-card .reports-table-wrap {
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .reports-print-table-card table,
+  .reports-print-page table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+  }
+
+  .reports-print-page thead {
+    display: table-header-group !important;
+  }
+
+  .reports-print-page tbody {
+    display: table-row-group !important;
+  }
+
+  .reports-print-page tr {
+    height: auto !important;
+    min-height: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .reports-print-page th {
+    padding: 1.7mm 1.3mm !important;
+    border-bottom: 1px solid var(--report-print-accent, #4f46e5) !important;
+    background: var(--report-print-soft, #eef2ff) !important;
+    color: #334155 !important;
+    font-size: 5.7px !important;
+    font-weight: 900 !important;
+    line-height: 1.15 !important;
+    text-align: left !important;
+    text-transform: uppercase !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .reports-print-page td {
+    padding: 1.55mm 1.3mm !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    color: #111827 !important;
+    font-size: 5.8px !important;
+    line-height: 1.2 !important;
+    vertical-align: middle !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .reports-print-page td strong {
+    font-size: 5.9px !important;
+    font-weight: 800 !important;
+  }
+
+  .reports-print-page td small {
+    display: block !important;
+    margin-top: 0.6mm !important;
+    color: #64748b !important;
+    font-size: 4.8px !important;
+    line-height: 1.15 !important;
+  }
+
+  .reports-print-page .reports-customer-cell {
+    display: grid !important;
+    grid-template-columns: 7mm minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 1.5mm !important;
+  }
+
+  .reports-print-page .reports-customer-cell > span {
+    width: 7mm !important;
+    height: 7mm !important;
+    border-radius: 2mm !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: 5px !important;
+  }
+
+  .reports-print-page .reports-department-badge,
+  .reports-print-page .reports-status-badge,
+  .reports-print-page .financial-report-type,
+  .reports-print-page .supplier-report-status,
+  .reports-print-page .reception-report-type,
+  .reports-print-page .reception-report-status {
+    min-height: 4.5mm !important;
+    padding: 0.7mm 1.4mm !important;
+    font-size: 4.8px !important;
+    line-height: 1 !important;
+  }
+
+  .reports-print-page-footer {
+    flex: 0 0 auto !important;
+    min-height: 7mm !important;
+    margin-top: 2mm !important;
+    padding-top: 1.5mm !important;
+    border-top: 1px solid var(--report-print-accent, #4f46e5) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    color: #64748b !important;
+    font-size: 5px !important;
+  }
+
+  .no-print,
+  .simple-print-backdrop,
+  .simple-print-studio,
+  .report-studio-backdrop,
+  .report-studio,
+  .reports-dedicated-print-view,
+  .reports-screen-summary,
+  .reports-screen-table,
+  .reports-filter-panel,
+  .reports-page-heading,
+  .sidebar,
+  .main > header,
+  .header,
+  .global-table-enhancer {
+    display: none !important;
+  }
+}

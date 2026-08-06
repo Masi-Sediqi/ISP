@@ -1,0 +1,183 @@
+.reception-report-page {
+    background: linear-gradient(
+      180deg,
+      #f8faff 0,
+      #fff 430px
+    );
+  }
+  
+  .reception-report-summary {
+    display: grid;
+    grid-template-columns:
+      repeat(6, minmax(0, 1fr));
+    gap: 12px;
+  }
+  
+  .reception-report-summary > div {
+    min-width: 0;
+    padding: 15px 17px;
+    border: 1px solid
+      var(--border, #e6e8ed);
+    border-radius: 14px;
+    display: grid;
+    gap: 6px;
+    background:
+      var(--panel-bg, #fff);
+  }
+  
+  .reception-report-summary > div:nth-child(1) {
+    border-top: 3px solid #4f46e5;
+  }
+  
+  .reception-report-summary > div:nth-child(2) {
+    border-top: 3px solid #6366f1;
+  }
+  
+  .reception-report-summary > div:nth-child(3) {
+    border-top: 3px solid #0891b2;
+  }
+  
+  .reception-report-summary > div:nth-child(4) {
+    border-top: 3px solid #059669;
+  }
+  
+  .reception-report-summary > div:nth-child(5) {
+    border-top: 3px solid #db2777;
+  }
+  
+  .reception-report-summary > div:nth-child(6) {
+    border-top: 3px solid #f59e0b;
+  }
+  
+  .reception-report-summary span {
+    color: var(--muted, #718096);
+    font-size: 9px;
+  }
+  
+  .reception-report-summary strong {
+    color: var(--text, #151a2d);
+    font-size: 19px;
+  }
+  
+  .reception-report-filters {
+    grid-template-columns:
+      minmax(240px, 1.4fr)
+      repeat(3, minmax(135px, 0.72fr))
+      repeat(2, minmax(135px, 0.68fr))
+      42px;
+  }
+  
+  .reception-report-table-card table {
+    min-width: 1500px;
+  }
+  
+  .reception-report-type,
+  .reception-report-status {
+    min-height: 24px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: capitalize;
+  }
+  
+  .reception-report-type.consultant {
+    background: #eef2ff;
+    color: #4338ca;
+  }
+  
+  .reception-report-type.travel {
+    background: #ecfeff;
+    color: #0e7490;
+  }
+  
+  .reception-report-type.technology {
+    background: #ecfdf5;
+    color: #047857;
+  }
+  
+  .reception-report-type.media {
+    background: #fdf2f8;
+    color: #be185d;
+  }
+  
+  .reception-report-status.accepted,
+  .reception-report-status.approved,
+  .reception-report-status.completed {
+    background: #dcfce7;
+    color: #15803d;
+  }
+  
+  .reception-report-status.pending,
+  .reception-report-status.assigned {
+    background: #fef3c7;
+    color: #b45309;
+  }
+  
+  .reception-report-status.rejected {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+  
+  .reception-report-print-table table {
+    min-width: 0 !important;
+  }
+  
+  .reception-report-print-table td small,
+  .reception-simple-print-table td small {
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 8px;
+  }
+  
+  .reception-simple-print-table table {
+    table-layout: fixed;
+  }
+  
+  body.dark-mode .reception-report-page {
+    background: #1e293b;
+  }
+  
+  body.dark-mode
+    .reception-report-summary > div {
+    border-color: #334155;
+    background: #1e293b;
+  }
+  
+  @media (max-width: 1450px) {
+    .reception-report-summary {
+      grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+    }
+  
+    .reception-report-filters {
+      grid-template-columns:
+        repeat(3, minmax(0, 1fr));
+    }
+  }
+  
+  @media (max-width: 850px) {
+    .reception-report-summary,
+    .reception-report-filters {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media print {
+    .reception-report-summary.reports-print-summary {
+      grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+    }
+  
+    .reception-report-print-table th,
+    .reception-report-print-table td {
+      padding: 3px 4px !important;
+      font-size: 5.3px !important;
+    }
+  }
