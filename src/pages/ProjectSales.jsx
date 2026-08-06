@@ -14,6 +14,8 @@ import {
   Pencil,
   Plus,
   ReceiptText,
+  Printer,
+  Download,
   Search,
   Send,
   Trash2,
@@ -104,6 +106,7 @@ function ProjectSales() {
   const [employeeAdjustments, setEmployeeAdjustments] =
     useLocalCollection("employeeAdjustments");
   const [sales, setSales] = useJsonCollection("projectSales");
+  const [settings] = useJsonCollection("settings");
   const [licenses, setLicenses] = useJsonCollection("projectLicenses");
   const [transactions, setTransactions] =
   useJsonCollection("transactions");
@@ -116,6 +119,7 @@ function ProjectSales() {
   const [generating, setGenerating] = useState(false);
   const [licenseGenerationError, setLicenseGenerationError] = useState("");
   const [search, setSearch] = useState("");
+  const [receiptSale, setReceiptSale] = useState(null);
 
   const [deleteTarget, setDeleteTarget] =
   useState(null);
@@ -149,10 +153,58 @@ const [deletingSale, setDeletingSale] =
   const totalSales = sales.reduce((sum, sale) => sum + Number(sale.price || 0), 0);
   const totalPaid = sales.reduce((sum, sale) => sum + Number(sale.paid || 0), 0);
   const totalRemaining = sales.reduce((sum, sale) => sum + Number(sale.remaining || 0), 0);
+
+  const company = settings[0] || {};
+
+  function receiptNumber(sale) {
+    const source = String(
+      sale?.receiptNumber ||
+      sale?.id ||
+      Date.now()
+    )
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase();
+
+    return `REC-${source.slice(-10).padStart(6, "0")}`;
+  }
+
+  function formatReceiptDate(sale) {
+    const raw =
+      sale?.saleDate ||
+      sale?.createdAt ||
+      sale?.updatedAt;
+
+    if (!raw) return "-";
+
+    const date = new Date(raw);
+
+    if (!Number.isFinite(date.getTime())) {
+      return String(raw);
+    }
+
+    return new Intl.DateTimeFormat("en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  }
+
+  function printReceipt() {
+    window.print();
+  }
   useEffect(() => {
-    document.body.classList.toggle("project-modal-open", showForm || !!licenseSale);
-    return () => document.body.classList.remove("project-modal-open");
-  }, [showForm, licenseSale]);
+    document.body.classList.toggle(
+      "project-modal-open",
+      showForm || !!licenseSale || !!receiptSale
+    );
+
+    return () =>
+      document.body.classList.remove(
+        "project-modal-open"
+      );
+  }, [showForm, licenseSale, receiptSale]);
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -1180,6 +1232,16 @@ async function saveLicense(event) {
                           <FileKey2 size={14} />
                         </button>
                       )}
+                      <button
+                        type="button"
+                        className="receipt"
+                        onClick={() => setReceiptSale(sale)}
+                        title="Receipt"
+                        aria-label="Receipt"
+                      >
+                        <ReceiptText size={14} />
+                      </button>
+
                       <button type="button" onClick={() => editSale(sale)} title="Edit" aria-label="Edit"><Pencil size={14} /></button>
                       <button
   type="button"
@@ -1199,6 +1261,271 @@ async function saveLicense(event) {
           </table>
         </div>
       </section>
+      {receiptSale && (
+        <div
+          className="project-receipt-backdrop"
+          role="presentation"
+          onMouseDown={() => setReceiptSale(null)}
+        >
+          <div
+            className="project-receipt-shell"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="project-receipt-title"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="project-receipt-toolbar">
+              <div>
+                <ReceiptText size={18} />
+                <strong>Project Sale Receipt</strong>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={printReceipt}
+                >
+                  <Printer size={15} />
+                  Print
+                </button>
+
+                <button
+                  type="button"
+                  onClick={printReceipt}
+                >
+                  <Download size={15} />
+                  Save PDF
+                </button>
+
+                <button
+                  type="button"
+                  className="close"
+                  onClick={() =>
+                    setReceiptSale(null)
+                  }
+                  aria-label="Close receipt"
+                >
+                  <X size={17} />
+                </button>
+              </div>
+            </div>
+
+            <article className="project-receipt-paper">
+              <header className="project-receipt-hero">
+                <div className="project-receipt-company">
+                  <div className="project-receipt-logo">
+                    {company.logo ? (
+                      <img
+                        src={company.logo}
+                        alt=""
+                      />
+                    ) : (
+                      <span>
+                        {String(
+                          company.companyName ||
+                            "ISP"
+                        )
+                          .trim()
+                          .slice(0, 1)
+                          .toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+
+                  <div>
+                    <h1>
+                      {company.companyName ||
+                        "ISP Smart"}
+                    </h1>
+
+                    <p>
+                      {company.systemSubtitle ||
+                        "Project Sales & Services"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="project-receipt-title">
+                  <span>OFFICIAL RECEIPT</span>
+                  <h2 id="project-receipt-title">
+                    Payment Receipt
+                  </h2>
+                  <strong>
+                    {receiptNumber(receiptSale)}
+                  </strong>
+                </div>
+              </header>
+
+              <section className="project-receipt-meta">
+                <div>
+                  <span>Receipt Date</span>
+                  <strong>
+                    {formatReceiptDate(receiptSale)}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Sale Type</span>
+                  <strong>
+                    {receiptSale.saleType ===
+                    "forever"
+                      ? "Permanent Sale"
+                      : "License Sale"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Currency</span>
+                  <strong>
+                    {receiptSale.currency || "AFN"}
+                  </strong>
+                </div>
+              </section>
+
+              <section className="project-receipt-parties">
+                <div>
+                  <span>BILLED TO</span>
+                  <h3>
+                    {receiptSale.customerName ||
+                      "Customer"}
+                  </h3>
+                  <p>
+                    Phone:{" "}
+                    {receiptSale.customerPhone ||
+                      "-"}
+                  </p>
+                  <p>
+                    Email:{" "}
+                    {receiptSale.customerEmail ||
+                      "-"}
+                  </p>
+                </div>
+
+                <div>
+                  <span>ISSUED BY</span>
+                  <h3>
+                    {company.companyName ||
+                      "ISP Smart"}
+                  </h3>
+                  <p>
+                    {company.address ||
+                      company.companyAddress ||
+                      "Company Address"}
+                  </p>
+                  <p>
+                    {company.phone ||
+                      company.companyPhone ||
+                      company.contactNumber ||
+                      "Company Contact"}
+                  </p>
+                </div>
+              </section>
+
+              <section className="project-receipt-record">
+                <div className="project-receipt-record-head">
+                  <span>PROJECT</span>
+                  <span>SALE TYPE</span>
+                  <span>AMOUNT</span>
+                </div>
+
+                <div className="project-receipt-record-row">
+                  <strong>
+                    {receiptSale.projectName || "-"}
+                  </strong>
+
+                  <span>
+                    {receiptSale.saleType ===
+                    "forever"
+                      ? "Permanent Sale"
+                      : "License Sale"}
+                  </span>
+
+                  <strong>
+                    {money(
+                      receiptSale.price,
+                      receiptSale.currency
+                    )}
+                  </strong>
+                </div>
+              </section>
+
+              <section className="project-receipt-financials">
+                <div className="project-receipt-note">
+                  <span>NOTES</span>
+                  <p>
+                    {receiptSale.notes ||
+                      "No additional notes."}
+                  </p>
+                </div>
+
+                <div className="project-receipt-totals">
+                  <div>
+                    <span>Project Price</span>
+                    <strong>
+                      {money(
+                        receiptSale.price,
+                        receiptSale.currency
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Paid Amount</span>
+                    <strong>
+                      {money(
+                        receiptSale.paid,
+                        receiptSale.currency
+                      )}
+                    </strong>
+                  </div>
+
+                  <div className="remaining">
+                    <span>Remaining Balance</span>
+                    <strong>
+                      {money(
+                        receiptSale.remaining,
+                        receiptSale.currency
+                      )}
+                    </strong>
+                  </div>
+                </div>
+              </section>
+
+              <section className="project-receipt-signatures">
+                <div>
+                  <span>Customer Signature</span>
+                  <i></i>
+                </div>
+
+                <div className="stamp">
+                  <strong>COMPANY STAMP</strong>
+                </div>
+
+                <div>
+                  <span>Authorized Signature</span>
+                  <i></i>
+                </div>
+              </section>
+
+              <footer className="project-receipt-footer">
+                <p>
+                  Thank you for your business.
+                  This receipt confirms the
+                  recorded payment for the project
+                  listed above.
+                </p>
+
+                <strong>
+                  {receiptNumber(receiptSale)}
+                </strong>
+              </footer>
+            </article>
+          </div>
+        </div>
+      )}
+
       {deleteTarget && (
   <div
     className="project-sale-delete-backdrop"
