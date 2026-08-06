@@ -229,6 +229,10 @@ const baseForm = {
   scholarshipType: "",
   currencyUnit: "AFN",
   price: "",
+  selectedVisaPackageId: "",
+  selectedTravelPackageId: "",
+  selectedTechnologyPackageId: "",
+  selectedMediaPackageId: "",
 };
 
 const normalizeDepartment = (value) => {
@@ -570,8 +574,79 @@ export default function EmployeeDashboard({
   const [adjustments] =
     useLocalCollection("employeeAdjustments");
 
+  const [
+    visaPackages,
+    ,
+    ,
+    visaPackagesLoaded,
+  ] = useJsonCollection("visaPackages");
+
+  const [
+    travelPackages,
+    ,
+    ,
+    travelPackagesLoaded,
+  ] = useJsonCollection("travelPackages");
+
+  const [
+    technologyPackages,
+    ,
+    ,
+    technologyPackagesLoaded,
+  ] = useJsonCollection("technologyPackages");
+
+  const [
+    mediaPackages,
+    ,
+    ,
+    mediaPackagesLoaded,
+  ] = useJsonCollection("mediaPackages");
+
   const [form, setForm] =
     useState(baseForm);
+
+  const selectedVisaPackage = useMemo(
+    () =>
+      visaPackages.find(
+        (item) =>
+          String(item.id) ===
+          String(form.selectedVisaPackageId)
+      ) || null,
+    [visaPackages, form.selectedVisaPackageId]
+  );
+
+  const selectedTravelPackage = useMemo(
+    () =>
+      travelPackages.find(
+        (item) =>
+          String(item.id) ===
+          String(form.selectedTravelPackageId)
+      ) || null,
+    [travelPackages, form.selectedTravelPackageId]
+  );
+
+  const selectedTechnologyPackage = useMemo(
+    () =>
+      technologyPackages.find(
+        (item) =>
+          String(item.id) ===
+          String(form.selectedTechnologyPackageId)
+      ) || null,
+    [
+      technologyPackages,
+      form.selectedTechnologyPackageId,
+    ]
+  );
+
+  const selectedMediaPackage = useMemo(
+    () =>
+      mediaPackages.find(
+        (item) =>
+          String(item.id) ===
+          String(form.selectedMediaPackageId)
+      ) || null,
+    [mediaPackages, form.selectedMediaPackageId]
+  );
 
   const [open, setOpen] =
     useState(false);
@@ -774,6 +849,22 @@ export default function EmployeeDashboard({
         "AFN",
       price:
         customer.price ?? "",
+      selectedVisaPackageId:
+        customer.selectedVisaPackageId ||
+        customer.visaPackageId ||
+        "",
+      selectedTravelPackageId:
+        customer.selectedTravelPackageId ||
+        customer.travelPackageId ||
+        "",
+      selectedTechnologyPackageId:
+        customer.selectedTechnologyPackageId ||
+        customer.technologyPackageId ||
+        "",
+      selectedMediaPackageId:
+        customer.selectedMediaPackageId ||
+        customer.mediaPackageId ||
+        "",
     });
 
     setOpen(true);
@@ -787,6 +878,39 @@ export default function EmployeeDashboard({
 
   const save = async (event) => {
     event.preventDefault();
+
+    if (
+      mode === "travel" &&
+      !form.selectedTravelPackageId
+    ) {
+      notify(
+        "Please select a Travel Package.",
+        "error"
+      );
+      return;
+    }
+
+    if (
+      mode === "technology" &&
+      !form.selectedTechnologyPackageId
+    ) {
+      notify(
+        "Please select a Technology Package.",
+        "error"
+      );
+      return;
+    }
+
+    if (
+      mode === "media" &&
+      !form.selectedMediaPackageId
+    ) {
+      notify(
+        "Please select a Media Package.",
+        "error"
+      );
+      return;
+    }
 
     if (
       !form.fullName.trim() ||
@@ -849,10 +973,11 @@ export default function EmployeeDashboard({
       phone: form.phone.trim(),
 
       country:
-        mode === "consultant" ||
         mode === "travel"
-          ? form.country
-          : "",
+          ? selectedTravelPackage?.country || ""
+          : mode === "media"
+            ? selectedMediaPackage?.country || ""
+            : "",
 
       scholarshipType:
         mode === "consultant"
@@ -866,13 +991,86 @@ export default function EmployeeDashboard({
         form.currencyUnit || "AFN",
 
       price:
-        Number(form.price || 0),
+        mode === "travel"
+          ? Number(
+              selectedTravelPackage?.sellingPrice || 0
+            )
+          : mode === "technology"
+            ? Number(
+                selectedTechnologyPackage?.sellingPrice || 0
+              )
+            : mode === "media"
+              ? Number(
+                  selectedMediaPackage?.sellingPrice || 0
+                )
+              : Number(form.price || 0),
+
+      selectedVisaPackageId:
+        mode === "consultant"
+          ? form.selectedVisaPackageId
+          : "",
+
+      visaPackageId:
+        mode === "consultant"
+          ? form.selectedVisaPackageId
+          : "",
+
+      visaPackageName:
+        mode === "consultant"
+          ? selectedVisaPackage?.packageName || ""
+          : "",
+
+      selectedTravelPackageId:
+        mode === "travel"
+          ? form.selectedTravelPackageId
+          : "",
+
+      travelPackageId:
+        mode === "travel"
+          ? form.selectedTravelPackageId
+          : "",
+
+      travelPackageName:
+        mode === "travel"
+          ? selectedTravelPackage?.packageName || ""
+          : "",
+
+      selectedTechnologyPackageId:
+        mode === "technology"
+          ? form.selectedTechnologyPackageId
+          : "",
+
+      technologyPackageId:
+        mode === "technology"
+          ? form.selectedTechnologyPackageId
+          : "",
+
+      technologyPackageName:
+        mode === "technology"
+          ? selectedTechnologyPackage?.packageName || ""
+          : "",
+
+      selectedMediaPackageId:
+        mode === "media"
+          ? form.selectedMediaPackageId
+          : "",
+
+      mediaPackageId:
+        mode === "media"
+          ? form.selectedMediaPackageId
+          : "",
+
+      mediaPackageName:
+        mode === "media"
+          ? selectedMediaPackage?.packageName || ""
+          : "",
 
       businessType:
-        mode === "technology" ||
         mode === "media"
-          ? form.businessType.trim()
-          : "",
+          ? selectedMediaPackage?.category || ""
+          : mode === "technology"
+            ? form.businessType.trim()
+            : "",
 
       technologyPurpose:
         mode === "technology"
@@ -1368,6 +1566,391 @@ export default function EmployeeDashboard({
             </header>
 
             <div className="employee-customer-grid">
+              {mode === "consultant" && (
+                <div className="employee-visa-package-section wide">
+                  <label className="employee-package-select-field">
+                    Visa Package
+
+                    <select
+                      name="selectedVisaPackageId"
+                      value={form.selectedVisaPackageId}
+                      onChange={update}
+                    >
+                      <option value="">
+                        Select registered visa package
+                      </option>
+
+                      {visaPackages.map((item) => (
+                        <option
+                          key={item.id}
+                          value={item.id}
+                        >
+                          {item.packageName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {!visaPackagesLoaded && (
+                    <p className="employee-package-empty-note">
+                      Loading Visa Packages...
+                    </p>
+                  )}
+
+                  {visaPackagesLoaded &&
+                    !visaPackages.length && (
+                      <p className="employee-package-empty-note">
+                        No Visa Packages have been registered yet.
+                      </p>
+                    )}
+
+                  {selectedVisaPackage && (
+                    <section className="employee-package-preview">
+                      <header>
+                        <div>
+                          <span>SELECTED VISA PACKAGE</span>
+                          <h3>
+                            {selectedVisaPackage.packageName}
+                          </h3>
+                        </div>
+
+                        <strong>
+                          {Number(
+                            selectedVisaPackage.sellingPrice || 0
+                          ).toLocaleString()} AFN
+                        </strong>
+                      </header>
+
+                      <div className="employee-package-preview-grid">
+                        <div>
+                          <span>Country</span>
+                          <strong>
+                            {selectedVisaPackage.country || "-"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Category</span>
+                          <strong>
+                            {selectedVisaPackage.category || "-"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Start Date</span>
+                          <strong>
+                            {selectedVisaPackage.startDate || "-"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>End Date</span>
+                          <strong>
+                            {selectedVisaPackage.endDate || "-"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Bank Statement</span>
+                          <strong>
+                            {selectedVisaPackage.bankStatementRequired === "Yes"
+                              ? `${Number(
+                                  selectedVisaPackage.bankStatementAmount || 0
+                                ).toLocaleString()} AFN`
+                              : "Not Required"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Documentation</span>
+                          <strong>
+                            {selectedVisaPackage.documentationRequired === "Yes"
+                              ? (selectedVisaPackage.documents || []).join(", ") ||
+                                "Required"
+                              : "Not Required"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {selectedVisaPackage.note && (
+                        <div className="employee-package-preview-note">
+                          <span>Package Note</span>
+                          <p>{selectedVisaPackage.note}</p>
+                        </div>
+                      )}
+                    </section>
+                  )}
+                </div>
+              )}
+
+              {mode === "travel" && (
+                <div className="employee-visa-package-section wide">
+                  <label className="employee-package-select-field">
+                    Travel Package
+
+                    <select
+                      name="selectedTravelPackageId"
+                      value={form.selectedTravelPackageId}
+                      onChange={update}
+                    >
+                      <option value="">
+                        Select registered travel package
+                      </option>
+
+                      {travelPackages.map((item) => (
+                        <option
+                          key={item.id}
+                          value={item.id}
+                        >
+                          {item.packageName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {!travelPackagesLoaded && (
+                    <p className="employee-package-empty-note">
+                      Loading Travel Packages...
+                    </p>
+                  )}
+
+                  {travelPackagesLoaded &&
+                    !travelPackages.length && (
+                      <p className="employee-package-empty-note">
+                        No Travel Packages have been registered yet.
+                      </p>
+                    )}
+
+                  {selectedTravelPackage && (
+                    <section className="employee-package-preview">
+                      <header>
+                        <div>
+                          <span>SELECTED TRAVEL PACKAGE</span>
+
+                          <h3>
+                            {selectedTravelPackage.packageName}
+                          </h3>
+                        </div>
+
+                        <strong>
+                          {Number(
+                            selectedTravelPackage.sellingPrice || 0
+                          ).toLocaleString()} AFN
+                        </strong>
+                      </header>
+
+                      <div className="employee-package-preview-grid">
+                        <div>
+                          <span>Country</span>
+
+                          <strong>
+                            {selectedTravelPackage.country || "-"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Category</span>
+
+                          <strong>
+                            {selectedTravelPackage.category || "-"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Start Date</span>
+
+                          <strong>
+                            {selectedTravelPackage.startDate || "-"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>End Date</span>
+
+                          <strong>
+                            {selectedTravelPackage.endDate || "-"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Bank Statement</span>
+
+                          <strong>
+                            {selectedTravelPackage.bankStatementRequired ===
+                            "Yes"
+                              ? `${Number(
+                                  selectedTravelPackage.bankStatementAmount ||
+                                    0
+                                ).toLocaleString()} AFN`
+                              : "Not Required"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {selectedTravelPackage.note && (
+                        <div className="employee-package-preview-note">
+                          <span>Package Note</span>
+
+                          <p>
+                            {selectedTravelPackage.note}
+                          </p>
+                        </div>
+                      )}
+                    </section>
+                  )}
+                </div>
+              )}
+
+              {mode === "technology" && (
+                <div className="employee-visa-package-section wide">
+                  <label className="employee-package-select-field">
+                    Technology Package
+
+                    <select
+                      name="selectedTechnologyPackageId"
+                      value={form.selectedTechnologyPackageId}
+                      onChange={update}
+                    >
+                      <option value="">
+                        Select registered technology package
+                      </option>
+
+                      {technologyPackages.map((item) => (
+                        <option
+                          key={item.id}
+                          value={item.id}
+                        >
+                          {item.packageName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {!technologyPackagesLoaded && (
+                    <p className="employee-package-empty-note">
+                      Loading Technology Packages...
+                    </p>
+                  )}
+
+                  {technologyPackagesLoaded &&
+                    !technologyPackages.length && (
+                      <p className="employee-package-empty-note">
+                        No Technology Packages have been registered yet.
+                      </p>
+                    )}
+
+                  {selectedTechnologyPackage && (
+                    <section className="employee-package-preview">
+                      <header>
+                        <div>
+                          <span>SELECTED TECHNOLOGY PACKAGE</span>
+
+                          <h3>
+                            {selectedTechnologyPackage.packageName}
+                          </h3>
+                        </div>
+
+                        <strong>
+                          {Number(
+                            selectedTechnologyPackage.sellingPrice || 0
+                          ).toLocaleString()} AFN
+                        </strong>
+                      </header>
+
+                      {selectedTechnologyPackage.note && (
+                        <div className="employee-package-preview-note">
+                          <span>Package Note</span>
+                          <p>{selectedTechnologyPackage.note}</p>
+                        </div>
+                      )}
+                    </section>
+                  )}
+                </div>
+              )}
+
+              {mode === "media" && (
+                <div className="employee-visa-package-section wide">
+                  <label className="employee-package-select-field">
+                    Media Package
+
+                    <select
+                      name="selectedMediaPackageId"
+                      value={form.selectedMediaPackageId}
+                      onChange={update}
+                    >
+                      <option value="">
+                        Select registered media package
+                      </option>
+
+                      {mediaPackages.map((item) => (
+                        <option
+                          key={item.id}
+                          value={item.id}
+                        >
+                          {item.packageName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {!mediaPackagesLoaded && (
+                    <p className="employee-package-empty-note">
+                      Loading Media Packages...
+                    </p>
+                  )}
+
+                  {mediaPackagesLoaded &&
+                    !mediaPackages.length && (
+                      <p className="employee-package-empty-note">
+                        No Media Packages have been registered yet.
+                      </p>
+                    )}
+
+                  {selectedMediaPackage && (
+                    <section className="employee-package-preview">
+                      <header>
+                        <div>
+                          <span>SELECTED MEDIA PACKAGE</span>
+
+                          <h3>
+                            {selectedMediaPackage.packageName}
+                          </h3>
+                        </div>
+
+                        <strong>
+                          {Number(
+                            selectedMediaPackage.sellingPrice || 0
+                          ).toLocaleString()} AFN
+                        </strong>
+                      </header>
+
+                      <div className="employee-package-preview-grid">
+                        <div>
+                          <span>Country</span>
+                          <strong>
+                            {selectedMediaPackage.country || "-"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Category</span>
+                          <strong>
+                            {selectedMediaPackage.category || "-"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {selectedMediaPackage.note && (
+                        <div className="employee-package-preview-note">
+                          <span>Package Note</span>
+                          <p>{selectedMediaPackage.note}</p>
+                        </div>
+                      )}
+                    </section>
+                  )}
+                </div>
+              )}
+
               <label>
                 Full Name
 
@@ -1425,19 +2008,6 @@ export default function EmployeeDashboard({
                 </select>
               </label>
 
-              {(mode === "consultant" ||
-                mode === "travel") && (
-                <label>
-  Country
-
-  <CountrySelect
-    value={form.country}
-    onChange={update}
-    countries={countries}
-  />
-</label>
-              )}
-
               <label>
                 Language
 
@@ -1494,8 +2064,26 @@ export default function EmployeeDashboard({
                   min="0"
                   step="0.01"
                   name="price"
-                  value={form.price}
+                  value={
+                    mode === "travel" && selectedTravelPackage
+                      ? selectedTravelPackage.sellingPrice || ""
+                      : mode === "technology" &&
+                          selectedTechnologyPackage
+                        ? selectedTechnologyPackage.sellingPrice || ""
+                        : mode === "media" &&
+                            selectedMediaPackage
+                          ? selectedMediaPackage.sellingPrice || ""
+                          : form.price
+                  }
                   onChange={update}
+                  readOnly={
+                    (mode === "travel" &&
+                      Boolean(selectedTravelPackage)) ||
+                    (mode === "technology" &&
+                      Boolean(selectedTechnologyPackage)) ||
+                    (mode === "media" &&
+                      Boolean(selectedMediaPackage))
+                  }
                   placeholder="Enter price"
                 />
               </label>

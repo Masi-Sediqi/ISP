@@ -46,28 +46,37 @@ const COLLECTIONS = new Set([
   "suppliers",
   "supplierPurchases",
   "supplierPayments",
+
   "customers",
   "customerPayments",
+
   "employeeTypes",
   "employees",
   "employeePayrolls",
   "employeeEarnings",
   "employeePayments",
   "employeeAdjustments",
+
   "consultantCustomers",
   "travelCustomers",
   "technologyCustomers",
 
+  // Packages
+  "visaPackages",
+  "travelPackages",
+  "technologyPackages",
+  "mediaPackages",
+
   "educationInstitutions",
   "mediaProducts",
   "messages",
-  
-  "transactions",
 
+  "transactions",
 
   "officeAssets",
   "officeAssetItems",
   "officeAssetCategories",
+
   "reports",
   "projects",
   "projectSales",
