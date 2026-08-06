@@ -437,10 +437,29 @@ function MediaCountrySelect({
   );
 }
 
+
+const currencyOptions = [
+  { code: "AFN", label: "AFN - افغانی" },
+  { code: "USD", label: "USD - US Dollar" },
+  { code: "EUR", label: "EUR - Euro" },
+  { code: "GBP", label: "GBP - British Pound" },
+  { code: "AED", label: "AED - UAE Dirham" },
+  { code: "SAR", label: "SAR - Saudi Riyal" },
+  { code: "TRY", label: "TRY - Turkish Lira" },
+  { code: "PKR", label: "PKR - Pakistani Rupee" },
+  { code: "INR", label: "INR - Indian Rupee" },
+  { code: "IRR", label: "IRR - Iranian Rial" },
+  { code: "CAD", label: "CAD - Canadian Dollar" },
+  { code: "AUD", label: "AUD - Australian Dollar" },
+  { code: "RUB", label: "RUB - Russian Ruble" },
+  { code: "CNY", label: "CNY - Chinese Yuan" },
+];
+
 const emptyForm = {
   packageName: "",
   country: "",
   category: "",
+  currency: "AFN",
   sellingPrice: "",
   note: "",
 };
@@ -448,8 +467,32 @@ const emptyForm = {
 const normalize = (value) =>
   String(value || "").trim().toLowerCase();
 
-const money = (value) =>
-  `${Number(value || 0).toLocaleString("en-US")} AFN`;
+const money = (value, currency = "AFN") =>
+  `${Number(value || 0).toLocaleString("en-US")} ${
+    currency || "AFN"
+  }`;
+
+const totalsByCurrency = (items, fieldName) => {
+  const totals = items.reduce((result, item) => {
+    const currency = item.currency || "AFN";
+
+    result[currency] =
+      (result[currency] || 0) +
+      Number(item[fieldName] || 0);
+
+    return result;
+  }, {});
+
+  const entries = Object.entries(totals);
+
+  if (!entries.length) return "0 AFN";
+
+  return entries
+    .map(([currency, amount]) =>
+      money(amount, currency)
+    )
+    .join(" • ");
+};
 
 export default function MediaPackages() {
   const [
@@ -521,6 +564,7 @@ export default function MediaPackages() {
           item.country,
           item.category,
           item.sellingPrice,
+          item.currency,
           item.note,
         ].some((value) =>
           normalize(value).includes(query)
@@ -533,21 +577,29 @@ export default function MediaPackages() {
       );
   }, [packages, search]);
 
-  const summary = useMemo(() => {
-    const totalSelling = packages.reduce(
-      (sum, item) =>
-        sum + Number(item.sellingPrice || 0),
-      0
-    );
-
-    return {
-      total: packages.length,
-      totalSelling,
-      averagePrice: packages.length
-        ? totalSelling / packages.length
-        : 0,
-    };
-  }, [packages]);
+  const summary = useMemo(() => ({
+    total: packages.length,
+    totalSellingLabel: totalsByCurrency(
+      packages,
+      "sellingPrice"
+    ),
+    averagePriceLabel:
+      packages.length
+        ? totalsByCurrency(
+            packages.map((item) => ({
+              ...item,
+              averageValue:
+                Number(item.sellingPrice || 0) /
+                packages.filter(
+                  (row) =>
+                    (row.currency || "AFN") ===
+                    (item.currency || "AFN")
+                ).length,
+            })),
+            "averageValue"
+          )
+        : "0 AFN",
+  }), [packages]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -563,6 +615,7 @@ export default function MediaPackages() {
       packageName: item.packageName || "",
       country: item.country || "",
       category: item.category || "",
+      currency: item.currency || "AFN",
       sellingPrice: String(item.sellingPrice ?? ""),
       note: item.note || "",
     });
@@ -662,6 +715,7 @@ export default function MediaPackages() {
       packageName,
       country: form.country,
       category: form.category,
+      currency: form.currency || "AFN",
       sellingPrice,
       note: form.note.trim(),
       status: "Active",
@@ -750,13 +804,13 @@ export default function MediaPackages() {
 
         <article>
           <span>Total Selling Value</span>
-          <strong>{money(summary.totalSelling)}</strong>
+          <strong>{summary.totalSellingLabel}</strong>
           <p>Combined selling price</p>
         </article>
 
         <article>
           <span>Average Price</span>
-          <strong>{money(summary.averagePrice)}</strong>
+          <strong>{summary.averagePriceLabel}</strong>
           <p>Average package selling price</p>
         </article>
       </section>
@@ -788,6 +842,7 @@ export default function MediaPackages() {
                 <th>Package Name</th>
                 <th>Country</th>
                 <th>Category</th>
+                <th>Unit</th>
                 <th>Selling Price</th>
                 <th>Note</th>
                 <th>Actions</th>
@@ -809,8 +864,14 @@ export default function MediaPackages() {
                     </span>
                   </td>
 
+                  <td>
+                    <span className="media-package-currency">
+                      {item.currency || "AFN"}
+                    </span>
+                  </td>
+
                   <td className="media-package-price">
-                    {money(item.sellingPrice)}
+                    {money(item.sellingPrice, item.currency)}
                   </td>
 
                   <td>
@@ -853,7 +914,7 @@ export default function MediaPackages() {
               {!filteredPackages.length && (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     className="media-package-empty"
                   >
                     No media packages found.
@@ -919,6 +980,25 @@ export default function MediaPackages() {
                 />
               </label>
 
+              <label>
+                <span>Unit</span>
+
+                <select
+                  name="currency"
+                  value={form.currency}
+                  onChange={updateField}
+                >
+                  {currencyOptions.map((item) => (
+                    <option
+                      key={item.code}
+                      value={item.code}
+                    >
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <label className="media-category-field">
                 <span>Category</span>
 
@@ -971,7 +1051,7 @@ export default function MediaPackages() {
               </label>
 
               <label>
-                <span>Selling Price (AFN)</span>
+                <span>Selling Price ({form.currency})</span>
                 <input
                   type="number"
                   min="0"
@@ -1045,6 +1125,13 @@ export default function MediaPackages() {
               <div>
                 <span>Country</span>
                 <strong>{detailsItem.country}</strong>
+              </div>
+
+              <div>
+                <span>Unit</span>
+                <strong>
+                  {detailsItem.currency || "AFN"}
+                </strong>
               </div>
 
               <div>

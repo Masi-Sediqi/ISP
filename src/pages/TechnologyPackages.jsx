@@ -14,8 +14,27 @@ import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
 import "./TechnologyPackages.css";
 
+
+const currencyOptions = [
+  { code: "AFN", label: "AFN - افغانی" },
+  { code: "USD", label: "USD - US Dollar" },
+  { code: "EUR", label: "EUR - Euro" },
+  { code: "GBP", label: "GBP - British Pound" },
+  { code: "AED", label: "AED - UAE Dirham" },
+  { code: "SAR", label: "SAR - Saudi Riyal" },
+  { code: "TRY", label: "TRY - Turkish Lira" },
+  { code: "PKR", label: "PKR - Pakistani Rupee" },
+  { code: "INR", label: "INR - Indian Rupee" },
+  { code: "IRR", label: "IRR - Iranian Rial" },
+  { code: "CAD", label: "CAD - Canadian Dollar" },
+  { code: "AUD", label: "AUD - Australian Dollar" },
+  { code: "RUB", label: "RUB - Russian Ruble" },
+  { code: "CNY", label: "CNY - Chinese Yuan" },
+];
+
 const emptyForm = {
   packageName: "",
+  currency: "AFN",
   sellingPrice: "",
   note: "",
 };
@@ -23,8 +42,32 @@ const emptyForm = {
 const normalize = (value) =>
   String(value || "").trim().toLowerCase();
 
-const money = (value) =>
-  `${Number(value || 0).toLocaleString("en-US")} AFN`;
+const money = (value, currency = "AFN") =>
+  `${Number(value || 0).toLocaleString("en-US")} ${
+    currency || "AFN"
+  }`;
+
+const totalsByCurrency = (items, fieldName) => {
+  const totals = items.reduce((result, item) => {
+    const currency = item.currency || "AFN";
+
+    result[currency] =
+      (result[currency] || 0) +
+      Number(item[fieldName] || 0);
+
+    return result;
+  }, {});
+
+  const entries = Object.entries(totals);
+
+  if (!entries.length) return "0 AFN";
+
+  return entries
+    .map(([currency, amount]) =>
+      money(amount, currency)
+    )
+    .join(" • ");
+};
 
 export default function TechnologyPackages() {
   const [
@@ -90,6 +133,7 @@ export default function TechnologyPackages() {
         return [
           item.packageName,
           item.sellingPrice,
+          item.currency,
           item.note,
         ].some((value) =>
           normalize(value).includes(query)
@@ -102,21 +146,13 @@ export default function TechnologyPackages() {
       );
   }, [packages, search]);
 
-  const summary = useMemo(() => {
-    const totalSelling = packages.reduce(
-      (sum, item) =>
-        sum + Number(item.sellingPrice || 0),
-      0
-    );
-
-    return {
-      total: packages.length,
-      totalSelling,
-      averagePrice: packages.length
-        ? totalSelling / packages.length
-        : 0,
-    };
-  }, [packages]);
+  const summary = useMemo(() => ({
+    total: packages.length,
+    totalSellingLabel: totalsByCurrency(
+      packages,
+      "sellingPrice"
+    ),
+  }), [packages]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -128,6 +164,7 @@ export default function TechnologyPackages() {
     setEditingId(item.id);
     setForm({
       packageName: item.packageName || "",
+      currency: item.currency || "AFN",
       sellingPrice: String(item.sellingPrice ?? ""),
       note: item.note || "",
     });
@@ -174,6 +211,7 @@ export default function TechnologyPackages() {
     const record = {
       id: editingId || createRecordId(),
       packageName,
+      currency: form.currency || "AFN",
       sellingPrice,
       note: form.note.trim(),
       status: "Active",
@@ -262,7 +300,7 @@ export default function TechnologyPackages() {
 
         <article>
           <span>Total Selling Value</span>
-          <strong>{money(summary.totalSelling)}</strong>
+          <strong>{summary.totalSellingLabel}</strong>
           <p>Combined selling price</p>
         </article>
 
@@ -298,6 +336,7 @@ export default function TechnologyPackages() {
             <thead>
               <tr>
                 <th>Package Name</th>
+                <th>Unit</th>
                 <th>Selling Price</th>
                 <th>Note</th>
                 <th>Actions</th>
@@ -311,8 +350,14 @@ export default function TechnologyPackages() {
                     <strong>{item.packageName}</strong>
                   </td>
 
+                  <td>
+                    <span className="technology-package-currency">
+                      {item.currency || "AFN"}
+                    </span>
+                  </td>
+
                   <td className="technology-package-price">
-                    {money(item.sellingPrice)}
+                    {money(item.sellingPrice, item.currency)}
                   </td>
 
                   <td>
@@ -355,7 +400,7 @@ export default function TechnologyPackages() {
               {!filteredPackages.length && (
                 <tr>
                   <td
-                    colSpan="4"
+                    colSpan="5"
                     className="technology-package-empty"
                   >
                     No technology packages found.
@@ -413,7 +458,26 @@ export default function TechnologyPackages() {
               </label>
 
               <label>
-                <span>Selling Price (AFN)</span>
+                <span>Unit</span>
+
+                <select
+                  name="currency"
+                  value={form.currency}
+                  onChange={updateField}
+                >
+                  {currencyOptions.map((item) => (
+                    <option
+                      key={item.code}
+                      value={item.code}
+                    >
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Selling Price ({form.currency})</span>
                 <input
                   type="number"
                   min="0"
@@ -487,6 +551,13 @@ export default function TechnologyPackages() {
               <div>
                 <span>Package Name</span>
                 <strong>{detailsItem.packageName}</strong>
+              </div>
+
+              <div>
+                <span>Unit</span>
+                <strong>
+                  {detailsItem.currency || "AFN"}
+                </strong>
               </div>
 
               <div>

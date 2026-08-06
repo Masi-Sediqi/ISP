@@ -443,6 +443,24 @@ function TravelCountrySelect({
   );
 }
 
+
+const currencyOptions = [
+  { code: "AFN", label: "AFN - افغانی" },
+  { code: "USD", label: "USD - US Dollar" },
+  { code: "EUR", label: "EUR - Euro" },
+  { code: "GBP", label: "GBP - British Pound" },
+  { code: "AED", label: "AED - UAE Dirham" },
+  { code: "SAR", label: "SAR - Saudi Riyal" },
+  { code: "TRY", label: "TRY - Turkish Lira" },
+  { code: "PKR", label: "PKR - Pakistani Rupee" },
+  { code: "INR", label: "INR - Indian Rupee" },
+  { code: "IRR", label: "IRR - Iranian Rial" },
+  { code: "CAD", label: "CAD - Canadian Dollar" },
+  { code: "AUD", label: "AUD - Australian Dollar" },
+  { code: "RUB", label: "RUB - Russian Ruble" },
+  { code: "CNY", label: "CNY - Chinese Yuan" },
+];
+
 const defaultCategories = [
   "Medical",
   "Tourism",
@@ -458,6 +476,7 @@ const emptyForm = {
   startDate: "",
   endDate: "",
   category: "",
+  currency: "AFN",
   costPrice: "",
   sellingPrice: "",
   bankStatementRequired: "No",
@@ -468,8 +487,32 @@ const emptyForm = {
 const normalize = (value) =>
   String(value || "").trim().toLowerCase();
 
-const money = (value) =>
-  `${Number(value || 0).toLocaleString("en-US")} AFN`;
+const money = (value, currency = "AFN") =>
+  `${Number(value || 0).toLocaleString("en-US")} ${
+    currency || "AFN"
+  }`;
+
+const totalsByCurrency = (items, fieldName) => {
+  const totals = items.reduce((result, item) => {
+    const currency = item.currency || "AFN";
+
+    result[currency] =
+      (result[currency] || 0) +
+      Number(item[fieldName] || 0);
+
+    return result;
+  }, {});
+
+  const entries = Object.entries(totals);
+
+  if (!entries.length) return "0 AFN";
+
+  return entries
+    .map(([currency, amount]) =>
+      money(amount, currency)
+    )
+    .join(" • ");
+};
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -558,6 +601,7 @@ export default function TravelPackages() {
           item.bankStatementRequired,
           item.costPrice,
           item.sellingPrice,
+          item.currency,
         ].some((value) =>
           normalize(value).includes(query)
         );
@@ -569,24 +613,29 @@ export default function TravelPackages() {
       );
   }, [packages, search]);
 
-  const stats = useMemo(() => {
-    const totalCost = packages.reduce(
-      (sum, item) => sum + Number(item.costPrice || 0),
-      0
-    );
+  const stats = useMemo(() => ({
+    total: packages.length,
 
-    const totalSales = packages.reduce(
-      (sum, item) => sum + Number(item.sellingPrice || 0),
-      0
-    );
+    totalCostLabel: totalsByCurrency(
+      packages,
+      "costPrice"
+    ),
 
-    return {
-      total: packages.length,
-      totalCost,
-      totalSales,
-      totalProfit: totalSales - totalCost,
-    };
-  }, [packages]);
+    totalSalesLabel: totalsByCurrency(
+      packages,
+      "sellingPrice"
+    ),
+
+    totalProfitLabel: totalsByCurrency(
+      packages.map((item) => ({
+        ...item,
+        profit:
+          Number(item.sellingPrice || 0) -
+          Number(item.costPrice || 0),
+      })),
+      "profit"
+    ),
+  }), [packages]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -604,6 +653,7 @@ export default function TravelPackages() {
       startDate: item.startDate || "",
       endDate: item.endDate || "",
       category: item.category || "",
+      currency: item.currency || "AFN",
       costPrice: String(item.costPrice ?? ""),
       sellingPrice: String(item.sellingPrice ?? ""),
       bankStatementRequired:
@@ -745,6 +795,7 @@ export default function TravelPackages() {
       startDate: form.startDate,
       endDate: form.endDate,
       category: form.category,
+      currency: form.currency || "AFN",
       costPrice,
       sellingPrice,
       profit: sellingPrice - costPrice,
@@ -846,7 +897,7 @@ export default function TravelPackages() {
           <CircleDollarSign size={18} />
           <div>
             <span>Total Cost</span>
-            <strong>{money(stats.totalCost)}</strong>
+            <strong>{stats.totalCostLabel}</strong>
           </div>
         </article>
 
@@ -854,7 +905,7 @@ export default function TravelPackages() {
           <Landmark size={18} />
           <div>
             <span>Total Selling</span>
-            <strong>{money(stats.totalSales)}</strong>
+            <strong>{stats.totalSalesLabel}</strong>
           </div>
         </article>
 
@@ -862,7 +913,7 @@ export default function TravelPackages() {
           <FileText size={18} />
           <div>
             <span>Expected Profit</span>
-            <strong>{money(stats.totalProfit)}</strong>
+            <strong>{stats.totalProfitLabel}</strong>
           </div>
         </article>
       </section>
@@ -909,6 +960,10 @@ export default function TravelPackages() {
                   <td>
                     <strong>{item.packageName}</strong>
                     <small>{item.note || "No note"}</small>
+
+                    <span className="travel-package-currency">
+                      {item.currency || "AFN"}
+                    </span>
                   </td>
 
                   <td>{item.country}</td>
@@ -924,8 +979,8 @@ export default function TravelPackages() {
                     <small>{formatDate(item.endDate)}</small>
                   </td>
 
-                  <td>{money(item.costPrice)}</td>
-                  <td>{money(item.sellingPrice)}</td>
+                  <td>{money(item.costPrice, item.currency)}</td>
+                  <td>{money(item.sellingPrice, item.currency)}</td>
 
                   <td
                     className={
@@ -934,7 +989,7 @@ export default function TravelPackages() {
                         : "visa-profit-negative"
                     }
                   >
-                    {money(item.profit)}
+                    {money(item.profit, item.currency)}
                   </td>
 
                   <td>
@@ -946,7 +1001,10 @@ export default function TravelPackages() {
                       }`}
                     >
                       {item.bankStatementRequired === "Yes"
-                        ? money(item.bankStatementAmount)
+                        ? money(
+                            item.bankStatementAmount,
+                            item.currency
+                          )
                         : "Not Required"}
                     </span>
                   </td>
@@ -1052,6 +1110,25 @@ export default function TravelPackages() {
               </label>
 
               <label>
+                <span>Unit</span>
+
+                <select
+                  name="currency"
+                  value={form.currency}
+                  onChange={updateField}
+                >
+                  {currencyOptions.map((item) => (
+                    <option
+                      key={item.code}
+                      value={item.code}
+                    >
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 <span>Start Date</span>
                 <div className="visa-date-control">
                   <CalendarDays size={15} />
@@ -1125,7 +1202,7 @@ export default function TravelPackages() {
               </label>
 
               <label>
-                <span>Cost Price (AFN)</span>
+                <span>Cost Price ({form.currency})</span>
                 <input
                   type="number"
                   min="0"
@@ -1137,7 +1214,7 @@ export default function TravelPackages() {
               </label>
 
               <label>
-                <span>Selling Price (AFN)</span>
+                <span>Selling Price ({form.currency})</span>
                 <input
                   type="number"
                   min="0"
@@ -1153,7 +1230,8 @@ export default function TravelPackages() {
                 <input
                   value={money(
                     Number(form.sellingPrice || 0) -
-                      Number(form.costPrice || 0)
+                      Number(form.costPrice || 0),
+                    form.currency
                   )}
                   readOnly
                 />
@@ -1269,6 +1347,13 @@ export default function TravelPackages() {
               </div>
 
               <div>
+                <span>Unit</span>
+                <strong>
+                  {detailsItem.currency || "AFN"}
+                </strong>
+              </div>
+
+              <div>
                 <span>Category</span>
                 <strong>{detailsItem.category}</strong>
               </div>
@@ -1289,24 +1374,42 @@ export default function TravelPackages() {
 
               <div>
                 <span>Cost Price</span>
-                <strong>{money(detailsItem.costPrice)}</strong>
+                <strong>
+                  {money(
+                    detailsItem.costPrice,
+                    detailsItem.currency
+                  )}
+                </strong>
               </div>
 
               <div>
                 <span>Selling Price</span>
-                <strong>{money(detailsItem.sellingPrice)}</strong>
+                <strong>
+                  {money(
+                    detailsItem.sellingPrice,
+                    detailsItem.currency
+                  )}
+                </strong>
               </div>
 
               <div>
                 <span>Profit</span>
-                <strong>{money(detailsItem.profit)}</strong>
+                <strong>
+                  {money(
+                    detailsItem.profit,
+                    detailsItem.currency
+                  )}
+                </strong>
               </div>
 
               <div>
                 <span>Bank Statement</span>
                 <strong>
                   {detailsItem.bankStatementRequired === "Yes"
-                    ? money(detailsItem.bankStatementAmount)
+                    ? money(
+                        detailsItem.bankStatementAmount,
+                        detailsItem.currency
+                      )
                     : "Not Required"}
                 </strong>
               </div>
