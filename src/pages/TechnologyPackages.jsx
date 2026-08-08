@@ -80,7 +80,9 @@ export default function TechnologyPackages() {
   const [
     legacyLocalPackages,
     setLegacyLocalPackages,
-  ] = useLocalCollection("technologyPackages");
+  ] = useLocalCollection("technologyPackages", {
+    archiveDeletes: false,
+  });
 
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);

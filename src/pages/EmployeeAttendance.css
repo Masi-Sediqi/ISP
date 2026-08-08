@@ -195,6 +195,15 @@
   color: #e11d48;
 }
 
+.employee-attendance-card-actions button.print {
+  background: #ecfdf3;
+  color: #15803d;
+}
+
+.employee-attendance-card-actions button.print:hover {
+  background: #dcfce7;
+}
+
 .employee-attendance-meta {
   margin-top: 14px;
   display: grid;
@@ -1162,4 +1171,28 @@ body.dark-mode .employee-attendance-absence-types button.active {
   .employee-attendance-card-grid {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* =========================================================
+   Attendance print button polish
+   Print document itself is generated in EmployeeAttendance.jsx
+   as an A4 landscape report.
+   ========================================================= */
+
+.employee-attendance-card-actions button.print {
+  position: relative;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.employee-attendance-card-actions button.print:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(21, 128, 61, 0.14);
+}
+
+.employee-attendance-card-actions button.print:active {
+  transform: translateY(0);
 }

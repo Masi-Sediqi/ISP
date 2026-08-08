@@ -7,6 +7,7 @@ import {
   KeyRound,
   MessageCircle,
   Pencil,
+  TrendingUp,
   Users,
   WalletCards,
   X,
@@ -647,6 +648,17 @@ const record = {
           >
             <Eye size={15} />
             View Details
+          </button>
+
+          <button
+            type="button"
+            className="employee-assessment-button"
+            onClick={() =>
+              navigate(`/employees/${employee.id}/performance`)
+            }
+          >
+            <TrendingUp size={15} />
+            Assessment
           </button>
 
           <button

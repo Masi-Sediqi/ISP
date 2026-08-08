@@ -69,6 +69,9 @@ const UserManagement = lazy(() => import("./pages/UserManagement"));
 const Agent = lazy(() => import("./pages/Agent"));
 const Employees = lazy(() => import("./pages/Employees"));
 const EmployeeDetails = lazy(() => import("./pages/EmployeeDetails"));
+const EmployeePerformance = lazy(() =>
+  import("./pages/EmployeePerformance")
+);
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard"));
 const EmployeeAttendance = lazy(() => import("./pages/EmployeeAttendance"));
 import ProjectReport from "./pages/ProjectReport";
@@ -98,6 +101,7 @@ const VisaPackages = lazy(() => import("./pages/VisaPackages"));
 const TravelPackages = lazy(() => import("./pages/TravelPackages"));
 const TechnologyPackages = lazy(() => import("./pages/TechnologyPackages"));
 const MediaPackages = lazy(() => import("./pages/MediaPackages"));
+const RecycleBin = lazy(() => import("./pages/RecycleBin"));
 
 
 const UserGuide = lazy(() => import("./pages/UserGuide"));
@@ -1107,6 +1111,10 @@ const myAssignedCustomers = customers
                     />
                   }
                 />
+                <Route
+                  path="/employees/:id/performance"
+                  element={<EmployeePerformance />}
+                />
                 <Route path="/employees/:id" element={<EmployeeDetails accounts={accounts} setAccounts={setAccounts} />} />
 
                 <Route
@@ -1151,7 +1159,7 @@ const myAssignedCustomers = customers
                 />
                 <Route
                   path="/recycle-bin"
-                  element={<ModulePlaceholder title="Recycle Bin" description="Review recently removed records and restore them when needed." items={["Deleted records", "Restore items", "Permanent cleanup"]} />}
+                  element={protect("dashboard", <RecycleBin />)}
                 />
                 <Route
                   path="/packages/visa"

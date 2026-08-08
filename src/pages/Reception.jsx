@@ -21,7 +21,9 @@ import {
   X,
 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { usePackageAvailabilityDate } from "../hooks/usePackageAvailabilityDate";
 import { notify } from "../utils/notify";
+import { isPackageAvailable } from "../utils/packageAvailability";
 import "./Reception.css";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -549,6 +551,215 @@ function CountrySelect({
   );
 }
 
+
+function SearchablePackageSelect({
+  label,
+  packages,
+  value,
+  onChange,
+  placeholder,
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const closeOnOutside = (event) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutside);
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        closeOnOutside
+      );
+    };
+  }, []);
+
+  const selectedItem = useMemo(
+    () =>
+      packages.find(
+        (item) =>
+          String(item.id) === String(value)
+      ) || null,
+    [packages, value]
+  );
+
+  const filteredPackages = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return packages;
+
+    return packages.filter((item) =>
+      [
+        item.packageName,
+        item.country,
+        item.category,
+        item.currency,
+        item.note,
+      ].some((entry) =>
+        String(entry || "")
+          .toLowerCase()
+          .includes(query)
+      )
+    );
+  }, [packages, search]);
+
+  const choosePackage = (item) => {
+    onChange({
+      target: {
+        name: "selectedPackageId",
+        value: item.id,
+      },
+    });
+
+    setSearch("");
+    setOpen(false);
+  };
+
+  return (
+    <div
+      className={`reception-package-searchable ${
+        open ? "open" : ""
+      }`}
+      ref={wrapperRef}
+    >
+      <span className="reception-package-searchable-label">
+        {label}
+      </span>
+
+      <button
+        type="button"
+        className="reception-package-searchable-trigger"
+        onClick={() =>
+          setOpen((current) => !current)
+        }
+      >
+        <span className="reception-package-searchable-value">
+          {selectedItem ? (
+            <>
+              {selectedItem.country && (
+                <img
+                  src={getCountryFlagUrl(
+                    selectedItem.country
+                  )}
+                  alt=""
+                />
+              )}
+
+              <span>
+                {selectedItem.packageName}
+              </span>
+
+              {selectedItem.country && (
+                <small>
+                  {selectedItem.country}
+                </small>
+              )}
+            </>
+          ) : (
+            <span className="placeholder">
+              {placeholder}
+            </span>
+          )}
+        </span>
+
+        <b>▾</b>
+      </button>
+
+      {open && (
+        <div className="reception-package-searchable-menu">
+          <div className="reception-package-search-box">
+            <Search size={15} />
+
+            <input
+              type="search"
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              placeholder="Search package, country or category..."
+              autoFocus
+            />
+          </div>
+
+          <div className="reception-package-searchable-options">
+            {filteredPackages.map((item) => {
+              const isSelected =
+                String(item.id) === String(value);
+
+              return (
+                <button
+                  type="button"
+                  key={item.id}
+                  className={
+                    isSelected ? "selected" : ""
+                  }
+                  onClick={() =>
+                    choosePackage(item)
+                  }
+                >
+                  <span className="reception-package-option-main">
+                    {item.country ? (
+                      <img
+                        src={getCountryFlagUrl(
+                          item.country
+                        )}
+                        alt=""
+                      />
+                    ) : (
+                      <span className="reception-package-option-icon">
+                        ▣
+                      </span>
+                    )}
+
+                    <span>
+                      <strong>
+                        {item.packageName ||
+                          "Unnamed Package"}
+                      </strong>
+
+                      <small>
+                        {[
+                          item.country,
+                          item.category,
+                          item.currency,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ") || "Package"}
+                      </small>
+                    </span>
+                  </span>
+
+                  <strong className="reception-package-option-price">
+                    {packageMoney(
+                      item.sellingPrice,
+                      item.currency || "AFN"
+                    )}
+                  </strong>
+                </button>
+              );
+            })}
+
+            {!filteredPackages.length && (
+              <p className="reception-package-search-empty">
+                No matching package found.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function packageMoney(value, currency = "AFN") {
   return `${Number(value || 0).toLocaleString("en-US")} ${
     currency || "AFN"
@@ -870,6 +1081,23 @@ export default function Reception({ currentUser }) {
     useJsonCollection("technologyPackages");
   const [mediaPackages, , , mediaPackagesLoaded] =
     useJsonCollection("mediaPackages");
+  const packageAvailabilityDate = usePackageAvailabilityDate();
+
+  const availableVisaPackages = useMemo(
+    () =>
+      visaPackages.filter((item) =>
+        isPackageAvailable(item, packageAvailabilityDate)
+      ),
+    [visaPackages, packageAvailabilityDate]
+  );
+
+  const availableTravelPackages = useMemo(
+    () =>
+      travelPackages.filter((item) =>
+        isPackageAvailable(item, packageAvailabilityDate)
+      ),
+    [travelPackages, packageAvailabilityDate]
+  );
 
   const [showForm, setShowForm] = useState(false);
   const [registrationType, setRegistrationType] =
@@ -893,22 +1121,22 @@ export default function Reception({ currentUser }) {
 
   const selectedVisaPackage = useMemo(
     () =>
-      visaPackages.find(
+      availableVisaPackages.find(
         (item) =>
           String(item.id) ===
           String(consultantForm.selectedPackageId)
       ) || null,
-    [visaPackages, consultantForm.selectedPackageId]
+    [availableVisaPackages, consultantForm.selectedPackageId]
   );
 
   const selectedTravelPackage = useMemo(
     () =>
-      travelPackages.find(
+      availableTravelPackages.find(
         (item) =>
           String(item.id) ===
           String(travelForm.selectedPackageId)
       ) || null,
-    [travelPackages, travelForm.selectedPackageId]
+    [availableTravelPackages, travelForm.selectedPackageId]
   );
 
   const selectedTechnologyPackage = useMemo(
@@ -3798,27 +4026,19 @@ const mediaCount =
                   "consultant" && (
                     <div className="reception-form-grid">
                       <div className="reception-package-section reception-form-full">
-                        <label className="reception-package-select-field">
-                          <span>Visa Package</span>
-                          <select
-                            name="selectedPackageId"
-                            value={consultantForm.selectedPackageId}
-                            onChange={updateConsultantField}
-                          >
-                            <option value="">Select registered visa package</option>
-                            {visaPackages.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.packageName}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
+                        <SearchablePackageSelect
+                          label="Visa Package"
+                          packages={availableVisaPackages}
+                          value={consultantForm.selectedPackageId}
+                          onChange={updateConsultantField}
+                          placeholder="Select registered visa package"
+                        />
 
                         {!visaPackagesLoaded && (
                           <p className="reception-package-message">Loading Visa Packages...</p>
                         )}
-                        {visaPackagesLoaded && !visaPackages.length && (
-                          <p className="reception-package-message">No Visa Packages have been registered yet.</p>
+                        {visaPackagesLoaded && !availableVisaPackages.length && (
+                          <p className="reception-package-message">No available Visa Packages found.</p>
                         )}
 
                         <ReceptionPackagePreview
@@ -3922,27 +4142,19 @@ const mediaCount =
                 {registrationType === "travel" && (
                   <div className="reception-form-grid">
                     <div className="reception-package-section reception-form-full">
-                      <label className="reception-package-select-field">
-                        <span>Travel Package</span>
-                        <select
-                          name="selectedPackageId"
-                          value={travelForm.selectedPackageId}
-                          onChange={updateTravelField}
-                        >
-                          <option value="">Select registered travel package</option>
-                          {travelPackages.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.packageName}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <SearchablePackageSelect
+                        label="Travel Package"
+                        packages={availableTravelPackages}
+                        value={travelForm.selectedPackageId}
+                        onChange={updateTravelField}
+                        placeholder="Select registered travel package"
+                      />
 
                       {!travelPackagesLoaded && (
                         <p className="reception-package-message">Loading Travel Packages...</p>
                       )}
-                      {travelPackagesLoaded && !travelPackages.length && (
-                        <p className="reception-package-message">No Travel Packages have been registered yet.</p>
+                      {travelPackagesLoaded && !availableTravelPackages.length && (
+                        <p className="reception-package-message">No available Travel Packages found.</p>
                       )}
 
                       <ReceptionPackagePreview
@@ -4035,21 +4247,13 @@ const mediaCount =
                   "technology" && (
                     <div className="reception-form-grid">
                       <div className="reception-package-section reception-form-full">
-                        <label className="reception-package-select-field">
-                          <span>Technology Package</span>
-                          <select
-                            name="selectedPackageId"
-                            value={technologyForm.selectedPackageId}
-                            onChange={updateTechnologyField}
-                          >
-                            <option value="">Select registered technology package</option>
-                            {technologyPackages.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.packageName}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
+                        <SearchablePackageSelect
+                          label="Technology Package"
+                          packages={technologyPackages}
+                          value={technologyForm.selectedPackageId}
+                          onChange={updateTechnologyField}
+                          placeholder="Select registered technology package"
+                        />
 
                         {!technologyPackagesLoaded && (
                           <p className="reception-package-message">Loading Technology Packages...</p>
@@ -4168,21 +4372,13 @@ const mediaCount =
                 {registrationType === "media" && (
                   <div className="reception-form-grid">
                     <div className="reception-package-section reception-form-full">
-                      <label className="reception-package-select-field">
-                        <span>Media Package</span>
-                        <select
-                          name="selectedPackageId"
-                          value={mediaForm.selectedPackageId}
-                          onChange={updateMediaField}
-                        >
-                          <option value="">Select registered media package</option>
-                          {mediaPackages.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.packageName}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <SearchablePackageSelect
+                        label="Media Package"
+                        packages={mediaPackages}
+                        value={mediaForm.selectedPackageId}
+                        onChange={updateMediaField}
+                        placeholder="Select registered media package"
+                      />
 
                       {!mediaPackagesLoaded && (
                         <p className="reception-package-message">Loading Media Packages...</p>

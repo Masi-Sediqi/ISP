@@ -8,6 +8,10 @@ import axios from "axios";
 
 import { notify } from "../utils/notify";
 import { apiUrl } from "../utils/api";
+import {
+  archiveLocalRemovedRecords,
+  getRecordIdentity,
+} from "../utils/recycleBin";
 
 const DISABLED_COLLECTIONS = new Set([
   "assets",
@@ -38,7 +42,8 @@ const DISABLED_COLLECTIONS = new Set([
   "carRepairs",
 ]);
 
-export function useJsonCollection(name) {
+export function useJsonCollection(name, options = {}) {
+  const silentLoadErrors = options.silentLoadErrors === true;
   const disabled =
     DISABLED_COLLECTIONS.has(name);
 
@@ -85,14 +90,16 @@ export function useJsonCollection(name) {
       setItemsState([]);
       setLoaded(true);
 
-      notify(
-        `Unable to load ${name}. Please check the server.`,
-        "error"
-      );
+      if (!silentLoadErrors) {
+        notify(
+          `Unable to load ${name}. Please check the server.`,
+          "error"
+        );
+      }
 
       return [];
     }
-  }, [disabled, name]);
+  }, [disabled, name, silentLoadErrors]);
 
   useEffect(() => {
     load();
@@ -125,6 +132,28 @@ export function useJsonCollection(name) {
       setItemsState(nextItems);
 
       try {
+        if (name !== "recycleBin") {
+          const nextIdentities = new Set(
+            nextItems.map(getRecordIdentity)
+          );
+          const hasRemovedItems = previousItems.some(
+            (item) => !nextIdentities.has(getRecordIdentity(item))
+          );
+
+          if (hasRemovedItems) {
+            try {
+              await axios.get(apiUrl("recycleBin"));
+            } catch {
+              archiveLocalRemovedRecords(
+                name,
+                previousItems,
+                nextItems,
+                "server-fallback"
+              );
+            }
+          }
+        }
+
         const response = await axios.put(
           apiUrl(name),
           nextItems

@@ -930,3 +930,67 @@ body.dark-mode .customer-followup-name-source em {
   background: rgba(76, 29, 149, 0.24);
   color: #ddd6fe;
 }
+
+.customer-followup-role-section {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: contents;
+}
+
+.customer-followup-workflow-note {
+  padding: 12px 14px;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.customer-followup-financial-card.locked {
+  border-color: #d1d5db;
+  background: #f8fafc;
+}
+
+.customer-followup-financial-card.locked
+  .customer-followup-grid {
+  opacity: 0.62;
+}
+
+.customer-followup-lock-badge {
+  margin-inline-start: auto;
+  padding: 6px 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+body.dark-mode .customer-followup-workflow-note {
+  border-color: #4338ca;
+  background: rgba(49, 46, 129, 0.25);
+  color: #c7d2fe;
+}
+
+body.dark-mode .customer-followup-financial-card.locked {
+  border-color: #334155;
+  background: #111827;
+}
+
+body.dark-mode .customer-followup-lock-badge {
+  border-color: #475569;
+  background: #1e293b;
+  color: #cbd5e1;
+}

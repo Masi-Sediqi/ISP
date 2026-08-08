@@ -15,8 +15,14 @@ import {
 
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useLocalCollection } from "../hooks/useLocalCollection";
+import { usePackageAvailabilityDate } from "../hooks/usePackageAvailabilityDate";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
+import {
+  isPackageAvailable,
+  isPackageManuallyAvailable,
+  packageAvailabilityLabel,
+} from "../utils/packageAvailability";
 import "./VisaPackages.css";
 
 const countries = [
@@ -459,7 +465,7 @@ const currencyOptions = [
   { code: "AUD", label: "AUD - Australian Dollar" },
   { code: "RUB", label: "RUB - Russian Ruble" },
   { code: "CNY", label: "CNY - Chinese Yuan" },
-];
+].filter((item) => ["AFN", "USD"].includes(item.code));
 
 const defaultCategories = [
   "Medical",
@@ -483,6 +489,7 @@ const emptyForm = {
   endDate: "",
   category: "",
   currency: "AFN",
+  availability: "Available",
   costPrice: "",
   sellingPrice: "",
   bankStatementRequired: "No",
@@ -531,6 +538,7 @@ const formatDate = (value) => {
 };
 
 export default function VisaPackages() {
+  const packageAvailabilityDate = usePackageAvailabilityDate();
   const [
     packages,
     setPackages,
@@ -541,7 +549,9 @@ export default function VisaPackages() {
   const [
     legacyLocalPackages,
     setLegacyLocalPackages,
-  ] = useLocalCollection("visaPackages");
+  ] = useLocalCollection("visaPackages", {
+    archiveDeletes: false,
+  });
 
   const [categories, setCategories] =
     useState(defaultCategories);
@@ -663,7 +673,12 @@ export default function VisaPackages() {
       startDate: item.startDate || "",
       endDate: item.endDate || "",
       category: item.category || "",
-      currency: item.currency || "AFN",
+      currency: ["AFN", "USD"].includes(item.currency)
+        ? item.currency
+        : "AFN",
+      availability: isPackageManuallyAvailable(item)
+        ? "Available"
+        : "Not Available",
       costPrice: String(item.costPrice ?? ""),
       sellingPrice: String(item.sellingPrice ?? ""),
       bankStatementRequired:
@@ -846,6 +861,17 @@ export default function VisaPackages() {
       return;
     }
 
+    if (
+      form.availability === "Available" &&
+      form.endDate <= packageAvailabilityDate
+    ) {
+      notify(
+        "An available package must have an end date after today.",
+        "error"
+      );
+      return;
+    }
+
     if (!form.category) {
       notify("Category is required.", "error");
       return;
@@ -884,7 +910,11 @@ export default function VisaPackages() {
       startDate: form.startDate,
       endDate: form.endDate,
       category: form.category,
-      currency: form.currency || "AFN",
+      currency: ["AFN", "USD"].includes(form.currency)
+        ? form.currency
+        : "AFN",
+      availability: form.availability,
+      isAvailable: form.availability === "Available",
       costPrice,
       sellingPrice,
       profit: sellingPrice - costPrice,
@@ -1041,6 +1071,7 @@ export default function VisaPackages() {
                 <th>Country</th>
                 <th>Category</th>
                 <th>Start / End</th>
+                <th>Availability</th>
                 <th>Cost Price</th>
                 <th>Selling Price</th>
                 <th>Profit</th>
@@ -1072,6 +1103,18 @@ export default function VisaPackages() {
                   <td>
                     <strong>{formatDate(item.startDate)}</strong>
                     <small>{formatDate(item.endDate)}</small>
+                  </td>
+
+                  <td>
+                    <span
+                      className={`visa-package-availability ${
+                        isPackageAvailable(item, packageAvailabilityDate)
+                          ? "available"
+                          : "unavailable"
+                      }`}
+                    >
+                      {packageAvailabilityLabel(item, packageAvailabilityDate)}
+                    </span>
                   </td>
 
                   <td>{money(item.costPrice, item.currency)}</td>
@@ -1154,7 +1197,7 @@ export default function VisaPackages() {
               {!filteredPackages.length && (
                 <tr>
                   <td
-                    colSpan="10"
+                    colSpan="11"
                     className="visa-package-empty"
                   >
                     No visa packages found.
@@ -1236,6 +1279,18 @@ export default function VisaPackages() {
                       {item.label}
                     </option>
                   ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Availability</span>
+                <select
+                  name="availability"
+                  value={form.availability}
+                  onChange={updateField}
+                >
+                  <option value="Available">Available</option>
+                  <option value="Not Available">Not Available</option>
                 </select>
               </label>
 
@@ -1562,6 +1617,16 @@ export default function VisaPackages() {
                 <span>Unit</span>
                 <strong>
                   {detailsItem.currency || "AFN"}
+                </strong>
+              </div>
+
+              <div>
+                <span>Availability</span>
+                <strong>
+                  {packageAvailabilityLabel(
+                    detailsItem,
+                    packageAvailabilityDate
+                  )}
                 </strong>
               </div>
 

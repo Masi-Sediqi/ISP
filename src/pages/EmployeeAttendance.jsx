@@ -5,6 +5,7 @@ import {
   Check,
   ChevronRight,
   Edit3,
+  Printer,
   Search,
   Trash2,
   UserCheck,
@@ -78,8 +79,18 @@ function employeeName(employee) {
   );
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 export default function EmployeeAttendance() {
   const [employees] = useJsonCollection("employees");
+  const [settings] = useJsonCollection("settings");
   const [attendances, setAttendances] =
     useLocalCollection("employeeAttendances");
 
@@ -471,6 +482,642 @@ export default function EmployeeAttendance() {
       )
     : [];
 
+  const printAttendance = (attendance) => {
+    const dates = getDatesBetween(
+      attendance.startDate,
+      attendance.endDate
+    );
+    const employeeIds = Array.isArray(attendance.employeeIds)
+      ? attendance.employeeIds.map(String)
+      : [];
+    const employeeById = new Map(
+      employees.map((employee) => [String(employee.id), employee])
+    );
+
+    const reportEmployees = employeeIds.map((employeeId) => {
+      const employee = employeeById.get(employeeId) || {
+        id: employeeId,
+        fullName: `Employee ${employeeId}`,
+      };
+      const totals = {
+        Present: 0,
+        Absent: 0,
+        Leave: 0,
+        "Not Recorded": 0,
+      };
+
+      const rows = dates.map((date) => {
+        const record = attendance.dailyRecords?.[date]?.[employeeId] || {};
+        const status = ["Present", "Absent", "Leave"].includes(
+          record.status
+        )
+          ? record.status
+          : "Not Recorded";
+
+        totals[status] += 1;
+        return { date, record, status };
+      });
+
+      return { employee, employeeId, rows, totals };
+    });
+
+    const grandTotals = reportEmployees.reduce(
+      (result, item) => ({
+        Present: result.Present + item.totals.Present,
+        Absent: result.Absent + item.totals.Absent,
+        Leave: result.Leave + item.totals.Leave,
+        "Not Recorded":
+          result["Not Recorded"] + item.totals["Not Recorded"],
+      }),
+      { Present: 0, Absent: 0, Leave: 0, "Not Recorded": 0 }
+    );
+
+    const company = settings[0] || {};
+    const companyName =
+      company.companyName || company.name || "ISP Smart";
+    const companySubtitle =
+      company.systemSubtitle || "Employee Attendance Report";
+    const generatedAt = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kabul",
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date());
+
+    const employeeSections = reportEmployees
+      .map(({ employee, employeeId, rows, totals }, employeeIndex) => {
+        const departments = Array.isArray(employee.departments)
+          ? employee.departments.join(", ")
+          : employee.department || "-";
+        const roles = Array.isArray(employee.roles)
+          ? employee.roles.join(", ")
+          : employee.role || "-";
+
+        const dailyRows = rows
+          .map(({ date, record, status }, index) => {
+            const statusDetail =
+              status === "Absent" && record.absenceType
+                ? `${status} (${record.absenceType}${
+                    record.absenceType === "Hourly" && record.hours
+                      ? ` - ${record.hours}h`
+                      : ""
+                  })`
+                : status;
+
+            return `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${escapeHtml(formatDate(date))}</td>
+                <td><span class="status ${status.toLowerCase().replace(" ", "-")}">${escapeHtml(statusDetail)}</span></td>
+                <td>${escapeHtml(record.reason || "-")}</td>
+              </tr>`;
+          })
+          .join("");
+
+        return `
+          <section class="employee-sheet">
+            <header class="employee-heading">
+              <div class="employee-number">${employeeIndex + 1}</div>
+              <div>
+                <h2>${escapeHtml(employeeName(employee))}</h2>
+                <p>ID: ${escapeHtml(employeeId)} &nbsp;•&nbsp; Department: ${escapeHtml(departments)} &nbsp;•&nbsp; Role: ${escapeHtml(roles)}</p>
+              </div>
+            </header>
+
+            <div class="employee-totals">
+              <div class="present"><b>${totals.Present}</b><span>Present Days</span></div>
+              <div class="absent"><b>${totals.Absent}</b><span>Absent Days</span></div>
+              <div class="leave"><b>${totals.Leave}</b><span>Leave Days</span></div>
+              <div class="unrecorded"><b>${totals["Not Recorded"]}</b><span>Not Recorded</span></div>
+            </div>
+
+            <table>
+              <thead><tr><th>#</th><th>Date</th><th>Status</th><th>Reason / Details</th></tr></thead>
+              <tbody>${dailyRows}</tbody>
+            </table>
+          </section>`;
+      })
+      .join("");
+
+    const summaryRows = reportEmployees
+      .map(
+        ({ employee, employeeId, totals }, index) => `
+          <tr>
+            <td>${index + 1}</td>
+            <td><strong>${escapeHtml(employeeName(employee))}</strong><small>${escapeHtml(employeeId)}</small></td>
+            <td class="number present-text">${totals.Present}</td>
+            <td class="number absent-text">${totals.Absent}</td>
+            <td class="number leave-text">${totals.Leave}</td>
+            <td class="number">${totals["Not Recorded"]}</td>
+            <td class="number">${dates.length}</td>
+          </tr>`
+      )
+      .join("");
+
+    const printWindow = window.open(
+      "",
+      "_blank",
+      "width=1400,height=900"
+    );
+
+    if (!printWindow) {
+      notify("Please allow pop-ups to print the attendance report.", "error");
+      return;
+    }
+
+    printWindow.document.write(`<!doctype html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(attendance.name)} - Attendance Report</title>
+        <style>
+          @page {
+            size: A4 landscape;
+            margin: 8mm;
+          }
+
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          html,
+          body {
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+          }
+
+          body {
+            color: #172033;
+            font: 9.4px/1.32 Arial, Helvetica, sans-serif;
+          }
+
+          .report {
+            width: 100%;
+            max-width: 281mm;
+            margin: 0 auto;
+          }
+
+          .report-header {
+            min-height: 24mm;
+            padding: 10px 14px;
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            background: linear-gradient(135deg,#171923,#30334f);
+            color: #fff;
+          }
+
+          .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+
+          .brand img {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            object-fit: cover;
+            background: #fff;
+          }
+
+          .brand h1 {
+            margin: 0 0 2px;
+            font-size: 16px;
+          }
+
+          .brand p,
+          .report-header small {
+            margin: 0;
+            color: #d7daf7;
+            font-size: 8px;
+          }
+
+          .report-header small {
+            line-height: 1.5;
+            text-align: right;
+          }
+
+          .report-title {
+            margin: 9px 0 7px;
+            text-align: center;
+          }
+
+          .report-title span {
+            color: #5b5cf0;
+            font-size: 7px;
+            font-weight: 800;
+            letter-spacing: 1px;
+          }
+
+          .report-title h2 {
+            margin: 3px 0 2px;
+            font-size: 17px;
+          }
+
+          .report-title p {
+            margin: 0;
+            color: #667085;
+            font-size: 8px;
+          }
+
+          .period-grid,
+          .employee-totals {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+          }
+
+          .period-grid {
+            margin-bottom: 9px;
+          }
+
+          .period-grid div,
+          .employee-totals div {
+            min-width: 0;
+            padding: 7px 8px;
+            border: 1px solid #e4e7ec;
+            border-radius: 8px;
+            background: #f8fafc;
+          }
+
+          .period-grid span,
+          .employee-totals span {
+            display: block;
+            color: #667085;
+            font-size: 7px;
+          }
+
+          .period-grid b,
+          .employee-totals b {
+            display: block;
+            margin-top: 2px;
+            font-size: 11px;
+          }
+
+          .employee-sheet {
+            margin: 0 0 10px;
+            page-break-inside: auto;
+            break-inside: auto;
+          }
+
+          .employee-heading {
+            padding: 7px 9px;
+            border: 1px solid #dfe3ea;
+            border-bottom: 0;
+            border-radius: 9px 9px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f8fafc;
+            page-break-after: avoid;
+            break-after: avoid-page;
+          }
+
+          .employee-number {
+            width: 25px;
+            height: 25px;
+            flex: 0 0 25px;
+            border-radius: 7px;
+            display: grid;
+            place-items: center;
+            background: #5b5cf0;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 800;
+          }
+
+          .employee-heading h2 {
+            margin: 0 0 1px;
+            font-size: 11px;
+          }
+
+          .employee-heading p {
+            margin: 0;
+            color: #667085;
+            font-size: 7px;
+          }
+
+          .employee-totals {
+            padding: 6px;
+            border-right: 1px solid #dfe3ea;
+            border-left: 1px solid #dfe3ea;
+            page-break-after: avoid;
+            break-after: avoid-page;
+          }
+
+          .employee-totals div {
+            padding: 5px 7px;
+          }
+
+          .employee-totals .present {
+            background: #ecfdf3;
+            color: #067647;
+          }
+
+          .employee-totals .absent {
+            background: #fef3f2;
+            color: #b42318;
+          }
+
+          .employee-totals .leave {
+            background: #fffaeb;
+            color: #b54708;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+          }
+
+          thead {
+            display: table-header-group;
+          }
+
+          tfoot {
+            display: table-footer-group;
+          }
+
+          th,
+          td {
+            padding: 4px 6px;
+            border: 1px solid #dfe3ea;
+            text-align: left;
+            vertical-align: middle;
+            overflow-wrap: anywhere;
+          }
+
+          th {
+            background: #eef2f6;
+            color: #475467;
+            font-size: 7px;
+            font-weight: 800;
+            text-transform: uppercase;
+          }
+
+          tbody tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          .employee-sheet table th:nth-child(1),
+          .employee-sheet table td:nth-child(1) {
+            width: 6%;
+            text-align: center;
+          }
+
+          .employee-sheet table th:nth-child(2),
+          .employee-sheet table td:nth-child(2) {
+            width: 16%;
+          }
+
+          .employee-sheet table th:nth-child(3),
+          .employee-sheet table td:nth-child(3) {
+            width: 22%;
+          }
+
+          .employee-sheet table th:nth-child(4),
+          .employee-sheet table td:nth-child(4) {
+            width: 56%;
+          }
+
+          .status {
+            padding: 2px 6px;
+            border-radius: 999px;
+            display: inline-block;
+            font-size: 7px;
+            font-weight: 800;
+            white-space: nowrap;
+          }
+
+          .status.present {
+            background: #dcfae6;
+            color: #067647;
+          }
+
+          .status.absent {
+            background: #fee4e2;
+            color: #b42318;
+          }
+
+          .status.leave {
+            background: #fef0c7;
+            color: #b54708;
+          }
+
+          .status.not-recorded {
+            background: #eaecf0;
+            color: #475467;
+          }
+
+          .final-summary {
+            margin-top: 12px;
+            page-break-before: always;
+            break-before: page;
+          }
+
+          .final-summary > header {
+            padding: 10px 12px;
+            border-radius: 9px 9px 0 0;
+            background: #312e81;
+            color: #fff;
+            page-break-after: avoid;
+            break-after: avoid-page;
+          }
+
+          .final-summary h2 {
+            margin: 0 0 2px;
+            font-size: 14px;
+          }
+
+          .final-summary p {
+            margin: 0;
+            color: #c7d2fe;
+            font-size: 8px;
+          }
+
+          .final-summary small {
+            display: block;
+            color: #667085;
+            font-size: 7px;
+            font-weight: 400;
+          }
+
+          .final-summary table th:nth-child(1),
+          .final-summary table td:nth-child(1) {
+            width: 5%;
+          }
+
+          .final-summary table th:nth-child(2),
+          .final-summary table td:nth-child(2) {
+            width: 35%;
+          }
+
+          .final-summary table th:nth-child(n+3),
+          .final-summary table td:nth-child(n+3) {
+            width: 12%;
+          }
+
+          .number {
+            text-align: center;
+            font-weight: 800;
+          }
+
+          .present-text {
+            color: #067647;
+          }
+
+          .absent-text {
+            color: #b42318;
+          }
+
+          .leave-text {
+            color: #b54708;
+          }
+
+          .grand-total td {
+            background: #f4f3ff;
+            font-weight: 800;
+          }
+
+          .signatures {
+            margin-top: 24px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 36px;
+            text-align: center;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          .signatures div {
+            padding-top: 7px;
+            border-top: 1px solid #667085;
+            color: #475467;
+            font-size: 8px;
+          }
+
+          .footer {
+            margin-top: 14px;
+            padding-top: 6px;
+            border-top: 1px solid #e4e7ec;
+            color: #98a2b3;
+            text-align: center;
+            font-size: 7px;
+          }
+
+          @media screen {
+            body {
+              padding: 16px;
+              background: #eef2f7;
+            }
+
+            .report {
+              padding: 12px;
+              border-radius: 12px;
+              background: #fff;
+              box-shadow: 0 20px 60px rgba(15,23,42,.12);
+            }
+          }
+
+          @media print {
+            html,
+            body {
+              width: 297mm;
+              min-height: 210mm;
+              background: #fff !important;
+            }
+
+            body {
+              padding: 0 !important;
+            }
+
+            .report {
+              width: 100%;
+              max-width: none;
+              padding: 0;
+              margin: 0;
+              box-shadow: none;
+            }
+
+            .report-header,
+            .period-grid,
+            .employee-heading,
+            .employee-totals,
+            .final-summary > header {
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <main class="report">
+          <header class="report-header">
+            <div class="brand">
+              <img src="${window.location.origin}/icon.png" alt="" />
+              <div><h1>${escapeHtml(companyName)}</h1><p>${escapeHtml(companySubtitle)}</p></div>
+            </div>
+            <small>Generated: ${escapeHtml(generatedAt)}<br/>Official Attendance Register</small>
+          </header>
+
+          <section class="report-title">
+            <span>HUMAN RESOURCES • ATTENDANCE</span>
+            <h2>${escapeHtml(attendance.name)}</h2>
+            <p>${escapeHtml(attendance.note || "Employee attendance report")}</p>
+          </section>
+
+          <section class="period-grid">
+            <div><span>Start Date</span><b>${escapeHtml(formatDate(attendance.startDate))}</b></div>
+            <div><span>End Date</span><b>${escapeHtml(formatDate(attendance.endDate))}</b></div>
+            <div><span>Period Length</span><b>${dates.length} Days</b></div>
+            <div><span>Employees</span><b>${reportEmployees.length}</b></div>
+          </section>
+
+          ${employeeSections}
+
+          <section class="final-summary">
+            <header><h2>Final Employee Attendance Summary</h2><p>Total present and absent days for each employee in this attendance period.</p></header>
+            <table>
+              <thead><tr><th>#</th><th>Employee</th><th>Present</th><th>Absent</th><th>Leave</th><th>Not Recorded</th><th>Total Days</th></tr></thead>
+              <tbody>
+                ${summaryRows}
+                <tr class="grand-total"><td colspan="2">Overall Total</td><td class="number present-text">${grandTotals.Present}</td><td class="number absent-text">${grandTotals.Absent}</td><td class="number leave-text">${grandTotals.Leave}</td><td class="number">${grandTotals["Not Recorded"]}</td><td class="number">${dates.length * reportEmployees.length}</td></tr>
+              </tbody>
+            </table>
+            <div class="signatures"><div>Prepared By</div><div>HR Manager</div><div>Authorized Signature</div></div>
+          </section>
+
+          <footer class="footer">${escapeHtml(companyName)} • Confidential Employee Attendance Report</footer>
+        </main>
+      </body>
+      </html>`);
+
+    printWindow.document.close();
+    printWindow.focus();
+
+    const runPrint = () => {
+      window.setTimeout(() => {
+        printWindow.print();
+      }, 250);
+    };
+
+    if (printWindow.document.readyState === "complete") {
+      runPrint();
+    } else {
+      printWindow.addEventListener("load", runPrint, {
+        once: true,
+      });
+
+      window.setTimeout(runPrint, 900);
+    }
+  };
+
   return (
     <div className="employee-attendance-page">
       <header className="employee-attendance-heading">
@@ -546,6 +1193,16 @@ export default function EmployeeAttendance() {
                   </div>
 
                   <div className="employee-attendance-card-actions">
+                    <button
+                      type="button"
+                      className="print"
+                      onClick={() => printAttendance(attendance)}
+                      aria-label="Print attendance report"
+                      title="Print attendance report"
+                    >
+                      <Printer size={15} />
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => openEdit(attendance)}

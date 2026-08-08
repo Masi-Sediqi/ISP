@@ -953,3 +953,33 @@ body.dark-mode .travel-package-currency {
   color: #bfdbfe;
   background: #1e3a8a;
 }
+
+.travel-package-availability {
+  padding: 5px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.travel-package-availability.available {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.travel-package-availability.unavailable {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+body.dark-mode .travel-package-availability.available {
+  background: rgba(21, 128, 61, 0.24);
+  color: #86efac;
+}
+
+body.dark-mode .travel-package-availability.unavailable {
+  background: rgba(185, 28, 28, 0.24);
+  color: #fca5a5;
+}

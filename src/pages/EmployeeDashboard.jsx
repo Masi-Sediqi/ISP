@@ -11,8 +11,10 @@ import {
 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useLocalCollection } from "../hooks/useLocalCollection";
+import { usePackageAvailabilityDate } from "../hooks/usePackageAvailabilityDate";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
+import { isPackageAvailable } from "../utils/packageAvailability";
 import "./EmployeeDashboard.css";
 
 const provinces = ["Badakhshan", "Badghis", "Baghlan", "Balkh", "Bamyan", "Daykundi", "Farah", "Faryab", "Ghazni", "Ghor", "Helmand", "Herat", "Jowzjan", "Kabul", "Kandahar", "Kapisa", "Khost", "Kunar", "Kunduz", "Laghman", "Logar", "Nangarhar", "Nimroz", "Nuristan", "Paktia", "Paktika", "Panjshir", "Parwan", "Samangan", "Sar-e Pol", "Takhar", "Uruzgan", "Wardak", "Zabul"];
@@ -604,25 +606,42 @@ export default function EmployeeDashboard({
 
   const [form, setForm] =
     useState(baseForm);
+  const packageAvailabilityDate = usePackageAvailabilityDate();
+
+  const availableVisaPackages = useMemo(
+    () =>
+      visaPackages.filter((item) =>
+        isPackageAvailable(item, packageAvailabilityDate)
+      ),
+    [visaPackages, packageAvailabilityDate]
+  );
+
+  const availableTravelPackages = useMemo(
+    () =>
+      travelPackages.filter((item) =>
+        isPackageAvailable(item, packageAvailabilityDate)
+      ),
+    [travelPackages, packageAvailabilityDate]
+  );
 
   const selectedVisaPackage = useMemo(
     () =>
-      visaPackages.find(
+      availableVisaPackages.find(
         (item) =>
           String(item.id) ===
           String(form.selectedVisaPackageId)
       ) || null,
-    [visaPackages, form.selectedVisaPackageId]
+    [availableVisaPackages, form.selectedVisaPackageId]
   );
 
   const selectedTravelPackage = useMemo(
     () =>
-      travelPackages.find(
+      availableTravelPackages.find(
         (item) =>
           String(item.id) ===
           String(form.selectedTravelPackageId)
       ) || null,
-    [travelPackages, form.selectedTravelPackageId]
+    [availableTravelPackages, form.selectedTravelPackageId]
   );
 
   const selectedTechnologyPackage = useMemo(
@@ -1580,7 +1599,7 @@ export default function EmployeeDashboard({
                         Select registered visa package
                       </option>
 
-                      {visaPackages.map((item) => (
+                      {availableVisaPackages.map((item) => (
                         <option
                           key={item.id}
                           value={item.id}
@@ -1598,9 +1617,9 @@ export default function EmployeeDashboard({
                   )}
 
                   {visaPackagesLoaded &&
-                    !visaPackages.length && (
+                    !availableVisaPackages.length && (
                       <p className="employee-package-empty-note">
-                        No Visa Packages have been registered yet.
+                        No available Visa Packages found.
                       </p>
                     )}
 
@@ -1617,7 +1636,7 @@ export default function EmployeeDashboard({
                         <strong>
                           {Number(
                             selectedVisaPackage.sellingPrice || 0
-                          ).toLocaleString()} AFN
+                          ).toLocaleString()} {selectedVisaPackage.currency || "AFN"}
                         </strong>
                       </header>
 
@@ -1656,7 +1675,7 @@ export default function EmployeeDashboard({
                             {selectedVisaPackage.bankStatementRequired === "Yes"
                               ? `${Number(
                                   selectedVisaPackage.bankStatementAmount || 0
-                                ).toLocaleString()} AFN`
+                                ).toLocaleString()} ${selectedVisaPackage.currency || "AFN"}`
                               : "Not Required"}
                           </strong>
                         </div>
@@ -1697,7 +1716,7 @@ export default function EmployeeDashboard({
                         Select registered travel package
                       </option>
 
-                      {travelPackages.map((item) => (
+                      {availableTravelPackages.map((item) => (
                         <option
                           key={item.id}
                           value={item.id}
@@ -1715,9 +1734,9 @@ export default function EmployeeDashboard({
                   )}
 
                   {travelPackagesLoaded &&
-                    !travelPackages.length && (
+                    !availableTravelPackages.length && (
                       <p className="employee-package-empty-note">
-                        No Travel Packages have been registered yet.
+                        No available Travel Packages found.
                       </p>
                     )}
 
@@ -1735,7 +1754,7 @@ export default function EmployeeDashboard({
                         <strong>
                           {Number(
                             selectedTravelPackage.sellingPrice || 0
-                          ).toLocaleString()} AFN
+                          ).toLocaleString()} {selectedTravelPackage.currency || "AFN"}
                         </strong>
                       </header>
 
@@ -1781,7 +1800,7 @@ export default function EmployeeDashboard({
                               ? `${Number(
                                   selectedTravelPackage.bankStatementAmount ||
                                     0
-                                ).toLocaleString()} AFN`
+                                ).toLocaleString()} ${selectedTravelPackage.currency || "AFN"}`
                               : "Not Required"}
                           </strong>
                         </div>

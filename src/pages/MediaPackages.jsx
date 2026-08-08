@@ -505,7 +505,9 @@ export default function MediaPackages() {
   const [
     legacyLocalPackages,
     setLegacyLocalPackages,
-  ] = useLocalCollection("mediaPackages");
+  ] = useLocalCollection("mediaPackages", {
+    archiveDeletes: false,
+  });
 
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState("");
