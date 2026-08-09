@@ -11,6 +11,134 @@ const defaultSystemName = "Afghan Power";
 const defaultSystemSubtitle =
   "Afghan Power Companies Group";
 
+
+const BACKUP_SETTINGS_KEY = "isp-auto-backup-settings";
+
+const defaultBackupSettings = {
+  enabled: false,
+  frequency: "daily",
+  time: "18:00",
+  weekDay: "1",
+  monthDay: "1",
+  customDays: "3",
+  lastBackupAt: "",
+};
+
+function readBackupSettings() {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(BACKUP_SETTINGS_KEY) || "{}"
+    );
+
+    return {
+      ...defaultBackupSettings,
+      ...parsed,
+    };
+  } catch {
+    return defaultBackupSettings;
+  }
+}
+
+function saveBackupSettings(settings) {
+  localStorage.setItem(
+    BACKUP_SETTINGS_KEY,
+    JSON.stringify(settings)
+  );
+}
+
+function getNextBackupDate(settings, from = new Date()) {
+  const [hour, minute] = String(settings.time || "18:00")
+    .split(":")
+    .map(Number);
+
+  const base = settings.lastBackupAt
+    ? new Date(settings.lastBackupAt)
+    : new Date(from);
+
+  if (Number.isNaN(base.getTime())) {
+    return new Date(from);
+  }
+
+  const next = new Date(base);
+
+  if (settings.frequency === "daily") {
+    next.setDate(next.getDate() + (settings.lastBackupAt ? 1 : 0));
+    next.setHours(hour || 0, minute || 0, 0, 0);
+
+    if (next <= from) {
+      next.setDate(next.getDate() + 1);
+    }
+
+    return next;
+  }
+
+  if (settings.frequency === "weekly") {
+    const targetDay = Number(settings.weekDay || 1);
+    next.setHours(hour || 0, minute || 0, 0, 0);
+
+    let diff = (targetDay - next.getDay() + 7) % 7;
+
+    if (diff === 0 && next <= from) {
+      diff = 7;
+    }
+
+    next.setDate(next.getDate() + diff);
+    return next;
+  }
+
+  if (settings.frequency === "monthly") {
+    const targetDate = Math.max(
+      1,
+      Math.min(28, Number(settings.monthDay || 1))
+    );
+
+    next.setDate(targetDate);
+    next.setHours(hour || 0, minute || 0, 0, 0);
+
+    if (next <= from) {
+      next.setMonth(next.getMonth() + 1);
+      next.setDate(targetDate);
+    }
+
+    return next;
+  }
+
+  const customDays = Math.max(
+    1,
+    Number(settings.customDays || 1)
+  );
+
+  next.setDate(
+    next.getDate() +
+      (settings.lastBackupAt ? customDays : 0)
+  );
+  next.setHours(hour || 0, minute || 0, 0, 0);
+
+  if (next <= from) {
+    next.setDate(next.getDate() + customDays);
+  }
+
+  return next;
+}
+
+function formatBackupDate(value) {
+  if (!value) return "Not yet";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not yet";
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function Settings() {
   const [settings, setSettings] = useJsonCollection("settings");
   const current = settings[0] || {};
@@ -24,6 +152,11 @@ function Settings() {
   const [networkInfo, setNetworkInfo] = useState(null);
   const [appDataBusy, setAppDataBusy] = useState(false);
   const [clearConfirm, setClearConfirm] = useState("");
+  const [backupSettings, setBackupSettings] = useState(
+    () => readBackupSettings()
+  );
+  const [backupStatus, setBackupStatus] = useState("");
+
 
   useEffect(() => {
     setCompanyName(current.companyName || defaultSystemName);
@@ -129,39 +262,102 @@ function Settings() {
     return Array.isArray(response.data) ? response.data : [];
   };
 
-  const exportData = async () => {
+  const exportData = async ({
+    automatic = false,
+  } = {}) => {
     try {
       setAppDataBusy(true);
+
+      if (automatic) {
+        setBackupStatus("Creating automatic backup...");
+      }
+
       const collections = await loadCollectionNames();
+
       const entries = await Promise.all(
         collections.map(async (name) => {
           const response = await axios.get(apiUrl(name));
-          return [name, Array.isArray(response.data) ? response.data : []];
+
+          return [
+            name,
+            Array.isArray(response.data)
+              ? response.data
+              : [],
+          ];
         })
       );
+
+      const exportedAt = new Date().toISOString();
+
       const payload = {
-  app: "Afghan Power",
-  exportedAt: new Date().toISOString(),
-  collections: Object.fromEntries(entries),
-};
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
-        type: "application/json",
-      });
+        app: "Afghan Power",
+        exportedAt,
+        backupType: automatic
+          ? "automatic"
+          : "manual",
+        collections: Object.fromEntries(entries),
+      };
+
+      const blob = new Blob(
+        [JSON.stringify(payload, null, 2)],
+        {
+          type: "application/json",
+        }
+      );
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
+
       link.href = url;
-      link.download =
-  `afghan-power-data-${new Date()
-    .toISOString()
-    .slice(0, 10)}.json`;
+      link.download = `afghan-power-data-${new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .slice(0, 19)}.json`;
+
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      notify("App data exported successfully.");
+
+      if (automatic) {
+        const nextSettings = {
+          ...backupSettings,
+          lastBackupAt: exportedAt,
+        };
+
+        setBackupSettings(nextSettings);
+        saveBackupSettings(nextSettings);
+        setBackupStatus("Automatic backup completed.");
+
+        window.setTimeout(
+          () => setBackupStatus(""),
+          3000
+        );
+      }
+
+      notify(
+        automatic
+          ? "Automatic backup created successfully."
+          : "App data exported successfully."
+      );
+
+      return true;
     } catch (error) {
-      console.error("Unable to export app data:", error);
-      notify("Unable to export app data.", "error");
+      console.error(
+        "Unable to export app data:",
+        error
+      );
+
+      setBackupStatus("");
+
+      notify(
+        automatic
+          ? "Unable to create automatic backup."
+          : "Unable to export app data.",
+        "error"
+      );
+
+      return false;
     } finally {
       setAppDataBusy(false);
     }
@@ -228,6 +424,104 @@ function Settings() {
       setAppDataBusy(false);
     }
   };
+
+
+  const updateBackupSetting = (name, value) => {
+    setBackupSettings((currentSettings) => {
+      const nextSettings = {
+        ...currentSettings,
+        [name]: value,
+      };
+
+      saveBackupSettings(nextSettings);
+      return nextSettings;
+    });
+  };
+
+  const toggleAutomaticBackup = () => {
+    setBackupSettings((currentSettings) => {
+      const nextSettings = {
+        ...currentSettings,
+        enabled: !currentSettings.enabled,
+      };
+
+      saveBackupSettings(nextSettings);
+
+      notify(
+        nextSettings.enabled
+          ? "Automatic backup enabled."
+          : "Automatic backup disabled."
+      );
+
+      return nextSettings;
+    });
+  };
+
+  const backupNow = async () => {
+    const success = await exportData({
+      automatic: true,
+    });
+
+    if (!success) return;
+  };
+
+  const nextBackupAt = backupSettings.enabled
+    ? getNextBackupDate(
+        backupSettings,
+        new Date()
+      )
+    : null;
+
+  useEffect(() => {
+    if (!backupSettings.enabled) {
+      return undefined;
+    }
+
+    let running = false;
+
+    const checkBackupSchedule = async () => {
+      if (running || appDataBusy) return;
+
+      const nextBackup = getNextBackupDate(
+        backupSettings,
+        new Date()
+      );
+
+      if (new Date() < nextBackup) {
+        return;
+      }
+
+      running = true;
+
+      try {
+        await exportData({
+          automatic: true,
+        });
+      } finally {
+        running = false;
+      }
+    };
+
+    checkBackupSchedule();
+
+    const intervalId = window.setInterval(
+      checkBackupSchedule,
+      60 * 1000
+    );
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [
+    backupSettings.enabled,
+    backupSettings.frequency,
+    backupSettings.time,
+    backupSettings.weekDay,
+    backupSettings.monthDay,
+    backupSettings.customDays,
+    backupSettings.lastBackupAt,
+    appDataBusy,
+  ]);
 
   return (
     <div className="settings-page">
@@ -339,7 +633,7 @@ function Settings() {
             </div>
 
             <div className="settings-data-actions">
-              <button type="button" onClick={exportData} disabled={appDataBusy}>
+              <button type="button" onClick={() => exportData()} disabled={appDataBusy}>
                 <Download size={16} />
                 Export Data
               </button>
@@ -354,6 +648,220 @@ function Settings() {
                   disabled={appDataBusy}
                 />
               </label>
+            </div>
+
+
+            <div className="settings-auto-backup">
+              <div className="settings-auto-backup-head">
+                <div>
+                  <span>Automatic Backup</span>
+                  <h4>Scheduled App Backup</h4>
+                  <p>
+                    Create backup files automatically while ISP Smart is open.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className={`settings-backup-toggle ${
+                    backupSettings.enabled
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={toggleAutomaticBackup}
+                >
+                  <i></i>
+                  {backupSettings.enabled
+                    ? "Enabled"
+                    : "Disabled"}
+                </button>
+              </div>
+
+              <div className="settings-backup-grid">
+                <label>
+                  Backup Frequency
+                  <select
+                    value={backupSettings.frequency}
+                    onChange={(event) =>
+                      updateBackupSetting(
+                        "frequency",
+                        event.target.value
+                      )
+                    }
+                    disabled={!backupSettings.enabled}
+                  >
+                    <option value="daily">
+                      Daily
+                    </option>
+                    <option value="weekly">
+                      Weekly
+                    </option>
+                    <option value="monthly">
+                      Monthly
+                    </option>
+                    <option value="custom">
+                      Custom
+                    </option>
+                  </select>
+                </label>
+
+                <label>
+                  Backup Time
+                  <input
+                    type="time"
+                    value={backupSettings.time}
+                    onChange={(event) =>
+                      updateBackupSetting(
+                        "time",
+                        event.target.value
+                      )
+                    }
+                    disabled={!backupSettings.enabled}
+                  />
+                </label>
+
+                {backupSettings.frequency ===
+                  "weekly" && (
+                  <label>
+                    Day of Week
+                    <select
+                      value={backupSettings.weekDay}
+                      onChange={(event) =>
+                        updateBackupSetting(
+                          "weekDay",
+                          event.target.value
+                        )
+                      }
+                      disabled={
+                        !backupSettings.enabled
+                      }
+                    >
+                      <option value="0">
+                        Sunday
+                      </option>
+                      <option value="1">
+                        Monday
+                      </option>
+                      <option value="2">
+                        Tuesday
+                      </option>
+                      <option value="3">
+                        Wednesday
+                      </option>
+                      <option value="4">
+                        Thursday
+                      </option>
+                      <option value="5">
+                        Friday
+                      </option>
+                      <option value="6">
+                        Saturday
+                      </option>
+                    </select>
+                  </label>
+                )}
+
+                {backupSettings.frequency ===
+                  "monthly" && (
+                  <label>
+                    Day of Month
+                    <select
+                      value={backupSettings.monthDay}
+                      onChange={(event) =>
+                        updateBackupSetting(
+                          "monthDay",
+                          event.target.value
+                        )
+                      }
+                      disabled={
+                        !backupSettings.enabled
+                      }
+                    >
+                      {Array.from(
+                        { length: 28 },
+                        (_, index) => index + 1
+                      ).map((day) => (
+                        <option
+                          key={day}
+                          value={String(day)}
+                        >
+                          Day {day}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
+                {backupSettings.frequency ===
+                  "custom" && (
+                  <label>
+                    Every Number of Days
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={
+                        backupSettings.customDays
+                      }
+                      onChange={(event) =>
+                        updateBackupSetting(
+                          "customDays",
+                          event.target.value
+                        )
+                      }
+                      disabled={
+                        !backupSettings.enabled
+                      }
+                    />
+                  </label>
+                )}
+              </div>
+
+              <div className="settings-backup-status-grid">
+                <div>
+                  <span>Last Backup</span>
+                  <strong>
+                    {formatBackupDate(
+                      backupSettings.lastBackupAt
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Next Backup</span>
+                  <strong>
+                    {backupSettings.enabled
+                      ? formatBackupDate(
+                          nextBackupAt
+                        )
+                      : "Automatic backup is off"}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="settings-backup-footer">
+                <div>
+                  {backupStatus ? (
+                    <span className="settings-backup-status">
+                      {backupStatus}
+                    </span>
+                  ) : (
+                    <span>
+                      Backups are downloaded as JSON
+                      files.
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={backupNow}
+                  disabled={appDataBusy}
+                >
+                  <Download size={16} />
+                  Backup Now
+                </button>
+              </div>
             </div>
 
             <div className="settings-clear-zone">

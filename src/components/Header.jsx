@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
+  ArrowLeftRight,
   Bell,
   Banknote,
   Box,
@@ -8,6 +9,7 @@ import {
   CheckCheck,
   ChevronDown,
   CreditCard,
+  FileCheck2,
   LogOut,
   Languages,
   Moon,
@@ -48,6 +50,7 @@ const formatLocationName = (record) =>
   "-";
 
 function HeaderActions({ currentUser, onLogout, compact = false }) {
+  const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState(null);
 
   const [
@@ -60,7 +63,64 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
   const adminCustomerAlertReadyRef = useRef(false);
   const adminCustomerSoundRef = useRef(null);
   const [selectedCurrency, setSelectedCurrency] = useState(
-    () => localStorage.getItem("isp-currency") || "AFN"
+    () => {
+      const savedCurrency =
+        localStorage.getItem("isp-currency");
+
+      return ["AFN", "USD"].includes(savedCurrency)
+        ? savedCurrency
+        : "AFN";
+    }
+  );
+
+  const [usdRate, setUsdRate] = useState(
+    () => {
+      const savedRate = Number(
+        localStorage.getItem("isp-usd-rate")
+      );
+
+      return Number.isFinite(savedRate) &&
+        savedRate > 0
+        ? savedRate
+        : 70;
+    }
+  );
+
+  const [
+    exchangeDirection,
+    setExchangeDirection,
+  ] = useState(
+    () =>
+      localStorage.getItem(
+        "isp-exchange-direction"
+      ) || "usd-to-afn"
+  );
+
+  const [rateInput, setRateInput] = useState(
+    () => {
+      const savedRate = Number(
+        localStorage.getItem("isp-usd-rate")
+      );
+
+      const safeRate =
+        Number.isFinite(savedRate) &&
+        savedRate > 0
+          ? savedRate
+          : 70;
+
+      const direction =
+        localStorage.getItem(
+          "isp-exchange-direction"
+        ) || "usd-to-afn";
+
+      return direction === "usd-to-afn"
+        ? String(safeRate)
+        : String(
+            Number(
+              (1 / safeRate).toFixed(6)
+            )
+          );
+    }
   );
   const [selectedTheme, setSelectedTheme] = useState(
     () => localStorage.getItem("isp-theme") || "light"
@@ -140,6 +200,32 @@ const pendingAssignedCustomers =
 
 const assignedCustomerCount =
   pendingAssignedCustomers.length;
+
+const currentUserRoles = [
+  currentUser?.role,
+  currentUser?.primaryRole,
+  ...(Array.isArray(currentUser?.roles) ? currentUser.roles : []),
+]
+  .filter(Boolean)
+  .map(normalize);
+
+const isAdminAccount =
+  currentUser?.isDefaultAdmin === true ||
+  currentUser?.isAdmin === true ||
+  currentUser?.isFullAdmin === true ||
+  currentUser?.permissions?.all === true ||
+  currentUser?.accountType === "admin" ||
+  currentUserRoles.some((role) =>
+    ["admin", "full admin", "administrator"].includes(role)
+  );
+
+const pendingAdminFollowUps = isAdminAccount
+  ? customers.filter(
+      (customer) =>
+        normalize(customer.followUpWorkflowStatus) ===
+        "awaiting admin"
+    )
+  : [];
 
 const responseOwnerIds = [
   currentUser?.id,
@@ -635,6 +721,23 @@ useEffect(() => {
           description: `${event.creator} registered ${customerName} from ${event.section}`,
         };
       }),
+      key: "follow-up-admin-review",
+      title: "Follow-Up Reviews",
+      count: pendingAdminFollowUps.length,
+      icon: FileCheck2,
+      items: pendingAdminFollowUps.map((customer) => ({
+        title: "Follow-Up Ready for Admin",
+        description: `${
+          customer.fullName ||
+          customer.customerName ||
+          customer.personName ||
+          "Customer"
+        } was completed by Reception and needs financial review`,
+        path: `/customer-follow-up/${customer.id}`,
+        happenedAt:
+          customer.followUp?.submittedForAdminAt ||
+          customer.followUpUpdatedAt,
+      })),
     },
     {
       key: "assigned-customers",
@@ -713,6 +816,7 @@ useEffect(() => {
           group.key,
           item.title,
           item.description,
+          item.happenedAt || "",
           index,
         ].join("|"),
         groupKey: group.key,
@@ -774,7 +878,121 @@ useEffect(() => {
     { key: "warm", label: "Warm", color: "#f59e0b" },
   ];
 
-  const currencies = ["AFN", "USD", "EUR"];
+  const currencies = ["AFN", "USD"];
+
+  function selectCurrency(currency) {
+    setSelectedCurrency(currency);
+    localStorage.setItem(
+      "isp-currency",
+      currency
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "isp-currency-changed",
+        {
+          detail: {
+            currency,
+            usdRate,
+          },
+        }
+      )
+    );
+  }
+
+  function currentDisplayRate(
+    direction = exchangeDirection,
+    baseRate = usdRate
+  ) {
+    if (direction === "usd-to-afn") {
+      return String(baseRate);
+    }
+
+    return String(
+      Number((1 / baseRate).toFixed(6))
+    );
+  }
+
+  function updateUsdRateInput(value) {
+    // Keep the raw text so the user can fully clear
+    // the input and type a new value.
+    setRateInput(value);
+
+    if (
+      value === "" ||
+      value === "." ||
+      value === "-"
+    ) {
+      return;
+    }
+
+    const enteredRate = Number(value);
+
+    if (
+      !Number.isFinite(enteredRate) ||
+      enteredRate <= 0
+    ) {
+      return;
+    }
+
+    const nextUsdRate =
+      exchangeDirection === "usd-to-afn"
+        ? enteredRate
+        : 1 / enteredRate;
+
+    setUsdRate(nextUsdRate);
+
+    localStorage.setItem(
+      "isp-usd-rate",
+      String(nextUsdRate)
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "isp-currency-rate-changed",
+        {
+          detail: {
+            currency: selectedCurrency,
+            usdRate: nextUsdRate,
+            direction: exchangeDirection,
+          },
+        }
+      )
+    );
+  }
+
+  function commitUsdRateInput() {
+    const enteredRate = Number(rateInput);
+
+    if (
+      !rateInput.trim() ||
+      !Number.isFinite(enteredRate) ||
+      enteredRate <= 0
+    ) {
+      setRateInput(currentDisplayRate());
+    }
+  }
+
+  function toggleExchangeDirection() {
+    const nextDirection =
+      exchangeDirection === "usd-to-afn"
+        ? "afn-to-usd"
+        : "usd-to-afn";
+
+    setExchangeDirection(nextDirection);
+
+    localStorage.setItem(
+      "isp-exchange-direction",
+      nextDirection
+    );
+
+    setRateInput(
+      currentDisplayRate(
+        nextDirection,
+        usdRate
+      )
+    );
+  }
 
   function applyTheme(theme) {
     setSelectedTheme(theme);
@@ -792,6 +1010,18 @@ useEffect(() => {
   useEffect(() => {
     applyTheme(selectedTheme);
     applyInterfaceLanguage(selectedLanguage);
+
+    const storedCurrency =
+      localStorage.getItem("isp-currency");
+
+    if (
+      !["AFN", "USD"].includes(storedCurrency)
+    ) {
+      localStorage.setItem(
+        "isp-currency",
+        "AFN"
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -900,21 +1130,201 @@ useEffect(() => {
                 <strong>Currency Exchange</strong>
                 <span>Display currency</span>
               </div>
+
               {currencies.map((currency) => (
                 <button
                   type="button"
                   key={currency}
-                  className={`header-picker-option currency-code-option ${selectedCurrency === currency ? "active" : ""}`}
+                  className={`header-picker-option currency-code-option ${
+                    selectedCurrency === currency
+                      ? "active"
+                      : ""
+                  }`}
                   onClick={() => {
-                    setSelectedCurrency(currency);
-                    localStorage.setItem("isp-currency", currency);
-                    setOpenMenu(null);
+                    selectCurrency(currency);
                   }}
                 >
                   <strong>{currency}</strong>
-                  {selectedCurrency === currency && <CheckCheck size={15} />}
+
+                  {selectedCurrency === currency && (
+                    <CheckCheck size={15} />
+                  )}
                 </button>
               ))}
+
+              <div
+                style={{
+                  marginTop: 10,
+                  paddingTop: 12,
+                  borderTop:
+                    "1px solid rgba(148, 163, 184, 0.25)",
+                }}
+              >
+                <div
+                  style={{
+                    marginBottom: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                  }}
+                >
+                  <div>
+                    <strong
+                      style={{
+                        display: "block",
+                        fontSize: 11,
+                      }}
+                    >
+                      Exchange Rate
+                    </strong>
+
+                    <span
+                      style={{
+                        color: "#64748b",
+                        fontSize: 9,
+                      }}
+                    >
+                      Manual value
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleExchangeDirection();
+                    }}
+                    title="Reverse exchange direction"
+                    aria-label="Reverse exchange direction"
+                    style={{
+                      width: 30,
+                      height: 30,
+                      padding: 0,
+                      border:
+                        "1px solid #dfe3e8",
+                      borderRadius: 8,
+                      display: "grid",
+                      placeItems: "center",
+                      background: "transparent",
+                      color: "inherit",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <ArrowLeftRight size={14} />
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    minHeight: 42,
+                    padding: "6px 8px",
+                    border:
+                      "1px solid #dfe3e8",
+                    borderRadius: 8,
+                    display: "grid",
+                    gridTemplateColumns:
+                      "auto minmax(72px, 1fr) auto",
+                    alignItems: "center",
+                    gap: 7,
+                    background: "inherit",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {exchangeDirection ===
+                    "usd-to-afn"
+                      ? "1 USD ="
+                      : "1 AFN ="}
+                  </span>
+
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={rateInput}
+                    onChange={(event) =>
+                      updateUsdRateInput(
+                        event.target.value
+                      )
+                    }
+                    onBlur={commitUsdRateInput}
+                    onFocus={(event) =>
+                      event.target.select()
+                    }
+                    onClick={(event) =>
+                      event.stopPropagation()
+                    }
+                    style={{
+                      width: "100%",
+                      minWidth: 0,
+                      height: 28,
+                      padding: "0 7px",
+                      border:
+                        "1px solid #cbd5e1",
+                      borderRadius: 6,
+                      outline: 0,
+                      background: "transparent",
+                      color: "inherit",
+                      fontFamily: "inherit",
+                      fontSize: 10,
+                      fontWeight: 800,
+                    }}
+                    aria-label="Currency exchange rate"
+                  />
+
+                  <strong
+                    style={{
+                      fontSize: 10,
+                    }}
+                  >
+                    {exchangeDirection ===
+                    "usd-to-afn"
+                      ? "AFN"
+                      : "USD"}
+                  </strong>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: "7px 8px",
+                    borderRadius: 7,
+                    background:
+                      "rgba(99, 102, 241, 0.07)",
+                    color: "#64748b",
+                    fontSize: 9,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {exchangeDirection ===
+                  "usd-to-afn" ? (
+                    <>
+                      1 USD ={" "}
+                      <strong>
+                        {Number(
+                          usdRate.toFixed(6)
+                        )}
+                      </strong>{" "}
+                      AFN
+                    </>
+                  ) : (
+                    <>
+                      1 AFN ={" "}
+                      <strong>
+                        {Number(
+                          (1 / usdRate).toFixed(6)
+                        )}
+                      </strong>{" "}
+                      USD
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1035,6 +1445,23 @@ useEffect(() => {
                           <div
                             key={item.key}
                             className="notification-item"
+                            role={item.path ? "button" : undefined}
+                            tabIndex={item.path ? 0 : undefined}
+                            onClick={() => {
+                              if (!item.path) return;
+                              setOpenMenu(null);
+                              navigate(item.path);
+                            }}
+                            onKeyDown={(event) => {
+                              if (
+                                item.path &&
+                                (event.key === "Enter" || event.key === " ")
+                              ) {
+                                event.preventDefault();
+                                setOpenMenu(null);
+                                navigate(item.path);
+                              }
+                            }}
                           >
   <span className="notification-icon">
     <Icon size={15} strokeWidth={1.9} />
@@ -1043,7 +1470,11 @@ useEffect(() => {
   <div className="notification-item-content">
     <strong>{item.title}</strong>
     <p>{item.description}</p>
-    <small>Less than a minute ago</small>
+    <small>
+      {item.happenedAt
+        ? new Date(item.happenedAt).toLocaleString()
+        : "Current alert"}
+    </small>
   </div>
 
   <button
@@ -1051,9 +1482,10 @@ useEffect(() => {
     className="notification-remove-btn"
     aria-label={`Remove ${item.title}`}
     title="Remove notification"
-    onClick={() =>
-      dismissNotification(item.key)
-    }
+    onClick={(event) => {
+      event.stopPropagation();
+      dismissNotification(item.key);
+    }}
   >
     <Trash2 size={13} />
   </button>

@@ -44,6 +44,7 @@ let activeDataDir = process.env.ISP_DATA_DIR || DEFAULT_DATA_DIR;
 let dataDirectoryPrepared = false;
 const writeQueues = new Map();
 const licenseRateLimits = new Map();
+let recycleArchiveQueue = Promise.resolve();
 
 const COLLECTIONS = new Set([
   "settings",
@@ -53,32 +54,42 @@ const COLLECTIONS = new Set([
   "suppliers",
   "supplierPurchases",
   "supplierPayments",
+
   "customers",
   "customerPayments",
+
   "employeeTypes",
   "employees",
   "employeePayrolls",
   "employeeEarnings",
   "employeePayments",
   "employeeAdjustments",
+
   "consultantCustomers",
   "travelCustomers",
   "technologyCustomers",
 
+  // Packages
+  "visaPackages",
+  "travelPackages",
+  "technologyPackages",
+  "mediaPackages",
+
   "educationInstitutions",
   "mediaProducts",
   "messages",
-  
-  "transactions",
 
+  "transactions",
 
   "officeAssets",
   "officeAssetItems",
   "officeAssetCategories",
+
   "reports",
   "projects",
   "projectSales",
   "projectLicenses",
+  "recycleBin",
 ]);
 
 app.disable("x-powered-by");
@@ -244,6 +255,152 @@ async function readCollection(collection) {
     await writeCollection(collection, []);
     return [];
   }
+}
+
+function recordIdentity(record) {
+  const keys = [
+    "id",
+    "_id",
+    "assetId",
+    "customerId",
+    "employeeId",
+    "projectId",
+    "transactionId",
+    "transferId",
+  ];
+
+  for (const key of keys) {
+    if (record?.[key] !== undefined && record?.[key] !== null) {
+      return `${key}:${String(record[key])}`;
+    }
+  }
+
+  return `data:${JSON.stringify(record)}`;
+}
+
+function recordLabel(record, collection) {
+  return (
+    record?.packageName ||
+    record?.customerName ||
+    record?.fullName ||
+    record?.projectName ||
+    record?.supplierName ||
+    record?.name ||
+    record?.title ||
+    record?.assetId ||
+    record?.id ||
+    collection
+  );
+}
+
+async function archiveRemovedRecords(collection, previousItems, nextItems, actorId = "") {
+  if (collection === "recycleBin") return;
+
+  const remainingIdentities = new Set(nextItems.map(recordIdentity));
+  const removedItems = previousItems.filter(
+    (item) => !remainingIdentities.has(recordIdentity(item))
+  );
+
+  if (!removedItems.length) return;
+
+  recycleArchiveQueue = recycleArchiveQueue.then(async () => {
+    const recycleItems = await readCollection("recycleBin");
+    const deletedAt = new Date().toISOString();
+
+    const entries = removedItems.map((record, index) => ({
+      id: `recycle-${Date.now()}-${index}-${Math.random()
+        .toString(36)
+        .slice(2, 9)}`,
+      sourceCollection: collection,
+      sourceType: "server",
+      recordId: recordIdentity(record),
+      recordLabel: String(recordLabel(record, collection)),
+      record,
+      deletedAt,
+      deletedByAccountId: actorId,
+    }));
+
+    await writeCollection("recycleBin", [...recycleItems, ...entries]);
+  });
+
+  await recycleArchiveQueue;
+}
+
+async function recoverDeletedRecordsFromBackups() {
+  const recoveryMarker = path.join(
+    activeDataDir,
+    ".recycle-backup-recovery-v1.json"
+  );
+
+  if (await fs.pathExists(recoveryMarker)) return;
+
+  const recycleItems = await readCollection("recycleBin");
+  const knownEntries = new Set(
+    recycleItems.map(
+      (item) => `${item.sourceCollection}|${item.recordId}`
+    )
+  );
+  const recoveredEntries = [];
+
+  for (const collection of COLLECTIONS) {
+    if (collection === "recycleBin") continue;
+
+    const backupFile = `${dataFile(collection)}.bak`;
+    if (!(await fs.pathExists(backupFile))) continue;
+
+    try {
+      const backupItems = await fs.readJson(backupFile);
+      if (!Array.isArray(backupItems)) continue;
+
+      const currentItems = await readCollection(collection);
+      const currentIdentities = new Set(currentItems.map(recordIdentity));
+      const backupStats = await fs.stat(backupFile);
+
+      for (const record of backupItems) {
+        const identity = recordIdentity(record);
+        const entryKey = `${collection}|${identity}`;
+
+        if (
+          currentIdentities.has(identity) ||
+          knownEntries.has(entryKey)
+        ) {
+          continue;
+        }
+
+        knownEntries.add(entryKey);
+        recoveredEntries.push({
+          id: `recovered-${Date.now()}-${recoveredEntries.length}-${Math.random()
+            .toString(36)
+            .slice(2, 9)}`,
+          sourceCollection: collection,
+          sourceType: "server",
+          recordId: identity,
+          recordLabel: String(recordLabel(record, collection)),
+          record,
+          deletedAt: backupStats.mtime.toISOString(),
+          recoveredFromBackup: true,
+        });
+      }
+    } catch (error) {
+      console.warn(`Unable to inspect ${collection} backup:`, error.message);
+    }
+  }
+
+  if (recoveredEntries.length) {
+    await writeCollection("recycleBin", [
+      ...recycleItems,
+      ...recoveredEntries,
+    ]);
+  }
+
+  await fs.writeJson(
+    recoveryMarker,
+    {
+      completedAt: new Date().toISOString(),
+      recoveredRecords: recoveredEntries.length,
+    },
+    { spaces: 2 }
+  );
 }
 
 function isInactiveAccount(account) {
@@ -758,6 +915,15 @@ app.put("/api/:collection", async (req, res, next) => {
       return res.status(400).json({ error: "Expected an array" });
     }
 
+    const previousItems = await readCollection(req.params.collection);
+
+    await archiveRemovedRecords(
+      req.params.collection,
+      previousItems,
+      req.body,
+      String(req.headers["x-isp-session-id"] || "")
+    );
+
     await writeCollection(req.params.collection, req.body);
     res.json(req.body);
   } catch (error) {
@@ -813,10 +979,17 @@ app.put("/api/:collection/:id", async (req, res, next) => {
 
 app.delete("/api/:collection/:id", async (req, res, next) => {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const items = await readCollection(req.params.collection);
 
-    const nextItems = items.filter((item) => Number(item.id) !== id);
+    const nextItems = items.filter((item) => String(item.id) !== id);
+
+    await archiveRemovedRecords(
+      req.params.collection,
+      items,
+      nextItems,
+      String(req.headers["x-isp-session-id"] || "")
+    );
 
     await writeCollection(req.params.collection, nextItems);
 

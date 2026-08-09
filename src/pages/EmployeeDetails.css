@@ -953,3 +953,32 @@ body.dark-mode
     flex: 0 1 auto;
   }
 }
+
+/* Employee Assessment button */
+.employee-profile-actions .employee-assessment-button {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.employee-profile-actions .employee-assessment-button:hover {
+  border-color: #93c5fd;
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+body.dark-mode
+  .employee-profile-actions
+  .employee-assessment-button {
+  border-color: #1e3a8a;
+  background: rgba(30, 58, 138, 0.35);
+  color: #bfdbfe;
+}
+
+body.dark-mode
+  .employee-profile-actions
+  .employee-assessment-button:hover {
+  border-color: #2563eb;
+  background: rgba(30, 64, 175, 0.45);
+  color: #dbeafe;
+}

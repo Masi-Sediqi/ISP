@@ -34,6 +34,7 @@ import {
   Info,
   LayoutDashboard,
   Plane,
+  Package,
   ReceiptText,
   Settings as SettingsIcon,
   ShieldCheck,
@@ -68,6 +69,9 @@ const UserManagement = lazy(() => import("./pages/UserManagement"));
 const Agent = lazy(() => import("./pages/Agent"));
 const Employees = lazy(() => import("./pages/Employees"));
 const EmployeeDetails = lazy(() => import("./pages/EmployeeDetails"));
+const EmployeePerformance = lazy(() =>
+  import("./pages/EmployeePerformance")
+);
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard"));
 const EmployeeAttendance = lazy(() => import("./pages/EmployeeAttendance"));
 import ProjectReport from "./pages/ProjectReport";
@@ -93,6 +97,11 @@ const FAQ = lazy(() =>
 );
 const Reception = lazy(() => import("./pages/Reception"));
 const CustomerFollowUp = lazy(() => import("./pages/CustomerFollowUp"));
+const VisaPackages = lazy(() => import("./pages/VisaPackages"));
+const TravelPackages = lazy(() => import("./pages/TravelPackages"));
+const TechnologyPackages = lazy(() => import("./pages/TechnologyPackages"));
+const MediaPackages = lazy(() => import("./pages/MediaPackages"));
+const RecycleBin = lazy(() => import("./pages/RecycleBin"));
 
 
 const UserGuide = lazy(() => import("./pages/UserGuide"));
@@ -170,6 +179,7 @@ function App() {
   const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [employeeMenuOpen, setEmployeeMenuOpen] = useState(false);
+  const [packageMenuOpen, setPackageMenuOpen] = useState(false);
   const sidebarInfoRef = useRef(null);
 
   const assignmentAlertReadyRef =
@@ -702,6 +712,29 @@ const myAssignedCustomers = customers
     { to: "/employees/attendance", label: "Employee Attendance", icon: CalendarCheck },
   ];
 
+  const packageMenuItems = [
+    {
+      to: "/packages/visa",
+      label: "Visa Package",
+      icon: FileText,
+    },
+    {
+      to: "/packages/travel",
+      label: "Travel Package",
+      icon: Plane,
+    },
+    {
+      to: "/packages/technology",
+      label: "Technology Package",
+      icon: Cpu,
+    },
+    {
+      to: "/packages/media",
+      label: "Media Package",
+      icon: Clapperboard,
+    },
+  ];
+
   const sidebarInfoLinks = [
     {
       key: "help-center",
@@ -912,6 +945,51 @@ const myAssignedCustomers = customers
               </div>
             )}
 
+            {!isEmployeeAccount && canViewModule(currentUser, "dashboard") && (
+              <div className={`sidebar-customer-menu ${packageMenuOpen ? "open" : ""}`}>
+                <button
+                  type="button"
+                  className="sidebar-customer-trigger"
+                  onClick={() => setPackageMenuOpen((open) => !open)}
+                  aria-expanded={packageMenuOpen}
+                >
+                  <span className="sidebar-menu-label">
+                    <Package size={17} />
+                    <span>Packages</span>
+                  </span>
+
+                  <ChevronDown
+                    className="sidebar-menu-chevron"
+                    size={15}
+                  />
+                </button>
+
+                {packageMenuOpen && (
+                  <div className="sidebar-customer-submenu">
+                    {packageMenuItems.map((item) => {
+                      const Icon = item.icon;
+
+                      return (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          className={
+                            location.pathname === item.to
+                              ? "active"
+                              : ""
+                          }
+                          onClick={() => setPackageMenuOpen(false)}
+                        >
+                          <Icon size={14} />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {!isEmployeeAccount && menuItems
               .filter((item) => item.to !== "/" && canViewModule(currentUser, item.moduleKey))
               .map((item) => {
@@ -1033,6 +1111,10 @@ const myAssignedCustomers = customers
                     />
                   }
                 />
+                <Route
+                  path="/employees/:id/performance"
+                  element={<EmployeePerformance />}
+                />
                 <Route path="/employees/:id" element={<EmployeeDetails accounts={accounts} setAccounts={setAccounts} />} />
 
                 <Route
@@ -1077,7 +1159,35 @@ const myAssignedCustomers = customers
                 />
                 <Route
                   path="/recycle-bin"
-                  element={<ModulePlaceholder title="Recycle Bin" description="Review recently removed records and restore them when needed." items={["Deleted records", "Restore items", "Permanent cleanup"]} />}
+                  element={protect("dashboard", <RecycleBin />)}
+                />
+                <Route
+                  path="/packages/visa"
+                  element={protect(
+                    "dashboard",
+                    <VisaPackages />
+                  )}
+                />
+                <Route
+                  path="/packages/travel"
+                  element={protect(
+                    "dashboard",
+                    <TravelPackages />
+                  )}
+                />
+                <Route
+                  path="/packages/technology"
+                  element={protect(
+                    "dashboard",
+                    <TechnologyPackages />
+                  )}
+                />
+                <Route
+                  path="/packages/media"
+                  element={protect(
+                    "dashboard",
+                    <MediaPackages />
+                  )}
                 />
 
                 <Route path="/suppliers" element={protect("suppliers", <Suppliers currentUser={currentUser} />)} />

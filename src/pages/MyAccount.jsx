@@ -217,6 +217,11 @@ export default function MyAccount({
   assignedCustomers = [],
 }) {
   const navigate = useNavigate();
+
+  const isFollowUpComplete = (customer) =>
+    customer?.followUpCompleted === true ||
+    normalize(customer?.followUpWorkflowStatus) === "completed" ||
+    Boolean(customer?.followUp?.completedAt);
   const [
     customers,
     setCustomers,
@@ -1079,6 +1084,9 @@ export default function MyAccount({
                   const transferredAway =
                     !isCurrentAssignment(customer);
 
+                  const followUpComplete =
+                    isFollowUpComplete(customer);
+
                   return (
                     <tr
                       key={customer.id}
@@ -1181,13 +1189,14 @@ export default function MyAccount({
                       </td>
 
                       <td>
-                        {!transferredAway &&
-                        normalize(requestStatus) ===
-                          "accepted" ? (
+                        {followUpComplete ||
+                        (!transferredAway &&
+                          normalize(requestStatus) ===
+                            "accepted") ? (
                           <button
                             type="button"
                             className={`my-account-followup-button ${
-                              customer.followUpCompleted
+                              followUpComplete
                                 ? "completed"
                                 : "pending"
                             }`}
@@ -1199,17 +1208,17 @@ export default function MyAccount({
                               );
                             }}
                             title={
-                              customer.followUpCompleted
+                              followUpComplete
                                 ? "Open completed follow-up"
                                 : "Start customer follow-up"
                             }
                             aria-label={
-                              customer.followUpCompleted
+                              followUpComplete
                                 ? "Open completed follow-up"
                                 : "Start customer follow-up"
                             }
                           >
-                            {customer.followUpCompleted ? (
+                            {followUpComplete ? (
                               <CheckCircle2 size={15} />
                             ) : (
                               <Sparkles size={15} />
@@ -1595,13 +1604,14 @@ export default function MyAccount({
                   Assign to another
                 </button>
 
-                {normalize(
-                  selectedCustomer.assignmentStatus
-                ) === "accepted" && (
+                {(isFollowUpComplete(selectedCustomer) ||
+                  normalize(
+                    selectedCustomer.assignmentStatus
+                  ) === "accepted") && (
                   <button
                     type="button"
                     className={`followup ${
-                      selectedCustomer.followUpCompleted
+                      isFollowUpComplete(selectedCustomer)
                         ? "completed"
                         : ""
                     }`}
@@ -1614,7 +1624,7 @@ export default function MyAccount({
                   >
                     <Sparkles size={16} />
 
-                    {selectedCustomer.followUpCompleted
+                    {isFollowUpComplete(selectedCustomer)
                       ? "Open Follow Up"
                       : "Start Follow Up"}
                   </button>

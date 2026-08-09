@@ -21,7 +21,9 @@ import {
   X,
 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { usePackageAvailabilityDate } from "../hooks/usePackageAvailabilityDate";
 import { notify } from "../utils/notify";
+import { isPackageAvailable } from "../utils/packageAvailability";
 import "./Reception.css";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -549,15 +551,361 @@ function CountrySelect({
   );
 }
 
+
+function SearchablePackageSelect({
+  label,
+  packages,
+  value,
+  onChange,
+  placeholder,
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const closeOnOutside = (event) => {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", closeOnOutside);
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        closeOnOutside
+      );
+    };
+  }, []);
+
+  const selectedItem = useMemo(
+    () =>
+      packages.find(
+        (item) =>
+          String(item.id) === String(value)
+      ) || null,
+    [packages, value]
+  );
+
+  const filteredPackages = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return packages;
+
+    return packages.filter((item) =>
+      [
+        item.packageName,
+        item.country,
+        item.category,
+        item.currency,
+        item.note,
+      ].some((entry) =>
+        String(entry || "")
+          .toLowerCase()
+          .includes(query)
+      )
+    );
+  }, [packages, search]);
+
+  const choosePackage = (item) => {
+    onChange({
+      target: {
+        name: "selectedPackageId",
+        value: item.id,
+      },
+    });
+
+    setSearch("");
+    setOpen(false);
+  };
+
+  return (
+    <div
+      className={`reception-package-searchable ${
+        open ? "open" : ""
+      }`}
+      ref={wrapperRef}
+    >
+      <span className="reception-package-searchable-label">
+        {label}
+      </span>
+
+      <button
+        type="button"
+        className="reception-package-searchable-trigger"
+        onClick={() =>
+          setOpen((current) => !current)
+        }
+      >
+        <span className="reception-package-searchable-value">
+          {selectedItem ? (
+            <>
+              {selectedItem.country && (
+                <img
+                  src={getCountryFlagUrl(
+                    selectedItem.country
+                  )}
+                  alt=""
+                />
+              )}
+
+              <span>
+                {selectedItem.packageName}
+              </span>
+
+              {selectedItem.country && (
+                <small>
+                  {selectedItem.country}
+                </small>
+              )}
+            </>
+          ) : (
+            <span className="placeholder">
+              {placeholder}
+            </span>
+          )}
+        </span>
+
+        <b>▾</b>
+      </button>
+
+      {open && (
+        <div className="reception-package-searchable-menu">
+          <div className="reception-package-search-box">
+            <Search size={15} />
+
+            <input
+              type="search"
+              value={search}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              placeholder="Search package, country or category..."
+              autoFocus
+            />
+          </div>
+
+          <div className="reception-package-searchable-options">
+            {filteredPackages.map((item) => {
+              const isSelected =
+                String(item.id) === String(value);
+
+              return (
+                <button
+                  type="button"
+                  key={item.id}
+                  className={
+                    isSelected ? "selected" : ""
+                  }
+                  onClick={() =>
+                    choosePackage(item)
+                  }
+                >
+                  <span className="reception-package-option-main">
+                    {item.country ? (
+                      <img
+                        src={getCountryFlagUrl(
+                          item.country
+                        )}
+                        alt=""
+                      />
+                    ) : (
+                      <span className="reception-package-option-icon">
+                        ▣
+                      </span>
+                    )}
+
+                    <span>
+                      <strong>
+                        {item.packageName ||
+                          "Unnamed Package"}
+                      </strong>
+
+                      <small>
+                        {[
+                          item.country,
+                          item.category,
+                          item.currency,
+                        ]
+                          .filter(Boolean)
+                          .join(" • ") || "Package"}
+                      </small>
+                    </span>
+                  </span>
+
+                  <strong className="reception-package-option-price">
+                    {packageMoney(
+                      item.sellingPrice,
+                      item.currency || "AFN"
+                    )}
+                  </strong>
+                </button>
+              );
+            })}
+
+            {!filteredPackages.length && (
+              <p className="reception-package-search-empty">
+                No matching package found.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function packageMoney(value, currency = "AFN") {
+  return `${Number(value || 0).toLocaleString("en-US")} ${
+    currency || "AFN"
+  }`;
+}
+
+function ReceptionPackagePreview({
+  title,
+  packageItem,
+  showCountry = false,
+  showCategory = false,
+  showDates = false,
+  showBankStatement = false,
+  showDocumentation = false,
+}) {
+  if (!packageItem) return null;
+
+  const currency = packageItem.currency || "AFN";
+
+  return (
+    <section className="reception-package-preview reception-form-full">
+      <header>
+        <div>
+          <span>{title}</span>
+          <h3>{packageItem.packageName || "Package"}</h3>
+        </div>
+
+        <strong>
+          {packageMoney(packageItem.sellingPrice, currency)}
+        </strong>
+      </header>
+
+      <div className="reception-package-preview-grid">
+        {showCountry && (
+          <div>
+            <span>Country</span>
+
+            <strong className="reception-package-country">
+              {packageItem.country ? (
+                <>
+                  <img
+                    src={getCountryFlagUrl(
+                      packageItem.country
+                    )}
+                    alt=""
+                  />
+
+                  <span>{packageItem.country}</span>
+                </>
+              ) : (
+                "-"
+              )}
+            </strong>
+          </div>
+        )}
+
+        {showCategory && (
+          <div>
+            <span>Category</span>
+            <strong>{packageItem.category || "-"}</strong>
+          </div>
+        )}
+
+        <div>
+          <span>Unit</span>
+          <strong>{currency}</strong>
+        </div>
+
+        <div>
+          <span>Selling Price</span>
+          <strong>
+            {packageMoney(packageItem.sellingPrice, currency)}
+          </strong>
+        </div>
+
+        {showDates && (
+          <>
+            <div>
+              <span>Start Date</span>
+              <strong>{packageItem.startDate || "-"}</strong>
+            </div>
+
+            <div>
+              <span>End Date</span>
+              <strong>{packageItem.endDate || "-"}</strong>
+            </div>
+          </>
+        )}
+
+        {showBankStatement && (
+          <div>
+            <span>Bank Statement</span>
+            <strong>
+              {packageItem.bankStatementRequired === "Yes"
+                ? packageMoney(
+                    packageItem.bankStatementAmount,
+                    currency
+                  )
+                : "Not Required"}
+            </strong>
+          </div>
+        )}
+
+        {showDocumentation && (
+          <div className="reception-package-documentation">
+            <span>Documentation</span>
+
+            <strong>
+              {packageItem.documentationRequired === "Yes"
+                ? "Required"
+                : "Not Required"}
+            </strong>
+
+            {packageItem.documentationRequired === "Yes" &&
+              Array.isArray(packageItem.documents) &&
+              packageItem.documents.length > 0 && (
+                <div className="reception-package-document-list">
+                  {packageItem.documents.map(
+                    (documentName) => (
+                      <b key={documentName}>
+                        {documentName}
+                      </b>
+                    )
+                  )}
+                </div>
+              )}
+          </div>
+        )}
+      </div>
+
+      {packageItem.note && (
+        <div className="reception-package-preview-note">
+          <span>Package Note</span>
+          <p>{packageItem.note}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function createConsultantForm() {
   return {
+    selectedPackageId: "",
     fullName: "",
     phone: "",
-    applicationType: "Student Visa",
-    educationalLevel: "",
-    schoolUniversity: "",
     email: "",
-    country: "",
     source: "",
     assignedEmployeeId: "",
     assignedEmployeeName: "",
@@ -567,10 +915,9 @@ function createConsultantForm() {
 
 function createTravelForm() {
   return {
+    selectedPackageId: "",
     fullName: "",
     phone: "",
-    applicationType: "Student Visa",
-    country: "",
     source: "",
     assignedEmployeeId: "",
     assignedEmployeeName: "",
@@ -580,6 +927,7 @@ function createTravelForm() {
 
 function createTechnologyForm() {
   return {
+    selectedPackageId: "",
     fullName: "",
     companyName: "",
     contactNumber: "",
@@ -593,6 +941,7 @@ function createTechnologyForm() {
 
 function createMediaForm() {
   return {
+    selectedPackageId: "",
     personName: "",
     phone: "",
     brandName: "",
@@ -724,6 +1073,32 @@ export default function Reception({ currentUser }) {
   const [educationInstitutions, setEducationInstitutions] =
     useJsonCollection("educationInstitutions");
 
+  const [visaPackages, , , visaPackagesLoaded] =
+    useJsonCollection("visaPackages");
+  const [travelPackages, , , travelPackagesLoaded] =
+    useJsonCollection("travelPackages");
+  const [technologyPackages, , , technologyPackagesLoaded] =
+    useJsonCollection("technologyPackages");
+  const [mediaPackages, , , mediaPackagesLoaded] =
+    useJsonCollection("mediaPackages");
+  const packageAvailabilityDate = usePackageAvailabilityDate();
+
+  const availableVisaPackages = useMemo(
+    () =>
+      visaPackages.filter((item) =>
+        isPackageAvailable(item, packageAvailabilityDate)
+      ),
+    [visaPackages, packageAvailabilityDate]
+  );
+
+  const availableTravelPackages = useMemo(
+    () =>
+      travelPackages.filter((item) =>
+        isPackageAvailable(item, packageAvailabilityDate)
+      ),
+    [travelPackages, packageAvailabilityDate]
+  );
+
   const [showForm, setShowForm] = useState(false);
   const [registrationType, setRegistrationType] =
     useState("consultant");
@@ -742,6 +1117,46 @@ export default function Reception({ currentUser }) {
 
   const [mediaForm, setMediaForm] = useState(
     createMediaForm
+  );
+
+  const selectedVisaPackage = useMemo(
+    () =>
+      availableVisaPackages.find(
+        (item) =>
+          String(item.id) ===
+          String(consultantForm.selectedPackageId)
+      ) || null,
+    [availableVisaPackages, consultantForm.selectedPackageId]
+  );
+
+  const selectedTravelPackage = useMemo(
+    () =>
+      availableTravelPackages.find(
+        (item) =>
+          String(item.id) ===
+          String(travelForm.selectedPackageId)
+      ) || null,
+    [availableTravelPackages, travelForm.selectedPackageId]
+  );
+
+  const selectedTechnologyPackage = useMemo(
+    () =>
+      technologyPackages.find(
+        (item) =>
+          String(item.id) ===
+          String(technologyForm.selectedPackageId)
+      ) || null,
+    [technologyPackages, technologyForm.selectedPackageId]
+  );
+
+  const selectedMediaPackage = useMemo(
+    () =>
+      mediaPackages.find(
+        (item) =>
+          String(item.id) ===
+          String(mediaForm.selectedPackageId)
+      ) || null,
+    [mediaPackages, mediaForm.selectedPackageId]
   );
 
   const [showInstitutionForm, setShowInstitutionForm] =
@@ -1245,8 +1660,10 @@ const mediaCount =
           "",
         passportNumber: customer.passportNumber || "",
         maritalStatus: customer.maritalStatus || "Single",
-        applicationType:
-          customer.applicationType || "Student Visa",
+        selectedPackageId:
+          customer.travelPackageId ||
+          customer.selectedTravelPackageId ||
+          "",
         source:
           customer.source ||
           (customer.sourceEmployeeName ===
@@ -1267,6 +1684,10 @@ const mediaCount =
     } else if (type === "technology") {
       setTechnologyForm({
         ...createTechnologyForm(),
+        selectedPackageId:
+          customer.technologyPackageId ||
+          customer.selectedTechnologyPackageId ||
+          "",
         fullName:
           customer.fullName ||
           customer.customerName ||
@@ -1303,6 +1724,10 @@ const mediaCount =
     } else if (type === "media") {
       setMediaForm({
         ...createMediaForm(),
+        selectedPackageId:
+          customer.mediaPackageId ||
+          customer.selectedMediaPackageId ||
+          "",
         personName:
           customer.personName ||
           customer.fullName ||
@@ -1343,15 +1768,9 @@ const mediaCount =
           "",
         passportNumber: customer.passportNumber || "",
         maritalStatus: customer.maritalStatus || "Single",
-        applicationType:
-          customer.applicationType || "Student Visa",
-        educationalLevel:
-          customer.educationalLevel ||
-          customer.educationLevel ||
-          "",
-        schoolUniversity:
-          customer.schoolUniversity ||
-          customer.institutionName ||
+        selectedPackageId:
+          customer.visaPackageId ||
+          customer.selectedVisaPackageId ||
           "",
         email: customer.email || "",
         graduatedMajor: customer.graduatedMajor || "",
@@ -1649,6 +2068,11 @@ const mediaCount =
   }
 
   async function saveConsultantCustomer() {
+    if (!consultantForm.selectedPackageId) {
+      notify("Please select a Visa Package.", "error");
+      return;
+    }
+
     if (!consultantForm.fullName.trim()) {
       notify(
         "Full name in passport is required.",
@@ -1693,14 +2117,35 @@ const mediaCount =
       customerName: consultantForm.fullName.trim(),
 
       phone: consultantForm.phone.trim(),
-      educationalLevel:
-        consultantForm.educationalLevel,
-      schoolUniversity:
-        consultantForm.schoolUniversity,
       email: consultantForm.email.trim(),
-      country: consultantForm.country,
 
-      applicationType: consultantForm.applicationType,
+      selectedVisaPackageId:
+        consultantForm.selectedPackageId,
+      visaPackageId: consultantForm.selectedPackageId,
+      visaPackageName:
+        selectedVisaPackage?.packageName || "",
+      applicationType:
+        selectedVisaPackage?.category ||
+        selectedVisaPackage?.packageName ||
+        "Visa Package",
+      country: selectedVisaPackage?.country || "",
+      packageCategory:
+        selectedVisaPackage?.category || "",
+      packageCurrency:
+        selectedVisaPackage?.currency || "AFN",
+      packageSellingPrice: Number(
+        selectedVisaPackage?.sellingPrice || 0
+      ),
+      packageStartDate:
+        selectedVisaPackage?.startDate || "",
+      packageEndDate:
+        selectedVisaPackage?.endDate || "",
+      packageBankStatementRequired:
+        selectedVisaPackage?.bankStatementRequired || "No",
+      packageBankStatementAmount: Number(
+        selectedVisaPackage?.bankStatementAmount || 0
+      ),
+
       source: consultantForm.source.trim(),
       assignedEmployeeId:
         consultantForm.assignedEmployeeId,
@@ -1926,6 +2371,11 @@ const mediaCount =
   }
 
   async function saveTravelCustomer() {
+    if (!travelForm.selectedPackageId) {
+      notify("Please select a Travel Package.", "error");
+      return;
+    }
+
     if (!travelForm.fullName.trim()) {
       notify(
         "Full name in passport is required.",
@@ -1970,8 +2420,34 @@ const mediaCount =
       customerName: travelForm.fullName.trim(),
 
       phone: travelForm.phone.trim(),
-      applicationType: travelForm.applicationType,
-      country: travelForm.country,
+
+      selectedTravelPackageId:
+        travelForm.selectedPackageId,
+      travelPackageId: travelForm.selectedPackageId,
+      travelPackageName:
+        selectedTravelPackage?.packageName || "",
+      applicationType:
+        selectedTravelPackage?.category ||
+        selectedTravelPackage?.packageName ||
+        "Travel Package",
+      country: selectedTravelPackage?.country || "",
+      packageCategory:
+        selectedTravelPackage?.category || "",
+      packageCurrency:
+        selectedTravelPackage?.currency || "AFN",
+      packageSellingPrice: Number(
+        selectedTravelPackage?.sellingPrice || 0
+      ),
+      packageStartDate:
+        selectedTravelPackage?.startDate || "",
+      packageEndDate:
+        selectedTravelPackage?.endDate || "",
+      packageBankStatementRequired:
+        selectedTravelPackage?.bankStatementRequired || "No",
+      packageBankStatementAmount: Number(
+        selectedTravelPackage?.bankStatementAmount || 0
+      ),
+
       source: travelForm.source.trim(),
 
       assignedEmployeeId:
@@ -2198,6 +2674,11 @@ const mediaCount =
   }
 
   async function saveTechnologyCustomer() {
+    if (!technologyForm.selectedPackageId) {
+      notify("Please select a Technology Package.", "error");
+      return;
+    }
+
     if (!technologyForm.fullName.trim()) {
       notify("Full name is required.", "error");
       return;
@@ -2242,6 +2723,20 @@ const mediaCount =
 
       contactNumber:
         technologyForm.contactNumber.trim(),
+
+      selectedTechnologyPackageId:
+        technologyForm.selectedPackageId,
+      technologyPackageId:
+        technologyForm.selectedPackageId,
+      technologyPackageName:
+        selectedTechnologyPackage?.packageName || "",
+      packageCurrency:
+        selectedTechnologyPackage?.currency || "AFN",
+      packageSellingPrice: Number(
+        selectedTechnologyPackage?.sellingPrice || 0
+      ),
+      packageNote:
+        selectedTechnologyPackage?.note || "",
 
       phone:
         technologyForm.contactNumber.trim(),
@@ -2480,6 +2975,11 @@ const mediaCount =
   }
 
   async function saveMediaProduct() {
+    if (!mediaForm.selectedPackageId) {
+      notify("Please select a Media Package.", "error");
+      return;
+    }
+
     if (!mediaForm.personName.trim()) {
       notify("Person name is required.", "error");
       return;
@@ -2558,6 +3058,22 @@ const mediaCount =
       phone: mediaForm.phone.trim(),
       contactNumber: mediaForm.phone.trim(),
       brandName: mediaForm.brandName.trim(),
+
+      selectedMediaPackageId:
+        mediaForm.selectedPackageId,
+      mediaPackageId: mediaForm.selectedPackageId,
+      mediaPackageName:
+        selectedMediaPackage?.packageName || "",
+      country: selectedMediaPackage?.country || "",
+      packageCategory:
+        selectedMediaPackage?.category || "",
+      packageCurrency:
+        selectedMediaPackage?.currency || "AFN",
+      packageSellingPrice: Number(
+        selectedMediaPackage?.sellingPrice || 0
+      ),
+      packageNote:
+        selectedMediaPackage?.note || "",
 
       customerType: "media",
       specializedCustomer: true,
@@ -2710,6 +3226,22 @@ const mediaCount =
       customerId,
       personName: mediaForm.personName.trim(),
       brandName: mediaForm.brandName.trim(),
+
+      selectedMediaPackageId:
+        mediaForm.selectedPackageId,
+      mediaPackageId: mediaForm.selectedPackageId,
+      mediaPackageName:
+        selectedMediaPackage?.packageName || "",
+      country: selectedMediaPackage?.country || "",
+      packageCategory:
+        selectedMediaPackage?.category || "",
+      packageCurrency:
+        selectedMediaPackage?.currency || "AFN",
+      packageSellingPrice: Number(
+        selectedMediaPackage?.sellingPrice || 0
+      ),
+      packageNote:
+        selectedMediaPackage?.note || "",
       source: mediaForm.source.trim(),
 
       assignedEmployeeId:
@@ -3635,6 +4167,33 @@ const mediaCount =
                 {registrationType ===
                   "consultant" && (
                     <div className="reception-form-grid">
+                      <div className="reception-package-section reception-form-full">
+                        <SearchablePackageSelect
+                          label="Visa Package"
+                          packages={availableVisaPackages}
+                          value={consultantForm.selectedPackageId}
+                          onChange={updateConsultantField}
+                          placeholder="Select registered visa package"
+                        />
+
+                        {!visaPackagesLoaded && (
+                          <p className="reception-package-message">Loading Visa Packages...</p>
+                        )}
+                        {visaPackagesLoaded && !availableVisaPackages.length && (
+                          <p className="reception-package-message">No available Visa Packages found.</p>
+                        )}
+
+                        <ReceptionPackagePreview
+                          title="SELECTED VISA PACKAGE"
+                          packageItem={selectedVisaPackage}
+                          showCountry
+                          showCategory
+                          showDates
+                          showBankStatement
+                          showDocumentation
+                        />
+                      </div>
+
                       <label>
                         <span>Full Name In Passport</span>
                         <input
@@ -3657,109 +4216,6 @@ const mediaCount =
                       </label>
 
                       <label>
-                        <span>Application Type</span>
-                        <select
-                          name="applicationType"
-                          value={consultantForm.applicationType}
-                          onChange={updateConsultantField}
-                        >
-                          <option value="Student Visa">Student Visa</option>
-                          <option value="Scholarship">Scholarship</option>
-                          <option value="Both">Both</option>
-                        </select>
-                      </label>
-
-                      <label>
-                        <span>Country</span>
-                        <CountrySelect
-                          name="country"
-                          value={consultantForm.country}
-                          onChange={updateConsultantField}
-                        />
-                      </label>
-
-                      <label>
-                        <span>Educational Level</span>
-                        <select
-                          name="educationalLevel"
-                          value={consultantForm.educationalLevel}
-                          onChange={updateConsultantField}
-                        >
-                          <option value="">Select educational level</option>
-                          {educationLevels.map((level) => (
-                            <option key={level} value={level}>
-                              {level}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <div className="reception-institution-field">
-                        <span>School / University</span>
-                        <div className="reception-institution-control">
-                          <select
-                            name="schoolUniversity"
-                            value={consultantForm.schoolUniversity}
-                            onChange={updateConsultantField}
-                          >
-                            <option value="">
-                              Select school or university
-                            </option>
-                            {educationInstitutions.map((institution) => {
-                              const institutionName =
-                                institution.name ||
-                                institution.institutionName ||
-                                "";
-
-                              if (!institutionName) return null;
-
-                              return (
-                                <option
-                                  key={institution.id || institutionName}
-                                  value={institutionName}
-                                >
-                                  {institutionName}
-                                </option>
-                              );
-                            })}
-                          </select>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setShowInstitutionForm((open) => !open)
-                            }
-                            title="Add school or university"
-                            aria-label="Add school or university"
-                          >
-                            <Plus size={17} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {showInstitutionForm && (
-                        <div className="reception-add-institution reception-form-full">
-                          <div>
-                            <GraduationCap size={17} />
-                            <input
-                              value={newInstitutionName}
-                              onChange={(event) =>
-                                setNewInstitutionName(event.target.value)
-                              }
-                              placeholder="Enter school or university name"
-                            />
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={addEducationInstitution}
-                          >
-                            Add Institution
-                          </button>
-                        </div>
-                      )}
-
-                      <label>
                         <span>Email</span>
                         <input
                           type="email"
@@ -3778,19 +4234,12 @@ const mediaCount =
                           onChange={updateConsultantField}
                         >
                           <option value="">Select source employee</option>
-                          <option value="Walk in Customer">
-                            Walk in Customer
-                          </option>
+                          <option value="Walk in Customer">Walk in Customer</option>
                           {employeeOptions.map((employee) => {
                             const employeeName = getEmployeeName(employee);
-
                             return (
                               <option
-                                key={`consultant-source-${
-                                  employee.id ||
-                                  employee.employeeId ||
-                                  employee.email
-                                }`}
+                                key={`consultant-source-${employee.id || employee.employeeId || employee.email}`}
                                 value={employeeName}
                               >
                                 {employeeName}
@@ -3810,11 +4259,7 @@ const mediaCount =
                           <option value="">Select employee</option>
                           {employeeOptions.map((employee) => (
                             <option
-                              key={
-                                employee.id ||
-                                employee.employeeId ||
-                                employee.email
-                              }
+                              key={employee.id || employee.employeeId || employee.email}
                               value={employee.id || employee.employeeId}
                             >
                               {getEmployeeName(employee)}
@@ -3838,6 +4283,32 @@ const mediaCount =
 
                 {registrationType === "travel" && (
                   <div className="reception-form-grid">
+                    <div className="reception-package-section reception-form-full">
+                      <SearchablePackageSelect
+                        label="Travel Package"
+                        packages={availableTravelPackages}
+                        value={travelForm.selectedPackageId}
+                        onChange={updateTravelField}
+                        placeholder="Select registered travel package"
+                      />
+
+                      {!travelPackagesLoaded && (
+                        <p className="reception-package-message">Loading Travel Packages...</p>
+                      )}
+                      {travelPackagesLoaded && !availableTravelPackages.length && (
+                        <p className="reception-package-message">No available Travel Packages found.</p>
+                      )}
+
+                      <ReceptionPackagePreview
+                        title="SELECTED TRAVEL PACKAGE"
+                        packageItem={selectedTravelPackage}
+                        showCountry
+                        showCategory
+                        showDates
+                        showBankStatement
+                      />
+                    </div>
+
                     <label>
                       <span>Full Name In Passport</span>
                       <input
@@ -3860,30 +4331,6 @@ const mediaCount =
                     </label>
 
                     <label>
-                      <span>Application Type</span>
-                      <select
-                        name="applicationType"
-                        value={travelForm.applicationType}
-                        onChange={updateTravelField}
-                      >
-                        <option value="Student Visa">Student Visa</option>
-                        <option value="Tourist Visa">Tourist Visa</option>
-                        <option value="Work Visa">Work Visa</option>
-                        <option value="Visit Visa">Visit Visa</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </label>
-
-                    <label>
-                      <span>Country</span>
-                      <CountrySelect
-                        name="country"
-                        value={travelForm.country}
-                        onChange={updateTravelField}
-                      />
-                    </label>
-
-                    <label>
                       <span>Source</span>
                       <select
                         name="source"
@@ -3891,19 +4338,12 @@ const mediaCount =
                         onChange={updateTravelField}
                       >
                         <option value="">Select source employee</option>
-                          <option value="Walk in Customer">
-                            Walk in Customer
-                          </option>
+                        <option value="Walk in Customer">Walk in Customer</option>
                         {employeeOptions.map((employee) => {
                           const employeeName = getEmployeeName(employee);
-
                           return (
                             <option
-                              key={`travel-source-${
-                                employee.id ||
-                                employee.employeeId ||
-                                employee.email
-                              }`}
+                              key={`travel-source-${employee.id || employee.employeeId || employee.email}`}
                               value={employeeName}
                             >
                               {employeeName}
@@ -3923,11 +4363,7 @@ const mediaCount =
                         <option value="">Select employee</option>
                         {employeeOptions.map((employee) => (
                           <option
-                            key={
-                              employee.id ||
-                              employee.employeeId ||
-                              employee.email
-                            }
+                            key={employee.id || employee.employeeId || employee.email}
                             value={employee.id || employee.employeeId}
                           >
                             {getEmployeeName(employee)}
@@ -3952,17 +4388,34 @@ const mediaCount =
                 {registrationType ===
                   "technology" && (
                     <div className="reception-form-grid">
+                      <div className="reception-package-section reception-form-full">
+                        <SearchablePackageSelect
+                          label="Technology Package"
+                          packages={technologyPackages}
+                          value={technologyForm.selectedPackageId}
+                          onChange={updateTechnologyField}
+                          placeholder="Select registered technology package"
+                        />
+
+                        {!technologyPackagesLoaded && (
+                          <p className="reception-package-message">Loading Technology Packages...</p>
+                        )}
+                        {technologyPackagesLoaded && !technologyPackages.length && (
+                          <p className="reception-package-message">No Technology Packages have been registered yet.</p>
+                        )}
+
+                        <ReceptionPackagePreview
+                          title="SELECTED TECHNOLOGY PACKAGE"
+                          packageItem={selectedTechnologyPackage}
+                        />
+                      </div>
+
                       <label>
                         <span>Full Name</span>
-
                         <input
                           name="fullName"
-                          value={
-                            technologyForm.fullName
-                          }
-                          onChange={
-                            updateTechnologyField
-                          }
+                          value={technologyForm.fullName}
+                          onChange={updateTechnologyField}
                           placeholder="Enter full name"
                           autoFocus
                         />
@@ -3970,81 +4423,53 @@ const mediaCount =
 
                       <label>
                         <span>Company Name</span>
-
                         <input
                           name="companyName"
-                          value={
-                            technologyForm.companyName
-                          }
-                          onChange={
-                            updateTechnologyField
-                          }
+                          value={technologyForm.companyName}
+                          onChange={updateTechnologyField}
                           placeholder="Enter company name"
                         />
                       </label>
 
                       <label>
                         <span>Contact Number</span>
-
                         <input
                           name="contactNumber"
-                          value={
-                            technologyForm.contactNumber
-                          }
-                          onChange={
-                            updateTechnologyField
-                          }
+                          value={technologyForm.contactNumber}
+                          onChange={updateTechnologyField}
                           placeholder="Enter contact number"
                         />
                       </label>
 
                       <label>
                         <span>Purpose</span>
-
                         <select
                           name="technologyPurpose"
-                          value={
-                            technologyForm.technologyPurpose
-                          }
-                          onChange={
-                            updateTechnologyField
-                          }
+                          value={technologyForm.technologyPurpose}
+                          onChange={updateTechnologyField}
                         >
-                          {technologyPurposes.map(
-                            (purpose) => (
-                              <option
-                                key={purpose}
-                                value={purpose}
-                              >
-                                {purpose}
-                              </option>
-                            )
-                          )}
+                          {technologyPurposes.map((purpose) => (
+                            <option key={purpose} value={purpose}>
+                              {purpose}
+                            </option>
+                          ))}
                         </select>
                       </label>
 
                       <label>
                         <span>Source</span>
-
                         <select
                           name="source"
                           value={technologyForm.source}
                           onChange={updateTechnologyField}
                         >
                           <option value="">Select source employee</option>
-                          <option value="Walk in Customer">
-                            Walk in Customer
-                          </option>
-
+                          <option value="Walk in Customer">Walk in Customer</option>
                           {employeeOptions.map((employee) => {
                             const employeeName = getEmployeeName(employee);
-
                             return (
                               <option
-                                key={`technology-source-${employee.id ||
-                                  employee.employeeId ||
-                                  employee.email
-                                  }`}
+                                key={`technology-source-${employee.id || employee.employeeId || employee.email}`}
                                 value={employeeName}
                               >
                                 {employeeName}
@@ -4053,53 +4478,32 @@ const mediaCount =
                           })}
                         </select>
                       </label>
+
                       <label>
                         <span>Assign To</span>
-
                         <select
                           name="assignedEmployeeId"
-                          value={
-                            technologyForm.assignedEmployeeId
-                          }
-                          onChange={
-                            updateTechnologyField
-                          }
+                          value={technologyForm.assignedEmployeeId}
+                          onChange={updateTechnologyField}
                         >
-                          <option value="">
-                            Select employee
-                          </option>
-
-                          {employeeOptions.map(
-                            (employee) => (
-                              <option
-                                key={
-                                  employee.id ||
-                                  employee.employeeId ||
-                                  employee.email
-                                }
-                                value={
-                                  employee.id ||
-                                  employee.employeeId
-                                }
-                              >
-                                {getEmployeeName(
-                                  employee
-                                )}
-                              </option>
-                            )
-                          )}
+                          <option value="">Select employee</option>
+                          {employeeOptions.map((employee) => (
+                            <option
+                              key={employee.id || employee.employeeId || employee.email}
+                              value={employee.id || employee.employeeId}
+                            >
+                              {getEmployeeName(employee)}
+                            </option>
+                          ))}
                         </select>
                       </label>
 
                       <label className="reception-form-full">
                         <span>Note</span>
-
                         <textarea
                           name="note"
                           value={technologyForm.note}
-                          onChange={
-                            updateTechnologyField
-                          }
+                          onChange={updateTechnologyField}
                           placeholder="Write additional notes"
                           rows="4"
                         />
@@ -4109,9 +4513,32 @@ const mediaCount =
 
                 {registrationType === "media" && (
                   <div className="reception-form-grid">
+                    <div className="reception-package-section reception-form-full">
+                      <SearchablePackageSelect
+                        label="Media Package"
+                        packages={mediaPackages}
+                        value={mediaForm.selectedPackageId}
+                        onChange={updateMediaField}
+                        placeholder="Select registered media package"
+                      />
+
+                      {!mediaPackagesLoaded && (
+                        <p className="reception-package-message">Loading Media Packages...</p>
+                      )}
+                      {mediaPackagesLoaded && !mediaPackages.length && (
+                        <p className="reception-package-message">No Media Packages have been registered yet.</p>
+                      )}
+
+                      <ReceptionPackagePreview
+                        title="SELECTED MEDIA PACKAGE"
+                        packageItem={selectedMediaPackage}
+                        showCountry
+                        showCategory
+                      />
+                    </div>
+
                     <label>
                       <span>Person Name</span>
-
                       <input
                         name="personName"
                         value={mediaForm.personName}
@@ -4123,7 +4550,6 @@ const mediaCount =
 
                     <label>
                       <span>Phone Number</span>
-
                       <input
                         type="tel"
                         name="phone"
@@ -4135,7 +4561,6 @@ const mediaCount =
 
                     <label>
                       <span>Brand Name</span>
-
                       <input
                         name="brandName"
                         value={mediaForm.brandName}
@@ -4146,26 +4571,18 @@ const mediaCount =
 
                     <label>
                       <span>Source</span>
-
                       <select
                         name="source"
                         value={mediaForm.source}
                         onChange={updateMediaField}
                       >
                         <option value="">Select source employee</option>
-                          <option value="Walk in Customer">
-                            Walk in Customer
-                          </option>
-
+                        <option value="Walk in Customer">Walk in Customer</option>
                         {employeeOptions.map((employee) => {
                           const employeeName = getEmployeeName(employee);
-
                           return (
                             <option
-                              key={`media-source-${employee.id ||
-                                employee.employeeId ||
-                                employee.email
-                                }`}
+                              key={`media-source-${employee.id || employee.employeeId || employee.email}`}
                               value={employeeName}
                             >
                               {employeeName}
@@ -4177,30 +4594,17 @@ const mediaCount =
 
                     <label>
                       <span>Assign To</span>
-
                       <select
                         name="assignedEmployeeId"
                         value={mediaForm.assignedEmployeeId}
                         onChange={updateMediaField}
                       >
-                        <option value="">
-                          Select employee
-                        </option>
-
+                        <option value="">Select employee</option>
                         {employeeOptions.map((employee) => {
-                          const employeeId =
-                            employee.id ||
-                            employee.employeeId ||
-                            "";
-                          const employeeName =
-                            getEmployeeName(employee);
-
+                          const employeeId = employee.id || employee.employeeId || "";
                           return (
-                            <option
-                              key={`media-assign-${employeeId}`}
-                              value={employeeId}
-                            >
-                              {employeeName}
+                            <option key={`media-assign-${employeeId}`} value={employeeId}>
+                              {getEmployeeName(employee)}
                             </option>
                           );
                         })}
@@ -4209,7 +4613,6 @@ const mediaCount =
 
                     <label className="reception-form-full">
                       <span>Note</span>
-
                       <textarea
                         name="note"
                         value={mediaForm.note}

@@ -11,6 +11,7 @@ import {
     CheckCircle2,
     FileCheck2,
     Landmark,
+    LockKeyhole,
     Plus,
     Save,
     X,
@@ -611,12 +612,34 @@ import {
       "Not specified"
     );
   }
+
+  function hasAdminAccess(account) {
+    const roles = [
+      account?.role,
+      account?.primaryRole,
+      ...(Array.isArray(account?.roles) ? account.roles : []),
+    ]
+      .filter(Boolean)
+      .map((role) => String(role).trim().toLowerCase());
+
+    return (
+      account?.isDefaultAdmin === true ||
+      account?.isAdmin === true ||
+      account?.isFullAdmin === true ||
+      account?.permissions?.all === true ||
+      account?.accountType === "admin" ||
+      roles.some((role) =>
+        ["admin", "full admin", "administrator"].includes(role)
+      )
+    );
+  }
   
   export default function CustomerFollowUp({
     currentUser,
   }) {
     const { id } = useParams();
     const navigate = useNavigate();
+    const isAdminAccount = hasAdminAccess(currentUser);
   
     const [
       customers,
@@ -1439,6 +1462,7 @@ import {
       }
   
       if (
+        isAdminAccount &&
         customer.customerType === "technology" &&
         !form.projectId
       ) {
@@ -1477,7 +1501,7 @@ import {
       const paidAmount =
         Number(form.paidAmount || 0);
 
-      if (totalAmount <= 0) {
+      if (isAdminAccount && totalAmount <= 0) {
         notify(
           "Please enter a valid total amount.",
           "error"
@@ -1486,8 +1510,8 @@ import {
       }
 
       if (
-        paidAmount < 0 ||
-        paidAmount > totalAmount
+        isAdminAccount &&
+        (paidAmount < 0 || paidAmount > totalAmount)
       ) {
         notify(
           "Paid amount cannot exceed total amount.",
@@ -1497,6 +1521,7 @@ import {
       }
 
       if (
+        isAdminAccount &&
         ["consultant", "travel"].includes(
           customer.customerType
         ) &&
@@ -1510,6 +1535,7 @@ import {
       }
 
       if (
+        isAdminAccount &&
         ["consultant", "travel"].includes(
           customer.customerType
         ) &&
@@ -1523,7 +1549,7 @@ import {
         return;
       }
 
-      if (!form.decisionStatus) {
+      if (isAdminAccount && !form.decisionStatus) {
         notify(
           "Please select Pending, Approved or Rejected.",
           "error"
@@ -1539,116 +1565,137 @@ import {
         const latestCustomers =
           await loadCustomers();
   
-        const nextCustomers = latestCustomers.map(
-          (item) =>
-            String(item.id) === String(customer.id)
-              ? {
-                  ...item,
-  
-                  
-                  passportNumber:
-                    form.passportNumber.trim(),
-                  maritalStatus:
-                    form.maritalStatus,
-                  graduatedMajor:
-                    form.graduatedMajor.trim(),
+        const nextCustomers = latestCustomers.map((item) => {
+          if (String(item.id) !== String(customer.id)) {
+            return item;
+          }
 
-                  graduationPercentage:
-                    form.graduationPercentage === ""
-                      ? ""
-                      : Number(form.graduationPercentage),
-                  graduationYear:
-                    form.graduationYear,
-                  desiredMajor:
-                    form.desiredMajor.trim(),
+          const existingFollowUp = item.followUp || {};
 
-                  country:
-                    form.country,
+          if (!isAdminAccount) {
+            const protectedFinancial = {
+              currencyUnit:
+                existingFollowUp.currencyUnit ||
+                item.currencyUnit ||
+                item.unit ||
+                "AFN",
+              totalAmount:
+                existingFollowUp.totalAmount ??
+                item.totalAmount ??
+                "",
+              paidAmount:
+                existingFollowUp.paidAmount ??
+                item.paidAmount ??
+                "",
+              guaranteeType:
+                existingFollowUp.guaranteeType || "",
+              customGuaranteeType:
+                existingFollowUp.customGuaranteeType || "",
+              guaranteeDocument:
+                existingFollowUp.guaranteeDocument || null,
+              projectId:
+                existingFollowUp.projectId || item.projectId || "",
+              projectName:
+                existingFollowUp.projectName || item.projectName || "",
+              decisionStatus:
+                existingFollowUp.decisionStatus ||
+                item.followUpDecisionStatus ||
+                "Pending",
+            };
 
-                  passportDocument:
-                    form.passportDocument,
+            return {
+              ...item,
+              passportNumber: form.passportNumber.trim(),
+              maritalStatus: form.maritalStatus,
+              graduatedMajor: form.graduatedMajor.trim(),
+              graduationPercentage:
+                form.graduationPercentage === ""
+                  ? ""
+                  : Number(form.graduationPercentage),
+              graduationYear: form.graduationYear,
+              desiredMajor: form.desiredMajor.trim(),
+              country: form.country,
+              passportDocument: form.passportDocument,
+              mediaPurpose: form.mediaPurpose,
+              customMediaPurpose:
+                form.mediaPurpose === "Custom"
+                  ? form.customMediaPurpose.trim()
+                  : "",
+              brandName: form.brandName.trim(),
+              followUp: {
+                ...existingFollowUp,
+                ...form,
+                ...protectedFinancial,
+                graduationPercentage:
+                  form.graduationPercentage === ""
+                    ? ""
+                    : Number(form.graduationPercentage),
+                graduatedMajor: form.graduatedMajor.trim(),
+                desiredMajor: form.desiredMajor.trim(),
+                submittedForAdminAt: now,
+                submittedByAccountId: currentUser?.id || "",
+                submittedByEmployeeId:
+                  currentUser?.employeeId || "",
+                submittedByName:
+                  currentUser?.fullName ||
+                  currentUser?.username ||
+                  currentUser?.email ||
+                  "Reception",
+              },
+              followUpCompleted: false,
+              followUpWorkflowStatus: "Awaiting Admin",
+              followUpStatus: "Awaiting Admin",
+              followUpUpdatedAt: now,
+              updatedAt: now,
+            };
+          }
 
-                  projectId:
-                    form.projectId,
-                  projectName:
-                    form.projectName,
-
-                  mediaPurpose:
-                    form.mediaPurpose,
-                  customMediaPurpose:
-                    form.mediaPurpose === "Custom"
-                      ? form.customMediaPurpose.trim()
-                      : "",
-                  brandName:
-                    form.brandName.trim(),
-
-                  currencyUnit:
-                    form.currencyUnit || "AFN",
-                  unit:
-                    form.currencyUnit || "AFN",
-
-                  totalAmount:
-                    Number(form.totalAmount || 0),
-                  paidAmount:
-                    Number(form.paidAmount || 0),
-                  remainingAmount:
-                    Math.max(
-                      Number(form.totalAmount || 0) -
-                        Number(form.paidAmount || 0),
-                      0
-                    ),
-                  guaranteeType:
-                    form.guaranteeType,
-                  customGuaranteeType:
-                    form.customGuaranteeType.trim(),
-                  guaranteeDocument:
-                    form.guaranteeDocument,
-                  followUpDecisionStatus:
-                    form.decisionStatus,
-
-                  assignmentStatus:
-                    form.decisionStatus,
-                  acceptedAt:
-                    form.decisionStatus === "Approved"
-                      ? item.acceptedAt || now
-                      : item.acceptedAt || "",
-
-                  followUp: {
-                    ...form,
-                    graduationPercentage:
-                      form.graduationPercentage === ""
-                        ? ""
-                        : Number(form.graduationPercentage),
-                    graduationYear:
-                      form.graduationYear,
-                    desiredMajor:
-                      form.desiredMajor.trim(),
-
-                    completedAt: now,
-  
-                    completedByAccountId:
-                      currentUser?.id || "",
-  
-                    completedByEmployeeId:
-                      currentUser?.employeeId ||
-                      "",
-  
-                    completedByName:
-                      currentUser?.fullName ||
-                      currentUser?.username ||
-                      currentUser?.email ||
-                      "Employee",
-                  },
-  
-                  followUpCompleted:
-                    form.decisionStatus === "Approved",
-                  followUpStatus:
-                    form.decisionStatus,
-                  followUpUpdatedAt: now,
-                  updatedAt: now,
-                }
-              : item
-        );
+          return {
+            ...item,
+            currencyUnit: form.currencyUnit || "AFN",
+            unit: form.currencyUnit || "AFN",
+            totalAmount,
+            paidAmount,
+            remainingAmount: Math.max(totalAmount - paidAmount, 0),
+            guaranteeType: form.guaranteeType,
+            customGuaranteeType:
+              form.customGuaranteeType.trim(),
+            guaranteeDocument: form.guaranteeDocument,
+            projectId: form.projectId,
+            projectName: form.projectName,
+            followUpDecisionStatus: form.decisionStatus,
+            assignmentStatus: form.decisionStatus,
+            acceptedAt:
+              form.decisionStatus === "Approved"
+                ? item.acceptedAt || now
+                : item.acceptedAt || "",
+            followUp: {
+              ...existingFollowUp,
+              currencyUnit: form.currencyUnit || "AFN",
+              totalAmount,
+              paidAmount,
+              guaranteeType: form.guaranteeType,
+              customGuaranteeType:
+                form.customGuaranteeType.trim(),
+              guaranteeDocument: form.guaranteeDocument,
+              projectId: form.projectId,
+              projectName: form.projectName,
+              decisionStatus: form.decisionStatus,
+              completedAt: now,
+              completedByAccountId: currentUser?.id || "",
+              completedByName:
+                currentUser?.fullName ||
+                currentUser?.username ||
+                currentUser?.email ||
+                "Admin",
+            },
+            followUpCompleted: true,
+            followUpWorkflowStatus: "Completed",
+            followUpStatus: form.decisionStatus,
+            followUpUpdatedAt: now,
+            updatedAt: now,
+          };
+        });
   
         const saved =
           await setCustomers(nextCustomers);
@@ -1661,18 +1708,20 @@ import {
           return;
         }
 
-        const incomeSaved =
-          await syncCustomerPaymentIncome(
-            paidAmount,
-            totalAmount,
-            form.currencyUnit || "AFN"
-          );
+        const incomeSaved = isAdminAccount
+          ? await syncCustomerPaymentIncome(
+              paidAmount,
+              totalAmount,
+              form.currencyUnit || "AFN"
+            )
+          : true;
 
-        const commissionSaved =
-          await syncCallCenterCommission(
-            form.decisionStatus,
-            totalAmount
-          );
+        const commissionSaved = isAdminAccount
+          ? await syncCallCenterCommission(
+              form.decisionStatus,
+              totalAmount
+            )
+          : true;
 
         if (!incomeSaved) {
           notify(
@@ -1688,8 +1737,14 @@ import {
           );
         }
 
+        window.dispatchEvent(
+          new CustomEvent("isp-customer-assignment-updated")
+        );
+
         notify(
-          form.decisionStatus === "Approved"
+          !isAdminAccount
+            ? "Follow-up was sent to the admin for financial review."
+            : form.decisionStatus === "Approved"
             ? "Follow-up, income and employee ledger were updated successfully."
             : paidAmount > 0
               ? "Follow-up and customer income were saved successfully."
@@ -1697,7 +1752,7 @@ import {
           "success"
         );
 
-        navigate("/my-account");
+        navigate(isAdminAccount ? "/" : "/my-account");
       } finally {
         setSaving(false);
       }
@@ -1799,6 +1854,30 @@ import {
           className="customer-followup-form"
           onSubmit={saveFollowUp}
         >
+          <div className="customer-followup-workflow-note">
+            {isAdminAccount ? (
+              <>
+                <LockKeyhole size={18} />
+                <span>
+                  Reception information is read-only. Complete the
+                  financial section and save the final decision.
+                </span>
+              </>
+            ) : (
+              <>
+                <LockKeyhole size={18} />
+                <span>
+                  The financial and guarantee section is locked for
+                  Reception and will be completed by an admin.
+                </span>
+              </>
+            )}
+          </div>
+
+          <fieldset
+            className="customer-followup-role-section"
+            disabled={isAdminAccount}
+          >
           {customer.customerType === "consultant" && (
           <section className="customer-followup-card">
             <header>
@@ -2288,8 +2367,13 @@ import {
             </section>
           )}
 
+          </fieldset>
 
-          <section className="customer-followup-card">
+          <fieldset
+            className="customer-followup-role-section"
+            disabled={!isAdminAccount}
+          >
+          <section className={`customer-followup-card customer-followup-financial-card${!isAdminAccount ? " locked" : ""}`}>
             <header>
               <Landmark size={20} />
 
@@ -2300,6 +2384,13 @@ import {
                   document and final decision.
                 </p>
               </div>
+
+              {!isAdminAccount && (
+                <span className="customer-followup-lock-badge">
+                  <LockKeyhole size={14} />
+                  Admin only
+                </span>
+              )}
             </header>
 
             <div className="customer-followup-grid">
@@ -2554,6 +2645,7 @@ import {
               </div>
             </div>
           </section>
+          </fieldset>
 
           <footer className="customer-followup-actions">
             <button
@@ -2571,7 +2663,7 @@ import {
               className="primary"
               disabled={saving}
             >
-              {customer.followUpCompleted ? (
+              {isAdminAccount && customer.followUpCompleted ? (
                 <CheckCircle2 size={17} />
               ) : (
                 <Save size={17} />
@@ -2579,9 +2671,11 @@ import {
   
               {saving
                 ? "Saving..."
-                : customer.followUpCompleted
-                  ? "Update Follow Up"
-                  : "Save Follow Up"}
+                : isAdminAccount
+                  ? customer.followUpCompleted
+                    ? "Update Follow Up"
+                    : "Complete & Save Follow Up"
+                  : "Send to Admin"}
             </button>
           </footer>
         </form>
