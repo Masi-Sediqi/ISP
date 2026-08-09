@@ -81,7 +81,7 @@ function money(value) {
   return Number(value || 0).toLocaleString("en-US");
 }
 
-function Customers() {
+function Customers({ currentUser }) {
   const [customers, setCustomers] = useJsonCollection("customers");
   const [customerPackages, setCustomerPackages] = useJsonCollection("customerPackages");
   const [, setTransactions] = useJsonCollection("transactions");
@@ -762,6 +762,19 @@ const handleSelectedPackageChange = (event) => {
       createdAt: editIndex !== null ? customers[editIndex]?.createdAt || new Date().toISOString() : new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+
+    if (editIndex === null) {
+      cleanData.adminNotificationType = "customer-created";
+      cleanData.adminNotificationSection = "Customers";
+      cleanData.adminNotificationAt = cleanData.createdAt;
+      cleanData.createdByAccountId = currentUser?.id || "";
+      cleanData.createdByEmployeeId = currentUser?.employeeId || "";
+      cleanData.createdByName =
+        currentUser?.fullName ||
+        currentUser?.username ||
+        currentUser?.email ||
+        "Call Center";
+    }
 
     if (!cleanData.customerId) {
       notify("Please enter or generate Customer ID.", "error");

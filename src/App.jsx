@@ -675,12 +675,12 @@ const myAssignedCustomers = customers
       icon: UserRoundCog,
     },
     { to: "/suppliers", label: "Suppliers", moduleKey: "suppliers", icon: Building2 },
+    { to: "/office-assets", label: "Assets", moduleKey: "dashboard", icon: Armchair, },
     { to: "/finance", label: "Finances", moduleKey: "finance", icon: WalletCards },
     { to: "/reports", label: "Reports", moduleKey: "reports", icon: FileBarChart },
     { to: "/settings", label: "Settings", moduleKey: "settings", icon: SettingsIcon },
     { to: "/agent", label: "AI Agent", moduleKey: "agent", icon: Bot },
     { to: "/recycle-bin", label: "Recycle Bin", moduleKey: "dashboard", icon: Trash2 },
-    { to: "/office-assets", label: "Assets", moduleKey: "dashboard", icon: Armchair, }
   ];
 
   const customerMenuItems = [
@@ -1083,11 +1083,11 @@ const myAssignedCustomers = customers
                 <Route path="/suppliers" element={protect("suppliers", <Suppliers currentUser={currentUser} />)} />
                 <Route path="/suppliers/:id" element={protect("suppliers", <SupplierDetails />)} />
 
-                <Route path="/customers" element={protect("customers", <Customers />)} />
-                <Route path="/customers/consultants" element={protect("customers", <ConsultantCustomers />)} />
-                <Route path="/customers/travel" element={protect("customers", <ConsultantCustomers mode="travel" />)} />
-                <Route path="/customers/technology" element={protect("customers", <ConsultantCustomers mode="technology" />)} />
-                <Route path="/customers/media" element={protect("customers", <ConsultantCustomers mode="media" />)} />
+                <Route path="/customers" element={protect("customers", <Customers currentUser={currentUser} />)} />
+                <Route path="/customers/consultants" element={protect("customers", <ConsultantCustomers currentUser={currentUser} />)} />
+                <Route path="/customers/travel" element={protect("customers", <ConsultantCustomers mode="travel" currentUser={currentUser} />)} />
+                <Route path="/customers/technology" element={protect("customers", <ConsultantCustomers mode="technology" currentUser={currentUser} />)} />
+                <Route path="/customers/media" element={protect("customers", <ConsultantCustomers mode="media" currentUser={currentUser} />)} />
                 <Route path="/customers/:id" element={protect("customers", <CustomerDetails />)} />
                 <Route path="/finance" element={protect("finance", <Finance />)} />
                 <Route path="/reports" element={protect("reports", <Reports />)} />

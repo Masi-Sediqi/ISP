@@ -1676,6 +1676,11 @@ const mediaCount =
     const afghanistanTime =
       getAfghanistanDateTime();
     const now = afghanistanTime.iso;
+    const assignmentChanged =
+      Boolean(consultantForm.assignedEmployeeId) &&
+      (!existingCustomer ||
+        String(existingCustomer.assignedEmployeeId || "") !==
+          String(consultantForm.assignedEmployeeId));
 
     const record = {
       ...(existingCustomer || {}),
@@ -1701,6 +1706,11 @@ const mediaCount =
         consultantForm.assignedEmployeeId,
       assignedEmployeeName:
         consultantForm.assignedEmployeeName,
+      assignedAt: consultantForm.assignedEmployeeId
+        ? assignmentChanged
+          ? now
+          : existingCustomer?.assignedAt || now
+        : "",
 
       /*
        * اگر هنگام ثبت یا ویرایش، مشتری به کارمندی راجع شود،
@@ -1830,6 +1840,18 @@ const mediaCount =
       registeredFrom:
         existingCustomer?.registeredFrom ||
         "reception",
+      adminNotificationType: assignmentChanged
+        ? "reception-assignment"
+        : existingCustomer?.adminNotificationType ||
+          (!editingCustomerId
+            ? "customer-created"
+            : ""),
+      adminNotificationSection: "Consultant Customer",
+      adminNotificationAt: assignmentChanged
+        ? now
+        : existingCustomer?.adminNotificationAt ||
+          (!editingCustomerId ? now : ""),
+      adminNotificationSound: assignmentChanged,
 
       /*
        * Source determines who brought this customer.
@@ -1853,6 +1875,12 @@ const mediaCount =
         existingCustomer?.createdByAccountId ||
         currentUser?.id ||
         "",
+      createdByName:
+        existingCustomer?.createdByName ||
+        currentUser?.fullName ||
+        currentUser?.username ||
+        currentUser?.email ||
+        "Reception",
 
       createdAt:
         existingCustomer?.createdAt || now,
@@ -1871,6 +1899,21 @@ const mediaCount =
     const saved = await setCustomers(nextCustomers);
 
     if (!saved) return;
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "isp-customer-assignment-updated",
+        {
+          detail: {
+            action: editingCustomerId
+              ? "updated"
+              : "created",
+            customerId: record.id,
+            updatedAt: now,
+          },
+        }
+      )
+    );
 
     notify(
       editingCustomerId
@@ -1910,6 +1953,11 @@ const mediaCount =
     const afghanistanTime =
       getAfghanistanDateTime();
     const now = afghanistanTime.iso;
+    const assignmentChanged =
+      Boolean(travelForm.assignedEmployeeId) &&
+      (!existingCustomer ||
+        String(existingCustomer.assignedEmployeeId || "") !==
+          String(travelForm.assignedEmployeeId));
 
     const record = {
       ...(existingCustomer || {}),
@@ -1930,6 +1978,11 @@ const mediaCount =
         travelForm.assignedEmployeeId,
       assignedEmployeeName:
         travelForm.assignedEmployeeName,
+      assignedAt: travelForm.assignedEmployeeId
+        ? assignmentChanged
+          ? now
+          : existingCustomer?.assignedAt || now
+        : "",
 
       /*
        * اگر هنگام ثبت یا ویرایش، مشتری به کارمندی راجع شود،
@@ -2059,6 +2112,18 @@ const mediaCount =
       registeredFrom:
         existingCustomer?.registeredFrom ||
         "reception",
+      adminNotificationType: assignmentChanged
+        ? "reception-assignment"
+        : existingCustomer?.adminNotificationType ||
+          (!editingCustomerId
+            ? "customer-created"
+            : ""),
+      adminNotificationSection: "Travel Customer",
+      adminNotificationAt: assignmentChanged
+        ? now
+        : existingCustomer?.adminNotificationAt ||
+          (!editingCustomerId ? now : ""),
+      adminNotificationSound: assignmentChanged,
 
       /*
        * Source determines who brought this customer.
@@ -2082,6 +2147,12 @@ const mediaCount =
         existingCustomer?.createdByAccountId ||
         currentUser?.id ||
         "",
+      createdByName:
+        existingCustomer?.createdByName ||
+        currentUser?.fullName ||
+        currentUser?.username ||
+        currentUser?.email ||
+        "Reception",
 
       createdAt:
         existingCustomer?.createdAt || now,
@@ -2100,6 +2171,21 @@ const mediaCount =
     const saved = await setCustomers(nextCustomers);
 
     if (!saved) return;
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "isp-customer-assignment-updated",
+        {
+          detail: {
+            action: editingCustomerId
+              ? "updated"
+              : "created",
+            customerId: record.id,
+            updatedAt: now,
+          },
+        }
+      )
+    );
 
     notify(
       editingCustomerId
@@ -2136,6 +2222,11 @@ const mediaCount =
     const afghanistanTime =
       getAfghanistanDateTime();
     const now = afghanistanTime.iso;
+    const assignmentChanged =
+      Boolean(technologyForm.assignedEmployeeId) &&
+      (!existingCustomer ||
+        String(existingCustomer.assignedEmployeeId || "") !==
+          String(technologyForm.assignedEmployeeId));
 
     const record = {
       ...(existingCustomer || {}),
@@ -2168,6 +2259,11 @@ const mediaCount =
 
       assignedEmployeeName:
         technologyForm.assignedEmployeeName,
+      assignedAt: technologyForm.assignedEmployeeId
+        ? assignmentChanged
+          ? now
+          : existingCustomer?.assignedAt || now
+        : "",
 
       /*
        * اگر هنگام ثبت یا ویرایش، مشتری به کارمندی راجع شود،
@@ -2298,6 +2394,18 @@ const mediaCount =
       registeredFrom:
         existingCustomer?.registeredFrom ||
         "reception",
+      adminNotificationType: assignmentChanged
+        ? "reception-assignment"
+        : existingCustomer?.adminNotificationType ||
+          (!editingCustomerId
+            ? "customer-created"
+            : ""),
+      adminNotificationSection: "Technology Customer",
+      adminNotificationAt: assignmentChanged
+        ? now
+        : existingCustomer?.adminNotificationAt ||
+          (!editingCustomerId ? now : ""),
+      adminNotificationSound: assignmentChanged,
 
       /*
        * Source determines who brought this customer.
@@ -2321,6 +2429,12 @@ const mediaCount =
         existingCustomer?.createdByAccountId ||
         currentUser?.id ||
         "",
+      createdByName:
+        existingCustomer?.createdByName ||
+        currentUser?.fullName ||
+        currentUser?.username ||
+        currentUser?.email ||
+        "Reception",
 
       createdAt:
         existingCustomer?.createdAt || now,
@@ -2339,6 +2453,21 @@ const mediaCount =
     const saved = await setCustomers(nextCustomers);
 
     if (!saved) return;
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "isp-customer-assignment-updated",
+        {
+          detail: {
+            action: editingCustomerId
+              ? "updated"
+              : "created",
+            customerId: record.id,
+            updatedAt: now,
+          },
+        }
+      )
+    );
 
     notify(
       editingCustomerId
@@ -2435,6 +2564,19 @@ const mediaCount =
       registeredFrom:
         existingCustomer?.registeredFrom ||
         "reception",
+      adminNotificationType:
+        !existingCustomer || assignmentChanged
+          ? "reception-assignment"
+          : existingCustomer.adminNotificationType ||
+            "customer-created",
+      adminNotificationSection: "Media Customer",
+      adminNotificationAt:
+        !existingCustomer || assignmentChanged
+          ? afghanistanTime.iso
+          : existingCustomer.adminNotificationAt ||
+            afghanistanTime.iso,
+      adminNotificationSound:
+        !existingCustomer || assignmentChanged,
 
       source: mediaForm.source.trim(),
       sourceEmployeeId:

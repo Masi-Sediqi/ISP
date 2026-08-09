@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Database, Download, Image, Save, Trash2, Upload } from "lucide-react";
+import { Copy, Database, Download, Globe2, Image, Router, Save, Trash2, Upload, Wifi } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { apiUrl } from "../utils/api";
 import { notify } from "../utils/notify";
@@ -19,6 +19,9 @@ function Settings() {
   const [companyName, setCompanyName] = useState(defaultSystemName);
   const [systemSubtitle, setSystemSubtitle] = useState(defaultSystemSubtitle);
   const [logo, setLogo] = useState("");
+  const [routerName, setRouterName] = useState("");
+  const [networkIp, setNetworkIp] = useState("");
+  const [networkInfo, setNetworkInfo] = useState(null);
   const [appDataBusy, setAppDataBusy] = useState(false);
   const [clearConfirm, setClearConfirm] = useState("");
 
@@ -26,11 +29,37 @@ function Settings() {
     setCompanyName(current.companyName || defaultSystemName);
     setSystemSubtitle(current.systemSubtitle || defaultSystemSubtitle);
     setLogo(current.logo || "");
+    setRouterName(current.routerName || "");
+    setNetworkIp(current.networkIp || "");
   }, [
     current.companyName,
     current.systemSubtitle,
     current.logo,
+    current.routerName,
+    current.networkIp,
   ]);
+
+  useEffect(() => {
+    let active = true;
+
+    axios
+      .get(apiUrl("network-info"))
+      .then((response) => {
+        if (!active) return;
+
+        const info = response.data || {};
+        setNetworkInfo(info);
+
+        if (!current.networkIp && info.ipAddress) {
+          setNetworkIp(info.ipAddress);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [current.networkIp]);
 
   const handleLogoChange = (event) => {
     const file = event.target.files?.[0];
@@ -55,6 +84,11 @@ function Settings() {
         companyName: companyName.trim() || defaultSystemName,
         systemSubtitle: systemSubtitle.trim() || defaultSystemSubtitle,
         logo,
+        routerName: routerName.trim(),
+        networkIp:
+          networkIp.trim() ||
+          networkInfo?.ipAddress ||
+          "",
         updatedAt: new Date().toISOString(),
       },
     ];
@@ -64,6 +98,30 @@ function Settings() {
 
     window.dispatchEvent(new Event("company-settings-updated"));
     notify("System settings saved successfully.");
+  };
+
+  const publicIp =
+    networkIp.trim() ||
+    networkInfo?.ipAddress ||
+    window.location.hostname ||
+    "";
+
+  const webPort = networkInfo?.webPort || 5173;
+  const apiPort = networkInfo?.apiPort || 5050;
+  const accessUrl = publicIp
+    ? `http://${publicIp}:${webPort}`
+    : "";
+  const apiAccessUrl = publicIp
+    ? `http://${publicIp}:${apiPort}/api`
+    : "";
+
+  const copyText = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      notify("Copied to clipboard.");
+    } catch {
+      notify("Unable to copy.", "error");
+    }
   };
 
   const loadCollectionNames = async () => {
@@ -193,6 +251,13 @@ function Settings() {
         >
           App Data
         </button>
+        <button
+          type="button"
+          className={activeTab === "network" ? "active" : ""}
+          onClick={() => setActiveTab("network")}
+        >
+          Network Access
+        </button>
       </div>
 
       {activeTab === "identity" && (
@@ -312,6 +377,88 @@ function Settings() {
             </div>
           </section>
         </div>
+      )}
+
+      {activeTab === "network" && (
+        <form className="settings-network-card" onSubmit={save}>
+          <section className="settings-panel">
+            <div className="settings-section-title">
+              <h3>Network Access</h3>
+              <p>Save the router name and share the system address with users connected to the same router.</p>
+            </div>
+
+            <div className="settings-network-grid">
+              <label>
+                Router / Wi-Fi Name
+                <input
+                  value={routerName}
+                  onChange={(event) => setRouterName(event.target.value)}
+                  placeholder="Example: Afghan Power Office"
+                />
+              </label>
+
+              <label>
+                System IP Address
+                <input
+                  value={networkIp}
+                  onChange={(event) => setNetworkIp(event.target.value)}
+                  placeholder={networkInfo?.ipAddress || "192.168.100.86"}
+                />
+              </label>
+            </div>
+
+            <div className="settings-network-summary">
+              <div>
+                <Wifi size={18} />
+                <span>Router / Network</span>
+                <strong>{routerName || "Not set"}</strong>
+              </div>
+
+              <div>
+                <Router size={18} />
+                <span>Detected Device</span>
+                <strong>{networkInfo?.hostname || "-"}</strong>
+              </div>
+
+              <div>
+                <Globe2 size={18} />
+                <span>Share This Address</span>
+                <strong>{accessUrl || "No IP address"}</strong>
+                {accessUrl && (
+                  <button
+                    type="button"
+                    onClick={() => copyText(accessUrl)}
+                    aria-label="Copy system address"
+                    title="Copy system address"
+                  >
+                    <Copy size={14} />
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <Database size={18} />
+                <span>Backend API</span>
+                <strong>{apiAccessUrl || "No API address"}</strong>
+                {apiAccessUrl && (
+                  <button
+                    type="button"
+                    onClick={() => copyText(apiAccessUrl)}
+                    aria-label="Copy API address"
+                    title="Copy API address"
+                  >
+                    <Copy size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <button type="submit" className="settings-save">
+              <Save size={16} />
+              Save Network Settings
+            </button>
+          </section>
+        </form>
       )}
     </div>
   );

@@ -2,7 +2,8 @@ const { spawn } = require("child_process");
 const net = require("net");
 const path = require("path");
 
-const apiHost = process.env.ISP_API_HOST || "127.0.0.1";
+const apiHost = process.env.ISP_API_HOST || "0.0.0.0";
+const browserApiHost = process.env.ISP_PUBLIC_HOST || "127.0.0.1";
 const preferredApiPort = Number(process.env.ISP_API_PORT || 5050);
 const dataDir = process.env.ISP_DATA_DIR || "C:\\ISP Smart";
 
@@ -54,7 +55,7 @@ async function main() {
     ISP_API_PORT: String(apiPort),
     ISP_DATA_DIR: dataDir,
     VITE_API_ROOT:
-      process.env.VITE_API_ROOT || `http://${apiHost}:${apiPort}/api`,
+      process.env.VITE_API_ROOT || `http://${browserApiHost}:${apiPort}/api`,
     VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL || `http://127.0.0.1:${vitePort}`,
     BROWSER: "none",
     ISP_USE_EXTERNAL_BACKEND: "1",
@@ -70,8 +71,8 @@ async function main() {
       "-c",
       "green,cyan,magenta",
       "node transport-backend/server.js",
-      `vite --host 127.0.0.1 --port ${vitePort} --strictPort`,
-      `wait-on http://${apiHost}:${apiPort}/api/health http://127.0.0.1:${vitePort} && electron .`,
+      `vite --host 0.0.0.0 --port ${vitePort} --strictPort`,
+      `wait-on http://127.0.0.1:${apiPort}/api/health http://127.0.0.1:${vitePort} && electron .`,
     ],
     {
       cwd: process.cwd(),

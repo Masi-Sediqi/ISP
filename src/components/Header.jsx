@@ -25,6 +25,7 @@ import { useJsonCollection } from "../hooks/useJsonCollection";
 import { todayDateValue } from "../utils/afghanDate";
 import { applyInterfaceLanguage } from "../utils/interfaceLanguage";
 import { notify } from "../utils/notify";
+import { isAdminUser } from "../utils/permissions";
 
 const normalize = (value) => String(value || "").toLowerCase().trim();
 const compact = (value) => normalize(value).replace(/[^a-z0-9]/g, "");
@@ -56,6 +57,8 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
 
   const responseAlertReadyRef = useRef(false);
   const responseSoundRef = useRef(null);
+  const adminCustomerAlertReadyRef = useRef(false);
+  const adminCustomerSoundRef = useRef(null);
   const [selectedCurrency, setSelectedCurrency] = useState(
     () => localStorage.getItem("isp-currency") || "AFN"
   );
@@ -255,6 +258,37 @@ const receptionResponseEvents =
     return events;
   });
 
+const adminCustomerCreateEvents = useMemo(
+  () =>
+    customers
+      .filter(
+        (customer) =>
+          customer.adminNotificationType === "customer-created" &&
+          customer.adminNotificationAt
+      )
+      .map((customer) => ({
+        key: [
+          customer.id || customer.customerId,
+          "admin-customer-created",
+          customer.adminNotificationAt,
+        ].join("|"),
+        customer,
+        section:
+          customer.adminNotificationSection ||
+          customer.customerType ||
+          "Customers",
+        creator:
+          customer.createdByName ||
+          customer.receptionName ||
+          "Call Center",
+        shouldPlaySound:
+          customer.adminNotificationSound === true ||
+          customer.adminNotificationType ===
+            "reception-assignment",
+      })),
+  [customers]
+);
+
 /*
  * Keep notification badges current without requiring a
  * browser refresh. A custom event updates immediately in
@@ -439,6 +473,120 @@ useEffect(() => {
   currentUser?.accountId,
 ]);
 
+useEffect(() => {
+  if (
+    !customersLoaded ||
+    !currentUser ||
+    !isAdminUser(currentUser)
+  ) {
+    return;
+  }
+
+  const accountKey = String(
+    currentUser.id ||
+      currentUser.employeeId ||
+      currentUser.accountId ||
+      "admin"
+  );
+
+  const storageKey =
+    `isp-seen-admin-customer-alerts:${accountKey}`;
+
+  let seen = [];
+
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(storageKey) || "[]"
+    );
+
+    seen = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    seen = [];
+  }
+
+  const seenSet = new Set(seen);
+
+  if (!adminCustomerAlertReadyRef.current) {
+    adminCustomerCreateEvents.forEach((event) =>
+      seenSet.add(event.key)
+    );
+
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify([...seenSet].slice(-500))
+    );
+
+    adminCustomerAlertReadyRef.current = true;
+    return;
+  }
+
+  const newEvents = adminCustomerCreateEvents.filter(
+    (event) => !seenSet.has(event.key)
+  );
+
+  if (!newEvents.length) return;
+
+  newEvents.forEach((event) => {
+    seenSet.add(event.key);
+
+    const customerName =
+      event.customer.customerName ||
+      event.customer.fullName ||
+      event.customer.passportFullName ||
+      event.customer.personName ||
+      "Customer";
+
+    notify(
+      `${event.creator} registered ${customerName} from ${event.section}.`,
+      "info"
+    );
+  });
+
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify([...seenSet].slice(-500))
+  );
+
+  if (
+    !newEvents.some((event) => event.shouldPlaySound)
+  ) {
+    return;
+  }
+
+  try {
+    if (!adminCustomerSoundRef.current) {
+      adminCustomerSoundRef.current = new Audio(
+        "/sounds/open-up-587.mp3"
+      );
+
+      adminCustomerSoundRef.current.preload =
+        "auto";
+
+      adminCustomerSoundRef.current.volume = 0.8;
+    }
+
+    adminCustomerSoundRef.current.currentTime = 0;
+
+    const playResult =
+      adminCustomerSoundRef.current.play();
+
+    if (
+      playResult &&
+      typeof playResult.catch === "function"
+    ) {
+      playResult.catch(() => {
+        // The visual alert still appears if audio is blocked.
+      });
+    }
+  } catch {
+    // Keep the admin message working even when audio is unavailable.
+  }
+}, [
+  adminCustomerCreateEvents,
+  customersLoaded,
+  currentUser,
+]);
+
   const damagedOrLostAssets = assets.filter((asset) =>
     ["Damaged", "Lost"].includes(asset.status)
   );
@@ -463,7 +611,31 @@ useEffect(() => {
     return alertQuantity > 0 && Number(asset.quantity || 0) <= alertQuantity;
   });
 
+  const adminCustomerNotifications =
+    isAdminUser(currentUser)
+      ? adminCustomerCreateEvents
+      : [];
+
   const notificationGroups = [
+    {
+      key: "admin-customer-created",
+      title: "Call Center Registrations",
+      count: adminCustomerNotifications.length,
+      icon: Users,
+      items: adminCustomerNotifications.map((event) => {
+        const customerName =
+          event.customer.customerName ||
+          event.customer.fullName ||
+          event.customer.passportFullName ||
+          event.customer.personName ||
+          "Customer";
+
+        return {
+          title: "New Customer Registered",
+          description: `${event.creator} registered ${customerName} from ${event.section}`,
+        };
+      }),
+    },
     {
       key: "assigned-customers",
       title: "Customer Requests",

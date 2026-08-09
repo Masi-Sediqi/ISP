@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { useMemo, useState } from "react";
 import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, FileBadge, FileUp, ImagePlus, Mail, Pencil, Phone, Plus, Trash2, UserRoundCog, X } from "lucide-react";
 import { notify } from "../utils/notify";
-import { apiUrl } from "../utils/api";
+import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useNavigate } from "react-router-dom";
 import "./Employees.css";
 
@@ -48,21 +47,9 @@ const readFile = (file) =>
     reader.readAsDataURL(file);
   });
 
-const employeeStorageKey = "isp-employees-fallback";
-
-function readLocalEmployees() {
-  try {
-    const records = JSON.parse(localStorage.getItem(employeeStorageKey) || "[]");
-    return Array.isArray(records) ? records : [];
-  } catch {
-    return [];
-  }
-}
-
 function Employees() {
   const navigate = useNavigate();
-  const [employees, setEmployeesState] = useState(readLocalEmployees);
-  const [storageMode, setStorageMode] = useState("local");
+  const [employees, setEmployees] = useJsonCollection("employees");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyEmployee);
   const [editId, setEditId] = useState(null);
@@ -89,45 +76,14 @@ function Employees() {
   const [roleOpen, setRoleOpen] = useState(false);
   const [newRole, setNewRole] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    axios.get(apiUrl("employees"))
-      .then((response) => {
-        if (!active) return;
-        const records = Array.isArray(response.data) ? response.data : [];
-        setEmployeesState(records);
-        localStorage.setItem(employeeStorageKey, JSON.stringify(records));
-        setStorageMode("server");
-      })
-      .catch(() => {
-        if (!active) return;
-        setEmployeesState(readLocalEmployees());
-        setStorageMode("local");
-      });
-    return () => { active = false; };
-  }, []);
-
   const saveEmployees = async (records) => {
-    if (storageMode === "server") {
-      try {
-        const response = await axios.put(apiUrl("employees"), records);
-        const saved = Array.isArray(response.data) ? response.data : records;
-        setEmployeesState(saved);
-        localStorage.setItem(employeeStorageKey, JSON.stringify(saved));
-        return true;
-      } catch {
-        setStorageMode("local");
-      }
+    const saved = await setEmployees(records);
+
+    if (!saved) {
+      notify("Employee data could not be saved to PostgreSQL.", "error");
     }
 
-    try {
-      localStorage.setItem(employeeStorageKey, JSON.stringify(records));
-      setEmployeesState(records);
-      return true;
-    } catch {
-      notify("The selected files are too large. Please choose smaller files.", "error");
-      return false;
-    }
+    return saved;
   };
 
   const filteredEmployees = useMemo(() => {

@@ -533,6 +533,10 @@ function getModeTitle(mode) {
   return "Consultant";
 }
 
+function getCallCenterSectionLabel(mode) {
+  return `${getModeTitle(mode)} Call Center`;
+}
+
 export default function EmployeeDashboard({
   currentUser,
 }) {
@@ -936,6 +940,22 @@ export default function EmployeeDashboard({
         existingRecord?.registeredFrom ||
         "employee-dashboard",
 
+      adminNotificationType:
+        existingRecord?.adminNotificationType ||
+        (!editId ? "customer-created" : ""),
+
+      adminNotificationSection:
+        existingRecord?.adminNotificationSection ||
+        getCallCenterSectionLabel(mode),
+
+      adminNotificationAt:
+        existingRecord?.adminNotificationAt ||
+        (!editId ? afghanistanTime.iso : ""),
+
+      adminNotificationSound:
+        existingRecord?.adminNotificationSound ||
+        false,
+
       date:
         existingRecord?.date ||
         afghanistanTime.date,
@@ -991,6 +1011,22 @@ export default function EmployeeDashboard({
       );
 
     if (!saved) return;
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "isp-customer-assignment-updated",
+        {
+          detail: {
+            action: existingRecord
+              ? "updated"
+              : "created",
+            customerId: record.id,
+            section: record.adminNotificationSection,
+            updatedAt: afghanistanTime.iso,
+          },
+        }
+      )
+    );
 
     notify(
       existingRecord

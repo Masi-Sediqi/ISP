@@ -3,6 +3,7 @@ const cors = require("cors");
 const fs = require("fs-extra");
 const path = require("path");
 const http = require("http");
+const os = require("os");
 const { Server } = require("socket.io");
 const { answerAdvancedReport } = require("./advancedReport");
 const {
@@ -10,6 +11,12 @@ const {
   calculateEndDate,
   createLicenseCode,
 } = require("./services/licenseGenerator");
+const {
+  ensurePostgresStore,
+  isPostgresEnabled,
+  readPostgresCollection,
+  writePostgresCollection,
+} = require("./services/postgresStore");
 
 const app = express();
 
@@ -22,7 +29,7 @@ const io = new Server(httpServer, {
   },
 });
 const DEFAULT_PORT = Number(process.env.ISP_API_PORT || 5050);
-const DEFAULT_HOST = process.env.ISP_API_HOST || "127.0.0.1";
+const DEFAULT_HOST = process.env.ISP_API_HOST || "0.0.0.0";
 const DEFAULT_DATA_DIR = "C:/ISP Smart";
 const LEGACY_DATA_DIR = "C:/ISP";
 const DEFAULT_ADMIN_ACCOUNT = {
@@ -177,6 +184,12 @@ async function writeCollection(collection, items) {
     throw new Error(`Collection data must be an array: ${collection}`);
   }
 
+  if (isPostgresEnabled()) {
+    await ensurePostgresStore();
+    await writePostgresCollection(collection, items);
+    return;
+  }
+
   const previous = writeQueues.get(collection) || Promise.resolve();
 
   const next = previous.then(async () => {
@@ -201,6 +214,11 @@ async function writeCollection(collection, items) {
 async function readCollection(collection) {
   if (!COLLECTIONS.has(collection)) {
     throw new Error(`Unknown collection: ${collection}`);
+  }
+
+  if (isPostgresEnabled()) {
+    await ensurePostgresStore();
+    return readPostgresCollection(collection);
   }
 
   const file = await ensureCollectionFile(collection);
@@ -611,7 +629,49 @@ app.get("/api/health", (req, res) => {
   res.json({
     ready: true,
     app: "ISP Smart Asset & Inventory Management",
+    storage: isPostgresEnabled() ? "postgres" : "json",
     dataDirectory: activeDataDir,
+  });
+});
+
+app.get("/api/network-info", (req, res) => {
+  const interfaces = os.networkInterfaces();
+  const addresses = Object.entries(interfaces)
+    .flatMap(([name, records]) =>
+      (records || [])
+        .filter(
+          (record) =>
+            record.family === "IPv4" &&
+            !record.internal
+        )
+        .map((record) => ({
+          name,
+          address: record.address,
+        }))
+    );
+
+  const preferred =
+    addresses.find((item) =>
+      item.address.startsWith("192.168.")
+    ) ||
+    addresses.find((item) =>
+      item.address.startsWith("10.")
+    ) ||
+    addresses.find((item) =>
+      /^172\.(1[6-9]|2\d|3[0-1])\./.test(
+        item.address
+      )
+    ) ||
+    addresses[0] ||
+    null;
+
+  res.json({
+    hostname: os.hostname(),
+    ipAddress: preferred?.address || "",
+    adapterName: preferred?.name || "",
+    addresses,
+    webPort: Number(process.env.VITE_PORT || 5173),
+    apiPort: Number(process.env.ISP_API_PORT || DEFAULT_PORT),
   });
 });
 
@@ -783,7 +843,11 @@ function startServer(options = {}) {
   activeDataDir = options.dataDir || activeDataDir;
   dataDirectoryPrepared = false;
 
-  return ensureDataDirectory().then(
+  const prepareStorage = isPostgresEnabled()
+    ? ensurePostgresStore()
+    : ensureDataDirectory();
+
+  return prepareStorage.then(
     () =>
       new Promise((resolve, reject) => {
         let settled = false;

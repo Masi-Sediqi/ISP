@@ -568,7 +568,7 @@ const emptyForm = {
 
 
 
-function ConsultantCustomers({ mode = "consultant" }) {
+function ConsultantCustomers({ mode = "consultant", currentUser }) {
   const isTravel = mode === "travel";
   const isTechnology = mode === "technology";
   const isMedia = mode === "media";
@@ -810,6 +810,16 @@ function ConsultantCustomers({ mode = "consultant" }) {
             crypto.randomUUID
               ? crypto.randomUUID()
               : `${Date.now()}`,
+          adminNotificationType: "customer-created",
+          adminNotificationSection: typeLabel,
+          adminNotificationAt: now,
+          createdByAccountId: currentUser?.id || "",
+          createdByEmployeeId: currentUser?.employeeId || "",
+          createdByName:
+            currentUser?.fullName ||
+            currentUser?.username ||
+            currentUser?.email ||
+            "Call Center",
           createdAt: now,
         };
 

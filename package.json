@@ -7,7 +7,7 @@
   "author": "AFGHAN POWER",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n SERVER,WEB -c green,cyan \"node transport-backend/server.js\" \"vite --host 127.0.0.1 --port 5173 --strictPort\"",
+    "dev": "concurrently -k -n SERVER,WEB -c green,cyan \"node transport-backend/server.js\" \"vite --host 0.0.0.0 --port 5173 --strictPort\"",
     "server": "node transport-backend/server.js",
     "web": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vite build",
