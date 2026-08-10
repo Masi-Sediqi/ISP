@@ -16,6 +16,16 @@ const USE_EXTERNAL_BACKEND = process.env.ISP_USE_EXTERNAL_BACKEND === "1";
 
 app.setName(APP_NAME);
 
+if (app.isPackaged) {
+  process.env.ISP_DATA_DIR = DEFAULT_DATA_DIR;
+  process.env.ISP_API_PORT = process.env.ISP_API_PORT || "5050";
+  process.env.ISP_SERVE_FRONTEND = process.env.ISP_SERVE_FRONTEND || "1";
+  process.env.ISP_ALLOW_HTTP = process.env.ISP_ALLOW_HTTP || "1";
+  process.env.ISP_DISABLE_LOCAL_ENV = "1";
+  delete process.env.ISP_DATABASE_URL;
+  delete process.env.DATABASE_URL;
+}
+
 let apiServer = null;
 let mainWindow = null;
 let cachedDeviceId = null;
@@ -282,7 +292,7 @@ async function loadRenderer(win) {
 
 async function boot() {
   const dataDir = prepareUserDataDirectory();
-  let apiPort = Number(process.env.ISP_API_PORT || 0);
+  let apiPort = Number(process.env.ISP_API_PORT || (app.isPackaged ? 5050 : 0));
 
   if (USE_EXTERNAL_BACKEND) {
     if (!apiPort) {
@@ -291,8 +301,8 @@ async function boot() {
     await waitForUrl(`http://127.0.0.1:${apiPort}/api/health`);
   } else {
     const api = await startServer({
-      host: "127.0.0.1",
-      port: 0,
+      host: process.env.ISP_API_HOST || "0.0.0.0",
+      port: apiPort || 0,
       dataDir,
     });
 

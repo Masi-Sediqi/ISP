@@ -3,9 +3,11 @@ import { io } from "socket.io-client";
 import axios from "axios";
 import { apiUrl } from "../utils/api";
 
-const socket = io("http://127.0.0.1:5050", {
+const socket = io({
   transports: ["websocket", "polling"],
-});export function useChat(currentUser) {
+});
+
+export function useChat(currentUser) {
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
 

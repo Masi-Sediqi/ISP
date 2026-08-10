@@ -13,34 +13,7 @@ import {
   getRecordIdentity,
 } from "../utils/recycleBin";
 
-const DISABLED_COLLECTIONS = new Set([
-  "assets",
-  "assetCategories",
-  "assetMovements",
-
-  "packages",
-  "customerPackages",
-  "customerDevices",
-  "customerTravels",
-  "customerDeviceBuybacks",
-
-  "towerAssets",
-  "towerLinks",
-  "deviceTransfers",
-  "towerAssetTransfers",
-  "deviceHistory",
-  "disconnections",
-
-  "securityDeposits",
-  "financeCategories",
-  "financeBudgets",
-
-  "travels",
-  "travelExpenses",
-
-  "cars",
-  "carRepairs",
-]);
+const DISABLED_COLLECTIONS = new Set();
 
 export function useJsonCollection(name, options = {}) {
   const silentLoadErrors = options.silentLoadErrors === true;

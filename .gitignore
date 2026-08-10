@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 release
+desktop-build
+desktop-build-*
+asar-stage
 *.local
 
 # Editor directories and files

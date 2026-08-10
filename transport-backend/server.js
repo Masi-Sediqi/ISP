@@ -57,6 +57,10 @@ const COLLECTIONS = new Set([
 
   "customers",
   "customerPayments",
+  "customerPackages",
+  "customerDevices",
+  "customerTravels",
+  "customerDeviceBuybacks",
 
   "employeeTypes",
   "employees",
@@ -80,10 +84,31 @@ const COLLECTIONS = new Set([
   "messages",
 
   "transactions",
+  "financeCategories",
+  "financeBudgets",
 
+  "assets",
+  "assetCategories",
+  "assetMovements",
+  "packages",
   "officeAssets",
   "officeAssetItems",
   "officeAssetCategories",
+  "towerAssets",
+  "towerLinks",
+  "deviceTransfers",
+  "towerAssetTransfers",
+  "deviceHistory",
+  "disconnections",
+  "securityDeposits",
+
+  "cars",
+  "drivers",
+  "destinations",
+  "travels",
+  "customerTravels",
+  "travelExpenses",
+  "carRepairs",
 
   "reports",
   "projects",
@@ -92,13 +117,25 @@ const COLLECTIONS = new Set([
   "recycleBin",
 ]);
 
+function isValidCollectionName(collection) {
+  return /^[A-Za-z][A-Za-z0-9_-]{0,79}$/.test(String(collection || ""));
+}
+
+function ensureCollectionIsRegistered(collection) {
+  if (!isValidCollectionName(collection)) {
+    throw new Error(`Unknown collection: ${collection}`);
+  }
+
+  COLLECTIONS.add(collection);
+}
+
 app.disable("x-powered-by");
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
 
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && process.env.ISP_ALLOW_HTTP !== "1") {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
     const protocol = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
     if (req.path.startsWith("/api") && protocol !== "https" && !req.secure) {
@@ -187,9 +224,7 @@ async function ensureCollectionFile(collection) {
 }
 
 async function writeCollection(collection, items) {
-  if (!COLLECTIONS.has(collection)) {
-    throw new Error(`Unknown collection: ${collection}`);
-  }
+  ensureCollectionIsRegistered(collection);
 
   if (!Array.isArray(items)) {
     throw new Error(`Collection data must be an array: ${collection}`);
@@ -223,9 +258,7 @@ async function writeCollection(collection, items) {
 }
 
 async function readCollection(collection) {
-  if (!COLLECTIONS.has(collection)) {
-    throw new Error(`Unknown collection: ${collection}`);
-  }
+  ensureCollectionIsRegistered(collection);
 
   if (isPostgresEnabled()) {
     await ensurePostgresStore();
@@ -890,13 +923,14 @@ app.post(
 );
 
 app.param("collection", (req, res, next, collection) => {
-  if (!COLLECTIONS.has(collection)) {
+  if (!isValidCollectionName(collection)) {
     return res.status(404).json({
       error: "Unknown collection",
       collection,
     });
   }
 
+  COLLECTIONS.add(collection);
   next();
 });
 
@@ -998,6 +1032,35 @@ app.delete("/api/:collection/:id", async (req, res, next) => {
     next(error);
   }
 });
+
+function frontendDistDir() {
+  const candidates = [
+    process.env.ISP_FRONTEND_DIST,
+    path.join(__dirname, "../dist"),
+    path.join(process.cwd(), "dist"),
+  ].filter(Boolean);
+
+  return candidates.find((candidate) =>
+    fs.existsSync(path.join(candidate, "index.html"))
+  );
+}
+
+function serveFrontendIfAvailable() {
+  if (process.env.ISP_SERVE_FRONTEND !== "1") return;
+
+  const distDir = frontendDistDir();
+  if (!distDir) {
+    console.warn("Frontend dist folder was not found; LAN web access is disabled.");
+    return;
+  }
+
+  app.use(express.static(distDir));
+  app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
+    res.sendFile(path.join(distDir, "index.html"));
+  });
+}
+
+serveFrontendIfAvailable();
 
 app.use((error, req, res, next) => {
   void next;

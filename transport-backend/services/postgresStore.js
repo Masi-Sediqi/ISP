@@ -11,6 +11,8 @@ function loadLocalEnv() {
 
   envLoaded = true;
 
+  if (process.env.ISP_DISABLE_LOCAL_ENV === "1") return;
+
   const envPath = path.join(__dirname, "..", ".env");
 
   if (!fs.existsSync(envPath)) return;

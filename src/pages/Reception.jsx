@@ -2068,11 +2068,6 @@ const mediaCount =
   }
 
   async function saveConsultantCustomer() {
-    if (!consultantForm.selectedPackageId) {
-      notify("Please select a Visa Package.", "error");
-      return;
-    }
-
     if (!consultantForm.fullName.trim()) {
       notify(
         "Full name in passport is required.",
@@ -2371,11 +2366,6 @@ const mediaCount =
   }
 
   async function saveTravelCustomer() {
-    if (!travelForm.selectedPackageId) {
-      notify("Please select a Travel Package.", "error");
-      return;
-    }
-
     if (!travelForm.fullName.trim()) {
       notify(
         "Full name in passport is required.",
@@ -2674,11 +2664,6 @@ const mediaCount =
   }
 
   async function saveTechnologyCustomer() {
-    if (!technologyForm.selectedPackageId) {
-      notify("Please select a Technology Package.", "error");
-      return;
-    }
-
     if (!technologyForm.fullName.trim()) {
       notify("Full name is required.", "error");
       return;
@@ -2975,11 +2960,6 @@ const mediaCount =
   }
 
   async function saveMediaProduct() {
-    if (!mediaForm.selectedPackageId) {
-      notify("Please select a Media Package.", "error");
-      return;
-    }
-
     if (!mediaForm.personName.trim()) {
       notify("Person name is required.", "error");
       return;
