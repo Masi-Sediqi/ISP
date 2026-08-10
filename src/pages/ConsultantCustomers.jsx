@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, BriefcaseBusiness, Eye, GraduationCap, Mail, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, Eye, GraduationCap, Mail, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 import { notify } from "../utils/notify";
 import { useLocalCollection } from "../hooks/useLocalCollection";
 import { useJsonCollection } from "../hooks/useJsonCollection";
@@ -424,6 +424,44 @@ function getCountryLabel(countryName) {
   return `${getCountryFlag(countryName)} ${countryName}`;
 }
 
+function getCountryFlagUrl(countryName) {
+  const code = countryCodes[countryName];
+  return code ? `https://flagcdn.com/w40/${code.toLowerCase()}.png` : "";
+}
+
+function getCountryFlagFallbackUrl(countryName) {
+  const code = countryCodes[countryName];
+  return code ? `https://hatscripts.github.io/circle-flags/flags/${code.toLowerCase()}.svg` : "";
+}
+
+function handleCountryFlagError(event, countryName) {
+  const image = event.currentTarget;
+
+  if (image.dataset.fallbackApplied === "true") {
+    image.style.display = "none";
+    return;
+  }
+
+  image.dataset.fallbackApplied = "true";
+  image.src = getCountryFlagFallbackUrl(countryName);
+}
+
+function CountryFlag({ country, className = "" }) {
+  if (!country) return null;
+
+  return (
+    <span className={`consultant-country-flag-image-wrap ${className}`.trim()} aria-hidden="true">
+      <img
+        src={getCountryFlagUrl(country)}
+        alt=""
+        className="consultant-country-flag-image"
+        onError={(event) => handleCountryFlagError(event, country)}
+        referrerPolicy="no-referrer"
+      />
+    </span>
+  );
+}
+
 function getAfghanistanDateTime() {
   const now = new Date();
 
@@ -554,6 +592,7 @@ const emptyForm = {
   purpose: "",
   city: "",
   language: "Dari",
+  otherLanguage: "",
   callType: "Incoming",
   needFollowup: "No",
   businessType: "",
@@ -663,6 +702,10 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
   const [showForm, setShowForm] =
     useState(false);
   const [search, setSearch] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
+  const countryPickerRef = useRef(null);
+  const countrySearchRef = useRef(null);
   const [editId, setEditId] = useState(null);
   const [viewCustomer, setViewCustomer] =
     useState(null);
@@ -670,6 +713,39 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     deleteCustomer,
     setDeleteCustomer,
   ] = useState(null);
+
+  const filteredCountries = useMemo(() => {
+    const query = countrySearch.trim().toLowerCase();
+    if (!query) return countries;
+
+    return [...countries]
+      .filter((country) => country.toLowerCase().includes(query))
+      .sort((a, b) => {
+        const aStarts = a.toLowerCase().startsWith(query) ? 0 : 1;
+        const bStarts = b.toLowerCase().startsWith(query) ? 0 : 1;
+        return aStarts - bStarts || a.localeCompare(b);
+      });
+  }, [countrySearch]);
+
+  useEffect(() => {
+    if (!countryOpen) return undefined;
+
+    const handleOutsideCountry = (event) => {
+      if (countryPickerRef.current && !countryPickerRef.current.contains(event.target)) {
+        setCountryOpen(false);
+        setCountrySearch("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideCountry, true);
+    return () => document.removeEventListener("mousedown", handleOutsideCountry, true);
+  }, [countryOpen]);
+
+  useEffect(() => {
+    if (countryOpen) {
+      requestAnimationFrame(() => countrySearchRef.current?.focus());
+    }
+  }, [countryOpen]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -708,12 +784,17 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     setForm((current) => ({
       ...current,
       [name]: value,
+      ...(name === "language" && value !== "Other"
+        ? { otherLanguage: "" }
+        : {}),
     }));
   };
 
   const resetForm = () => {
     setForm(emptyForm);
     setEditId(null);
+    setCountryOpen(false);
+    setCountrySearch("");
     setShowForm(false);
   };
 
@@ -732,6 +813,14 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
     if (isMedia && !String(form.brandName || "").trim()) {
       notify("Brand name is required.", "error");
+      return;
+    }
+
+    if (
+      form.language === "Other" &&
+      !String(form.otherLanguage || "").trim()
+    ) {
+      notify("Please enter the language name.", "error");
       return;
     }
 
@@ -916,12 +1005,16 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     });
 
     setEditId(customer.id);
+    setCountryOpen(false);
+    setCountrySearch("");
     setShowForm(true);
   };
 
   const openCreate = () => {
     setForm(emptyForm);
     setEditId(null);
+    setCountryOpen(false);
+    setCountrySearch("");
     setShowForm(true);
   };
 
@@ -1153,9 +1246,12 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                     <td>{customer.city || "-"}</td>
 
                     <td>
-                      {customer.country
-                        ? getCountryLabel(customer.country)
-                        : "-"}
+                      {customer.country ? (
+                        <span className="consultant-country-table-value">
+                          <CountryFlag country={customer.country} className="table-flag" />
+                          <span>{customer.country}</span>
+                        </span>
+                      ) : "-"}
                     </td>
 
                     {isTechnology && (
@@ -1304,15 +1400,25 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                       />
                     </label>
 
-                    <label>
-                      <span>Phone Number</span>
-                      <input
-                        name="phone"
-                        value={form.phone}
-                        onChange={update}
-                        placeholder="Enter phone number"
-                      />
-                    </label>
+<label>
+  <span>Phone Number</span>
+  <input
+    type="text"
+    name="phone"
+    value={form.phone}
+    inputMode="numeric"
+    pattern="[0-9]*"
+    onChange={(event) => {
+      const value = event.target.value.replace(/\D/g, "");
+
+      setForm((current) => ({
+        ...current,
+        phone: value,
+      }));
+    }}
+    placeholder="Enter phone number"
+  />
+</label>
 
                     <label>
                       <span>Brand Name</span>
@@ -1370,15 +1476,25 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         onChange={update}
                       />
                     </label>
+<label>
+  <span>Phone Number</span>
+  <input
+    type="text"
+    name="phone"
+    value={form.phone}
+    inputMode="numeric"
+    pattern="[0-9]*"
+    onChange={(event) => {
+      const value = event.target.value.replace(/\D/g, "");
 
-                    <label>
-                      <span>Phone Number</span>
-                      <input
-                        name="phone"
-                        value={form.phone}
-                        onChange={update}
-                      />
-                    </label>
+      setForm((current) => ({
+        ...current,
+        phone: value,
+      }));
+    }}
+    placeholder="Enter phone number"
+  />
+</label>
 
                     <label>
                       <span>City / Province</span>
@@ -1402,27 +1518,86 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                       </select>
                     </label>
 
-                    <label>
+                    <div className="consultant-country-picker" ref={countryPickerRef}>
                       <span>Country</span>
-                      <select
-                        name="country"
-                        value={form.country}
-                        onChange={update}
+                      <button
+                        type="button"
+                        className={`consultant-country-trigger ${countryOpen ? "open" : ""}`}
+                        onClick={() => {
+                          setCountryOpen((open) => !open);
+                          setCountrySearch("");
+                        }}
+                        onKeyDown={(event) => {
+                          if (/^[a-zA-Z]$/.test(event.key)) {
+                            event.preventDefault();
+                            setCountryOpen(true);
+                            setCountrySearch(event.key);
+                          }
+                        }}
+                        aria-expanded={countryOpen}
                       >
-                        <option value="">
-                          Select country
-                        </option>
+                        <span className={`consultant-country-trigger-value ${form.country ? "has-country" : ""}`}>
+                          {form.country ? (
+                            <>
+                              <CountryFlag country={form.country} />
+                              <span className="consultant-country-trigger-name">{form.country}</span>
+                            </>
+                          ) : (
+                            "Select country"
+                          )}
+                        </span>
+                        <ChevronDown size={15} />
+                      </button>
 
-                        {countries.map((country) => (
-                          <option
-                            key={country}
-                            value={country}
-                          >
-                            {getCountryLabel(country)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                      {countryOpen && (
+                        <div className="consultant-country-menu">
+                          <div className="consultant-country-search">
+                            <Search size={15} />
+                            <input
+                              ref={countrySearchRef}
+                              value={countrySearch}
+                              onChange={(event) => setCountrySearch(event.target.value)}
+                              placeholder="Search country..."
+                              autoComplete="off"
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  setCountryOpen(false);
+                                  setCountrySearch("");
+                                }
+                              }}
+                            />
+                            {countrySearch && (
+                              <button type="button" onClick={() => setCountrySearch("")} aria-label="Clear country search">
+                                <X size={13} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="consultant-country-results">
+                            {filteredCountries.map((country) => (
+                              <button
+                                type="button"
+                                key={country}
+                                className={form.country === country ? "selected" : ""}
+                                onClick={() => {
+                                  setForm((current) => ({ ...current, country }));
+                                  setCountryOpen(false);
+                                  setCountrySearch("");
+                                }}
+                              >
+                                <CountryFlag country={country} />
+                                <strong>{country}</strong>
+                                {form.country === country && <Check size={15} />}
+                              </button>
+                            ))}
+
+                            {!filteredCountries.length && (
+                              <p>No country found</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     <label>
                       <span>Language</span>
@@ -1437,6 +1612,19 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         <option>Other</option>
                       </select>
                     </label>
+
+                    {form.language === "Other" && (
+                      <label className="consultant-other-language-field">
+                        <span>Other Language</span>
+                        <input
+                          name="otherLanguage"
+                          value={form.otherLanguage || ""}
+                          onChange={update}
+                          placeholder="Enter language name"
+                          autoFocus
+                        />
+                      </label>
+                    )}
 
                     <label>
                       <span>Call Type</span>

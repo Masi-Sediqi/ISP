@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, FileBadge, FileUp, ImagePlus, Mail, Pencil, Phone, Plus, Trash2, UserRoundCog, X } from "lucide-react";
 import { notify } from "../utils/notify";
 import { useJsonCollection } from "../hooks/useJsonCollection";
@@ -75,6 +75,36 @@ function Employees() {
   });
   const [roleOpen, setRoleOpen] = useState(false);
   const [newRole, setNewRole] = useState("");
+  const departmentFieldRef = useRef(null);
+  const roleFieldRef = useRef(null);
+
+  useEffect(() => {
+    if (!showForm) return undefined;
+
+    const handleOutsideClick = (event) => {
+      if (
+        departmentOpen &&
+        departmentFieldRef.current &&
+        !departmentFieldRef.current.contains(event.target)
+      ) {
+        setDepartmentOpen(false);
+      }
+
+      if (
+        roleOpen &&
+        roleFieldRef.current &&
+        !roleFieldRef.current.contains(event.target)
+      ) {
+        setRoleOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [showForm, departmentOpen, roleOpen]);
 
   const saveEmployees = async (records) => {
     const saved = await setEmployees(records);
@@ -416,10 +446,19 @@ function Employees() {
                 <label><span>Contract Start Date</span><input type="date" name="startDate" value={form.startDate} onChange={updateField} /></label>
                 <label><span>Contract End Date</span><input type="date" name="endDate" value={form.endDate} onChange={updateField} min={form.startDate} /></label>
                 <div className="employee-upload-field employee-contract-upload"><span>Contract File / Image</span><input id="employee-contract-upload" className="employee-file-input" type="file" accept="image/*,.pdf" onChange={(event) => handleFile(event, "contractFile")} /><label htmlFor="employee-contract-upload" className={`employee-upload-card ${form.contractFile ? "has-file" : ""}`}><FileBadge size={24} /><span><strong>{form.contractFileName || "Upload contract document"}</strong><small>Contract image or PDF</small></span></label></div>
-                <div className="employee-department-field">
+                <div className="employee-department-field" ref={departmentFieldRef}>
                   <span>Department</span>
-                  <button type="button" className="employee-department-trigger" onClick={() => setDepartmentOpen((open) => !open)}>
-                    <span>{form.departments.length ? `${form.departments.length} selected` : "Select departments"}</span><ChevronDown size={15} />
+                  <button
+                    type="button"
+                    className={`employee-department-trigger ${departmentOpen ? "is-open" : ""}`}
+                    onClick={() => {
+                      setDepartmentOpen((open) => !open);
+                      setRoleOpen(false);
+                    }}
+                    aria-expanded={departmentOpen}
+                  >
+                    <span>{form.departments.length ? `${form.departments.length} selected` : "Select departments"}</span>
+                    <ChevronDown size={15} />
                   </button>
                   {form.departments.length > 0 && <div className="employee-department-chips">{form.departments.map((department) => <button type="button" key={department} onClick={() => toggleDepartment(department)}>{department}<X size={11} /></button>)}</div>}
                   {departmentOpen && <div className="employee-department-menu">
@@ -427,15 +466,27 @@ function Employees() {
                     <div className="employee-department-add"><input value={newDepartment} onChange={(event) => setNewDepartment(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addDepartment(); } }} placeholder="New department..." /><button type="button" onClick={addDepartment}><Plus size={14} /></button></div>
                   </div>}
                 </div>
-                <div className="employee-department-field employee-role-field">
+                <div className="employee-department-field employee-role-field" ref={roleFieldRef}>
                   <span>Role</span>
-                  <button type="button" className="employee-department-trigger" onClick={() => setRoleOpen((open) => !open)}><span>{form.roles.length ? `${form.roles.length} selected` : "Select roles"}</span><ChevronDown size={15} /></button>
+                  <button
+                    type="button"
+                    className={`employee-department-trigger ${roleOpen ? "is-open" : ""}`}
+                    onClick={() => {
+                      setRoleOpen((open) => !open);
+                      setDepartmentOpen(false);
+                    }}
+                    aria-expanded={roleOpen}
+                  >
+                    <span>{form.roles.length ? `${form.roles.length} selected` : "Select roles"}</span>
+                    <ChevronDown size={15} />
+                  </button>
                   {form.roles.length > 0 && <div className="employee-department-chips employee-role-chips">{form.roles.map((role) => <button type="button" key={role} onClick={() => toggleRole(role)}>{role}<X size={11} /></button>)}</div>}
                   {roleOpen && <div className="employee-department-menu"><div className="employee-department-options">{roles.map((role) => <button type="button" key={role} className={form.roles.includes(role) ? "active" : ""} onClick={() => toggleRole(role)}><span>{role}</span>{form.roles.includes(role) && <Check size={14} />}</button>)}</div><div className="employee-department-add"><input value={newRole} onChange={(event) => setNewRole(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addRole(); } }} placeholder="New role..." /><button type="button" onClick={addRole}><Plus size={14} /></button></div></div>}
                 </div>
-                <label>
+                <label className="employee-salary-field">
                   <span>Salary Type</span>
                   <select
+                    className="employee-salary-select"
                     name="salaryType"
                     value={form.salaryType}
                     onChange={updateField}
