@@ -1,15 +1,24 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import axios from "axios";
-import { apiUrl } from "../utils/api";
+import { API_ORIGIN, apiUrl } from "../utils/api";
 
-const socket = io({
+const socket = io(API_ORIGIN, {
   transports: ["websocket", "polling"],
 });
 
 export function useChat(currentUser) {
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
+
+  async function loadMessages() {
+    try {
+      const response = await axios.get(apiUrl("messages"));
+      setMessages(response.data || []);
+    } catch {
+      setMessages([]);
+    }
+  }
 
   useEffect(() => {
     if (!currentUser) return;
@@ -54,17 +63,6 @@ export function useChat(currentUser) {
       socket.off("chat:messages-seen");
     };
   }, [currentUser]);
-
-  async function loadMessages() {
-    try {
-        const response = await axios.get(
-            apiUrl("messages")
-          );
-      setMessages(response.data || []);
-    } catch {
-      setMessages([]);
-    }
-  }
 
   function sendMessage(data) {
     socket.emit("chat:send", data);

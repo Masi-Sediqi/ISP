@@ -14,6 +14,19 @@ import {
 } from "../utils/recycleBin";
 
 const DISABLED_COLLECTIONS = new Set();
+const SERVER_ERROR_NOTIFICATION_COOLDOWN_MS = 10000;
+let lastServerErrorNotificationAt = 0;
+
+function notifyServerError(message) {
+  const now = Date.now();
+
+  if (now - lastServerErrorNotificationAt < SERVER_ERROR_NOTIFICATION_COOLDOWN_MS) {
+    return;
+  }
+
+  lastServerErrorNotificationAt = now;
+  notify(message, "error");
+}
 
 export function useJsonCollection(name, options = {}) {
   const silentLoadErrors = options.silentLoadErrors === true;
@@ -64,10 +77,7 @@ export function useJsonCollection(name, options = {}) {
       setLoaded(true);
 
       if (!silentLoadErrors) {
-        notify(
-          `Unable to load ${name}. Please check the server.`,
-          "error"
-        );
+        notifyServerError("Unable to load data. Please check the server connection.");
       }
 
       return [];
@@ -153,10 +163,7 @@ export function useJsonCollection(name, options = {}) {
 
         setItemsState(previousItems);
 
-        notify(
-          `Unable to save ${name}. Please check the server.`,
-          "error"
-        );
+        notifyServerError("Unable to save data. Please check the server connection.");
 
         return false;
       }

@@ -3344,6 +3344,21 @@ body.dark-mode :is(
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  align-content: flex-start;
+  scrollbar-gutter: stable;
+}
+
+/* Do not let flexbox squeeze the lower navigation rows when browser zoom
+   reduces the usable sidebar height. Every top-level row keeps the same
+   height and spacing; any overflow scrolls inside the menu instead. */
+.sidebar .menu > a,
+.sidebar .menu > .sidebar-customer-menu {
+  flex: 0 0 auto;
+}
+
+.sidebar .menu > a,
+.sidebar .menu > .sidebar-customer-menu > .sidebar-customer-trigger {
+  min-height: 40px;
 }
 
 .sidebar-version-area {

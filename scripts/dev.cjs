@@ -3,7 +3,6 @@ const net = require("net");
 const path = require("path");
 
 const apiHost = process.env.ISP_API_HOST || "0.0.0.0";
-const browserApiHost = process.env.ISP_PUBLIC_HOST || "127.0.0.1";
 const preferredApiPort = Number(process.env.ISP_API_PORT || 5050);
 const dataDir = process.env.ISP_DATA_DIR || "C:\\ISP Smart";
 
@@ -54,8 +53,9 @@ async function main() {
     ISP_API_HOST: apiHost,
     ISP_API_PORT: String(apiPort),
     ISP_DATA_DIR: dataDir,
-    VITE_API_ROOT:
-      process.env.VITE_API_ROOT || `http://${browserApiHost}:${apiPort}/api`,
+    // Keep browser requests on the page origin. Vite proxies /api to the
+    // backend, so LAN clients do not accidentally call their own 127.0.0.1.
+    VITE_API_ROOT: process.env.VITE_API_ROOT || "/api",
     VITE_DEV_SERVER_URL: process.env.VITE_DEV_SERVER_URL || `http://127.0.0.1:${vitePort}`,
     BROWSER: "none",
     ISP_USE_EXTERNAL_BACKEND: "1",
