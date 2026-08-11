@@ -982,3 +982,80 @@ body.dark-mode
   background: rgba(30, 64, 175, 0.45);
   color: #dbeafe;
 }
+
+/* Component-owned RTL support for Employee Profile */
+.employee-profile-page-rtl {
+  direction: rtl;
+}
+
+.employee-profile-page-rtl .employee-profile-header,
+.employee-profile-page-rtl .employee-profile-hero,
+.employee-profile-page-rtl .employee-work-header,
+.employee-profile-page-rtl .employee-work-tabs,
+.employee-profile-page-rtl .employee-profile-modal header,
+.employee-profile-page-rtl .employee-profile-modal footer {
+  direction: rtl;
+}
+
+.employee-profile-page-rtl .employee-profile-header > div:first-child,
+.employee-profile-page-rtl .employee-profile-hero > div,
+.employee-profile-page-rtl .employee-work-header > div,
+.employee-profile-page-rtl .employee-details-modal,
+.employee-profile-page-rtl .employee-profile-modal form {
+  text-align: right;
+}
+
+.employee-profile-page-rtl .employee-profile-hero aside {
+  margin-right: auto;
+  margin-left: 0;
+  text-align: left;
+  direction: ltr;
+}
+
+.employee-profile-page-rtl .employee-profile-back svg {
+  transform: rotate(180deg);
+}
+
+.employee-profile-page-rtl .employee-profile-actions,
+.employee-profile-page-rtl .employee-work-tabs {
+  flex-direction: row-reverse;
+}
+
+.employee-profile-page-rtl .employee-work-table th,
+.employee-profile-page-rtl .employee-work-table td {
+  text-align: right;
+}
+
+.employee-profile-page-rtl .employee-work-table td:nth-child(2),
+.employee-profile-page-rtl .employee-ledger-table td:nth-child(3),
+.employee-profile-page-rtl .employee-ledger-table td:nth-child(4) {
+  direction: ltr;
+}
+
+.employee-profile-page-rtl .employee-profile-modal input,
+.employee-profile-page-rtl .employee-profile-modal select,
+.employee-profile-page-rtl .employee-profile-modal textarea {
+  direction: rtl;
+  text-align: right;
+}
+
+.employee-profile-page-rtl .employee-password-control input {
+  padding-right: 11px;
+  padding-left: 48px;
+}
+
+.employee-profile-page-rtl .employee-profile-modal .employee-password-toggle {
+  right: auto;
+  left: 6px;
+}
+
+.employee-profile-page-rtl .employee-detail-list > div {
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .employee-profile-page-rtl .employee-profile-hero aside {
+    margin-right: 0;
+    text-align: right;
+  }
+}

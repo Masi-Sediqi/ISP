@@ -796,3 +796,57 @@ body.dark-mode .consultant-other-language-field input {
   background: #111827 !important;
   color: #f8fafc !important;
 }
+
+/* Component-owned RTL support for Consultant / Travel / Technology / Media customers */
+.consultant-page-rtl {
+  direction: rtl;
+}
+
+.consultant-page-rtl .consultant-heading,
+.consultant-page-rtl .consultant-list-header,
+.consultant-page-rtl .consultant-modal-header,
+.consultant-page-rtl .consultant-detail-hero,
+.consultant-page-rtl .consultant-detail-actions,
+.consultant-page-rtl .consultant-modal-actions {
+  direction: rtl;
+}
+
+.consultant-page-rtl .consultant-heading > div,
+.consultant-page-rtl .consultant-list-header > div:first-child,
+.consultant-page-rtl .consultant-modal-header > div,
+.consultant-page-rtl .consultant-form-grid label,
+.consultant-page-rtl .consultant-country-picker,
+.consultant-page-rtl .consultant-detail-grid > div {
+  text-align: right;
+}
+
+.consultant-page-rtl .consultant-form-grid input,
+.consultant-page-rtl .consultant-form-grid select,
+.consultant-page-rtl .consultant-form-grid textarea,
+.consultant-page-rtl .consultant-country-trigger,
+.consultant-page-rtl .consultant-country-search input,
+.consultant-page-rtl .consultant-list-header input {
+  direction: rtl;
+  text-align: right;
+}
+
+.consultant-page-rtl .consultant-country-trigger,
+.consultant-page-rtl .consultant-country-results > button,
+.consultant-page-rtl .consultant-name-preview,
+.consultant-page-rtl .consultant-contact span {
+  direction: rtl;
+}
+
+.consultant-page-rtl .consultant-name-preview {
+  text-align: right;
+}
+
+.consultant-page-rtl .consultant-table-wrap th,
+.consultant-page-rtl .consultant-table-wrap td {
+  text-align: right;
+}
+
+.consultant-page-rtl .consultant-row-actions,
+.consultant-page-rtl .consultant-modal-actions {
+  flex-direction: row-reverse;
+}

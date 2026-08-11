@@ -1344,3 +1344,73 @@ body.dark-mode .employee-salary-select:hover,
 body.dark-mode .employee-salary-select:focus {
   border-color: #6366f1 !important;
 }
+
+
+/* Component-owned RTL support for Employees */
+.employees-page-rtl {
+  direction: rtl;
+}
+
+.employees-page-rtl .employees-heading,
+.employees-page-rtl .employee-list-header,
+.employees-page-rtl .employee-modal-header,
+.employees-page-rtl .employee-modal-actions,
+.employees-page-rtl .employee-delete-actions {
+  direction: rtl;
+}
+
+.employees-page-rtl .employees-heading > div,
+.employees-page-rtl .employee-list-header > div:first-child,
+.employees-page-rtl .employee-modal-header > div,
+.employees-page-rtl .employee-form-grid label,
+.employees-page-rtl .employee-upload-field,
+.employees-page-rtl .employee-department-field {
+  text-align: right;
+}
+
+.employees-page-rtl .employee-form-grid input,
+.employees-page-rtl .employee-form-grid select,
+.employees-page-rtl .employee-form-grid textarea,
+.employees-page-rtl .employee-department-trigger,
+.employees-page-rtl .employee-department-add input,
+.employees-page-rtl .employee-list-header input {
+  direction: rtl;
+  text-align: right;
+}
+
+.employees-page-rtl .employee-upload-card,
+.employees-page-rtl .employee-department-trigger,
+.employees-page-rtl .employee-department-options > button,
+.employees-page-rtl .employee-department-chips button {
+  direction: rtl;
+}
+
+.employees-page-rtl .employee-table-wrap th,
+.employees-page-rtl .employee-table-wrap td {
+  text-align: right;
+}
+
+.employees-page-rtl .employee-person,
+.employees-page-rtl .employee-role-wrap {
+  direction: rtl;
+  text-align: right;
+  align-items: flex-start;
+}
+
+.employees-page-rtl .employee-contact {
+  direction: ltr;
+  text-align: left;
+}
+
+.employees-page-rtl .employee-row-actions,
+.employees-page-rtl .employee-contract-range {
+  direction: ltr;
+}
+
+.employees-page-rtl .employee-modal-actions {
+  flex-direction: row-reverse;
+}
+
+.employees-page-rtl .employee-delete-modal {
+  direction: rtl;
+}

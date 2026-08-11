@@ -54,11 +54,25 @@ body.dark-mode .settings-clear-zone { background: rgba(127, 29, 29, .25); border
 .settings-network-summary span { color: #777; font-size: 12px; font-weight: 700; }
 .settings-network-summary strong { font-size: 14px; overflow-wrap: anywhere; }
 .settings-network-summary button { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border: 0; border-radius: 9px; background: #252525; color: #fff; display: grid; place-items: center; cursor: pointer; }
+.settings-network-summary > .settings-current-network { grid-column: 1 / -1; min-height: 0; padding: 18px; border-color: #bfdbfe; background: linear-gradient(135deg, #eff6ff, #f0fdf4); }
+.settings-current-network > svg { width: 38px; height: 38px; padding: 9px; border-radius: 12px; background: #dbeafe; color: #1d4ed8; }
+.settings-current-network > span { color: #1e3a8a; font-size: 13px; }
+.settings-current-network > strong { color: #172033; font-size: 18px; }
+.settings-current-network > p { margin: 0; color: #475569; font-size: 12px; line-height: 1.8; }
+.settings-share-address { margin-top: 4px; padding: 10px 12px; border: 1px dashed #93c5fd; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(255,255,255,.78); direction: ltr; }
+.settings-share-address b { color: #0f172a; font-size: 15px; overflow-wrap: anywhere; }
+.settings-network-summary .settings-share-address button { position: static; width: auto; height: 36px; padding: 0 12px; display: inline-flex; gap: 7px; flex: 0 0 auto; }
+.settings-network-summary .settings-share-address button span { color: #fff; font-size: 11px; white-space: nowrap; }
 body.dark-mode .settings-network-card { background: #1e293b; border-color: #334155; }
 body.dark-mode .settings-network-summary > div, body.dark-mode .settings-network-grid input { background: #0f172a; border-color: #334155; color: #f8fafc; }
+body.dark-mode .settings-network-summary > .settings-current-network { background: linear-gradient(135deg, rgba(30,58,138,.3), rgba(20,83,45,.24)); border-color: #1e40af; }
+body.dark-mode .settings-current-network > strong, body.dark-mode .settings-share-address b { color: #f8fafc; }
+body.dark-mode .settings-current-network > p { color: #cbd5e1; }
+body.dark-mode .settings-share-address { background: rgba(15,23,42,.72); border-color: #3b82f6; }
 @media (max-width: 800px) { .settings-card { grid-template-columns: 1fr; } .settings-preview:not(.tab-visible) { display: none; } }
 @media (max-width: 800px) { .settings-data-actions, .settings-clear-zone { grid-template-columns: 1fr; } .settings-clear-zone > div { grid-template-columns: auto 1fr; } .settings-clear-zone span { grid-column: 1 / -1; } }
 @media (max-width: 800px) { .settings-network-grid, .settings-network-summary { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .settings-share-address { align-items: stretch; flex-direction: column; } .settings-network-summary .settings-share-address button { justify-content: center; } }
 
 
 /* =========================================================

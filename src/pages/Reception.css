@@ -2028,3 +2028,78 @@ body.dark-mode
 body.dark-mode .reception-package-option-price {
   color: #93c5fd;
 }
+
+/* Component-owned RTL support for Reception */
+.reception-page-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.reception-page-rtl .reception-heading,
+.reception-page-rtl .reception-records-header,
+.reception-page-rtl .reception-modal-header,
+.reception-page-rtl .reception-type-selector,
+.reception-page-rtl .reception-form-grid,
+.reception-page-rtl .reception-modal-actions,
+.reception-page-rtl .reception-package-preview,
+.reception-page-rtl .reception-assign-header,
+.reception-page-rtl .reception-assign-grid,
+.reception-page-rtl .reception-view-header,
+.reception-page-rtl .reception-view-grid {
+  direction: rtl;
+}
+
+.reception-page-rtl .reception-heading > div,
+.reception-page-rtl .reception-records-header > div,
+.reception-page-rtl .reception-modal-header > div,
+.reception-page-rtl .reception-form-grid label,
+.reception-page-rtl .reception-package-searchable,
+.reception-page-rtl .reception-country-select {
+  text-align: right;
+}
+
+.reception-page-rtl .reception-search input,
+.reception-page-rtl .reception-form-grid input,
+.reception-page-rtl .reception-form-grid select,
+.reception-page-rtl .reception-form-grid textarea,
+.reception-page-rtl .reception-package-search-box input,
+.reception-page-rtl .reception-country-menu input {
+  direction: rtl;
+  text-align: right;
+}
+
+.reception-page-rtl .reception-type-selector > button,
+.reception-page-rtl .reception-package-searchable-trigger,
+.reception-page-rtl .reception-package-searchable-options > button,
+.reception-page-rtl .reception-country-trigger,
+.reception-page-rtl .reception-country-menu button {
+  direction: rtl;
+  text-align: right;
+}
+
+.reception-page-rtl .reception-table-wrap th,
+.reception-page-rtl .reception-table-wrap td {
+  text-align: right;
+}
+
+.reception-page-rtl .reception-stats > button > svg,
+.reception-page-rtl .reception-stats > div > svg {
+  right: auto;
+  left: 15px;
+}
+
+.reception-page-rtl .reception-modal-actions,
+.reception-page-rtl .reception-assign-actions,
+.reception-page-rtl .reception-view-actions {
+  flex-direction: row-reverse;
+}
+
+.reception-page-rtl .reception-record-datetime {
+  direction: rtl;
+}
+
+@media (max-width: 720px) {
+  .reception-page-rtl .reception-modal-actions {
+    flex-direction: column-reverse;
+  }
+}

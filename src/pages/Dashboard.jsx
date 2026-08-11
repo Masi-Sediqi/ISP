@@ -23,6 +23,136 @@ const today = todayDateValue;
 
 function Dashboard() {
   const navigate = useNavigate();
+  const [interfaceLanguage, setInterfaceLanguage] = useState(
+    () => localStorage.getItem("isp-language") || "en"
+  );
+
+  useEffect(() => {
+    const syncLanguage = (event) => {
+      setInterfaceLanguage(
+        event?.detail || localStorage.getItem("isp-language") || "en"
+      );
+    };
+
+    window.addEventListener("isp-language-changed", syncLanguage);
+    window.addEventListener("storage", syncLanguage);
+
+    return () => {
+      window.removeEventListener("isp-language-changed", syncLanguage);
+      window.removeEventListener("storage", syncLanguage);
+    };
+  }, []);
+
+  const dashboardTranslations = {
+    en: {
+      totalCustomers: "Total Customers",
+      consultantCustomers: "Consultant Customers",
+      travelCustomers: "Travel Customers",
+      technologyCustomers: "Technology Customers",
+      mediaCustomers: "Media Customers",
+      totalExpenses: "Total Expenses",
+      totalIncome: "Total Income",
+      profit: "Profit",
+      allCustomers: "All registered customers",
+      consultingServices: "Customers in consulting services",
+      travelServices: "Customers in travel services",
+      technologyServices: "Customers in technology services",
+      mediaServices: "Customers in media services",
+      businessExpenses: "Total recorded business expenses",
+      businessIncome: "Total recorded business income",
+      incomeMinusExpenses: "Income minus total expenses",
+      analytics: "Analytics",
+      performanceTrends: "Performance Trends",
+      dateFilter: "Date filter",
+      filterDashboard: "Filter dashboard",
+      selectPeriod: "Select a reporting period",
+      allTime: "All time",
+      today: "Today",
+      thisWeek: "This Week",
+      thisMonth: "This Month",
+      thisYear: "This Year",
+      customRange: "Custom range",
+      fromDate: "From date",
+      toDate: "To date",
+      applyFilter: "Apply filter",
+      previewTrend: "Preview trend",
+      lastSixMonths: "Last 6 months",
+      preview: "Preview",
+    },
+    dr: {
+      totalCustomers: "مجموع مشتریان",
+      consultantCustomers: "مشتریان مشاوره",
+      travelCustomers: "مشتریان سفر",
+      technologyCustomers: "مشتریان تکنالوژی",
+      mediaCustomers: "مشتریان رسانه",
+      totalExpenses: "مجموع مصارف",
+      totalIncome: "مجموع عواید",
+      profit: "سود",
+      allCustomers: "تمام مشتریان ثبت‌شده",
+      consultingServices: "مشتریان بخش خدمات مشاوره",
+      travelServices: "مشتریان بخش خدمات سفر",
+      technologyServices: "مشتریان بخش خدمات تکنالوژی",
+      mediaServices: "مشتریان بخش خدمات رسانه",
+      businessExpenses: "مجموع مصارف ثبت‌شده شرکت",
+      businessIncome: "مجموع عواید ثبت‌شده شرکت",
+      incomeMinusExpenses: "عواید منهای مجموع مصارف",
+      analytics: "تحلیل‌ها",
+      performanceTrends: "روند عملکرد",
+      dateFilter: "فیلتر تاریخ",
+      filterDashboard: "فیلتر داشبورد",
+      selectPeriod: "یک دوره گزارش‌دهی را انتخاب کنید",
+      allTime: "همه زمان‌ها",
+      today: "امروز",
+      thisWeek: "این هفته",
+      thisMonth: "این ماه",
+      thisYear: "امسال",
+      customRange: "بازه دلخواه",
+      fromDate: "از تاریخ",
+      toDate: "تا تاریخ",
+      applyFilter: "اعمال فیلتر",
+      previewTrend: "پیش‌نمایش روند",
+      lastSixMonths: "۶ ماه اخیر",
+      preview: "پیش‌نمایش",
+    },
+    ps: {
+      totalCustomers: "ټول پېرودونکي",
+      consultantCustomers: "مشورتي پېرودونکي",
+      travelCustomers: "د سفر پېرودونکي",
+      technologyCustomers: "د ټکنالوژۍ پېرودونکي",
+      mediaCustomers: "د رسنیو پېرودونکي",
+      totalExpenses: "ټول لګښتونه",
+      totalIncome: "ټول عاید",
+      profit: "ګټه",
+      allCustomers: "ټول ثبت شوي پېرودونکي",
+      consultingServices: "د مشورې خدماتو پېرودونکي",
+      travelServices: "د سفر خدماتو پېرودونکي",
+      technologyServices: "د ټکنالوژۍ خدماتو پېرودونکي",
+      mediaServices: "د رسنیو خدماتو پېرودونکي",
+      businessExpenses: "د سوداګرۍ ټول ثبت شوي لګښتونه",
+      businessIncome: "د سوداګرۍ ټول ثبت شوي عاید",
+      incomeMinusExpenses: "عاید منفي ټول لګښتونه",
+      analytics: "شننې",
+      performanceTrends: "د فعالیت بهیر",
+      dateFilter: "د نېټې فلټر",
+      filterDashboard: "ډشبورډ فلټر کړئ",
+      selectPeriod: "د راپور موده وټاکئ",
+      allTime: "ټول وخت",
+      today: "نن",
+      thisWeek: "دا اونۍ",
+      thisMonth: "دا میاشت",
+      thisYear: "سږ کال",
+      customRange: "ځانګړې موده",
+      fromDate: "له نېټې",
+      toDate: "تر نېټې",
+      applyFilter: "فلټر پلي کړئ",
+      previewTrend: "د بهیر مخکتنه",
+      lastSixMonths: "وروستۍ ۶ میاشتې",
+      preview: "مخکتنه",
+    },
+  };
+
+  const t =
+    dashboardTranslations[interfaceLanguage] || dashboardTranslations.en;
   const [dateFilter, setDateFilter] = useState("all");
   const [dateFilterOpen, setDateFilterOpen] = useState(false);
   const [customDates, setCustomDates] = useState({ from: "", to: "" });
@@ -48,15 +178,15 @@ function Dashboard() {
   }, []);
 
   const dateFilterOptions = [
-    ["all", "All time"],
-    ["today", "Today"],
-    ["week", "This Week"],
-    ["month", "This Month"],
-    ["year", "This Year"],
-    ["custom", "Custom range"],
+    ["all", t.allTime],
+    ["today", t.today],
+    ["week", t.thisWeek],
+    ["month", t.thisMonth],
+    ["year", t.thisYear],
+    ["custom", t.customRange],
   ];
   const selectedDateLabel =
-    dateFilterOptions.find(([key]) => key === dateFilter)?.[1] || "All time";
+    dateFilterOptions.find(([key]) => key === dateFilter)?.[1] || t.allTime;
 
   const totalAssets = assets.length;
   const activeTransfers = deviceTransfers.filter(
@@ -277,14 +407,14 @@ function Dashboard() {
   );
 
   const dashboardTrendCharts = [
-    { title: "Total Customers", color: "#4f46e5", values: customerTrend(), type: "area", fallback: [1, 2, 2, 3, 4, 5] },
-    { title: "Consultant Customers", color: "#8b5cf6", values: customerTrend(["consult", "مشاور"]), type: "bar", fallback: [3, 2, 4, 3, 5, 4] },
-    { title: "Travel Customers", color: "#0ea5e9", values: customerTrend(["travel", "سفر", "ترانسپورت"]), type: "line", fallback: [2, 4, 1, 3, 2, 5] },
-    { title: "Technology Customers", color: "#06b6d4", values: customerTrend(["technology", "tech", "تکنالوژی"]), type: "area", fallback: [4, 2, 3, 5, 3, 4] },
-    { title: "Media Customers", color: "#ec4899", values: customerTrend(["media", "رسانه"]), type: "bar", fallback: [2, 3, 1, 4, 3, 5] },
-    { title: "Total Expenses", color: "#ef4444", values: expenseTrend, currency: true, type: "area", fallback: [3200, 2100, 3800, 2900, 4100, 2600] },
-    { title: "Total Income", color: "#22c55e", values: incomeTrend, currency: true, type: "bar", fallback: [4200, 5100, 3900, 6200, 5400, 7100] },
-    { title: "Profit", color: profit >= 0 ? "#f59e0b" : "#ef4444", values: profitTrend, currency: true, type: "line", fallback: [1000, 3000, 100, 3300, 1300, 4500] },
+    { title: t.totalCustomers, color: "#4f46e5", values: customerTrend(), type: "area", fallback: [1, 2, 2, 3, 4, 5] },
+    { title: t.consultantCustomers, color: "#8b5cf6", values: customerTrend(["consult", "مشاور"]), type: "bar", fallback: [3, 2, 4, 3, 5, 4] },
+    { title: t.travelCustomers, color: "#0ea5e9", values: customerTrend(["travel", "سفر", "ترانسپورت"]), type: "line", fallback: [2, 4, 1, 3, 2, 5] },
+    { title: t.technologyCustomers, color: "#06b6d4", values: customerTrend(["technology", "tech", "تکنالوژی"]), type: "area", fallback: [4, 2, 3, 5, 3, 4] },
+    { title: t.mediaCustomers, color: "#ec4899", values: customerTrend(["media", "رسانه"]), type: "bar", fallback: [2, 3, 1, 4, 3, 5] },
+    { title: t.totalExpenses, color: "#ef4444", values: expenseTrend, currency: true, type: "area", fallback: [3200, 2100, 3800, 2900, 4100, 2600] },
+    { title: t.totalIncome, color: "#22c55e", values: incomeTrend, currency: true, type: "bar", fallback: [4200, 5100, 3900, 6200, 5400, 7100] },
+    { title: t.profit, color: profit >= 0 ? "#f59e0b" : "#ef4444", values: profitTrend, currency: true, type: "line", fallback: [1000, 3000, 100, 3300, 1300, 4500] },
   ].map((chart) => ({
     ...chart,
     isPreview: chart.values.every((value) => Number(value || 0) === 0),
@@ -344,14 +474,14 @@ function Dashboard() {
     <div className="dashboard-page">
       <section className="stats dashboard-stats-expanded">
         {[
-          ["Total Customers", customers.length, "All registered customers", "/customers", "customers"],
-          ["Consultant Customers", consultantCustomers, "Customers in consulting services", "/customers", "consultant"],
-          ["Travel Customers", travelCustomers, "Customers in travel services", "/customers", "travel"],
-          ["Technology Customers", technologyCustomers, "Customers in technology services", "/customers", "technology"],
-          ["Media Customers", mediaCustomers, "Customers in media services", "/customers", "media"],
-          ["Total Expenses", `${money(expense)} AFN`, "Total recorded business expenses", "/finance", "expense"],
-          ["Total Income", `${money(income)} AFN`, "Total recorded business income", "/finance", "revenue"],
-          ["Profit", `${money(profit)} AFN`, "Income minus total expenses", "/finance", profit >= 0 ? "profit" : "loss"],
+          [t.totalCustomers, customers.length, t.allCustomers, "/customers", "customers"],
+          [t.consultantCustomers, consultantCustomers, t.consultingServices, "/customers", "consultant"],
+          [t.travelCustomers, travelCustomers, t.travelServices, "/customers", "travel"],
+          [t.technologyCustomers, technologyCustomers, t.technologyServices, "/customers", "technology"],
+          [t.mediaCustomers, mediaCustomers, t.mediaServices, "/customers", "media"],
+          [t.totalExpenses, `${money(expense)} AFN`, t.businessExpenses, "/finance", "expense"],
+          [t.totalIncome, `${money(income)} AFN`, t.businessIncome, "/finance", "revenue"],
+          [t.profit, `${money(profit)} AFN`, t.incomeMinusExpenses, "/finance", profit >= 0 ? "profit" : "loss"],
         ].map(([label, value, description, path, tone]) => (
           <button
             type="button"
@@ -369,8 +499,8 @@ function Dashboard() {
       <section className="dashboard-trends-section">
         <div className="dashboard-trends-heading">
           <div>
-            <span>Analytics</span>
-            <h2>Performance Trends</h2>
+            <span>{t.analytics}</span>
+            <h2>{t.performanceTrends}</h2>
           </div>
           <div className="dashboard-date-filter" ref={dateFilterRef}>
             <button
@@ -380,14 +510,14 @@ function Dashboard() {
               aria-expanded={dateFilterOpen}
             >
               <CalendarDays size={16} />
-              <span><small>Date filter</small><strong>{selectedDateLabel}</strong></span>
+              <span><small>{t.dateFilter}</small><strong>{selectedDateLabel}</strong></span>
               <ChevronDown size={15} />
             </button>
             {dateFilterOpen && (
               <div className="dashboard-date-menu">
                 <div className="dashboard-date-menu-title">
-                  <span>Filter dashboard</span>
-                  <small>Select a reporting period</small>
+                  <span>{t.filterDashboard}</span>
+                  <small>{t.selectPeriod}</small>
                 </div>
                 <div className="dashboard-date-options">
                   {dateFilterOptions.map(([key, label]) => (
@@ -407,9 +537,9 @@ function Dashboard() {
                 </div>
                 {dateFilter === "custom" && (
                   <div className="dashboard-custom-dates">
-                    <label><span>From date</span><input type="date" value={customDates.from} onChange={(event) => setCustomDates((current) => ({ ...current, from: event.target.value }))} /></label>
-                    <label><span>To date</span><input type="date" value={customDates.to} min={customDates.from} onChange={(event) => setCustomDates((current) => ({ ...current, to: event.target.value }))} /></label>
-                    <button type="button" disabled={!customDates.from || !customDates.to} onClick={() => setDateFilterOpen(false)}>Apply filter</button>
+                    <label><span>{t.fromDate}</span><input type="date" value={customDates.from} onChange={(event) => setCustomDates((current) => ({ ...current, from: event.target.value }))} /></label>
+                    <label><span>{t.toDate}</span><input type="date" value={customDates.to} min={customDates.from} onChange={(event) => setCustomDates((current) => ({ ...current, to: event.target.value }))} /></label>
+                    <button type="button" disabled={!customDates.from || !customDates.to} onClick={() => setDateFilterOpen(false)}>{t.applyFilter}</button>
                   </div>
                 )}
               </div>
@@ -425,7 +555,7 @@ function Dashboard() {
                   <span className="dashboard-trend-accent" style={{ background: chart.color }}></span>
                   <h3>{chart.title}</h3>
                 </div>
-                <span>{chart.isPreview ? "Preview trend" : "Last 6 months"}</span>
+                <span>{chart.isPreview ? t.previewTrend : t.lastSixMonths}</span>
               </div>
               <div className="dashboard-trend-chart">
                 <ResponsiveContainer width="100%" height="100%">
@@ -453,7 +583,7 @@ function Dashboard() {
                         <Tooltip
                           formatter={(value) => [
                             chart.currency ? `${money(value)} AFN` : value,
-                            chart.isPreview ? `${chart.title} (Preview)` : chart.title,
+                            chart.isPreview ? `${chart.title} (${t.preview})` : chart.title,
                           ]}
                           cursor={{ fill: `${chart.color}0c` }}
                           contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 12px 30px rgba(15,23,42,.1)" }}

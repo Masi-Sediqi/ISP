@@ -1342,3 +1342,84 @@ body.dark-mode .travel-package-availability.unavailable {
   background: rgba(185, 28, 28, 0.24);
   color: #fca5a5;
 }
+
+
+/* Component-owned RTL support for Visa Packages */
+.visa-packages-page-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.visa-packages-page-rtl .visa-packages-header,
+.visa-packages-page-rtl .visa-package-table-card > header,
+.visa-packages-page-rtl .visa-package-modal > header,
+.visa-packages-page-rtl .visa-package-details-modal > header,
+.visa-packages-page-rtl .visa-package-modal > footer,
+.visa-packages-page-rtl .visa-package-details-modal > footer,
+.visa-packages-page-rtl .visa-package-delete-modal > footer {
+  direction: rtl;
+}
+
+.visa-packages-page-rtl .visa-package-stats article {
+  grid-template-columns: minmax(0, 1fr) 34px;
+  text-align: right;
+}
+
+.visa-packages-page-rtl .visa-package-stats article > svg {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.visa-packages-page-rtl .visa-package-stats article > div {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.visa-packages-page-rtl .visa-package-search input,
+.visa-packages-page-rtl .visa-package-form-grid input,
+.visa-packages-page-rtl .visa-package-form-grid select,
+.visa-packages-page-rtl .visa-package-form-grid textarea,
+.visa-packages-page-rtl .visa-country-menu input {
+  direction: rtl;
+  text-align: right;
+}
+
+.visa-packages-page-rtl .visa-package-table-card th,
+.visa-packages-page-rtl .visa-package-table-card td,
+.visa-packages-page-rtl .visa-package-details-grid > div,
+.visa-packages-page-rtl .visa-package-note-box {
+  text-align: right;
+}
+
+.visa-packages-page-rtl .visa-country-trigger,
+.visa-packages-page-rtl .visa-country-options > button,
+.visa-packages-page-rtl .visa-category-control,
+.visa-packages-page-rtl .visa-new-category,
+.visa-packages-page-rtl .visa-bank-fieldset,
+.visa-packages-page-rtl .visa-documentation-header,
+.visa-packages-page-rtl .visa-document-option {
+  direction: rtl;
+}
+
+.visa-packages-page-rtl .visa-date-control svg {
+  left: auto;
+  right: 10px;
+}
+
+.visa-packages-page-rtl .visa-date-control input {
+  padding-left: 11px;
+  padding-right: 34px;
+}
+
+.visa-packages-page-rtl .visa-package-actions {
+  direction: rtl;
+}
+
+.visa-packages-page-rtl .visa-package-modal > footer,
+.visa-packages-page-rtl .visa-package-details-modal > footer {
+  flex-direction: row-reverse;
+}
+
+.visa-packages-page-rtl .visa-package-delete-modal {
+  text-align: center;
+}
