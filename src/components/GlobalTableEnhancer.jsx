@@ -149,6 +149,54 @@ function enhanceAllTables() {
   document.querySelectorAll("table").forEach(enhanceTable);
 }
 
+const busyButtons = new Map();
+
+function clearSubmitBusy(button) {
+  const state = busyButtons.get(button);
+  if (!state) return;
+  window.clearTimeout(state.timeoutId);
+  button.classList.remove("global-submit-loading");
+  button.removeAttribute("aria-busy");
+  button.disabled = state.wasDisabled;
+  busyButtons.delete(button);
+}
+
+function clearAllSubmitBusy() {
+  Array.from(busyButtons.keys()).forEach(clearSubmitBusy);
+}
+
+function startSubmitBusy(button) {
+  if (!button || busyButtons.has(button)) return;
+  const state = {
+    wasDisabled: button.disabled,
+    timeoutId: window.setTimeout(() => clearSubmitBusy(button), 30000),
+  };
+  busyButtons.set(button, state);
+  button.classList.add("global-submit-loading");
+  button.setAttribute("aria-busy", "true");
+  button.disabled = true;
+}
+
+function isDropdownTrigger(button) {
+  if (!(button instanceof HTMLElement)) return false;
+  if (button.closest(".sidebar, .faq-page")) return false;
+  return Boolean(
+    button.matches('[aria-haspopup="listbox"], [aria-haspopup="menu"]') ||
+    button.closest(
+      '.top-actions, [class*="picker"], [class*="select"], [class*="action"], [class*="department-field"]'
+    )
+  );
+}
+
+function closeDropdownsOutside(event) {
+  document.querySelectorAll('[aria-expanded="true"]').forEach((trigger) => {
+    if (!isDropdownTrigger(trigger)) return;
+    const container = trigger.parentElement;
+    if (trigger.contains(event.target) || container?.contains(event.target)) return;
+    trigger.click();
+  });
+}
+
 function GlobalTableEnhancer() {
   const location = useLocation();
 
@@ -162,7 +210,33 @@ function GlobalTableEnhancer() {
       subtree: true,
     });
 
-    return () => observer.disconnect();
+    let lastNotificationAt = 0;
+    const handleNotification = () => {
+      lastNotificationAt = Date.now();
+      clearAllSubmitBusy();
+    };
+    const handleSubmit = (event) => {
+      const form = event.target;
+      const submitter = event.submitter || form?.querySelector?.('button[type="submit"], input[type="submit"]');
+      window.setTimeout(() => {
+        // Validation messages are emitted synchronously; do not show a loader
+        // when the save operation never actually started.
+        if (Date.now() - lastNotificationAt < 150 || !form?.isConnected) return;
+        startSubmitBusy(submitter);
+      }, 0);
+    };
+
+    document.addEventListener("pointerdown", closeDropdownsOutside, true);
+    document.addEventListener("submit", handleSubmit);
+    window.addEventListener("app-notification", handleNotification);
+
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("pointerdown", closeDropdownsOutside, true);
+      document.removeEventListener("submit", handleSubmit);
+      window.removeEventListener("app-notification", handleNotification);
+      clearAllSubmitBusy();
+    };
   }, [location.pathname]);
 
   return null;

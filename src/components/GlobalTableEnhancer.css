@@ -75,3 +75,103 @@ body.dark-mode .global-table-pagination strong,
 body.dark-mode .table-pagination strong {
   color: #e5e7eb;
 }
+
+/* Shared save/submit feedback used by every form in the application. */
+button.global-submit-loading,
+input.global-submit-loading[type="submit"] {
+  position: relative !important;
+  cursor: wait !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  isolation: isolate;
+  overflow: hidden !important;
+  transform: translateY(0) !important;
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, 0.16),
+    0 0 0 3px rgba(99, 102, 241, 0.12);
+  animation: global-submit-breathe 1.5s ease-in-out infinite;
+  transition:
+    box-shadow 180ms ease,
+    filter 180ms ease,
+    padding 180ms ease !important;
+}
+
+button.global-submit-loading {
+  min-width: max-content;
+  padding-inline-start: 46px !important;
+  filter: saturate(1.08);
+}
+
+button.global-submit-loading::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset-inline-start: 16px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 20deg,
+    transparent 0 18%,
+    currentColor 24% 72%,
+    transparent 82% 100%
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 0);
+  filter: drop-shadow(0 0 3px currentColor);
+  animation: global-submit-spin 0.72s cubic-bezier(.5,.15,.5,.85) infinite;
+}
+
+button.global-submit-loading::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    110deg,
+    transparent 18%,
+    rgba(255, 255, 255, 0.08) 36%,
+    rgba(255, 255, 255, 0.38) 49%,
+    rgba(255, 255, 255, 0.08) 62%,
+    transparent 80%
+  );
+  transform: translateX(-120%);
+  pointer-events: none;
+  animation: global-submit-shimmer 1.45s ease-in-out infinite;
+}
+
+@keyframes global-submit-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes global-submit-shimmer {
+  55%, 100% { transform: translateX(120%); }
+}
+
+@keyframes global-submit-breathe {
+  0%, 100% {
+    box-shadow:
+      0 8px 20px rgba(15, 23, 42, 0.14),
+      0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 12px 28px rgba(15, 23, 42, 0.2),
+      0 0 0 5px rgba(99, 102, 241, 0.16);
+  }
+}
+
+body.dark-mode button.global-submit-loading {
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.34),
+    0 0 0 3px rgba(129, 140, 248, 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.global-submit-loading { animation: none; }
+  button.global-submit-loading::before { animation-duration: 1.4s; }
+  button.global-submit-loading::after { animation: none; }
+}
