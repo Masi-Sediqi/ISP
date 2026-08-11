@@ -47,6 +47,7 @@ import {
 import Header from "./components/Header";
 import GlobalTableEnhancer from "./components/GlobalTableEnhancer";
 import ToastHost from "./components/ToastHost";
+import brandLogo from "./assets/logo.PNG";
 import { useJsonCollection } from "./hooks/useJsonCollection";
 import { canViewModule } from "./utils/permissions";
 import { notify } from "./utils/notify";
@@ -193,7 +194,7 @@ function App() {
   );
 
   const company = settings[0] || {};
-  const systemName = company.companyName || "ISP Smart";
+  const systemName = company.companyName || "Afghan Power";
   const systemSubtitle = company.systemSubtitle || "Asset & Inventory Management";
   const effectiveAccounts = accounts.some((account) => String(account.id) === "default-admin")
     ? accounts
@@ -795,11 +796,7 @@ const myAssignedCustomers = customers
         <aside className="sidebar">
           <div className="brand">
             <div className="brand-logo">
-              {company.logo ? (
-                <img src={company.logo} alt="Company Logo" />
-              ) : (
-                systemName.slice(0, 1)
-              )}
+              <img src={brandLogo} alt="Afghan Power" />
             </div>
 
             <div>
@@ -1008,7 +1005,7 @@ const myAssignedCustomers = customers
           >
             <div className="sidebar-version-row">
               <span className="sidebar-version-label">
-                v0.0.1 • ISP Smart
+                v0.0.1 • Afghan Power
               </span>
 
               <button

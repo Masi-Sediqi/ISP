@@ -2,8 +2,8 @@
   "name": "isp-smart",
   "private": true,
   "version": "1.0.0",
-  "productName": "ISP Smart",
-  "description": "ISP Smart web application.",
+  "productName": "Afghan Power",
+  "description": "Afghan Power web application.",
   "author": "AFGHAN POWER",
   "main": "electron/main.cjs",
   "type": "module",
@@ -15,11 +15,14 @@
     "build": "vite build",
     "build:desktop": "npm run build && electron-builder --win nsis",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "start:lan": "node scripts/start-lan.cjs",
+    "postgres:prepare": "node transport-backend/scripts/prepare-postgres.js",
+    "postgres:migrate": "node transport-backend/scripts/migrate-json-to-postgres.js"
   },
   "build": {
     "appId": "com.afghanpower.ispsmart",
-    "productName": "ISP Smart",
+    "productName": "Afghan Power",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -46,14 +49,14 @@
         "nsis"
       ],
       "icon": "build/icon.ico",
-      "executableName": "ISP Smart"
+      "executableName": "Afghan Power"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "ISP Smart"
+      "shortcutName": "Afghan Power"
     }
   },
   "dependencies": {

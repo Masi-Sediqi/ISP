@@ -12,7 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import developerLogo from "../assets/logo.jpeg";
+import developerLogo from "../assets/logo.PNG";
 import "./Developer.css";
 
 const systemFeatures = [

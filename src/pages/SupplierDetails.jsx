@@ -16,6 +16,7 @@ import {
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import { createId } from "../utils/createId";
 import { formatDateTime } from "../utils/afghanDate";
 import "./SupplierDetails.css";
 const emptyPurchaseForm = {
@@ -1665,7 +1666,7 @@ const removePurchaseExpense = async (
     const cleanPurchase = {
       ...existingPurchase,
   
-      id: editPurchaseId || crypto.randomUUID(),
+      id: editPurchaseId || createId(),
   
       supplierIndex,
       supplierRecordId: supplier?.id || "",

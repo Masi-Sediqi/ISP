@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, FileBadge, FileUp, ImagePlus, Mail, Pencil, Phone, Plus, Trash2, UserRoundCog, X } from "lucide-react";
 import { notify } from "../utils/notify";
+import { createId } from "../utils/createId";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useNavigate } from "react-router-dom";
 import "./Employees.css";
@@ -174,7 +175,7 @@ function Employees() {
         : employee)
       : [...employees, {
           ...form,
-          id: crypto.randomUUID(),
+          id: createId(),
           createdAt: new Date().toISOString(),
         }];
     const saved = await saveEmployees(nextEmployees);

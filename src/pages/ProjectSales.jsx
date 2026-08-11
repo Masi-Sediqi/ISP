@@ -27,6 +27,7 @@ import { useLocalCollection } from "../hooks/useLocalCollection";
 import { calculateLicenseEndDate } from "../utils/licenseDuration";
 import { apiUrl } from "../utils/api";
 import { notify } from "../utils/notify";
+import { createId } from "../utils/createId";
 import "./ProjectSales.css";
 
 const emptySale = {
@@ -566,7 +567,7 @@ async function saveSale(event) {
 
   const now = new Date().toISOString();
   const saleId =
-    editId || crypto.randomUUID();
+    editId || createId();
 
   const oldSale = sales.find(
     (sale) =>
@@ -948,7 +949,7 @@ async function saveLicense(event) {
     ...licenses,
     {
       ...payload,
-      id: crypto.randomUUID(),
+      id: createId(),
       createdAt: new Date().toISOString(),
     },
   ]);

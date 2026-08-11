@@ -56,6 +56,14 @@ function getPool() {
   if (!pool) {
     pool = new Pool({
       connectionString: getDatabaseUrl(),
+      max: Number(process.env.ISP_PG_POOL_MAX || 20),
+      idleTimeoutMillis: Number(process.env.ISP_PG_IDLE_TIMEOUT_MS || 30000),
+      connectionTimeoutMillis: Number(process.env.ISP_PG_CONNECT_TIMEOUT_MS || 5000),
+      keepAlive: true,
+    });
+
+    pool.on("error", (error) => {
+      console.error("Unexpected PostgreSQL pool error:", error.message);
     });
   }
 
@@ -117,6 +125,7 @@ async function writePostgresCollection(collection, items) {
 
 module.exports = {
   ensurePostgresStore,
+  getDatabaseUrl,
   getPool,
   isPostgresEnabled,
   readPostgresCollection,

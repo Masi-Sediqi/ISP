@@ -159,7 +159,29 @@ app.use(
         .map((item) => item.trim())
         .filter(Boolean);
 
-      if (!origin || allowedOrigins.includes(origin)) {
+      // LAN production is intentionally reachable through private-network addresses.
+      // Keep localhost/private IPv4 origins available while still supporting an explicit allow-list.
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      let isPrivateNetworkOrigin = false;
+
+      try {
+        const hostname = new URL(origin).hostname.toLowerCase();
+        isPrivateNetworkOrigin =
+          hostname === "localhost" ||
+          hostname === "127.0.0.1" ||
+          hostname === "::1" ||
+          hostname.startsWith("192.168.") ||
+          hostname.startsWith("10.") ||
+          /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+      } catch {
+        isPrivateNetworkOrigin = false;
+      }
+
+      if (isPrivateNetworkOrigin || allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
@@ -1054,8 +1076,29 @@ function serveFrontendIfAvailable() {
     return;
   }
 
-  app.use(express.static(distDir));
+  app.use(
+    express.static(distDir, {
+      etag: true,
+      lastModified: true,
+      setHeaders(res, filePath) {
+        const normalizedPath = filePath.replace(/\\/g, "/");
+
+        if (normalizedPath.includes("/assets/")) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          return;
+        }
+
+        if (path.basename(filePath).toLowerCase() === "index.html") {
+          res.setHeader("Cache-Control", "no-cache");
+          return;
+        }
+
+        res.setHeader("Cache-Control", "public, max-age=86400");
+      },
+    })
+  );
   app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(distDir, "index.html"));
   });
 }
@@ -1079,7 +1122,17 @@ function startServer(options = {}) {
   activeDataDir = options.dataDir || activeDataDir;
   dataDirectoryPrepared = false;
 
-  const prepareStorage = isPostgresEnabled()
+  const postgresEnabled = isPostgresEnabled();
+
+  if (process.env.ISP_REQUIRE_POSTGRES === "1" && !postgresEnabled) {
+    return Promise.reject(
+      new Error(
+        "PostgreSQL is required for LAN production mode, but ISP_DATABASE_URL is not configured."
+      )
+    );
+  }
+
+  const prepareStorage = postgresEnabled
     ? ensurePostgresStore()
     : ensureDataDirectory();
 
@@ -1106,7 +1159,9 @@ function startServer(options = {}) {
           }
 
           console.log(
-            `ISP server running on http://${host}:${resolvedPort}; data directory: ${activeDataDir}`
+            `ISP server running on http://${host}:${resolvedPort}; storage: ${
+              postgresEnabled ? "PostgreSQL" : `JSON (${activeDataDir})`
+            }`
           );
 
           settled = true;

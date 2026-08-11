@@ -15,6 +15,7 @@ import {
 
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import { createId } from "../utils/createId";
 import "./OfficeAssets.css";
 
 const defaultAssetTypes = [
@@ -72,7 +73,7 @@ function generateAssetItems(asset, quantity, existingItems = []) {
     const number = nextNumber++;
 
     return {
-      id: crypto.randomUUID(),
+      id: createId(),
       assetId: asset.id,
       assetName: asset.name,
       type: asset.type,
@@ -206,7 +207,7 @@ function OfficeAssets() {
       const saved = await setSavedTypes((current) => [
         ...current,
         {
-          id: crypto.randomUUID(),
+          id: createId(),
           name: cleanType,
           createdAt: new Date().toISOString(),
         },
@@ -350,7 +351,7 @@ function OfficeAssets() {
       return;
     }
 
-    const assetId = crypto.randomUUID();
+    const assetId = createId();
 
     const newAsset = {
       id: assetId,

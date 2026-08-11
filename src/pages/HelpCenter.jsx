@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import helpCenterLogo from "../assets/logo.jpeg";
+import helpCenterLogo from "../assets/logo.PNG";
 import {
   Bot,
   Boxes,

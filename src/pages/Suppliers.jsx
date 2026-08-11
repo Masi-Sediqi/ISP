@@ -59,6 +59,7 @@ import { notify } from "../utils/notify";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { hasPermission } from "../utils/permissions";
+import { createId } from "../utils/createId";
 
 function Suppliers({ currentUser }) {
   const navigate = useNavigate();
@@ -240,7 +241,7 @@ if (!canCreateSupplier) {
 
 const newSupplier = {
   ...cleanData,
-  id: cleanData.id || crypto.randomUUID(),
+  id: cleanData.id || createId(),
 };
 
 const saved = await setSuppliers([...suppliers, newSupplier]);
@@ -250,7 +251,7 @@ if (saved) {
 
   if (openingBalance !== 0) {
     const balanceRecord = {
-      id: crypto.randomUUID(),
+      id: createId(),
       recordType: "balance",
       type: "Balance",
       supplierIndex: suppliers.length,

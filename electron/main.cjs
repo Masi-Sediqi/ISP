@@ -8,7 +8,7 @@ const {
   validateLicenseCode,
 } = require("./license/licenseValidator.cjs");
 
-const APP_NAME = "ISP Smart";
+const APP_NAME = "Afghan Power";
 const DEFAULT_DATA_DIR = "C:/ISP Smart";
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
 const LOAD_BUILT_RENDERER = app.isPackaged || process.env.ELECTRON_LOAD_BUILT === "1";
@@ -196,7 +196,7 @@ function waitForUrl(url, timeoutMs = 30000) {
 function showStartupError(error) {
   const message = error?.message || String(error);
   dialog.showErrorBox(
-    "Unable to start ISP Smart",
+    "Unable to start Afghan Power",
     `The application could not start correctly.\n\n${message}`
   );
 }

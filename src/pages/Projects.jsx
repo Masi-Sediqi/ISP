@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import { createId } from "../utils/createId";
 import "./Projects.css";
 
 const emptyProject = {
@@ -184,7 +185,7 @@ function Projects() {
       ...customerForm,
       customerName: customerForm.customerName.trim(),
       phone: customerForm.phone.trim(),
-      id: crypto.randomUUID(),
+      id: createId(),
       status: "Active",
       customerType: "Project",
       createdAt: new Date().toISOString(),
@@ -233,7 +234,7 @@ function Projects() {
           ...projects,
           {
             ...payload,
-            id: crypto.randomUUID(),
+            id: createId(),
             createdAt: new Date().toISOString(),
           },
         ];

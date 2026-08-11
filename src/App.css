@@ -71,22 +71,22 @@ body.lang-rtl,
 }
 
 .brand-logo {
-  width: 38px;
-  height: 38px;
-  background: #262626;
-  color: white;
-  border-radius: 12px;
+  width: 78px;
+  height: 44px;
+  background: transparent;
+  border-radius: 0;
   display: grid;
   place-items: center;
   font-weight: 700;
+  flex: 0 0 auto;
 }
 
 .brand-logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  border-radius: inherit;
-  background: #fff;
+  border-radius: 0;
+  background: transparent;
 }
 
 .brand h2 {
@@ -2825,9 +2825,9 @@ svg {
   }
 
   .brand-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 11px;
+    width: 70px;
+    height: 40px;
+    border-radius: 0;
   }
 
   .menu a {

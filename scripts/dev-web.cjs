@@ -43,7 +43,7 @@ async function validateExistingBackend() {
 
     return Boolean(
       health &&
-        health.storage === "json" &&
+        ["json", "postgres"].includes(health.storage) &&
         travels.ok &&
         assets.ok
     );
@@ -60,7 +60,7 @@ async function main() {
     ISP_API_HOST: API_HOST,
     ISP_API_PORT: String(API_PORT),
     ISP_DATA_DIR: DATA_DIR,
-    ISP_DISABLE_LOCAL_ENV: process.env.ISP_DISABLE_LOCAL_ENV || "1",
+    ISP_DISABLE_LOCAL_ENV: process.env.ISP_DISABLE_LOCAL_ENV || "0",
     VITE_API_ROOT: process.env.VITE_API_ROOT || "/api",
     VITE_PORT: String(WEB_PORT),
   };

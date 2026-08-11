@@ -1,5 +1,5 @@
 import { useState } from "react";
-import legalLogo from "../assets/logo.jpeg";
+import legalLogo from "../assets/logo.PNG";
 import "./TermsPrivacy.css";
 
 const termsItems = [
