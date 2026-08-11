@@ -82,6 +82,79 @@ export default function EmployeeDetails({
   const [activeWorkTab, setActiveWorkTab] =
     useState("customers");
 
+  const [interfaceLanguage, setInterfaceLanguage] =
+    useState(
+      () => localStorage.getItem("isp-language") || "en"
+    );
+
+  useEffect(() => {
+    const syncInterfaceLanguage = (event) => {
+      const nextLanguage =
+        event?.detail ||
+        localStorage.getItem("isp-language") ||
+        "en";
+
+      setInterfaceLanguage(nextLanguage);
+    };
+
+    window.addEventListener(
+      "isp-language-changed",
+      syncInterfaceLanguage
+    );
+
+    window.addEventListener(
+      "storage",
+      syncInterfaceLanguage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncInterfaceLanguage
+      );
+
+      window.removeEventListener(
+        "storage",
+        syncInterfaceLanguage
+      );
+    };
+  }, []);
+
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
+
+  const translateValue = (value) => {
+    const key = String(value || "");
+
+    const values = {
+      Active: tx("Active", "فعال", "فعال"),
+      Inactive: tx("Inactive", "غیرفعال", "غیرفعال"),
+      "On Leave": tx("On Leave", "در رخصتی", "په رخصتۍ"),
+      Unspecified: tx("Unspecified", "مشخص‌نشده", "نامعلوم"),
+      Consultant: tx("Consultant", "مشاوره", "مشوره"),
+      Travel: tx("Travel", "سفر", "سفر"),
+      Technology: tx("Technology", "تکنالوژی", "ټکنالوژي"),
+      Media: tx("Media", "رسانه", "رسنۍ"),
+      credit: tx("Credit", "کریدت", "کریډیټ"),
+      debit: tx("Debit", "دیبت", "ډیبیټ"),
+      bonus: tx("Bonus", "امتیاز", "امتیاز"),
+      penalty: tx("Penalty", "جریمه", "جریمه"),
+      salary: tx("Salary", "معاش", "معاش"),
+      Pending: tx("Pending", "در انتظار", "په تمه"),
+      Approved: tx("Approved", "تأییدشده", "تأیید شوی"),
+      Rejected: tx("Rejected", "ردشده", "رد شوی"),
+      Completed: tx("Completed", "تکمیل‌شده", "بشپړ شوی"),
+      Cancelled: tx("Cancelled", "لغوشده", "لغوه شوی"),
+      None: tx("None", "هیچ", "هیڅ"),
+    };
+
+    return values[key] || value;
+  };
+
   const employee = useMemo(
     () =>
       employees.find(
@@ -348,7 +421,7 @@ export default function EmployeeDetails({
       .toLowerCase();
 
     if (!username) {
-      notify("Username is required.", "error");
+      notify(tx("Username is required.", "نام کاربری ضروری است.", "کارن نوم اړین دی."), "error");
       return;
     }
 
@@ -356,7 +429,7 @@ export default function EmployeeDetails({
       !employeeAccount &&
       !accountForm.password
     ) {
-      notify("Password is required.", "error");
+      notify(tx("Password is required.", "رمز عبور ضروری است.", "پټنوم اړین دی."), "error");
       return;
     }
 
@@ -365,7 +438,7 @@ export default function EmployeeDetails({
       accountForm.password.length < 4
     ) {
       notify(
-        "Password must be at least 4 characters.",
+        tx("Password must be at least 4 characters.", "رمز عبور باید حداقل ۴ حرف باشد.", "پټنوم باید لږ تر لږه ۴ توري ولري."),
         "error"
       );
       return;
@@ -376,7 +449,7 @@ export default function EmployeeDetails({
       accountForm.confirmPassword
     ) {
       notify(
-        "Password confirmation does not match.",
+        tx("Password confirmation does not match.", "تأیید رمز عبور مطابقت ندارد.", "د پټنوم تأیید برابر نه دی."),
         "error"
       );
       return;
@@ -395,7 +468,7 @@ export default function EmployeeDetails({
 
     if (duplicateAccount) {
       notify(
-        "Username or email is already in use.",
+        tx("Username or email is already in use.", "نام کاربری یا ایمیل قبلاً استفاده شده است.", "کارن نوم یا برېښنالیک لا دمخه کارول شوی."),
         "error"
       );
       return;
@@ -505,8 +578,8 @@ const record = {
 
     notify(
       employeeAccount
-        ? "Employee account updated."
-        : "Employee account created.",
+        ? tx("Employee account updated.", "حساب کارمند ویرایش شد.", "د کارکوونکي حساب سم شو.")
+        : tx("Employee account created.", "حساب کارمند ایجاد شد.", "د کارکوونکي حساب جوړ شو."),
       "success"
     );
 
@@ -516,7 +589,7 @@ const record = {
   const openEmployeeChat = () => {
     if (!employeeAccount?.id) {
       notify(
-        "First create a login account for this employee.",
+        tx("First create a login account for this employee.", "ابتدا برای این کارمند حساب ورود ایجاد کنید.", "لومړی د دې کارکوونکي لپاره د ننوتلو حساب جوړ کړئ."),
         "error"
       );
       return;
@@ -538,7 +611,7 @@ const record = {
 
     if (!(amount > 0)) {
       notify(
-        "Enter a valid amount.",
+        tx("Enter a valid amount.", "مبلغ معتبر وارد کنید.", "معتبره اندازه ولیکئ."),
         "error"
       );
       return;
@@ -565,8 +638,8 @@ const record = {
 
     notify(
       adjustmentForm.type === "salary"
-        ? "Salary saved successfully."
-        : "Employee ledger entry saved.",
+        ? tx("Salary saved successfully.", "معاش با موفقیت ذخیره شد.", "معاش په بریالیتوب سره خوندي شو.")
+        : tx("Employee ledger entry saved.", "ثبت مالی کارمند ذخیره شد.", "د کارکوونکي مالي ثبت خوندي شو."),
       "success"
     );
 
@@ -576,45 +649,45 @@ const record = {
   if (!loaded) {
     return (
       <div className="page-loading">
-        Loading employee...
+        {tx("Loading employee...", "در حال بارگذاری کارمند...", "کارکوونکی بارېږي...")}
       </div>
     );
   }
 
   if (!employee) {
     return (
-      <div className="employee-profile-page">
+      <div className={`employee-profile-page ${interfaceLanguage !== "en" ? "employee-profile-page-rtl" : ""}`}>
         <button
           type="button"
           onClick={() =>
             navigate("/employees")
           }
         >
-          Back to Employees
+          {tx("Back to Employees", "بازگشت به کارمندان", "کارکوونکو ته بېرته")}
         </button>
 
-        <h2>Employee not found.</h2>
+        <h2>{tx("Employee not found.", "کارمند پیدا نشد.", "کارکوونکی ونه موندل شو.")}</h2>
       </div>
     );
   }
 
   const details = [
-    ["Phone", employee.phone],
-    ["Email", employee.email],
-    ["NIC Number", employee.nicNumber],
+    [tx("Phone", "شماره تماس", "د تلیفون شمېره"), employee.phone],
+    [tx("Email", "ایمیل", "برېښنالیک"), employee.email],
+    [tx("NIC Number", "شماره تذکره", "د تذکرې شمېره"), employee.nicNumber],
     [
-      "Departments",
-      employee.departments?.join(", "),
+      tx("Departments", "دیپارتمنت‌ها", "څانګې"),
+      employee.departments?.map(translateValue).join(", "),
     ],
     [
-      "Roles",
-      employee.roles?.join(", ") ||
-        employee.role,
+      tx("Roles", "وظیفه‌ها", "دندې"),
+      employee.roles?.map(translateValue).join(", ") ||
+        translateValue(employee.role),
     ],
-    ["Status", employee.status],
-    ["Contract Start", employee.startDate],
-    ["Contract End", employee.endDate],
-    ["Notes", employee.notes],
+    [tx("Status", "وضعیت", "حالت"), translateValue(employee.status)],
+    [tx("Contract Start", "شروع قرارداد", "د قرارداد پیل"), employee.startDate],
+    [tx("Contract End", "ختم قرارداد", "د قرارداد پای"), employee.endDate],
+    [tx("Notes", "یادداشت", "یادښت"), employee.notes],
   ];
 
   return (
@@ -629,14 +702,17 @@ const record = {
             }
           >
             <ArrowLeft size={17} />
-            Employees
+            {tx("Employees", "کارمندان", "کارکوونکي")}
           </button>
 
-          <h1>Employee Profile</h1>
+          <h1>{tx("Employee Profile", "پروفایل کارمند", "د کارکوونکي پروفایل")}</h1>
 
           <p>
-            Complete information, login
-            account, customers, and employee ledger.
+            {tx(
+              "Complete information, login account, customers, and employee ledger.",
+              "معلومات کامل، حساب ورود، مشتریان و حساب مالی کارمند.",
+              "بشپړ معلومات، د ننوتلو حساب، پېرودونکي او د کارکوونکي مالي حساب."
+            )}
           </p>
         </div>
 
@@ -647,7 +723,7 @@ const record = {
             onClick={() => setDetailsOpen(true)}
           >
             <Eye size={15} />
-            View Details
+            {tx("View Details", "نمایش جزئیات", "تفصیل وګورئ")}
           </button>
 
           <button
@@ -658,7 +734,7 @@ const record = {
             }
           >
             <TrendingUp size={15} />
-            Assessment
+            {tx("Assessment", "ارزیابی", "ارزونه")}
           </button>
 
           <button
@@ -666,7 +742,7 @@ const record = {
             onClick={openAdjustment}
           >
             <Gift size={15} />
-            Add Ledger Entry
+            {tx("Add Ledger Entry", "افزودن ثبت مالی", "مالي ثبت زیاتول")}
           </button>
 
           <button
@@ -681,8 +757,8 @@ const record = {
             )}
 
             {employeeAccount
-              ? "Edit Account"
-              : "Create Account"}
+              ? tx("Edit Account", "ویرایش حساب", "حساب سمول")
+              : tx("Create Account", "ایجاد حساب", "حساب جوړول")}
           </button>
         </div>
       </header>
@@ -709,32 +785,37 @@ const record = {
 
         <div>
           <span>
-            {employee.status ||
-              "Unspecified"}
+            {translateValue(
+              employee.status || "Unspecified"
+            )}
           </span>
 
           <h2>
             {employee.fullName ||
-              "Unnamed Employee"}
+              tx("Unnamed Employee", "کارمند بدون نام", "بې نومه کارکوونکی")}
           </h2>
 
           <p>
-            {employee.departments?.join(
-              " • "
-            ) || "No department"}
+            {employee.departments?.length
+              ? employee.departments
+                  .map(translateValue)
+                  .join(" • ")
+              : tx("No department", "بدون دیپارتمنت", "څانګه نشته")}
           </p>
         </div>
 
         <aside>
-          <small>Net Balance</small>
+          <small>{tx("Net Balance", "بیلانس خالص", "خالص بیلانس")}</small>
 
           <strong>
             {netBalance.toLocaleString("en-US")} AFN
           </strong>
 
           <em>
-            Credit {totalCredit.toLocaleString("en-US")} ·
-            Debit {totalDebit.toLocaleString("en-US")}
+            {tx("Credit", "کریدت", "کریډیټ")}{" "}
+            {totalCredit.toLocaleString("en-US")} ·{" "}
+            {tx("Debit", "دیبت", "ډیبیټ")}{" "}
+            {totalDebit.toLocaleString("en-US")}
           </em>
         </aside>
       </section>
@@ -746,7 +827,7 @@ const record = {
           onClick={() => setActiveWorkTab("customers")}
         >
           <Users size={17} />
-          <span>Customers Registered by Employee</span>
+          <span>{tx("Customers Registered by Employee", "مشتریان ثبت‌شده توسط کارمند", "د کارکوونکي لخوا ثبت شوي پېرودونکي")}</span>
           <strong>{employeeCustomers.length}</strong>
         </button>
 
@@ -756,7 +837,7 @@ const record = {
           onClick={() => setActiveWorkTab("ledger")}
         >
           <WalletCards size={17} />
-          <span>Employee Ledger</span>
+          <span>{tx("Employee Ledger", "حساب مالی کارمند", "د کارکوونکي مالي حساب")}</span>
           <strong>{employeeAdjustments.length}</strong>
         </button>
       </section>
@@ -765,11 +846,16 @@ const record = {
         <section className="employee-work-card">
           <div className="employee-work-header">
             <div>
-              <span>Employee Performance</span>
-              <h2>Registered Customers</h2>
+              <span>{tx("Employee Performance", "عملکرد کارمند", "د کارکوونکي فعالیت")}</span>
+              <h2>{tx("Registered Customers", "مشتریان ثبت‌شده", "ثبت شوي پېرودونکي")}</h2>
               <p>
-                All customers registered or referred by{" "}
-                {employee.fullName || "this employee"}.
+                {tx(
+                  "All customers registered or referred by",
+                  "تمام مشتریان ثبت یا ارجاع‌شده توسط",
+                  "ټول هغه پېرودونکي چې ثبت یا راجع شوي د"
+                )}{" "}
+                {employee.fullName ||
+                  tx("this employee", "این کارمند", "دې کارکوونکي")}.
               </p>
             </div>
 
@@ -780,12 +866,12 @@ const record = {
             <table className="employee-work-table">
               <thead>
                 <tr>
-                  <th>Customer</th>
-                  <th>Phone</th>
-                  <th>Customer Type</th>
-                  <th>Purpose</th>
-                  <th>Date</th>
-                  <th>Status</th>
+                  <th>{tx("Customer", "مشتری", "پېرودونکی")}</th>
+                  <th>{tx("Phone", "شماره تماس", "د تلیفون شمېره")}</th>
+                  <th>{tx("Customer Type", "نوع مشتری", "د پېرودونکي ډول")}</th>
+                  <th>{tx("Purpose", "هدف", "موخه")}</th>
+                  <th>{tx("Date", "تاریخ", "نېټه")}</th>
+                  <th>{tx("Status", "وضعیت", "حالت")}</th>
                 </tr>
               </thead>
 
@@ -809,9 +895,11 @@ const record = {
 
                     <td>
                       <span className="employee-work-type">
-                        {customer.customerType ||
-                          customer.type ||
-                          "-"}
+                        {translateValue(
+                          customer.customerType ||
+                            customer.type ||
+                            "-"
+                        )}
                       </span>
                     </td>
 
@@ -844,9 +932,11 @@ const record = {
                           .toLowerCase()
                           .replace(/\s+/g, "-")}`}
                       >
-                        {customer.assignmentStatus ||
-                          customer.status ||
-                          "None"}
+                        {translateValue(
+                          customer.assignmentStatus ||
+                            customer.status ||
+                            "None"
+                        )}
                       </span>
                     </td>
                   </tr>
@@ -858,8 +948,11 @@ const record = {
                       colSpan="6"
                       className="employee-work-empty"
                     >
-                      No customers have been registered by
-                      this employee yet.
+                      {tx(
+                        "No customers have been registered by this employee yet.",
+                        "هنوز هیچ مشتری توسط این کارمند ثبت نشده است.",
+                        "تر اوسه د دې کارکوونکي لخوا هېڅ پېرودونکی نه دی ثبت شوی."
+                      )}
                     </td>
                   </tr>
                 )}
@@ -873,11 +966,16 @@ const record = {
         <section className="employee-work-card employee-ledger-card">
           <div className="employee-work-header">
             <div>
-              <span>Financial Activity</span>
-              <h2>Employee Ledger</h2>
+              <span>{tx("Financial Activity", "فعالیت مالی", "مالي فعالیت")}</span>
+              <h2>{tx("Employee Ledger", "حساب مالی کارمند", "د کارکوونکي مالي حساب")}</h2>
               <p>
-                Debit, credit, bonus and penalty records for{" "}
-                {employee.fullName || "this employee"}.
+                {tx(
+                  "Debit, credit, bonus and penalty records for",
+                  "سوابق دیبت، کریدت، امتیاز و جریمه برای",
+                  "د ډیبیټ، کریډیټ، امتیاز او جریمې ریکارډونه د"
+                )}{" "}
+                {employee.fullName ||
+                  tx("this employee", "این کارمند", "دې کارکوونکي")}.
               </p>
             </div>
 
@@ -886,42 +984,42 @@ const record = {
 
           <div className="employee-ledger-summary">
             <div>
-              <span>Credit</span>
+              <span>{tx("Credit", "کریدت", "کریډیټ")}</span>
               <strong className="credit">
                 {totalCreditOnly.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
             <div>
-              <span>Debit</span>
+              <span>{tx("Debit", "دیبت", "ډیبیټ")}</span>
               <strong className="debit">
                 {totalDebitOnly.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
             <div>
-              <span>Bonus</span>
+              <span>{tx("Bonus", "امتیاز", "امتیاز")}</span>
               <strong>
                 {totalBonus.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
             <div>
-              <span>Penalty</span>
+              <span>{tx("Penalty", "جریمه", "جریمه")}</span>
               <strong>
                 {totalPenalty.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
             <div>
-              <span>Salary</span>
+              <span>{tx("Salary", "معاش", "معاش")}</span>
               <strong>
                 {totalSalary.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
             <div>
-              <span>Current Balance</span>
+              <span>{tx("Current Balance", "بیلانس فعلی", "اوسنی بیلانس")}</span>
               <strong
                 className={
                   ledgerBalance < 0
@@ -938,11 +1036,11 @@ const record = {
             <table className="employee-work-table employee-ledger-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Debit</th>
-                  <th>Credit</th>
-                  <th>Reason / Note</th>
+                  <th>{tx("Date", "تاریخ", "نېټه")}</th>
+                  <th>{tx("Type", "نوع", "ډول")}</th>
+                  <th>{tx("Debit", "دیبت", "ډیبیټ")}</th>
+                  <th>{tx("Credit", "کریدت", "کریډیټ")}</th>
+                  <th>{tx("Reason / Note", "دلیل / یادداشت", "لامل / یادښت")}</th>
                 </tr>
               </thead>
 
@@ -966,7 +1064,7 @@ const record = {
 
                       <td>
                         <span
-                          className={`employee-ledger-type ${entry.type}`}
+                          className={`employee-ledger-type ${translateValue(entry.type)}`}
                         >
                           {entry.type}
                         </span>
@@ -995,8 +1093,11 @@ const record = {
                       colSpan="5"
                       className="employee-work-empty"
                     >
-                      No ledger records have been added for
-                      this employee yet.
+                      {tx(
+                        "No ledger records have been added for this employee yet.",
+                        "هنوز هیچ ثبت مالی برای این کارمند اضافه نشده است.",
+                        "تر اوسه د دې کارکوونکي لپاره هېڅ مالي ثبت نه دی زیات شوی."
+                      )}
                     </td>
                   </tr>
                 )}
@@ -1026,14 +1127,16 @@ const record = {
               <div>
                 <h2 id="employee-account-title">
                   {employeeAccount
-                    ? "Edit Account"
-                    : "Create Account"}
+                    ? tx("Edit Account", "ویرایش حساب", "حساب سمول")
+                    : tx("Create Account", "ایجاد حساب", "حساب جوړول")}
                 </h2>
 
                 <p>
-                  Username and email are
-                  suggested automatically and
-                  remain editable.
+                  {tx(
+                    "Username and email are suggested automatically and remain editable.",
+                    "نام کاربری و ایمیل به‌صورت خودکار پیشنهاد می‌شوند و قابل ویرایش هستند.",
+                    "کارن نوم او برېښنالیک په اوتومات ډول وړاندیز کېږي او د سمون وړ دي."
+                  )}
                 </p>
               </div>
 
@@ -1041,14 +1144,14 @@ const record = {
                 type="button"
                 className="employee-profile-modal-close"
                 onClick={closeAccount}
-                aria-label="Close account form"
+                aria-label={tx("Close account form", "بستن فورم حساب", "د حساب فورم تړل")}
               >
                 <X size={19} />
               </button>
             </header>
 
             <label>
-              <span>Username</span>
+              <span>{tx("Username", "نام کاربری", "کارن نوم")}</span>
 
               <input
                 name="username"
@@ -1062,7 +1165,7 @@ const record = {
             </label>
 
             <label>
-              <span>Email</span>
+              <span>{tx("Email", "ایمیل", "برېښنالیک")}</span>
 
               <input
                 type="email"
@@ -1076,8 +1179,8 @@ const record = {
             <label>
               <span>
                 {employeeAccount
-                  ? "New Password (optional)"
-                  : "Password"}
+                  ? tx("New Password (optional)", "رمز عبور جدید (اختیاری)", "نوی پټنوم (اختیاري)")
+                  : tx("Password", "رمز عبور", "پټنوم")}
               </span>
 
               <div className="employee-password-control">
@@ -1094,7 +1197,7 @@ const record = {
                   onChange={
                     updateAccountField
                   }
-                  placeholder="Enter any password"
+                  placeholder={tx("Enter any password", "رمز عبور را وارد کنید", "پټنوم ولیکئ")}
                   autoComplete="new-password"
                 />
 
@@ -1108,13 +1211,13 @@ const record = {
                   }
                   aria-label={
                     showPassword
-                      ? "Hide password"
-                      : "Show password"
+                      ? tx("Hide password", "پنهان کردن رمز", "پټنوم پټول")
+                      : tx("Show password", "نمایش رمز", "پټنوم ښودل")
                   }
                   title={
                     showPassword
-                      ? "Hide password"
-                      : "Show password"
+                      ? tx("Hide password", "پنهان کردن رمز", "پټنوم پټول")
+                      : tx("Show password", "نمایش رمز", "پټنوم ښودل")
                   }
                 >
                   {showPassword ? (
@@ -1127,7 +1230,7 @@ const record = {
             </label>
 
             <label>
-              <span>Confirm Password</span>
+              <span>{tx("Confirm Password", "تأیید رمز عبور", "د پټنوم تأیید")}</span>
 
               <div className="employee-password-control">
                 <input
@@ -1156,13 +1259,13 @@ const record = {
                   }
                   aria-label={
                     showConfirmPassword
-                      ? "Hide confirm password"
-                      : "Show confirm password"
+                      ? tx("Hide confirm password", "پنهان کردن تأیید رمز", "د تأیید پټنوم پټول")
+                      : tx("Show confirm password", "نمایش تأیید رمز", "د تأیید پټنوم ښودل")
                   }
                   title={
                     showConfirmPassword
-                      ? "Hide password"
-                      : "Show password"
+                      ? tx("Hide password", "پنهان کردن رمز", "پټنوم پټول")
+                      : tx("Show password", "نمایش رمز", "پټنوم ښودل")
                   }
                 >
                   {showConfirmPassword ? (
@@ -1179,14 +1282,14 @@ const record = {
                 type="button"
                 onClick={closeAccount}
               >
-                Cancel
+                {tx("Cancel", "لغو", "لغوه")}
               </button>
 
               <button
                 type="submit"
                 className="primary"
               >
-                Save Account
+                {tx("Save Account", "ذخیره حساب", "حساب خوندي کړئ")}
               </button>
             </footer>
           </form>
@@ -1205,8 +1308,8 @@ const record = {
           >
             <header>
               <div>
-                <h2>Employee Details</h2>
-                <p>Employee information and system account.</p>
+                <h2>{tx("Employee Details", "جزئیات کارمند", "د کارکوونکي تفصیل")}</h2>
+                <p>{tx("Employee information and system account.", "معلومات کارمند و حساب سیستم.", "د کارکوونکي معلومات او سیسټم حساب.")}</p>
               </div>
 
               <button
@@ -1219,7 +1322,7 @@ const record = {
             </header>
 
             <section>
-              <h3>Employee Information</h3>
+              <h3>{tx("Employee Information", "معلومات کارمند", "د کارکوونکي معلومات")}</h3>
 
               <div className="employee-detail-list">
                 {details.map(([label, value]) => (
@@ -1233,22 +1336,22 @@ const record = {
 
             {employeeAccount && (
               <section>
-                <h3>System Account</h3>
+                <h3>{tx("System Account", "حساب سیستم", "سیسټم حساب")}</h3>
 
                 <div className="employee-detail-list">
                   <div>
-                    <span>Username</span>
+                    <span>{tx("Username", "نام کاربری", "کارن نوم")}</span>
                     <strong>{employeeAccount.username || "-"}</strong>
                   </div>
 
                   <div>
-                    <span>Email</span>
+                    <span>{tx("Email", "ایمیل", "برېښنالیک")}</span>
                     <strong>{employeeAccount.email || "-"}</strong>
                   </div>
 
                   <div>
-                    <span>Department Dashboard</span>
-                    <strong>{employeeAccount.department || "-"}</strong>
+                    <span>{tx("Department Dashboard", "داشبورد دیپارتمنت", "د څانګې ډشبورډ")}</span>
+                    <strong>{translateValue(employeeAccount.department) || "-"}</strong>
                   </div>
                 </div>
               </section>
@@ -1275,12 +1378,16 @@ const record = {
             <header>
               <div>
                 <h2 id="employee-adjustment-title">
-                  Employee Ledger Entry
+                  {tx("Employee Ledger Entry", "ثبت مالی کارمند", "د کارکوونکي مالي ثبت")}
                 </h2>
 
                 <p>
-                  Add debit, credit, bonus, penalty,
-                  or salary for {employee.fullName}.
+                  {tx(
+                    "Add debit, credit, bonus, penalty, or salary for",
+                    "دیبت، کریدت، امتیاز، جریمه یا معاش را برای",
+                    "ډیبیټ، کریډیټ، امتیاز، جریمه یا معاش زیات کړئ د"
+                  )}{" "}
+                  {employee.fullName}.
                 </p>
               </div>
 
@@ -1288,14 +1395,14 @@ const record = {
                 type="button"
                 className="employee-profile-modal-close"
                 onClick={closeAdjustment}
-                aria-label="Close adjustment form"
+                aria-label={tx("Close adjustment form", "بستن فورم ثبت مالی", "د مالي ثبت فورم تړل")}
               >
                 <X size={19} />
               </button>
             </header>
 
             <label>
-              <span>Type</span>
+              <span>{tx("Type", "نوع", "ډول")}</span>
 
               <select
                 name="type"
@@ -1307,29 +1414,29 @@ const record = {
                 }
               >
                 <option value="credit">
-                  Credit
+                  {tx("Credit", "کریدت", "کریډیټ")}
                 </option>
 
                 <option value="debit">
-                  Debit
+                  {tx("Debit", "دیبت", "ډیبیټ")}
                 </option>
 
                 <option value="bonus">
-                  Bonus
+                  {tx("Bonus", "امتیاز", "امتیاز")}
                 </option>
 
                 <option value="penalty">
-                  Penalty
+                  {tx("Penalty", "جریمه", "جریمه")}
                 </option>
 
                 <option value="salary">
-                  Salary
+                  {tx("Salary", "معاش", "معاش")}
                 </option>
               </select>
             </label>
 
             <label>
-              <span>Amount (AFN)</span>
+              <span>{tx("Amount (AFN)", "مبلغ (AFN)", "اندازه (AFN)")}</span>
 
               <input
                 type="number"
@@ -1345,7 +1452,7 @@ const record = {
             </label>
 
             <label>
-              <span>Reason</span>
+              <span>{tx("Reason", "دلیل", "لامل")}</span>
 
               <textarea
                 rows="3"
@@ -1364,14 +1471,14 @@ const record = {
                 type="button"
                 onClick={closeAdjustment}
               >
-                Cancel
+                {tx("Cancel", "لغو", "لغوه")}
               </button>
 
               <button
                 type="submit"
                 className="primary"
               >
-                Save
+                {tx("Save", "ذخیره", "خوندي کول")}
               </button>
             </footer>
           </form>

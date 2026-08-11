@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Boxes,
@@ -106,6 +106,69 @@ function OfficeAssets() {
   const [typeOpen, setTypeOpen] = useState(false);
   const [newType, setNewType] = useState("");
 
+  const [interfaceLanguage, setInterfaceLanguage] = useState(
+    () => localStorage.getItem("isp-language") || "en"
+  );
+
+  useEffect(() => {
+    const syncInterfaceLanguage = (event) => {
+      const nextLanguage =
+        event?.detail ||
+        localStorage.getItem("isp-language") ||
+        "en";
+
+      setInterfaceLanguage(nextLanguage);
+    };
+
+    window.addEventListener(
+      "isp-language-changed",
+      syncInterfaceLanguage
+    );
+    window.addEventListener(
+      "storage",
+      syncInterfaceLanguage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncInterfaceLanguage
+      );
+      window.removeEventListener(
+        "storage",
+        syncInterfaceLanguage
+      );
+    };
+  }, []);
+
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
+
+  const translateAssetValue = (value) => {
+    const labels = {
+      Desk: tx("Desk", "میز کار", "د کار مېز"),
+      Chair: tx("Chair", "چوکی", "څوکۍ"),
+      Computer: tx("Computer", "کمپیوتر", "کمپیوټر"),
+      Laptop: tx("Laptop", "لپ‌تاپ", "لېپټاپ"),
+      Printer: tx("Printer", "پرنتر", "پرنټر"),
+      Monitor: tx("Monitor", "مانیتور", "مانېټر"),
+      Table: tx("Table", "میز", "مېز"),
+      Cabinet: tx("Cabinet", "الماری", "المارۍ"),
+      "Air Conditioner": tx("Air Conditioner", "کولر", "اې سي"),
+      Projector: tx("Projector", "پروژکتور", "پروجکټر"),
+      Other: tx("Other", "دیگر", "نور"),
+      Available: tx("Available", "موجود", "شته"),
+      Assigned: tx("Assigned", "اختصاص‌یافته", "سپارل شوی"),
+      Unspecified: tx("Unspecified", "مشخص‌نشده", "نامعلوم"),
+    };
+
+    return labels[String(value || "")] || value;
+  };
+
   const assetTypes = useMemo(() => {
     const customTypes = savedTypes
       .map((item) => item.name || item)
@@ -193,7 +256,7 @@ function OfficeAssets() {
     const cleanType = newType.trim();
 
     if (!cleanType) {
-      notify("Please enter the asset type.", "error");
+      notify(tx("Please enter the asset type.", "لطفاً نوع دارایی را وارد کنید.", "مهرباني وکړئ د شتمنۍ ډول ولیکئ."), "error");
       return;
     }
 
@@ -232,17 +295,17 @@ function OfficeAssets() {
     const quantity = parseQuantity(form.quantity);
 
     if (!name) {
-      notify("Please enter the asset name.", "error");
+      notify(tx("Please enter the asset name.", "لطفاً نام دارایی را وارد کنید.", "مهرباني وکړئ د شتمنۍ نوم ولیکئ."), "error");
       return;
     }
 
     if (!type) {
-      notify("Please select or add the asset type.", "error");
+      notify(tx("Please select or add the asset type.", "لطفاً نوع دارایی را انتخاب یا اضافه کنید.", "مهرباني وکړئ د شتمنۍ ډول وټاکئ یا زیات یې کړئ."), "error");
       return;
     }
 
     if (quantity < 1) {
-      notify("Quantity must be at least 1.", "error");
+      notify(tx("Quantity must be at least 1.", "تعداد باید حداقل ۱ باشد.", "شمېر باید لږ تر لږه ۱ وي."), "error");
       return;
     }
 
@@ -299,7 +362,7 @@ function OfficeAssets() {
 
         if (removableItems.length < Math.abs(quantityDifference)) {
           notify(
-            "Some records are assigned. Their quantity cannot be reduced.",
+            tx("Some records are assigned. Their quantity cannot be reduced.", "بعضی اقلام اختصاص یافته‌اند و تعداد آن‌ها قابل کاهش نیست.", "ځینې توکي سپارل شوي او شمېر یې نه شي کمېدای."),
             "error"
           );
 
@@ -346,7 +409,7 @@ function OfficeAssets() {
         );
       }
 
-      notify("Asset updated successfully.", "success");
+      notify(tx("Asset updated successfully.", "دارایی با موفقیت ویرایش شد.", "شتمني په بریالیتوب سره سمه شوه."), "success");
       closeForm();
       return;
     }
@@ -390,7 +453,15 @@ function OfficeAssets() {
     }
 
     notify(
-      `${quantity} asset record${quantity === 1 ? "" : "s"} created successfully.`,
+      `${quantity} ${tx(
+        quantity === 1 ? "asset record" : "asset records",
+        "رکورد دارایی",
+        "د شتمنۍ ریکارډ"
+      )} ${tx(
+        "created successfully.",
+        "با موفقیت ایجاد شد.",
+        "په بریالیتوب سره جوړ شو."
+      )}`,
       "success"
     );
 
@@ -415,57 +486,63 @@ function OfficeAssets() {
     );
 
     setDeleteTarget(null);
-    notify("Asset and all related labels were deleted.", "success");
+    notify(tx("Asset and all related labels were deleted.", "دارایی و تمام لیبل‌های مربوط حذف شدند.", "شتمني او ټول اړوند لېبلونه حذف شول."), "success");
   };
 
   return (
-    <div className="office-assets-page">
+    <div className={`office-assets-page ${interfaceLanguage !== "en" ? "office-assets-page-rtl" : ""}`}>
       <div className="office-assets-heading">
         <div>
-          <span>Office Inventory</span>
-          <h1>Asset Management</h1>
+          <span>{tx("Office Inventory", "موجودی دفتر", "د دفتر موجودي")}</span>
+          <h1>{tx("Asset Management", "مدیریت دارایی‌ها", "د شتمنیو مدیریت")}</h1>
           <p>
-            Register office equipment and generate a separate label for
-            every individual item.
+            {tx(
+              "Register office equipment and generate a separate label for every individual item.",
+              "تجهیزات دفتر را ثبت کرده و برای هر قلم یک لیبل جداگانه ایجاد کنید.",
+              "د دفتر تجهیزات ثبت کړئ او د هر توکي لپاره جلا لېبل جوړ کړئ."
+            )}
           </p>
         </div>
 
         <button type="button" onClick={openCreate}>
           <Plus size={17} />
-          Add Asset
+          {tx("Add Asset", "افزودن دارایی", "شتمني زیاتول")}
         </button>
       </div>
 
       <section className="office-assets-stats">
         <div>
           <Boxes />
-          <span>Asset Groups</span>
+          <span>{tx("Asset Groups", "گروپ‌های دارایی", "د شتمنیو ډلې")}</span>
           <strong>{assets.length}</strong>
-          <small>Registered asset categories</small>
+          <small>{tx("Registered asset categories", "کتگوری‌های ثبت‌شده دارایی", "ثبت شوې د شتمنیو کټګورۍ")}</small>
         </div>
 
         <div>
           <Tags />
-          <span>Total Items</span>
+          <span>{tx("Total Items", "مجموع اقلام", "ټول توکي")}</span>
           <strong>{totalQuantity}</strong>
-          <small>All generated asset labels</small>
+          <small>{tx("All generated asset labels", "تمام لیبل‌های ایجادشده دارایی", "ټول جوړ شوي د شتمنیو لېبلونه")}</small>
         </div>
 
         <div>
           <PackagePlus />
-          <span>Available Items</span>
+          <span>{tx("Available Items", "اقلام موجود", "شته توکي")}</span>
           <strong>{availableCount}</strong>
-          <small>{assignedCount} currently assigned</small>
+          <small>{assignedCount} {tx("currently assigned", "فعلاً اختصاص‌یافته", "اوس سپارل شوي")}</small>
         </div>
       </section>
 
       <section className="office-assets-list-card">
         <div className="office-assets-list-header">
           <div>
-            <h2>Office Assets</h2>
+            <h2>{tx("Office Assets", "دارایی‌های دفتر", "د دفتر شتمنۍ")}</h2>
             <p>
-              Open a record to view individual items and their unique
-              labels.
+              {tx(
+                "Open a record to view individual items and their unique labels.",
+                "برای مشاهده اقلام و لیبل‌های اختصاصی، رکورد را باز کنید.",
+                "د توکو او ځانګړو لېبلونو د لیدلو لپاره ریکارډ پرانیزئ."
+              )}
             </p>
           </div>
 
@@ -474,7 +551,7 @@ function OfficeAssets() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search assets..."
+              placeholder={tx("Search assets...", "جستجوی دارایی‌ها...", "شتمنۍ ولټوئ...")}
             />
           </label>
         </div>
@@ -483,13 +560,13 @@ function OfficeAssets() {
           <table>
             <thead>
               <tr>
-                <th>Asset</th>
-                <th>Type</th>
-                <th>Quantity</th>
-                <th>Available</th>
-                <th>Assigned</th>
-                <th>Note</th>
-                <th>Action</th>
+                <th>{tx("Asset", "دارایی", "شتمني")}</th>
+                <th>{tx("Type", "نوع", "ډول")}</th>
+                <th>{tx("Quantity", "تعداد", "شمېر")}</th>
+                <th>{tx("Available", "موجود", "شته")}</th>
+                <th>{tx("Assigned", "اختصاص‌یافته", "سپارل شوی")}</th>
+                <th>{tx("Note", "یادداشت", "یادښت")}</th>
+                <th>{tx("Action", "عملیات", "عمل")}</th>
               </tr>
             </thead>
 
@@ -526,10 +603,10 @@ function OfficeAssets() {
 
                         <div>
                           <strong>
-                            {asset.name || "Unnamed Asset"}
+                            {asset.name || tx("Unnamed Asset", "دارایی بدون نام", "بې نومه شتمني")}
                           </strong>
                           <small>
-                            Click to view {relatedItems.length} records
+                            {tx("Click to view", "برای مشاهده کلیک کنید", "د لیدلو لپاره کلیک وکړئ")} {relatedItems.length} {tx("records", "رکورد", "ریکارډونه")}
                           </small>
                         </div>
                       </button>
@@ -537,7 +614,7 @@ function OfficeAssets() {
 
                     <td>
                       <span className="office-asset-type">
-                        {asset.type || "Unspecified"}
+                        {translateAssetValue(asset.type || "Unspecified")}
                       </span>
                     </td>
 
@@ -554,7 +631,7 @@ function OfficeAssets() {
                     <td>{assigned}</td>
 
                     <td className="office-asset-note">
-                      {asset.note || "No note"}
+                      {asset.note || tx("No note", "بدون یادداشت", "یادښت نشته")}
                     </td>
 
                     <td>
@@ -563,7 +640,7 @@ function OfficeAssets() {
                           type="button"
                           className="office-asset-edit"
                           onClick={() => openEdit(asset)}
-                          title="Edit"
+                          title={tx("Edit", "ویرایش", "سمول")}
                         >
                           <Pencil size={15} />
                         </button>
@@ -572,7 +649,7 @@ function OfficeAssets() {
                           type="button"
                           className="office-asset-delete"
                           onClick={() => setDeleteTarget(asset)}
-                          title="Delete"
+                          title={tx("Delete", "حذف", "حذف")}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -585,7 +662,11 @@ function OfficeAssets() {
               {!filteredAssets.length && (
                 <tr>
                   <td colSpan="7" className="office-assets-empty">
-                    No office assets have been registered yet.
+                    {tx(
+                      "No office assets have been registered yet.",
+                      "هنوز هیچ دارایی دفتری ثبت نشده است.",
+                      "تر اوسه د دفتر هېڅ شتمني نه ده ثبت شوې."
+                    )}
                   </td>
                 </tr>
               )}
@@ -606,10 +687,16 @@ function OfficeAssets() {
             <div className="office-asset-modal-header">
               <div>
                 <h2>
-                  {editingAsset ? "Edit Asset" : "Register Asset"}
+                  {editingAsset
+                    ? tx("Edit Asset", "ویرایش دارایی", "شتمني سمول")
+                    : tx("Register Asset", "ثبت دارایی", "شتمني ثبتول")}
                 </h2>
                 <p>
-                  Enter the office asset information and quantity.
+                  {tx(
+                    "Enter the office asset information and quantity.",
+                    "معلومات و تعداد دارایی دفتر را وارد کنید.",
+                    "د دفتر د شتمنۍ معلومات او شمېر ولیکئ."
+                  )}
                 </p>
               </div>
 
@@ -621,17 +708,17 @@ function OfficeAssets() {
             <form onSubmit={saveAsset}>
               <div className="office-asset-form-grid">
                 <label>
-                  <span>Asset Name *</span>
+                  <span>{tx("Asset Name *", "نام دارایی *", "د شتمنۍ نوم *")}</span>
                   <input
                     name="name"
                     value={form.name}
                     onChange={updateField}
-                    placeholder="For example: Manager Chair"
+                    placeholder={tx("For example: Manager Chair", "مثال: چوکی مدیر", "بېلګه: د مدیر څوکۍ")}
                   />
                 </label>
 
                 <div className="office-asset-type-field">
-                  <span>Asset Type *</span>
+                  <span>{tx("Asset Type *", "نوع دارایی *", "د شتمنۍ ډول *")}</span>
 
                   <button
                     type="button"
@@ -641,7 +728,7 @@ function OfficeAssets() {
                     }
                   >
                     <span>
-                      {form.type || "Select asset type"}
+                      {form.type ? translateAssetValue(form.type) : tx("Select asset type", "نوع دارایی را انتخاب کنید", "د شتمنۍ ډول وټاکئ")}
                     </span>
 
                     <ChevronDown
@@ -669,7 +756,7 @@ function OfficeAssets() {
                               setTypeOpen(false);
                             }}
                           >
-                            <span>{type}</span>
+                            <span>{translateAssetValue(type)}</span>
 
                             {form.type === type && (
                               <Check size={14} />
@@ -684,7 +771,7 @@ function OfficeAssets() {
                           onChange={(event) =>
                             setNewType(event.target.value)
                           }
-                          placeholder="Add custom type"
+                          placeholder={tx("Add custom type", "افزودن نوع جدید", "نوی ډول زیات کړئ")}
                         />
 
                         <button
@@ -699,39 +786,44 @@ function OfficeAssets() {
                 </div>
 
                 <label>
-                  <span>Quantity *</span>
+                  <span>{tx("Quantity *", "تعداد *", "شمېر *")}</span>
                   <input
                     type="number"
                     min="1"
                     name="quantity"
                     value={form.quantity}
                     onChange={updateField}
-                    placeholder="For example: 10"
+                    placeholder={tx("For example: 10", "مثال: ۱۰", "بېلګه: ۱۰")}
                   />
                   <small>
-                    A separate record and label will be generated for
-                    every item.
+                    {tx(
+                      "A separate record and label will be generated for every item.",
+                      "برای هر قلم یک رکورد و لیبل جداگانه ایجاد می‌شود.",
+                      "د هر توکي لپاره جلا ریکارډ او لېبل جوړېږي."
+                    )}
                   </small>
                 </label>
 
                 <label className="office-asset-form-full">
-                  <span>Note</span>
+                  <span>{tx("Note", "یادداشت", "یادښت")}</span>
                   <textarea
                     name="note"
                     value={form.note}
                     onChange={updateField}
-                    placeholder="Additional information about this asset..."
+                    placeholder={tx("Additional information about this asset...", "معلومات اضافی درباره این دارایی...", "د دې شتمنۍ اضافي معلومات...")}
                   />
                 </label>
               </div>
 
               <div className="office-asset-modal-actions">
                 <button type="button" onClick={closeForm}>
-                  Cancel
+                  {tx("Cancel", "لغو", "لغوه")}
                 </button>
 
                 <button type="submit">
-                  {editingAsset ? "Save Changes" : "Register Asset"}
+                  {editingAsset
+                    ? tx("Save Changes", "ذخیره تغییرات", "بدلونونه خوندي کړئ")
+                    : tx("Register Asset", "ثبت دارایی", "شتمني ثبتول")}
                 </button>
               </div>
             </form>
@@ -752,13 +844,17 @@ function OfficeAssets() {
               <Trash2 size={25} />
             </div>
 
-            <span>Delete Asset</span>
-            <h2>Are you sure?</h2>
+            <span>{tx("Delete Asset", "حذف دارایی", "شتمني حذف کول")}</span>
+            <h2>{tx("Are you sure?", "آیا مطمئن هستید؟", "ایا ډاډه یاست؟")}</h2>
 
             <p>
-              The asset
-              <strong>{deleteTarget.name}</strong>
-              and all generated item labels will be deleted.
+              {tx("The asset", "دارایی", "شتمني")}{" "}
+              <strong>{deleteTarget.name}</strong>{" "}
+              {tx(
+                "and all generated item labels will be deleted.",
+                "و تمام لیبل‌های ایجادشده آن حذف می‌شوند.",
+                "او ټول جوړ شوي لېبلونه به یې حذف شي."
+              )}
             </p>
 
             <div className="office-asset-delete-actions">
@@ -766,12 +862,12 @@ function OfficeAssets() {
                 type="button"
                 onClick={() => setDeleteTarget(null)}
               >
-                Cancel
+                {tx("Cancel", "لغو", "لغوه")}
               </button>
 
               <button type="button" onClick={deleteAsset}>
                 <Trash2 size={15} />
-                Delete
+                {tx("Delete", "حذف", "حذف")}
               </button>
             </div>
           </div>

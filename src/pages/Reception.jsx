@@ -442,7 +442,14 @@ function CountrySelect({
   value,
   onChange,
   name = "country",
+  interfaceLanguage = "en",
 }) {
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const wrapperRef = useRef(null);
@@ -509,7 +516,13 @@ function CountrySelect({
             {value}
           </span>
         ) : (
-          <span>Select country</span>
+          <span>
+            {tx(
+              "Select country",
+              "کشور را انتخاب کنید",
+              "هېواد وټاکئ"
+            )}
+          </span>
         )}
 
         <b>▾</b>
@@ -523,7 +536,11 @@ function CountrySelect({
             onChange={(event) =>
               setSearch(event.target.value)
             }
-            placeholder="Search country..."
+            placeholder={tx(
+              "Search country...",
+              "جستجوی کشور...",
+              "هېواد ولټوئ..."
+            )}
             autoFocus
           />
 
@@ -558,7 +575,14 @@ function SearchablePackageSelect({
   value,
   onChange,
   placeholder,
+  interfaceLanguage = "en",
 }) {
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const wrapperRef = useRef(null);
@@ -685,7 +709,11 @@ function SearchablePackageSelect({
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="Search package, country or category..."
+              placeholder={tx(
+                "Search package, country or category...",
+                "جستجوی پکیج، کشور یا کتگوری...",
+                "بسته، هېواد یا کټګوري ولټوئ..."
+              )}
               autoFocus
             />
           </div>
@@ -723,7 +751,11 @@ function SearchablePackageSelect({
                     <span>
                       <strong>
                         {item.packageName ||
-                          "Unnamed Package"}
+                          tx(
+                            "Unnamed Package",
+                            "پکیج بدون نام",
+                            "بې نومه بسته"
+                          )}
                       </strong>
 
                       <small>
@@ -750,7 +782,11 @@ function SearchablePackageSelect({
 
             {!filteredPackages.length && (
               <p className="reception-package-search-empty">
-                No matching package found.
+                {tx(
+                  "No matching package found.",
+                  "پکیج مطابق پیدا نشد.",
+                  "مطابقه بسته ونه موندل شوه."
+                )}
               </p>
             )}
           </div>
@@ -774,7 +810,14 @@ function ReceptionPackagePreview({
   showDates = false,
   showBankStatement = false,
   showDocumentation = false,
+  interfaceLanguage = "en",
 }) {
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
   if (!packageItem) return null;
 
   const currency = packageItem.currency || "AFN";
@@ -795,7 +838,7 @@ function ReceptionPackagePreview({
       <div className="reception-package-preview-grid">
         {showCountry && (
           <div>
-            <span>Country</span>
+            <span>{tx("Country", "کشور", "هېواد")}</span>
 
             <strong className="reception-package-country">
               {packageItem.country ? (
@@ -818,18 +861,18 @@ function ReceptionPackagePreview({
 
         {showCategory && (
           <div>
-            <span>Category</span>
+            <span>{tx("Category", "کتگوری", "کټګوري")}</span>
             <strong>{packageItem.category || "-"}</strong>
           </div>
         )}
 
         <div>
-          <span>Unit</span>
+          <span>{tx("Unit", "واحد", "واحد")}</span>
           <strong>{currency}</strong>
         </div>
 
         <div>
-          <span>Selling Price</span>
+          <span>{tx("Selling Price", "قیمت فروش", "د پلور بیه")}</span>
           <strong>
             {packageMoney(packageItem.sellingPrice, currency)}
           </strong>
@@ -838,12 +881,12 @@ function ReceptionPackagePreview({
         {showDates && (
           <>
             <div>
-              <span>Start Date</span>
+              <span>{tx("Start Date", "تاریخ شروع", "د پیل نېټه")}</span>
               <strong>{packageItem.startDate || "-"}</strong>
             </div>
 
             <div>
-              <span>End Date</span>
+              <span>{tx("End Date", "تاریخ ختم", "د پای نېټه")}</span>
               <strong>{packageItem.endDate || "-"}</strong>
             </div>
           </>
@@ -851,7 +894,7 @@ function ReceptionPackagePreview({
 
         {showBankStatement && (
           <div>
-            <span>Bank Statement</span>
+            <span>{tx("Bank Statement", "استیتمنت بانکی", "بانکي سټېټمنټ")}</span>
             <strong>
               {packageItem.bankStatementRequired === "Yes"
                 ? packageMoney(
@@ -865,7 +908,7 @@ function ReceptionPackagePreview({
 
         {showDocumentation && (
           <div className="reception-package-documentation">
-            <span>Documentation</span>
+            <span>{tx("Documentation", "اسناد", "اسناد")}</span>
 
             <strong>
               {packageItem.documentationRequired === "Yes"
@@ -892,7 +935,7 @@ function ReceptionPackagePreview({
 
       {packageItem.note && (
         <div className="reception-package-preview-note">
-          <span>Package Note</span>
+          <span>{tx("Package Note", "یادداشت پکیج", "د بستې یادښت")}</span>
           <p>{packageItem.note}</p>
         </div>
       )}
@@ -1102,6 +1145,124 @@ export default function Reception({ currentUser }) {
   const [showForm, setShowForm] = useState(false);
   const [registrationType, setRegistrationType] =
     useState("consultant");
+
+  const [interfaceLanguage, setInterfaceLanguage] = useState(
+    () => localStorage.getItem("isp-language") || "en"
+  );
+
+  useEffect(() => {
+    const syncInterfaceLanguage = (event) => {
+      const nextLanguage =
+        event?.detail ||
+        localStorage.getItem("isp-language") ||
+        "en";
+
+      setInterfaceLanguage(nextLanguage);
+    };
+
+    window.addEventListener(
+      "isp-language-changed",
+      syncInterfaceLanguage
+    );
+    window.addEventListener(
+      "storage",
+      syncInterfaceLanguage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncInterfaceLanguage
+      );
+      window.removeEventListener(
+        "storage",
+        syncInterfaceLanguage
+      );
+    };
+  }, []);
+
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
+
+  const registrationTypeText = {
+    consultant: {
+      title: tx(
+        "Register Consultant Customer",
+        "ثبت مشتری مشاوره",
+        "مشورتي پېرودونکی ثبت کړئ"
+      ),
+      description: tx(
+        "Register an educational or consulting customer.",
+        "مشتری خدمات تحصیلی یا مشاوره را ثبت کنید.",
+        "تعلیمي یا مشورتي پېرودونکی ثبت کړئ."
+      ),
+    },
+    travel: {
+      title: tx(
+        "Register Travel Customer",
+        "ثبت مشتری سفر",
+        "د سفر پېرودونکی ثبت کړئ"
+      ),
+      description: tx(
+        "Register a customer for travel services.",
+        "مشتری خدمات سفر را ثبت کنید.",
+        "د سفر خدماتو پېرودونکی ثبت کړئ."
+      ),
+    },
+    technology: {
+      title: tx(
+        "Register Technology Customer",
+        "ثبت مشتری تکنالوژی",
+        "د ټکنالوژۍ پېرودونکی ثبت کړئ"
+      ),
+      description: tx(
+        "Register a technology service customer.",
+        "مشتری خدمات تکنالوژی را ثبت کنید.",
+        "د ټکنالوژۍ خدماتو پېرودونکی ثبت کړئ."
+      ),
+    },
+    media: {
+      title: tx(
+        "Add Media Product",
+        "افزودن محصول رسانه‌ای",
+        "رسنیز محصول زیات کړئ"
+      ),
+      description: tx(
+        "Register video or social media content.",
+        "ویدیو یا محتوای شبکه‌های اجتماعی را ثبت کنید.",
+        "ویډیو یا د ټولنیزو رسنیو محتوا ثبت کړئ."
+      ),
+    },
+  };
+
+  const translateReceptionValue = (value) => {
+    const labels = {
+      consultant: tx("Consultant", "مشاوره", "مشوره"),
+      travel: tx("Travel", "سفر", "سفر"),
+      technology: tx("Technology", "تکنالوژی", "ټکنالوژي"),
+      media: tx("Media", "رسانه", "رسنۍ"),
+      Website: tx("Website", "وب‌سایت", "وېب‌سایټ"),
+      Application: tx("Application", "اپلیکیشن", "اپلېکېشن"),
+      Software: tx("Software", "نرم‌افزار", "سافټویر"),
+      Other: tx("Other", "دیگر", "نور"),
+      None: tx("None", "هیچ", "هیڅ"),
+      Pending: tx("Pending", "در انتظار", "په تمه"),
+      Approved: tx("Approved", "تأییدشده", "تأیید شوی"),
+      Rejected: tx("Rejected", "ردشده", "رد شوی"),
+      Assigned: tx("Assigned", "ارجاع‌شده", "سپارل شوی"),
+      "Walk in Customer": tx(
+        "Walk in Customer",
+        "مشتری حضوری",
+        "حضوري پېرودونکی"
+      ),
+    };
+
+    return labels[String(value || "")] || value;
+  };
 
   const [consultantForm, setConsultantForm] = useState(
     createConsultantForm
@@ -3314,22 +3475,24 @@ const mediaCount =
   }
 
   return (
-    <div className="reception-page">
+    <div className={`reception-page ${interfaceLanguage !== "en" ? "reception-page-rtl" : ""}`}>
       <header className="reception-heading">
         <div>
-          <span>Customer Registration</span>
-          <h1>Reception</h1>
+          <span>{tx("Customer Registration", "ثبت مشتریان", "د پېرودونکو ثبت")}</span>
+          <h1>{tx("Reception", "پذیرش", "استقبال")}</h1>
 
           <p>
-            Register consultant, travel, technology
-            customers and media products from one
-            workspace.
+            {tx(
+              "Register consultant, travel, technology customers and media products from one workspace.",
+              "مشتریان مشاوره، سفر، تکنالوژی و محصولات رسانه‌ای را از یک بخش ثبت کنید.",
+              "مشورتي، سفري، ټکنالوژۍ پېرودونکي او رسنیز محصولات له یوه ځایه ثبت کړئ."
+            )}
           </p>
         </div>
 
         <button type="button" onClick={openAddForm}>
           <Plus size={17} />
-          Add Customer
+          {tx("Add Customer", "افزودن مشتری", "پېرودونکی زیاتول")}
         </button>
       </header>
 
@@ -3340,9 +3503,9 @@ const mediaCount =
     onClick={() => setCustomerTypeFilter("all")}
   >
     <Users />
-    <span>Total Customers</span>
+    <span>{tx("Total Customers", "مجموع مشتریان", "ټول پېرودونکي")}</span>
     <strong>{receptionRegisteredCustomers.length}</strong>
-    <small>Registered through reception</small>
+    <small>{tx("Registered through reception", "ثبت‌شده از طریق پذیرش", "د استقبال له لارې ثبت شوي")}</small>
   </button>
 
   <button
@@ -3351,9 +3514,9 @@ const mediaCount =
     onClick={() => setCustomerTypeFilter("consultant")}
   >
     <BriefcaseBusiness />
-    <span>Consultant Customers</span>
+    <span>{tx("Consultant Customers", "مشتریان مشاوره", "مشورتي پېرودونکي")}</span>
     <strong>{consultantCount}</strong>
-    <small>Consultation records</small>
+    <small>{tx("Consultation records", "سوابق مشاوره", "د مشورې ریکارډونه")}</small>
   </button>
 
   <button
@@ -3362,9 +3525,9 @@ const mediaCount =
     onClick={() => setCustomerTypeFilter("travel")}
   >
     <Plane />
-    <span>Travel Customers</span>
+    <span>{tx("Travel Customers", "مشتریان سفر", "د سفر پېرودونکي")}</span>
     <strong>{travelCount}</strong>
-    <small>Travel service records</small>
+    <small>{tx("Travel service records", "سوابق خدمات سفر", "د سفر خدماتو ریکارډونه")}</small>
   </button>
 
   <button
@@ -3373,9 +3536,9 @@ const mediaCount =
     onClick={() => setCustomerTypeFilter("technology")}
   >
     <Cpu />
-    <span>Technology Customers</span>
+    <span>{tx("Technology Customers", "مشتریان تکنالوژی", "د ټکنالوژۍ پېرودونکي")}</span>
     <strong>{technologyCount}</strong>
-    <small>Technology service records</small>
+    <small>{tx("Technology service records", "سوابق خدمات تکنالوژی", "د ټکنالوژۍ خدماتو ریکارډونه")}</small>
   </button>
 
   <button
@@ -3390,9 +3553,9 @@ const mediaCount =
     }
   >
     <Clapperboard />
-    <span>Media Products</span>
+    <span>{tx("Media Products", "محصولات رسانه‌ای", "رسنیز محصولات")}</span>
     <strong>{mediaCount}</strong>
-    <small>Videos and posts</small>
+    <small>{tx("Videos and posts", "ویدیوها و پست‌ها", "ویډیوګانې او پوسټونه")}</small>
   </button>
 </section>
 
@@ -3401,17 +3564,22 @@ const mediaCount =
           <div>
             <h2>
               {customerTypeFilter === "all"
-                ? "Recent Customers"
+                ? tx("Recent Customers", "مشتریان اخیر", "وروستي پېرودونکي")
                 : customerTypeFilter === "consultant"
-                  ? "Consultant Customers"
+                  ? tx("Consultant Customers", "مشتریان مشاوره", "مشورتي پېرودونکي")
                   : customerTypeFilter === "travel"
-                    ? "Travel Customers"
-                    : "Technology Customers"}
+                    ? tx("Travel Customers", "مشتریان سفر", "د سفر پېرودونکي")
+                    : customerTypeFilter === "media"
+                      ? tx("Media Products", "محصولات رسانه‌ای", "رسنیز محصولات")
+                      : tx("Technology Customers", "مشتریان تکنالوژی", "د ټکنالوژۍ پېرودونکي")}
             </h2>
 
             <p>
-              Customers registered from the Reception
-              page.
+              {tx(
+                "Customers registered from the Reception page.",
+                "مشتریانی که از صفحه پذیرش ثبت شده‌اند.",
+                "هغه پېرودونکي چې د استقبال له پاڼې ثبت شوي."
+              )}
             </p>
           </div>
 
@@ -3423,7 +3591,7 @@ const mediaCount =
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="Search customers..."
+              placeholder={tx("Search customers...", "جستجوی مشتریان...", "پېرودونکي ولټوئ...")}
             />
           </label>
         </div>
@@ -3432,15 +3600,15 @@ const mediaCount =
           <table>
             <thead>
               <tr>
-                <th>Customer</th>
-                <th>Phone</th>
-                <th>Customer Type</th>
-                <th>Source</th>
-                <th>Assigned To</th>
-                <th>Purpose</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>Action</th>
+                <th>{tx("Customer", "مشتری", "پېرودونکی")}</th>
+                <th>{tx("Phone", "شماره تماس", "د تلیفون شمېره")}</th>
+                <th>{tx("Customer Type", "نوع مشتری", "د پېرودونکي ډول")}</th>
+                <th>{tx("Source", "منبع", "سرچینه")}</th>
+                <th>{tx("Assigned To", "ارجاع به", "سپارل شوی")}</th>
+                <th>{tx("Purpose", "هدف", "موخه")}</th>
+                <th>{tx("Date", "تاریخ", "نېټه")}</th>
+                <th>{tx("Status", "وضعیت", "حالت")}</th>
+                <th>{tx("Action", "عملیات", "عمل")}</th>
               </tr>
             </thead>
 
@@ -3472,7 +3640,7 @@ const mediaCount =
                     <span
                       className={`reception-type-badge ${customer.customerType}`}
                     >
-                      {customer.customerType || "-"}
+                      {translateReceptionValue(customer.customerType) || "-"}
                     </span>
                   </td>
 
@@ -3491,7 +3659,7 @@ const mediaCount =
       onClick={() =>
         openAssignModal(customer)
       }
-      title="Change assigned employee"
+      title={tx("Change assigned employee", "تغییر کارمند ارجاع‌شده", "سپارل شوی کارکوونکی بدلول")}
     >
       <UserRound size={13} />
 
@@ -3506,8 +3674,8 @@ const mediaCount =
       onClick={() =>
         openAssignModal(customer)
       }
-      title="Assign this customer"
-      aria-label="Assign customer"
+      title={tx("Assign this customer", "ارجاع این مشتری", "دا پېرودونکی سپارل")}
+      aria-label={tx("Assign customer", "ارجاع مشتری", "پېرودونکی سپارل")}
     >
       <ArrowRight size={17} />
     </button>
@@ -3573,7 +3741,7 @@ const mediaCount =
                         .toLowerCase()
                         .replace(/\s+/g, "-")}`}
                     >
-                      {getCustomerDisplayStatus(customer)}
+                      {translateReceptionValue(getCustomerDisplayStatus(customer))}
                     </span>
                   </td>
 
@@ -3585,8 +3753,8 @@ const mediaCount =
                         onClick={() =>
                           setViewCustomer(customer)
                         }
-                        title="View customer"
-                        aria-label="View customer"
+                        title={tx("View customer", "نمایش مشتری", "پېرودونکی کتل")}
+                        aria-label={tx("View customer", "نمایش مشتری", "پېرودونکی کتل")}
                       >
                         <Eye size={14} />
                       </button>
@@ -3597,8 +3765,8 @@ const mediaCount =
                         onClick={() =>
                           openEditCustomer(customer)
                         }
-                        title="Edit customer"
-                        aria-label="Edit customer"
+                        title={tx("Edit customer", "ویرایش مشتری", "پېرودونکی سمول")}
+                        aria-label={tx("Edit customer", "ویرایش مشتری", "پېرودونکی سمول")}
                       >
                         <Pencil size={14} />
                       </button>
@@ -3609,8 +3777,8 @@ const mediaCount =
                         onClick={() =>
                           setDeleteCustomer(customer)
                         }
-                        title="Delete customer"
-                        aria-label="Delete customer"
+                        title={tx("Delete customer", "حذف مشتری", "پېرودونکی حذف کول")}
+                        aria-label={tx("Delete customer", "حذف مشتری", "پېرودونکی حذف کول")}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -3625,8 +3793,11 @@ const mediaCount =
                     colSpan="9"
                     className="reception-empty"
                   >
-                    No reception customers registered
-                    yet.
+                    {tx(
+                      "No reception customers registered yet.",
+                      "هنوز هیچ مشتری از طریق پذیرش ثبت نشده است.",
+                      "تر اوسه د استقبال له لارې هېڅ پېرودونکی نه دی ثبت شوی."
+                    )}
                   </td>
                 </tr>
               )}
@@ -3683,7 +3854,7 @@ const mediaCount =
                 </label>
 
                 <label>
-                  <span>Phone Number</span>
+                  <span>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</span>
 
                   <input
                     value={
@@ -3720,7 +3891,7 @@ const mediaCount =
                 </label>
 
                 <label>
-                  <span>Source</span>
+                  <span>{tx("Source", "منبع", "سرچینه")}</span>
 
                   <input
                     value={
@@ -3765,7 +3936,7 @@ const mediaCount =
 
                 {assignTarget.email && (
                   <label>
-                    <span>Email</span>
+                    <span>{tx("Email", "ایمیل", "برېښنالیک")}</span>
 
                     <input
                       value={assignTarget.email}
@@ -3802,7 +3973,7 @@ const mediaCount =
 
                 {assignTarget.companyName && (
                   <label>
-                    <span>Company Name</span>
+                    <span>{tx("Company Name", "نام شرکت", "د شرکت نوم")}</span>
 
                     <input
                       value={
@@ -3814,7 +3985,7 @@ const mediaCount =
                 )}
 
                 <label className="reception-assign-full">
-                  <span>Purpose</span>
+                  <span>{tx("Purpose", "هدف", "موخه")}</span>
 
                   <textarea
                     value={
@@ -3827,7 +3998,7 @@ const mediaCount =
                   />
                 </label>
 <label className="reception-assign-full reception-assign-select">
-                  <span>Assign To</span>
+                  <span>{tx("Assign To", "ارجاع به", "سپارل")}</span>
 
                   <select
                     value={assignEmployeeId}
@@ -4089,24 +4260,26 @@ const mediaCount =
           >
             <div className="reception-modal-header">
               <div>
-                <span>Reception Registration</span>
+                <span>{tx("Reception Registration", "ثبت از پذیرش", "د استقبال ثبت")}</span>
 
                 <h2>
-                  {getRegistrationTitle(
-                    registrationType
-                  )}
+                  {registrationTypeText[registrationType]?.title ||
+                    tx("Register Customer", "ثبت مشتری", "پېرودونکی ثبت کړئ")}
                 </h2>
 
                 <p>
-                  Select the registration type and
-                  complete the required information.
+                  {tx(
+                    "Select the registration type and complete the required information.",
+                    "نوع ثبت را انتخاب کرده و معلومات مورد نیاز را تکمیل کنید.",
+                    "د ثبت ډول وټاکئ او اړین معلومات بشپړ کړئ."
+                  )}
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={closeForm}
-                aria-label="Close"
+                aria-label={tx("Close", "بستن", "تړل")}
               >
                 <X size={18} />
               </button>
@@ -4134,9 +4307,13 @@ const mediaCount =
                         <Icon size={18} />
 
                         <span>
-                          <strong>{type.title}</strong>
+                          <strong>
+                            {registrationTypeText[type.key]?.title ||
+                              type.title}
+                          </strong>
                           <small>
-                            {type.description}
+                            {registrationTypeText[type.key]?.description ||
+                              type.description}
                           </small>
                         </span>
                       </button>
@@ -4149,23 +4326,25 @@ const mediaCount =
                     <div className="reception-form-grid">
                       <div className="reception-package-section reception-form-full">
                         <SearchablePackageSelect
-                          label="Visa Package"
+                          label={tx("Visa Package", "پکیج ویزه", "د ویزې بسته")}
                           packages={availableVisaPackages}
                           value={consultantForm.selectedPackageId}
                           onChange={updateConsultantField}
-                          placeholder="Select registered visa package"
+                          placeholder={tx("Select registered visa package", "پکیج ویزه ثبت‌شده را انتخاب کنید", "ثبت شوې د ویزې بسته وټاکئ")}
+                          interfaceLanguage={interfaceLanguage}
                         />
 
                         {!visaPackagesLoaded && (
-                          <p className="reception-package-message">Loading Visa Packages...</p>
+                          <p className="reception-package-message">{tx("Loading Visa Packages...", "در حال بارگذاری پکیج‌های ویزه...", "د ویزې بستې بارېږي...")}</p>
                         )}
                         {visaPackagesLoaded && !availableVisaPackages.length && (
-                          <p className="reception-package-message">No available Visa Packages found.</p>
+                          <p className="reception-package-message">{tx("No available Visa Packages found.", "هیچ پکیج ویزه موجود پیدا نشد.", "د ویزې شته بسته ونه موندل شوه.")}</p>
                         )}
 
                         <ReceptionPackagePreview
-                          title="SELECTED VISA PACKAGE"
+                          title={tx("SELECTED VISA PACKAGE", "پکیج ویزه انتخاب‌شده", "ټاکل شوې د ویزې بسته")}
                           packageItem={selectedVisaPackage}
+                          interfaceLanguage={interfaceLanguage}
                           showCountry
                           showCategory
                           showDates
@@ -4175,46 +4354,46 @@ const mediaCount =
                       </div>
 
                       <label>
-                        <span>Full Name In Passport</span>
+                        <span>{tx("Full Name In Passport", "نام کامل مطابق پاسپورت", "بشپړ نوم د پاسپورټ مطابق")}</span>
                         <input
                           name="fullName"
                           value={consultantForm.fullName}
                           onChange={updateConsultantField}
-                          placeholder="Enter full name in passport"
+                          placeholder={tx("Enter full name in passport", "نام کامل مطابق پاسپورت را وارد کنید", "بشپړ نوم د پاسپورټ مطابق ولیکئ")}
                           autoFocus
                         />
                       </label>
 
                       <label>
-                        <span>Phone Number</span>
+                        <span>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</span>
                         <input
                           name="phone"
                           value={consultantForm.phone}
                           onChange={updateConsultantField}
-                          placeholder="Enter phone number"
+                          placeholder={tx("Enter phone number", "شماره تماس را وارد کنید", "د تلیفون شمېره ولیکئ")}
                         />
                       </label>
 
                       <label>
-                        <span>Email</span>
+                        <span>{tx("Email", "ایمیل", "برېښنالیک")}</span>
                         <input
                           type="email"
                           name="email"
                           value={consultantForm.email}
                           onChange={updateConsultantField}
-                          placeholder="Enter email address"
+                          placeholder={tx("Enter email address", "آدرس ایمیل را وارد کنید", "برېښنالیک ولیکئ")}
                         />
                       </label>
 
                       <label>
-                        <span>Source</span>
+                        <span>{tx("Source", "منبع", "سرچینه")}</span>
                         <select
                           name="source"
                           value={consultantForm.source}
                           onChange={updateConsultantField}
                         >
-                          <option value="">Select source employee</option>
-                          <option value="Walk in Customer">Walk in Customer</option>
+                          <option value="">{tx("Select source employee", "کارمند منبع را انتخاب کنید", "د سرچینې کارکوونکی وټاکئ")}</option>
+                          <option value="Walk in Customer">{tx("Walk in Customer", "مشتری حضوری", "حضوري پېرودونکی")}</option>
                           {employeeOptions.map((employee) => {
                             const employeeName = getEmployeeName(employee);
                             return (
@@ -4230,13 +4409,13 @@ const mediaCount =
                       </label>
 
                       <label>
-                        <span>Assign To</span>
+                        <span>{tx("Assign To", "ارجاع به", "سپارل")}</span>
                         <select
                           name="assignedEmployeeId"
                           value={consultantForm.assignedEmployeeId}
                           onChange={updateConsultantField}
                         >
-                          <option value="">Select employee</option>
+                          <option value="">{tx("Select employee", "کارمند را انتخاب کنید", "کارکوونکی وټاکئ")}</option>
                           {employeeOptions.map((employee) => (
                             <option
                               key={employee.id || employee.employeeId || employee.email}
@@ -4249,12 +4428,12 @@ const mediaCount =
                       </label>
 
                       <label className="reception-form-full">
-                        <span>Purpose</span>
+                        <span>{tx("Purpose", "هدف", "موخه")}</span>
                         <textarea
                           name="purpose"
                           value={consultantForm.purpose}
                           onChange={updateConsultantField}
-                          placeholder="Enter customer purpose"
+                          placeholder={tx("Enter customer purpose", "هدف مشتری را وارد کنید", "د پېرودونکي موخه ولیکئ")}
                           rows="4"
                         />
                       </label>
@@ -4265,23 +4444,25 @@ const mediaCount =
                   <div className="reception-form-grid">
                     <div className="reception-package-section reception-form-full">
                       <SearchablePackageSelect
-                        label="Travel Package"
+                        label={tx("Travel Package", "پکیج سفر", "د سفر بسته")}
                         packages={availableTravelPackages}
                         value={travelForm.selectedPackageId}
                         onChange={updateTravelField}
-                        placeholder="Select registered travel package"
+                        placeholder={tx("Select registered travel package", "پکیج سفر ثبت‌شده را انتخاب کنید", "ثبت شوې د سفر بسته وټاکئ")}
+                        interfaceLanguage={interfaceLanguage}
                       />
 
                       {!travelPackagesLoaded && (
-                        <p className="reception-package-message">Loading Travel Packages...</p>
+                        <p className="reception-package-message">{tx("Loading Travel Packages...", "در حال بارگذاری پکیج‌های سفر...", "د سفر بستې بارېږي...")}</p>
                       )}
                       {travelPackagesLoaded && !availableTravelPackages.length && (
-                        <p className="reception-package-message">No available Travel Packages found.</p>
+                        <p className="reception-package-message">{tx("No available Travel Packages found.", "هیچ پکیج سفر موجود پیدا نشد.", "د سفر شته بسته ونه موندل شوه.")}</p>
                       )}
 
                       <ReceptionPackagePreview
-                        title="SELECTED TRAVEL PACKAGE"
+                        title={tx("SELECTED TRAVEL PACKAGE", "پکیج سفر انتخاب‌شده", "ټاکل شوې د سفر بسته")}
                         packageItem={selectedTravelPackage}
+                        interfaceLanguage={interfaceLanguage}
                         showCountry
                         showCategory
                         showDates
@@ -4290,35 +4471,35 @@ const mediaCount =
                     </div>
 
                     <label>
-                      <span>Full Name In Passport</span>
+                      <span>{tx("Full Name In Passport", "نام کامل مطابق پاسپورت", "بشپړ نوم د پاسپورټ مطابق")}</span>
                       <input
                         name="fullName"
                         value={travelForm.fullName}
                         onChange={updateTravelField}
-                        placeholder="Enter full name in passport"
+                        placeholder={tx("Enter full name in passport", "نام کامل مطابق پاسپورت را وارد کنید", "بشپړ نوم د پاسپورټ مطابق ولیکئ")}
                         autoFocus
                       />
                     </label>
 
                     <label>
-                      <span>Phone Number</span>
+                      <span>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</span>
                       <input
                         name="phone"
                         value={travelForm.phone}
                         onChange={updateTravelField}
-                        placeholder="Enter phone number"
+                        placeholder={tx("Enter phone number", "شماره تماس را وارد کنید", "د تلیفون شمېره ولیکئ")}
                       />
                     </label>
 
                     <label>
-                      <span>Source</span>
+                      <span>{tx("Source", "منبع", "سرچینه")}</span>
                       <select
                         name="source"
                         value={travelForm.source}
                         onChange={updateTravelField}
                       >
-                        <option value="">Select source employee</option>
-                        <option value="Walk in Customer">Walk in Customer</option>
+                        <option value="">{tx("Select source employee", "کارمند منبع را انتخاب کنید", "د سرچینې کارکوونکی وټاکئ")}</option>
+                        <option value="Walk in Customer">{tx("Walk in Customer", "مشتری حضوری", "حضوري پېرودونکی")}</option>
                         {employeeOptions.map((employee) => {
                           const employeeName = getEmployeeName(employee);
                           return (
@@ -4334,13 +4515,13 @@ const mediaCount =
                     </label>
 
                     <label>
-                      <span>Assign To</span>
+                      <span>{tx("Assign To", "ارجاع به", "سپارل")}</span>
                       <select
                         name="assignedEmployeeId"
                         value={travelForm.assignedEmployeeId}
                         onChange={updateTravelField}
                       >
-                        <option value="">Select employee</option>
+                        <option value="">{tx("Select employee", "کارمند را انتخاب کنید", "کارکوونکی وټاکئ")}</option>
                         {employeeOptions.map((employee) => (
                           <option
                             key={employee.id || employee.employeeId || employee.email}
@@ -4353,12 +4534,12 @@ const mediaCount =
                     </label>
 
                     <label className="reception-form-full">
-                      <span>Purpose</span>
+                      <span>{tx("Purpose", "هدف", "موخه")}</span>
                       <textarea
                         name="purpose"
                         value={travelForm.purpose}
                         onChange={updateTravelField}
-                        placeholder="Enter customer purpose"
+                        placeholder={tx("Enter customer purpose", "هدف مشتری را وارد کنید", "د پېرودونکي موخه ولیکئ")}
                         rows="4"
                       />
                     </label>
@@ -4370,59 +4551,61 @@ const mediaCount =
                     <div className="reception-form-grid">
                       <div className="reception-package-section reception-form-full">
                         <SearchablePackageSelect
-                          label="Technology Package"
+                          label={tx("Technology Package", "پکیج تکنالوژی", "د ټکنالوژۍ بسته")}
                           packages={technologyPackages}
                           value={technologyForm.selectedPackageId}
                           onChange={updateTechnologyField}
-                          placeholder="Select registered technology package"
+                          placeholder={tx("Select registered technology package", "پکیج تکنالوژی ثبت‌شده را انتخاب کنید", "ثبت شوې د ټکنالوژۍ بسته وټاکئ")}
+                          interfaceLanguage={interfaceLanguage}
                         />
 
                         {!technologyPackagesLoaded && (
-                          <p className="reception-package-message">Loading Technology Packages...</p>
+                          <p className="reception-package-message">{tx("Loading Technology Packages...", "در حال بارگذاری پکیج‌های تکنالوژی...", "د ټکنالوژۍ بستې بارېږي...")}</p>
                         )}
                         {technologyPackagesLoaded && !technologyPackages.length && (
-                          <p className="reception-package-message">No Technology Packages have been registered yet.</p>
+                          <p className="reception-package-message">{tx("No Technology Packages have been registered yet.", "هنوز هیچ پکیج تکنالوژی ثبت نشده است.", "تر اوسه د ټکنالوژۍ هېڅ بسته نه ده ثبت شوې.")}</p>
                         )}
 
                         <ReceptionPackagePreview
-                          title="SELECTED TECHNOLOGY PACKAGE"
+                          title={tx("SELECTED TECHNOLOGY PACKAGE", "پکیج تکنالوژی انتخاب‌شده", "ټاکل شوې د ټکنالوژۍ بسته")}
                           packageItem={selectedTechnologyPackage}
+                          interfaceLanguage={interfaceLanguage}
                         />
                       </div>
 
                       <label>
-                        <span>Full Name</span>
+                        <span>{tx("Full Name", "نام کامل", "بشپړ نوم")}</span>
                         <input
                           name="fullName"
                           value={technologyForm.fullName}
                           onChange={updateTechnologyField}
-                          placeholder="Enter full name"
+                          placeholder={tx("Enter full name", "نام کامل را وارد کنید", "بشپړ نوم ولیکئ")}
                           autoFocus
                         />
                       </label>
 
                       <label>
-                        <span>Company Name</span>
+                        <span>{tx("Company Name", "نام شرکت", "د شرکت نوم")}</span>
                         <input
                           name="companyName"
                           value={technologyForm.companyName}
                           onChange={updateTechnologyField}
-                          placeholder="Enter company name"
+                          placeholder={tx("Enter company name", "نام شرکت را وارد کنید", "د شرکت نوم ولیکئ")}
                         />
                       </label>
 
                       <label>
-                        <span>Contact Number</span>
+                        <span>{tx("Contact Number", "شماره تماس", "د اړیکې شمېره")}</span>
                         <input
                           name="contactNumber"
                           value={technologyForm.contactNumber}
                           onChange={updateTechnologyField}
-                          placeholder="Enter contact number"
+                          placeholder={tx("Enter contact number", "شماره تماس را وارد کنید", "د اړیکې شمېره ولیکئ")}
                         />
                       </label>
 
                       <label>
-                        <span>Purpose</span>
+                        <span>{tx("Purpose", "هدف", "موخه")}</span>
                         <select
                           name="technologyPurpose"
                           value={technologyForm.technologyPurpose}
@@ -4430,21 +4613,21 @@ const mediaCount =
                         >
                           {technologyPurposes.map((purpose) => (
                             <option key={purpose} value={purpose}>
-                              {purpose}
+                              {translateReceptionValue(purpose)}
                             </option>
                           ))}
                         </select>
                       </label>
 
                       <label>
-                        <span>Source</span>
+                        <span>{tx("Source", "منبع", "سرچینه")}</span>
                         <select
                           name="source"
                           value={technologyForm.source}
                           onChange={updateTechnologyField}
                         >
-                          <option value="">Select source employee</option>
-                          <option value="Walk in Customer">Walk in Customer</option>
+                          <option value="">{tx("Select source employee", "کارمند منبع را انتخاب کنید", "د سرچینې کارکوونکی وټاکئ")}</option>
+                          <option value="Walk in Customer">{tx("Walk in Customer", "مشتری حضوری", "حضوري پېرودونکی")}</option>
                           {employeeOptions.map((employee) => {
                             const employeeName = getEmployeeName(employee);
                             return (
@@ -4460,13 +4643,13 @@ const mediaCount =
                       </label>
 
                       <label>
-                        <span>Assign To</span>
+                        <span>{tx("Assign To", "ارجاع به", "سپارل")}</span>
                         <select
                           name="assignedEmployeeId"
                           value={technologyForm.assignedEmployeeId}
                           onChange={updateTechnologyField}
                         >
-                          <option value="">Select employee</option>
+                          <option value="">{tx("Select employee", "کارمند را انتخاب کنید", "کارکوونکی وټاکئ")}</option>
                           {employeeOptions.map((employee) => (
                             <option
                               key={employee.id || employee.employeeId || employee.email}
@@ -4479,12 +4662,12 @@ const mediaCount =
                       </label>
 
                       <label className="reception-form-full">
-                        <span>Note</span>
+                        <span>{tx("Note", "یادداشت", "یادښت")}</span>
                         <textarea
                           name="note"
                           value={technologyForm.note}
                           onChange={updateTechnologyField}
-                          placeholder="Write additional notes"
+                          placeholder={tx("Write additional notes", "یادداشت اضافی بنویسید", "اضافي یادښت ولیکئ")}
                           rows="4"
                         />
                       </label>
@@ -4495,69 +4678,71 @@ const mediaCount =
                   <div className="reception-form-grid">
                     <div className="reception-package-section reception-form-full">
                       <SearchablePackageSelect
-                        label="Media Package"
+                        label={tx("Media Package", "پکیج رسانه", "رسنیزه بسته")}
                         packages={mediaPackages}
                         value={mediaForm.selectedPackageId}
                         onChange={updateMediaField}
-                        placeholder="Select registered media package"
+                        placeholder={tx("Select registered media package", "پکیج رسانه ثبت‌شده را انتخاب کنید", "ثبت شوې رسنیزه بسته وټاکئ")}
+                        interfaceLanguage={interfaceLanguage}
                       />
 
                       {!mediaPackagesLoaded && (
-                        <p className="reception-package-message">Loading Media Packages...</p>
+                        <p className="reception-package-message">{tx("Loading Media Packages...", "در حال بارگذاری پکیج‌های رسانه...", "رسنیزې بستې بارېږي...")}</p>
                       )}
                       {mediaPackagesLoaded && !mediaPackages.length && (
-                        <p className="reception-package-message">No Media Packages have been registered yet.</p>
+                        <p className="reception-package-message">{tx("No Media Packages have been registered yet.", "هنوز هیچ پکیج رسانه ثبت نشده است.", "تر اوسه هېڅ رسنیزه بسته نه ده ثبت شوې.")}</p>
                       )}
 
                       <ReceptionPackagePreview
-                        title="SELECTED MEDIA PACKAGE"
+                        title={tx("SELECTED MEDIA PACKAGE", "پکیج رسانه انتخاب‌شده", "ټاکل شوې رسنیزه بسته")}
                         packageItem={selectedMediaPackage}
+                        interfaceLanguage={interfaceLanguage}
                         showCountry
                         showCategory
                       />
                     </div>
 
                     <label>
-                      <span>Person Name</span>
+                      <span>{tx("Person Name", "نام شخص", "د شخص نوم")}</span>
                       <input
                         name="personName"
                         value={mediaForm.personName}
                         onChange={updateMediaField}
-                        placeholder="Enter person name"
+                        placeholder={tx("Enter person name", "نام شخص را وارد کنید", "د شخص نوم ولیکئ")}
                         autoFocus
                       />
                     </label>
 
                     <label>
-                      <span>Phone Number</span>
+                      <span>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</span>
                       <input
                         type="tel"
                         name="phone"
                         value={mediaForm.phone}
                         onChange={updateMediaField}
-                        placeholder="Enter phone number"
+                        placeholder={tx("Enter phone number", "شماره تماس را وارد کنید", "د تلیفون شمېره ولیکئ")}
                       />
                     </label>
 
                     <label>
-                      <span>Brand Name</span>
+                      <span>{tx("Brand Name", "نام برند", "د برانډ نوم")}</span>
                       <input
                         name="brandName"
                         value={mediaForm.brandName}
                         onChange={updateMediaField}
-                        placeholder="Enter brand name"
+                        placeholder={tx("Enter brand name", "نام برند را وارد کنید", "د برانډ نوم ولیکئ")}
                       />
                     </label>
 
                     <label>
-                      <span>Source</span>
+                      <span>{tx("Source", "منبع", "سرچینه")}</span>
                       <select
                         name="source"
                         value={mediaForm.source}
                         onChange={updateMediaField}
                       >
-                        <option value="">Select source employee</option>
-                        <option value="Walk in Customer">Walk in Customer</option>
+                        <option value="">{tx("Select source employee", "کارمند منبع را انتخاب کنید", "د سرچینې کارکوونکی وټاکئ")}</option>
+                        <option value="Walk in Customer">{tx("Walk in Customer", "مشتری حضوری", "حضوري پېرودونکی")}</option>
                         {employeeOptions.map((employee) => {
                           const employeeName = getEmployeeName(employee);
                           return (
@@ -4573,13 +4758,13 @@ const mediaCount =
                     </label>
 
                     <label>
-                      <span>Assign To</span>
+                      <span>{tx("Assign To", "ارجاع به", "سپارل")}</span>
                       <select
                         name="assignedEmployeeId"
                         value={mediaForm.assignedEmployeeId}
                         onChange={updateMediaField}
                       >
-                        <option value="">Select employee</option>
+                        <option value="">{tx("Select employee", "کارمند را انتخاب کنید", "کارکوونکی وټاکئ")}</option>
                         {employeeOptions.map((employee) => {
                           const employeeId = employee.id || employee.employeeId || "";
                           return (
@@ -4592,12 +4777,12 @@ const mediaCount =
                     </label>
 
                     <label className="reception-form-full">
-                      <span>Note</span>
+                      <span>{tx("Note", "یادداشت", "یادښت")}</span>
                       <textarea
                         name="note"
                         value={mediaForm.note}
                         onChange={updateMediaField}
-                        placeholder="Write additional notes"
+                        placeholder={tx("Write additional notes", "یادداشت اضافی بنویسید", "اضافي یادښت ولیکئ")}
                         rows="4"
                       />
                     </label>
@@ -4610,15 +4795,15 @@ const mediaCount =
                   type="button"
                   onClick={closeForm}
                 >
-                  Cancel
+                  {tx("Cancel", "لغو", "لغوه")}
                 </button>
 
                 <button type="submit">
                   <Plus size={15} />
 
                   {registrationType === "media"
-                    ? "Save Media Product"
-                    : "Register Customer"}
+                    ? tx("Save Media Product", "ذخیره محصول رسانه‌ای", "رسنیز محصول خوندي کړئ")
+                    : tx("Register Customer", "ثبت مشتری", "پېرودونکی ثبت کړئ")}
                 </button>
               </div>
             </form>

@@ -1198,3 +1198,75 @@ body.dark-mode
   .supplier-clickable-row:active {
   background: #334155 !important;
 }
+
+/* Component-owned RTL support for Suppliers */
+.suppliers-page-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.suppliers-page-rtl .drivers-header,
+.suppliers-page-rtl .drivers-table-header,
+.suppliers-page-rtl .driver-modal-header,
+.suppliers-page-rtl .driver-modal-actions,
+.suppliers-page-rtl .supplier-delete-actions {
+  direction: rtl;
+}
+
+.suppliers-page-rtl .drivers-header > div,
+.suppliers-page-rtl .drivers-table-header > div,
+.suppliers-page-rtl .driver-modal-header > div,
+.suppliers-page-rtl .form-group {
+  text-align: right;
+}
+
+.suppliers-page-rtl .drivers-table-header input,
+.suppliers-page-rtl .form-group input,
+.suppliers-page-rtl .form-group select,
+.suppliers-page-rtl .form-group textarea {
+  direction: rtl;
+  text-align: right;
+}
+
+.suppliers-page-rtl .drivers-table-card th,
+.suppliers-page-rtl .drivers-table-card td {
+  text-align: right !important;
+}
+
+.suppliers-page-rtl .drivers-table-card th:nth-child(8),
+.suppliers-page-rtl .drivers-table-card td:nth-child(8) {
+  text-align: center !important;
+}
+
+.suppliers-page-rtl .supplier-floating-menu button,
+.suppliers-page-rtl .supplier-floating-menu .supplier-menu-link {
+  direction: rtl;
+  justify-content: flex-start;
+  text-align: right;
+}
+
+.suppliers-page-rtl .supplier-custom-type-add,
+.suppliers-page-rtl .supplier-type-chips {
+  direction: rtl;
+}
+
+.suppliers-page-rtl .supplier-type-chips span {
+  margin-left: 0;
+  margin-right: 6px;
+}
+
+.suppliers-page-rtl .driver-modal-actions {
+  flex-direction: row-reverse;
+}
+
+.suppliers-page-rtl .supplier-delete-modal {
+  direction: rtl;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .suppliers-page-rtl .drivers-header,
+  .suppliers-page-rtl .drivers-table-header {
+    align-items: stretch;
+  }
+}

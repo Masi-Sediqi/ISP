@@ -1568,7 +1568,6 @@ useEffect(() => {
       </div>
   );
 }
-
 function Header({ currentUser, onLogout }) {
   const navigate = useNavigate();
   const searchRef = useRef(null);
@@ -1576,6 +1575,42 @@ function Header({ currentUser, onLogout }) {
   const [openSearch, setOpenSearch] = useState(false);
   const [resultFilter, setResultFilter] = useState("All");
 
+  const [selectedLanguage, setSelectedLanguage] = useState(
+    () => localStorage.getItem("isp-language") || "en"
+  );
+
+  useEffect(() => {
+    const syncLanguage = (event) => {
+      const language =
+        event?.detail ||
+        localStorage.getItem("isp-language") ||
+        "en";
+
+      setSelectedLanguage(language);
+    };
+
+    window.addEventListener(
+      "isp-language-changed",
+      syncLanguage
+    );
+
+    window.addEventListener(
+      "storage",
+      syncLanguage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncLanguage
+      );
+
+      window.removeEventListener(
+        "storage",
+        syncLanguage
+      );
+    };
+  }, []);
   const [assets] = useJsonCollection("assets");
   const [suppliers] = useJsonCollection("suppliers");
   const [supplierPurchases] = useJsonCollection("supplierPurchases");
@@ -1744,9 +1779,21 @@ function Header({ currentUser, onLogout }) {
     <header className="topbar">
       <div className="header-search global-search" ref={searchRef}>
         <Search size={17} />
-        <input
-  placeholder="Search Customer Name, Project, Payment, Supplier..."
-  aria-label="Search customers, projects, payments and suppliers"
+       <input
+  placeholder={
+    selectedLanguage === "dr"
+      ? "جستجوی نام مشتری، پروژه، پرداخت، تأمین‌کننده..."
+      : selectedLanguage === "ps"
+        ? "د پېرودونکي نوم، پروژه، تادیه او عرضه کوونکی ولټوئ..."
+        : "Search Customer Name, Project, Payment, Supplier..."
+  }
+  aria-label={
+    selectedLanguage === "dr"
+      ? "جستجوی مشتریان، پروژه‌ها، پرداخت‌ها و تأمین‌کنندگان"
+      : selectedLanguage === "ps"
+        ? "پېرودونکي، پروژې، تادیات او عرضه کوونکي ولټوئ"
+        : "Search customers, projects, payments and suppliers"
+  }
   value={query}
   onChange={(event) => {
     setQuery(event.target.value);
@@ -1758,8 +1805,22 @@ function Header({ currentUser, onLogout }) {
         {openSearch && query.trim().length >= 2 && (
           <div className="global-search-results">
             <div className="global-search-results-header">
-              <strong>System Search</strong>
-              <span>{searchResults.length} result(s)</span>
+             <strong>
+  {selectedLanguage === "dr"
+    ? "جستجوی سیستم"
+    : selectedLanguage === "ps"
+      ? "د سیسټم لټون"
+      : "System Search"}
+</strong>
+
+<span>
+  {searchResults.length}{" "}
+  {selectedLanguage === "dr"
+    ? "نتیجه"
+    : selectedLanguage === "ps"
+      ? "پایله"
+      : "result(s)"}
+</span>
             </div>
 
          

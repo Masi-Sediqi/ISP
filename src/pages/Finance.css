@@ -711,3 +711,81 @@ body.dark-mode .finance-delete-modal p {
     width: 100%;
   }
 }
+
+
+/* Component-owned RTL support for Finance */
+.finance-page-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.finance-page-rtl .finance-header,
+.finance-page-rtl .finance-table-header,
+.finance-page-rtl .finance-modal-header,
+.finance-page-rtl .finance-modal-actions,
+.finance-page-rtl .finance-delete-actions {
+  direction: rtl;
+}
+
+.finance-page-rtl .finance-header > div,
+.finance-page-rtl .finance-table-header > div,
+.finance-page-rtl .finance-chart-title,
+.finance-page-rtl .finance-modal-header > div,
+.finance-page-rtl .finance-form-group {
+  text-align: right;
+}
+
+.finance-page-rtl .finance-table-header input,
+.finance-page-rtl .finance-form-group input,
+.finance-page-rtl .finance-form-group select,
+.finance-page-rtl .finance-form-group textarea {
+  direction: rtl;
+  text-align: right;
+}
+
+.finance-page-rtl .finance-table-wrap th,
+.finance-page-rtl .finance-table-wrap td {
+  text-align: right;
+}
+
+.finance-page-rtl .finance-table-card th:last-child,
+.finance-page-rtl .finance-table-card td:last-child {
+  text-align: center;
+}
+
+.finance-page-rtl .finance-progress-list span {
+  direction: rtl;
+}
+
+.finance-page-rtl .finance-category-row,
+.finance-page-rtl .finance-category-manager,
+.finance-page-rtl .finance-category-item {
+  direction: rtl;
+}
+
+.finance-page-rtl .finance-action-menu {
+  right: auto;
+  left: 0;
+}
+
+.finance-page-rtl .finance-action-menu button {
+  direction: rtl;
+  text-align: right;
+}
+
+.finance-page-rtl .finance-modal-actions {
+  flex-direction: row-reverse;
+}
+
+.finance-page-rtl .finance-delete-modal {
+  direction: rtl;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .finance-page-rtl .finance-header,
+  .finance-page-rtl .finance-table-header,
+  .finance-page-rtl .finance-modal-header {
+    align-items: stretch;
+  }
+}

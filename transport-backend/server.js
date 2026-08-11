@@ -4,6 +4,7 @@ const fs = require("fs-extra");
 const path = require("path");
 const http = require("http");
 const os = require("os");
+const { execFile } = require("child_process");
 const { Server } = require("socket.io");
 const { answerAdvancedReport } = require("./advancedReport");
 const {
@@ -846,7 +847,24 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-app.get("/api/network-info", (req, res) => {
+function detectWifiName() {
+  if (process.platform !== "win32") return Promise.resolve("");
+
+  return new Promise((resolve) => {
+    execFile(
+      "netsh",
+      ["wlan", "show", "interfaces"],
+      { windowsHide: true, timeout: 3000 },
+      (error, stdout) => {
+        if (error) return resolve("");
+        const match = String(stdout || "").match(/^\s*SSID\s*:\s*(.+?)\s*$/mi);
+        resolve(match?.[1]?.trim() || "");
+      }
+    );
+  });
+}
+
+app.get("/api/network-info", async (req, res) => {
   const interfaces = os.networkInterfaces();
   const addresses = Object.entries(interfaces)
     .flatMap(([name, records]) =>
@@ -877,10 +895,13 @@ app.get("/api/network-info", (req, res) => {
     addresses[0] ||
     null;
 
+  const wifiName = await detectWifiName();
+
   res.json({
     hostname: os.hostname(),
     ipAddress: preferred?.address || "",
     adapterName: preferred?.name || "",
+    wifiName,
     addresses,
     webPort: Number(process.env.VITE_PORT || 5173),
     apiPort: Number(process.env.ISP_API_PORT || DEFAULT_PORT),

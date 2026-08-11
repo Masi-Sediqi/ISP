@@ -318,7 +318,14 @@ function getCountryFlagUrl(countryName) {
 function VisaCountrySelect({
   value,
   onChange,
+  interfaceLanguage = "en",
 }) {
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const wrapperRef = useRef(null);
@@ -394,7 +401,11 @@ function VisaCountrySelect({
           </span>
         ) : (
           <span className="visa-country-placeholder">
-            Select country
+            {tx(
+              "Select country",
+              "کشور را انتخاب کنید",
+              "هېواد وټاکئ"
+            )}
           </span>
         )}
 
@@ -411,7 +422,11 @@ function VisaCountrySelect({
             onChange={(event) =>
               setSearch(event.target.value)
             }
-            placeholder="Search country..."
+            placeholder={tx(
+              "Search country...",
+              "جستجوی کشور...",
+              "هېواد ولټوئ..."
+            )}
             autoFocus
           />
 
@@ -440,7 +455,13 @@ function VisaCountrySelect({
             ))}
 
             {!filteredCountries.length && (
-              <p>No country found.</p>
+              <p>
+                {tx(
+                  "No country found.",
+                  "کشوری پیدا نشد.",
+                  "هېواد ونه موندل شو."
+                )}
+              </p>
             )}
           </div>
         </div>
@@ -570,6 +591,67 @@ export default function VisaPackages() {
   const [newDocument, setNewDocument] = useState("");
   const [documentCreatorOpen, setDocumentCreatorOpen] =
     useState(false);
+
+  const [interfaceLanguage, setInterfaceLanguage] = useState(
+    () => localStorage.getItem("isp-language") || "en"
+  );
+
+  useEffect(() => {
+    const syncInterfaceLanguage = (event) => {
+      const nextLanguage =
+        event?.detail ||
+        localStorage.getItem("isp-language") ||
+        "en";
+
+      setInterfaceLanguage(nextLanguage);
+    };
+
+    window.addEventListener(
+      "isp-language-changed",
+      syncInterfaceLanguage
+    );
+    window.addEventListener(
+      "storage",
+      syncInterfaceLanguage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncInterfaceLanguage
+      );
+      window.removeEventListener(
+        "storage",
+        syncInterfaceLanguage
+      );
+    };
+  }, []);
+
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
+
+  const translatePackageValue = (value) => {
+    const key = String(value || "");
+
+    const labels = {
+      Available: tx("Available", "موجود", "شته"),
+      "Not Available": tx("Not Available", "ناموجود", "نشته"),
+      Yes: tx("Yes", "بلی", "هو"),
+      No: tx("No", "نخیر", "نه"),
+      Medical: tx("Medical", "طبی", "طبي"),
+      Tourism: tx("Tourism", "گردشگری", "سیاحت"),
+      Checkup: tx("Checkup", "معاینه", "معاینه"),
+      Business: tx("Business", "تجارتی", "سوداګریز"),
+      Study: tx("Study", "تحصیلی", "تحصیلي"),
+      "Family Visit": tx("Family Visit", "دیدار خانواده", "د کورنۍ لیدنه"),
+    };
+
+    return labels[key] || value;
+  };
 
   useEffect(() => {
     if (!packagesLoaded || !legacyLocalPackages.length) {
@@ -753,7 +835,7 @@ export default function VisaPackages() {
     const value = newCategory.trim();
 
     if (!value) {
-      notify("Enter a category name.", "error");
+      notify(tx("Enter a category name.", "نام کتگوری را وارد کنید.", "د کټګورۍ نوم ولیکئ."), "error");
       return;
     }
 
@@ -772,7 +854,7 @@ export default function VisaPackages() {
 
     setNewCategory("");
     setCategoryCreatorOpen(false);
-    notify("Category added.", "success");
+    notify(tx("Category added.", "کتگوری اضافه شد.", "کټګوري زیاته شوه."), "success");
   };
 
   const toggleDocument = (documentName) => {
@@ -803,7 +885,7 @@ export default function VisaPackages() {
     const value = newDocument.trim();
 
     if (!value) {
-      notify("Enter a document name.", "error");
+      notify(tx("Enter a document name.", "نام سند را وارد کنید.", "د سند نوم ولیکئ."), "error");
       return;
     }
 
@@ -827,7 +909,7 @@ export default function VisaPackages() {
 
     setNewDocument("");
     setDocumentCreatorOpen(false);
-    notify("Document added.", "success");
+    notify(tx("Document added.", "سند اضافه شد.", "سند زیات شو."), "success");
   };
 
   const savePackage = async (event) => {
@@ -836,17 +918,17 @@ export default function VisaPackages() {
     const packageName = form.packageName.trim();
 
     if (!packageName) {
-      notify("Package name is required.", "error");
+      notify(tx("Package name is required.", "نام پکیج ضروری است.", "د بستې نوم اړین دی."), "error");
       return;
     }
 
     if (!form.country) {
-      notify("Country is required.", "error");
+      notify(tx("Country is required.", "انتخاب کشور ضروری است.", "د هېواد ټاکل اړین دي."), "error");
       return;
     }
 
     if (!form.startDate || !form.endDate) {
-      notify("Start date and end date are required.", "error");
+      notify(tx("Start date and end date are required.", "تاریخ شروع و ختم ضروری است.", "د پیل او پای نېټې اړینې دي."), "error");
       return;
     }
 
@@ -855,7 +937,7 @@ export default function VisaPackages() {
       new Date(form.startDate)
     ) {
       notify(
-        "End date cannot be earlier than start date.",
+        tx("End date cannot be earlier than start date.", "تاریخ ختم نمی‌تواند قبل از تاریخ شروع باشد.", "د پای نېټه د پیل له نېټې مخکې نه شي کېدای."),
         "error"
       );
       return;
@@ -866,14 +948,14 @@ export default function VisaPackages() {
       form.endDate <= packageAvailabilityDate
     ) {
       notify(
-        "An available package must have an end date after today.",
+        tx("An available package must have an end date after today.", "پکیج موجود باید تاریخ ختم بعد از امروز داشته باشد.", "شته بسته باید له نن وروسته د پای نېټه ولري."),
         "error"
       );
       return;
     }
 
     if (!form.category) {
-      notify("Category is required.", "error");
+      notify(tx("Category is required.", "کتگوری ضروری است.", "کټګوري اړینه ده."), "error");
       return;
     }
 
@@ -881,7 +963,7 @@ export default function VisaPackages() {
     const sellingPrice = Number(form.sellingPrice);
 
     if (!(costPrice >= 0) || !(sellingPrice >= 0)) {
-      notify("Enter valid prices.", "error");
+      notify(tx("Enter valid prices.", "قیمت‌های معتبر وارد کنید.", "معتبرې بیې ولیکئ."), "error");
       return;
     }
 
@@ -895,7 +977,7 @@ export default function VisaPackages() {
       !(bankStatementAmount > 0)
     ) {
       notify(
-        "Enter the required bank statement amount.",
+        tx("Enter the required bank statement amount.", "مبلغ مورد نیاز استیتمنت بانکی را وارد کنید.", "د بانکي سټېټمنټ اړینه اندازه ولیکئ."),
         "error"
       );
       return;
@@ -952,8 +1034,8 @@ export default function VisaPackages() {
 
     notify(
       editingId
-        ? "Visa package updated."
-        : "Visa package created.",
+        ? tx("Visa package updated.", "پکیج ویزه ویرایش شد.", "د ویزې بسته سمه شوه.")
+        : tx("Visa package created.", "پکیج ویزه ایجاد شد.", "د ویزې بسته جوړه شوه."),
       "success"
     );
 
@@ -974,7 +1056,7 @@ export default function VisaPackages() {
 
     if (saved === false) return;
 
-    notify("Visa package deleted.", "success");
+    notify(tx("Visa package deleted.", "پکیج ویزه حذف شد.", "د ویزې بسته حذف شوه."), "success");
     setDeleteItem(null);
   };
 
@@ -982,20 +1064,27 @@ export default function VisaPackages() {
   if (!packagesLoaded) {
     return (
       <div className="page-loading">
-        Loading visa packages...
+        {tx(
+          "Loading visa packages...",
+          "در حال بارگذاری پکیج‌های ویزه...",
+          "د ویزې بستې بارېږي..."
+        )}
       </div>
     );
   }
 
   return (
-    <div className="visa-packages-page">
+    <div className={`visa-packages-page ${interfaceLanguage !== "en" ? "visa-packages-page-rtl" : ""}`}>
       <header className="visa-packages-header">
         <div>
-          <span>PACKAGE MANAGEMENT</span>
-          <h1>Visa Packages</h1>
+          <span>{tx("PACKAGE MANAGEMENT", "مدیریت پکیج‌ها", "د بستو مدیریت")}</span>
+          <h1>{tx("Visa Packages", "پکیج‌های ویزه", "د ویزې بستې")}</h1>
           <p>
-            Create and manage visa packages, prices,
-            countries, dates, and bank requirements.
+            {tx(
+              "Create and manage visa packages, prices, countries, dates, and bank requirements.",
+              "پکیج‌های ویزه، قیمت‌ها، کشورها، تاریخ‌ها و شرایط بانکی را مدیریت کنید.",
+              "د ویزې بستې، بیې، هېوادونه، نېټې او بانکي شرایط مدیریت کړئ."
+            )}
           </p>
         </div>
 
@@ -1005,7 +1094,7 @@ export default function VisaPackages() {
           onClick={openCreate}
         >
           <PackagePlus size={17} />
-          Add Visa Package
+          {tx("Add Visa Package", "افزودن پکیج ویزه", "د ویزې بسته زیاتول")}
         </button>
       </header>
 
@@ -1013,7 +1102,7 @@ export default function VisaPackages() {
         <article>
           <PackagePlus size={18} />
           <div>
-            <span>Total Packages</span>
+            <span>{tx("Total Packages", "مجموع پکیج‌ها", "ټولې بستې")}</span>
             <strong>{stats.total}</strong>
           </div>
         </article>
@@ -1021,7 +1110,7 @@ export default function VisaPackages() {
         <article>
           <CircleDollarSign size={18} />
           <div>
-            <span>Total Cost</span>
+            <span>{tx("Total Cost", "مجموع هزینه", "ټول لګښت")}</span>
             <strong>{stats.totalCostLabel}</strong>
           </div>
         </article>
@@ -1029,7 +1118,7 @@ export default function VisaPackages() {
         <article>
           <Landmark size={18} />
           <div>
-            <span>Total Selling</span>
+            <span>{tx("Total Selling", "مجموع فروش", "ټول پلور")}</span>
             <strong>{stats.totalSalesLabel}</strong>
           </div>
         </article>
@@ -1037,7 +1126,7 @@ export default function VisaPackages() {
         <article>
           <FileText size={18} />
           <div>
-            <span>Expected Profit</span>
+            <span>{tx("Expected Profit", "سود مورد انتظار", "تمه شوې ګټه")}</span>
             <strong>{stats.totalProfitLabel}</strong>
           </div>
         </article>
@@ -1046,8 +1135,8 @@ export default function VisaPackages() {
       <section className="visa-package-table-card">
         <header>
           <div>
-            <h2>Visa Package List</h2>
-            <p>{filteredPackages.length} package records</p>
+            <h2>{tx("Visa Package List", "فهرست پکیج‌های ویزه", "د ویزې بستو لېست")}</h2>
+            <p>{filteredPackages.length} {tx("package records", "رکورد پکیج", "د بستې ریکارډونه")}</p>
           </div>
 
           <label className="visa-package-search">
@@ -1058,7 +1147,7 @@ export default function VisaPackages() {
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="Search package, country or category..."
+              placeholder={tx("Search package, country or category...", "جستجوی پکیج، کشور یا کتگوری...", "بسته، هېواد یا کټګوري ولټوئ...")}
             />
           </label>
         </header>
@@ -1067,17 +1156,17 @@ export default function VisaPackages() {
           <table>
             <thead>
               <tr>
-                <th>Package</th>
-                <th>Country</th>
-                <th>Category</th>
-                <th>Start / End</th>
-                <th>Availability</th>
-                <th>Cost Price</th>
-                <th>Selling Price</th>
-                <th>Profit</th>
-                <th>Bank Statement</th>
-                <th>Documentation</th>
-                <th>Actions</th>
+                <th>{tx("Package", "پکیج", "بسته")}</th>
+                <th>{tx("Country", "کشور", "هېواد")}</th>
+                <th>{tx("Category", "کتگوری", "کټګوري")}</th>
+                <th>{tx("Start / End", "شروع / ختم", "پیل / پای")}</th>
+                <th>{tx("Availability", "موجودیت", "شتون")}</th>
+                <th>{tx("Cost Price", "قیمت خرید", "د لګښت بیه")}</th>
+                <th>{tx("Selling Price", "قیمت فروش", "د پلور بیه")}</th>
+                <th>{tx("Profit", "سود", "ګټه")}</th>
+                <th>{tx("Bank Statement", "استیتمنت بانکی", "بانکي سټېټمنټ")}</th>
+                <th>{tx("Documentation", "اسناد", "اسناد")}</th>
+                <th>{tx("Actions", "عملیات", "عملونه")}</th>
               </tr>
             </thead>
 
@@ -1086,7 +1175,7 @@ export default function VisaPackages() {
                 <tr key={item.id}>
                   <td>
                     <strong>{item.packageName}</strong>
-                    <small>{item.note || "No note"}</small>
+                    <small>{item.note || tx("No note", "بدون یادداشت", "یادښت نشته")}</small>
                     <span className="visa-package-currency">
                       {item.currency || "AFN"}
                     </span>
@@ -1096,7 +1185,7 @@ export default function VisaPackages() {
 
                   <td>
                     <span className="visa-package-category">
-                      {item.category}
+                      {translatePackageValue(item.category)}
                     </span>
                   </td>
 
@@ -1113,7 +1202,7 @@ export default function VisaPackages() {
                           : "unavailable"
                       }`}
                     >
-                      {packageAvailabilityLabel(item, packageAvailabilityDate)}
+                      {translatePackageValue(packageAvailabilityLabel(item, packageAvailabilityDate))}
                     </span>
                   </td>
 
@@ -1143,7 +1232,7 @@ export default function VisaPackages() {
                             item.bankStatementAmount,
                             item.currency
                           )
-                        : "Not Required"}
+                        : tx("Not Required", "ضروری نیست", "اړین نه دی")}
                     </span>
                   </td>
 
@@ -1158,7 +1247,7 @@ export default function VisaPackages() {
                       </div>
                     ) : (
                       <span className="visa-package-bank not-required">
-                        None
+                        {tx("None", "هیچ", "هیڅ")}
                       </span>
                     )}
                   </td>
@@ -1167,7 +1256,7 @@ export default function VisaPackages() {
                     <div className="visa-package-actions">
                       <button
                         type="button"
-                        title="View"
+                        title={tx("View", "نمایش", "کتل")}
                         onClick={() => setDetailsItem(item)}
                       >
                         <Eye size={15} />
@@ -1175,7 +1264,7 @@ export default function VisaPackages() {
 
                       <button
                         type="button"
-                        title="Edit"
+                        title={tx("Edit", "ویرایش", "سمول")}
                         onClick={() => openEdit(item)}
                       >
                         <Edit3 size={15} />
@@ -1184,7 +1273,7 @@ export default function VisaPackages() {
                       <button
                         type="button"
                         className="delete"
-                        title="Delete"
+                        title={tx("Delete", "حذف", "حذف")}
                         onClick={() => setDeleteItem(item)}
                       >
                         <Trash2 size={15} />
@@ -1200,7 +1289,7 @@ export default function VisaPackages() {
                     colSpan="11"
                     className="visa-package-empty"
                   >
-                    No visa packages found.
+                    {tx("No visa packages found.", "هیچ پکیج ویزه پیدا نشد.", "د ویزې هېڅ بسته ونه موندل شوه.")}
                   </td>
                 </tr>
               )}
@@ -1225,11 +1314,15 @@ export default function VisaPackages() {
               <div>
                 <h2>
                   {editingId
-                    ? "Edit Visa Package"
-                    : "Add Visa Package"}
+                    ? tx("Edit Visa Package", "ویرایش پکیج ویزه", "د ویزې بسته سمول")
+                    : tx("Add Visa Package", "افزودن پکیج ویزه", "د ویزې بسته زیاتول")}
                 </h2>
                 <p>
-                  Complete the package information below.
+                  {tx(
+                    "Complete the package information below.",
+                    "معلومات پکیج را در پایین تکمیل کنید.",
+                    "د بستې معلومات لاندې بشپړ کړئ."
+                  )}
                 </p>
               </div>
 
@@ -1244,27 +1337,28 @@ export default function VisaPackages() {
 
             <div className="visa-package-form-grid">
               <label>
-                <span>Package Name</span>
+                <span>{tx("Package Name", "نام پکیج", "د بستې نوم")}</span>
                 <input
                   name="packageName"
                   value={form.packageName}
                   onChange={updateField}
-                  placeholder="Enter package name"
+                  placeholder={tx("Enter package name", "نام پکیج را وارد کنید", "د بستې نوم ولیکئ")}
                   autoFocus
                 />
               </label>
 
               <label>
-                <span>Country</span>
+                <span>{tx("Country", "کشور", "هېواد")}</span>
 
                 <VisaCountrySelect
                   value={form.country}
                   onChange={updateField}
+                  interfaceLanguage={interfaceLanguage}
                 />
               </label>
 
               <label>
-                <span>Unit</span>
+                <span>{tx("Unit", "واحد", "واحد")}</span>
 
                 <select
                   name="currency"
@@ -1283,19 +1377,19 @@ export default function VisaPackages() {
               </label>
 
               <label>
-                <span>Availability</span>
+                <span>{tx("Availability", "موجودیت", "شتون")}</span>
                 <select
                   name="availability"
                   value={form.availability}
                   onChange={updateField}
                 >
-                  <option value="Available">Available</option>
-                  <option value="Not Available">Not Available</option>
+                  <option value="Available">{tx("Available", "موجود", "شته")}</option>
+                  <option value="Not Available">{tx("Not Available", "ناموجود", "نشته")}</option>
                 </select>
               </label>
 
               <label>
-                <span>Start Date</span>
+                <span>{tx("Start Date", "تاریخ شروع", "د پیل نېټه")}</span>
                 <div className="visa-date-control">
                   <CalendarDays size={15} />
                   <input
@@ -1308,7 +1402,7 @@ export default function VisaPackages() {
               </label>
 
               <label>
-                <span>End Date</span>
+                <span>{tx("End Date", "تاریخ ختم", "د پای نېټه")}</span>
                 <div className="visa-date-control">
                   <CalendarDays size={15} />
                   <input
@@ -1321,24 +1415,24 @@ export default function VisaPackages() {
               </label>
 
               <label className="visa-category-field">
-                <span>Category</span>
+                <span>{tx("Category", "کتگوری", "کټګوري")}</span>
                 <div className="visa-category-control">
                   <select
                     name="category"
                     value={form.category}
                     onChange={updateField}
                   >
-                    <option value="">Select category</option>
+                    <option value="">{tx("Select category", "کتگوری را انتخاب کنید", "کټګوري وټاکئ")}</option>
                     {categories.map((category) => (
                       <option key={category} value={category}>
-                        {category}
+                        {translatePackageValue(category)}
                       </option>
                     ))}
                   </select>
 
                   <button
                     type="button"
-                    title="Add category"
+                    title={tx("Add category", "افزودن کتگوری", "کټګوري زیاتول")}
                     onClick={() =>
                       setCategoryCreatorOpen((current) => !current)
                     }
@@ -1354,21 +1448,21 @@ export default function VisaPackages() {
                       onChange={(event) =>
                         setNewCategory(event.target.value)
                       }
-                      placeholder="New category"
+                      placeholder={tx("New category", "کتگوری جدید", "نوې کټګوري")}
                     />
 
                     <button
                       type="button"
                       onClick={addCategory}
                     >
-                      Add
+                      {tx("Add", "افزودن", "زیاتول")}
                     </button>
                   </div>
                 )}
               </label>
 
               <label>
-                <span>Cost Price ({form.currency})</span>
+                <span>{tx("Cost Price", "قیمت خرید", "د لګښت بیه")} ({form.currency})</span>
                 <input
                   type="number"
                   min="0"
@@ -1380,7 +1474,7 @@ export default function VisaPackages() {
               </label>
 
               <label>
-                <span>Selling Price ({form.currency})</span>
+                <span>{tx("Selling Price", "قیمت فروش", "د پلور بیه")} ({form.currency})</span>
                 <input
                   type="number"
                   min="0"
@@ -1392,7 +1486,7 @@ export default function VisaPackages() {
               </label>
 
               <label>
-                <span>Expected Profit</span>
+                <span>{tx("Expected Profit", "سود مورد انتظار", "تمه شوې ګټه")}</span>
                 <input
                   value={money(
                     Number(form.sellingPrice || 0) -
@@ -1404,7 +1498,7 @@ export default function VisaPackages() {
               </label>
 
               <fieldset className="visa-bank-fieldset">
-                <legend>Bank Statement Required</legend>
+                <legend>{tx("Bank Statement Required", "استیتمنت بانکی ضروری است", "بانکي سټېټمنټ اړین دی")}</legend>
 
                 <label>
                   <input
@@ -1416,7 +1510,7 @@ export default function VisaPackages() {
                     }
                     onChange={updateField}
                   />
-                  Yes
+                  {tx("Yes", "بلی", "هو")}
                 </label>
 
                 <label>
@@ -1429,26 +1523,26 @@ export default function VisaPackages() {
                     }
                     onChange={updateField}
                   />
-                  No
+                  {tx("No", "نخیر", "نه")}
                 </label>
               </fieldset>
 
               {form.bankStatementRequired === "Yes" && (
                 <label>
-                  <span>Bank Statement Amount (AFN)</span>
+                  <span>{tx("Bank Statement Amount (AFN)", "مبلغ استیتمنت بانکی (AFN)", "د بانکي سټېټمنټ اندازه (AFN)")}</span>
                   <input
                     type="number"
                     min="1"
                     name="bankStatementAmount"
                     value={form.bankStatementAmount}
                     onChange={updateField}
-                    placeholder="Required amount"
+                    placeholder={tx("Required amount", "مبلغ مورد نیاز", "اړینه اندازه")}
                   />
                 </label>
               )}
 
               <fieldset className="visa-bank-fieldset visa-form-full">
-                <legend>Documentation Required</legend>
+                <legend>{tx("Documentation Required", "اسناد ضروری است", "اسناد اړین دي")}</legend>
 
                 <label>
                   <input
@@ -1460,7 +1554,7 @@ export default function VisaPackages() {
                     }
                     onChange={updateField}
                   />
-                  Yes
+                  {tx("Yes", "بلی", "هو")}
                 </label>
 
                 <label>
@@ -1473,18 +1567,18 @@ export default function VisaPackages() {
                     }
                     onChange={updateField}
                   />
-                  No
+                  {tx("No", "نخیر", "نه")}
                 </label>
               </fieldset>
 
               {form.documentationRequired === "Yes" && (
                 <div className="visa-form-full visa-documentation-box">
                   <div className="visa-documentation-header">
-                    <span>Required Documents</span>
+                    <span>{tx("Required Documents", "اسناد مورد نیاز", "اړین اسناد")}</span>
 
                     <button
                       type="button"
-                      title="Add document"
+                      title={tx("Add document", "افزودن سند", "سند زیاتول")}
                       onClick={() =>
                         setDocumentCreatorOpen(
                           (current) => !current
@@ -1534,14 +1628,14 @@ export default function VisaPackages() {
                         onChange={(event) =>
                           setNewDocument(event.target.value)
                         }
-                        placeholder="New document"
+                        placeholder={tx("New document", "سند جدید", "نوی سند")}
                       />
 
                       <button
                         type="button"
                         onClick={addDocument}
                       >
-                        Add
+                        {tx("Add", "افزودن", "زیاتول")}
                       </button>
                     </div>
                   )}
@@ -1549,13 +1643,13 @@ export default function VisaPackages() {
               )}
 
               <label className="visa-form-full">
-                <span>Note</span>
+                <span>{tx("Note", "یادداشت", "یادښت")}</span>
                 <textarea
                   name="note"
                   rows="4"
                   value={form.note}
                   onChange={updateField}
-                  placeholder="Write package notes..."
+                  placeholder={tx("Write package notes...", "یادداشت پکیج را بنویسید...", "د بستې یادښت ولیکئ...")}
                 />
               </label>
             </div>
@@ -1565,7 +1659,7 @@ export default function VisaPackages() {
                 type="button"
                 onClick={closeModal}
               >
-                Cancel
+                {tx("Cancel", "لغو", "لغوه")}
               </button>
 
               <button
@@ -1573,8 +1667,8 @@ export default function VisaPackages() {
                 className="primary"
               >
                 {editingId
-                  ? "Update Package"
-                  : "Save Package"}
+                  ? tx("Update Package", "ویرایش پکیج", "بسته تازه کول")
+                  : tx("Save Package", "ذخیره پکیج", "بسته خوندي کول")}
               </button>
             </footer>
           </form>
@@ -1595,7 +1689,7 @@ export default function VisaPackages() {
             <header>
               <div>
                 <h2>{detailsItem.packageName}</h2>
-                <p>Complete visa package information.</p>
+                <p>{tx("Complete visa package information.", "معلومات کامل پکیج ویزه.", "د ویزې بستې بشپړ معلومات.")}</p>
               </div>
 
               <button
@@ -1609,48 +1703,50 @@ export default function VisaPackages() {
 
             <div className="visa-package-details-grid">
               <div>
-                <span>Country</span>
+                <span>{tx("Country", "کشور", "هېواد")}</span>
                 <strong>{detailsItem.country}</strong>
               </div>
 
               <div>
-                <span>Unit</span>
+                <span>{tx("Unit", "واحد", "واحد")}</span>
                 <strong>
                   {detailsItem.currency || "AFN"}
                 </strong>
               </div>
 
               <div>
-                <span>Availability</span>
+                <span>{tx("Availability", "موجودیت", "شتون")}</span>
                 <strong>
-                  {packageAvailabilityLabel(
-                    detailsItem,
-                    packageAvailabilityDate
+                  {translatePackageValue(
+                    packageAvailabilityLabel(
+                      detailsItem,
+                      packageAvailabilityDate
+                    )
                   )}
                 </strong>
               </div>
 
               <div>
-                <span>Category</span>
+                <span>{tx("Category", "کتگوری", "کټګوري")}</span>
                 <strong>{detailsItem.category}</strong>
               </div>
 
               <div>
-                <span>Start Date</span>
+                <span>{tx("Start Date", "تاریخ شروع", "د پیل نېټه")}</span>
                 <strong>
                   {formatDate(detailsItem.startDate)}
                 </strong>
               </div>
 
               <div>
-                <span>End Date</span>
+                <span>{tx("End Date", "تاریخ ختم", "د پای نېټه")}</span>
                 <strong>
                   {formatDate(detailsItem.endDate)}
                 </strong>
               </div>
 
               <div>
-                <span>Cost Price</span>
+                <span>{tx("Cost Price", "قیمت خرید", "د لګښت بیه")}</span>
                 <strong>
                   {money(
                     detailsItem.costPrice,
@@ -1660,7 +1756,7 @@ export default function VisaPackages() {
               </div>
 
               <div>
-                <span>Selling Price</span>
+                <span>{tx("Selling Price", "قیمت فروش", "د پلور بیه")}</span>
                 <strong>
                   {money(
                     detailsItem.sellingPrice,
@@ -1670,7 +1766,7 @@ export default function VisaPackages() {
               </div>
 
               <div>
-                <span>Profit</span>
+                <span>{tx("Profit", "سود", "ګټه")}</span>
                 <strong>
                   {money(
                     detailsItem.profit,
@@ -1680,31 +1776,31 @@ export default function VisaPackages() {
               </div>
 
               <div>
-                <span>Bank Statement</span>
+                <span>{tx("Bank Statement", "استیتمنت بانکی", "بانکي سټېټمنټ")}</span>
                 <strong>
                   {detailsItem.bankStatementRequired === "Yes"
                     ? money(
                         detailsItem.bankStatementAmount,
                         detailsItem.currency
                       )
-                    : "Not Required"}
+                    : tx("Not Required", "ضروری نیست", "اړین نه دی")}
                 </strong>
               </div>
 
               <div>
-                <span>Documentation</span>
+                <span>{tx("Documentation", "اسناد", "اسناد")}</span>
                 <strong>
                   {detailsItem.documentationRequired === "Yes"
                     ? (detailsItem.documents || []).join(", ") ||
-                      "Required"
-                    : "None"}
+                      tx("Required", "ضروری", "اړین")
+                    : tx("None", "هیچ", "هیڅ")}
                 </strong>
               </div>
             </div>
 
             <div className="visa-package-note-box">
-              <span>Note</span>
-              <p>{detailsItem.note || "No note"}</p>
+              <span>{tx("Note", "یادداشت", "یادښت")}</span>
+              <p>{detailsItem.note || tx("No note", "بدون یادداشت", "یادښت نشته")}</p>
             </div>
 
             <footer>
@@ -1716,7 +1812,7 @@ export default function VisaPackages() {
                 }}
               >
                 <Edit3 size={15} />
-                Edit Package
+                {tx("Edit Package", "ویرایش پکیج", "بسته سمول")}
               </button>
             </footer>
           </section>
@@ -1738,10 +1834,14 @@ export default function VisaPackages() {
               <Trash2 size={24} />
             </div>
 
-            <h2>Delete Visa Package?</h2>
+            <h2>{tx("Delete Visa Package?", "پکیج ویزه حذف شود؟", "د ویزې بسته حذف شي؟")}</h2>
 
             <p>
-              This will permanently delete{" "}
+              {tx(
+                "This will permanently delete",
+                "این مورد به‌طور دایمی حذف می‌شود:",
+                "دا به د تل لپاره حذف شي:"
+              )}{" "}
               <strong>{deleteItem.packageName}</strong>.
             </p>
 
@@ -1750,7 +1850,7 @@ export default function VisaPackages() {
                 type="button"
                 onClick={() => setDeleteItem(null)}
               >
-                Cancel
+                {tx("Cancel", "لغو", "لغوه")}
               </button>
 
               <button
@@ -1758,7 +1858,7 @@ export default function VisaPackages() {
                 className="delete"
                 onClick={confirmDelete}
               >
-                Delete
+                {tx("Delete", "حذف", "حذف")}
               </button>
             </footer>
           </section>

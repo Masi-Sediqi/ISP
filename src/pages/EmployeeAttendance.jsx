@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -104,6 +104,65 @@ export default function EmployeeAttendance() {
   const [selectedDate, setSelectedDate] = useState("");
   const [statusModal, setStatusModal] = useState(null);
   const [statusForm, setStatusForm] = useState(emptyStatus);
+
+  const [interfaceLanguage, setInterfaceLanguage] = useState(
+    () => localStorage.getItem("isp-language") || "en"
+  );
+
+  useEffect(() => {
+    const syncInterfaceLanguage = (event) => {
+      const nextLanguage =
+        event?.detail ||
+        localStorage.getItem("isp-language") ||
+        "en";
+
+      setInterfaceLanguage(nextLanguage);
+    };
+
+    window.addEventListener(
+      "isp-language-changed",
+      syncInterfaceLanguage
+    );
+    window.addEventListener(
+      "storage",
+      syncInterfaceLanguage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncInterfaceLanguage
+      );
+      window.removeEventListener(
+        "storage",
+        syncInterfaceLanguage
+      );
+    };
+  }, []);
+
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
+
+  const translateAttendanceValue = (value) => {
+    const key = String(value || "");
+
+    const values = {
+      Present: tx("Present", "حاضر", "حاضر"),
+      Absent: tx("Absent", "غایب", "غایب"),
+      Leave: tx("Leave", "رخصتی", "رخصتي"),
+      "Not Recorded": tx("Not Recorded", "ثبت‌نشده", "ثبت شوی نه دی"),
+      "Full Day": tx("Full Day", "تمام روز", "ټوله ورځ"),
+      "Half Day": tx("Half Day", "نیم روز", "نیمه ورځ"),
+      Hourly: tx("Hourly", "ساعتی", "ساعتي"),
+      Employee: tx("Employee", "کارمند", "کارکوونکی"),
+    };
+
+    return values[key] || value;
+  };
 
   const activeEmployees = useMemo(
     () =>
@@ -227,22 +286,22 @@ export default function EmployeeAttendance() {
     event.preventDefault();
 
     if (!form.name.trim()) {
-      notify("Attendance name is required.", "error");
+      notify(tx("Attendance name is required.", "نام حاضری ضروری است.", "د حاضرۍ نوم اړین دی."), "error");
       return;
     }
 
     if (!form.startDate || !form.endDate) {
-      notify("Start date and end date are required.", "error");
+      notify(tx("Start date and end date are required.", "تاریخ شروع و ختم ضروری است.", "د پیل او پای نېټه اړینه ده."), "error");
       return;
     }
 
     if (form.startDate > form.endDate) {
-      notify("End date cannot be before start date.", "error");
+      notify(tx("End date cannot be before start date.", "تاریخ ختم نمی‌تواند قبل از تاریخ شروع باشد.", "د پای نېټه د پیل له نېټې مخکې نه شي کېدای."), "error");
       return;
     }
 
     if (!form.employeeIds.length) {
-      notify("Select at least one employee.", "error");
+      notify(tx("Select at least one employee.", "حداقل یک کارمند را انتخاب کنید.", "لږ تر لږه یو کارکوونکی وټاکئ."), "error");
       return;
     }
 
@@ -276,8 +335,8 @@ export default function EmployeeAttendance() {
 
     notify(
       editId
-        ? "Attendance updated successfully."
-        : "Attendance created successfully.",
+        ? tx("Attendance updated successfully.", "حاضری با موفقیت ویرایش شد.", "حاضري په بریالیتوب سره سمه شوه.")
+        : tx("Attendance created successfully.", "حاضری با موفقیت ایجاد شد.", "حاضري په بریالیتوب سره جوړه شوه."),
       "success"
     );
 
@@ -304,7 +363,7 @@ export default function EmployeeAttendance() {
     }
 
     setDeleteTarget(null);
-    notify("Attendance deleted successfully.", "success");
+    notify(tx("Attendance deleted successfully.", "حاضری با موفقیت حذف شد.", "حاضري په بریالیتوب سره حذف شوه."), "success");
   };
 
   const openAttendanceDetails = (attendance) => {
@@ -414,7 +473,7 @@ export default function EmployeeAttendance() {
 
     if (saved) {
       notify(
-        `${employeeName(employee)} marked present.`,
+        `${employeeName(employee)} ${tx("marked present.", "حاضر ثبت شد.", "حاضر ثبت شو.")}`,
         "success"
       );
     }
@@ -446,7 +505,7 @@ export default function EmployeeAttendance() {
       statusModal.status === "Leave" &&
       !statusForm.reason.trim()
     ) {
-      notify("Leave reason is required.", "error");
+      notify(tx("Leave reason is required.", "دلیل رخصتی ضروری است.", "د رخصتۍ دلیل اړین دی."), "error");
       return;
     }
 
@@ -456,7 +515,7 @@ export default function EmployeeAttendance() {
       !(Number(statusForm.hours) > 0)
     ) {
       notify(
-        "Enter the number of absent hours.",
+        tx("Enter the number of absent hours.", "تعداد ساعات غیابت را وارد کنید.", "د غیابت ساعتونه ولیکئ."),
         "error"
       );
       return;
@@ -472,7 +531,7 @@ export default function EmployeeAttendance() {
 
     setStatusModal(null);
     setStatusForm(emptyStatus);
-    notify("Employee attendance status saved.", "success");
+    notify(tx("Employee attendance status saved.", "وضعیت حاضری کارمند ذخیره شد.", "د کارکوونکي د حاضرۍ حالت خوندي شو."), "success");
   };
 
   const attendanceDates = currentAttendance
@@ -620,7 +679,7 @@ export default function EmployeeAttendance() {
     );
 
     if (!printWindow) {
-      notify("Please allow pop-ups to print the attendance report.", "error");
+      notify(tx("Please allow pop-ups to print the attendance report.", "برای چاپ گزارش حاضری، Pop-up را اجازه دهید.", "د حاضرۍ راپور د چاپ لپاره Pop-up ته اجازه ورکړئ."), "error");
       return;
     }
 
@@ -1073,8 +1132,8 @@ export default function EmployeeAttendance() {
           </section>
 
           <section class="period-grid">
-            <div><span>Start Date</span><b>${escapeHtml(formatDate(attendance.startDate))}</b></div>
-            <div><span>End Date</span><b>${escapeHtml(formatDate(attendance.endDate))}</b></div>
+            <div><span>{tx("Start Date", "تاریخ شروع", "د پیل نېټه")}</span><b>${escapeHtml(formatDate(attendance.startDate))}</b></div>
+            <div><span>{tx("End Date", "تاریخ ختم", "د پای نېټه")}</span><b>${escapeHtml(formatDate(attendance.endDate))}</b></div>
             <div><span>Period Length</span><b>${dates.length} Days</b></div>
             <div><span>Employees</span><b>${reportEmployees.length}</b></div>
           </section>
@@ -1119,20 +1178,23 @@ export default function EmployeeAttendance() {
   };
 
   return (
-    <div className="employee-attendance-page">
+    <div className={`employee-attendance-page ${interfaceLanguage !== "en" ? "employee-attendance-page-rtl" : ""}`}>
       <header className="employee-attendance-heading">
         <div>
-          <span>Human Resources</span>
-          <h1>Employee Attendance</h1>
+          <span>{tx("Human Resources", "منابع بشری", "بشري سرچینې")}</span>
+          <h1>{tx("Employee Attendance", "حاضری کارمندان", "د کارکوونکو حاضري")}</h1>
           <p>
-            Create attendance periods and record daily employee
-            presence, absence and leave.
+            {tx(
+              "Create attendance periods and record daily employee presence, absence and leave.",
+              "دوره‌های حاضری را ایجاد کرده و حضور، غیابت و رخصتی روزانه کارمندان را ثبت کنید.",
+              "د حاضرۍ دورې جوړې کړئ او د کارکوونکو ورځنی حضور، غیابت او رخصتي ثبت کړئ."
+            )}
           </p>
         </div>
 
         <button type="button" onClick={openCreate}>
           <UserCheck size={17} />
-          Add Attendance
+          {tx("Add Attendance", "افزودن حاضری", "حاضري زیاتول")}
         </button>
       </header>
 
@@ -1144,18 +1206,18 @@ export default function EmployeeAttendance() {
             onChange={(event) =>
               setAttendanceSearch(event.target.value)
             }
-            placeholder="Search attendance records..."
+            placeholder={tx("Search attendance records...", "جستجوی سوابق حاضری...", "د حاضرۍ ریکارډونه ولټوئ...")}
           />
         </label>
 
         <div>
           <strong>{attendances.length}</strong>
-          <span>Attendance Records</span>
+          <span>{tx("Attendance Records", "سوابق حاضری", "د حاضرۍ ریکارډونه")}</span>
         </div>
 
         <div>
           <strong>{activeEmployees.length}</strong>
-          <span>Active Employees</span>
+          <span>{tx("Active Employees", "کارمندان فعال", "فعال کارکوونکي")}</span>
         </div>
       </section>
 
@@ -1176,12 +1238,12 @@ export default function EmployeeAttendance() {
               <div className="employee-attendance-card-image">
                 <img
                   src={CARD_IMAGE}
-                  alt="Attendance register"
+                  alt={tx("Attendance register", "ثبت حاضری", "د حاضرۍ ثبت")}
                 />
 
                 <span>
                   <CalendarDays size={15} />
-                  {dayCount} Days
+                  {dayCount} {tx("Days", "روز", "ورځې")}
                 </span>
               </div>
 
@@ -1251,7 +1313,7 @@ export default function EmployeeAttendance() {
                     openAttendanceDetails(attendance)
                   }
                 >
-                  Open Attendance
+                  {tx("Open Attendance", "باز کردن حاضری", "حاضري پرانیستل")}
                   <ChevronRight size={16} />
                 </button>
               </div>
@@ -1262,10 +1324,13 @@ export default function EmployeeAttendance() {
         {!filteredAttendances.length && (
           <div className="employee-attendance-empty">
             <CalendarDays size={34} />
-            <h2>No attendance records found</h2>
+            <h2>{tx("No attendance records found", "هیچ سابقه حاضری پیدا نشد", "د حاضرۍ هېڅ ریکارډ ونه موندل شو")}</h2>
             <p>
-              Create an attendance period to begin recording
-              daily employee attendance.
+              {tx(
+                "Create an attendance period to begin recording daily employee attendance.",
+                "برای شروع ثبت حاضری روزانه کارمندان، یک دوره حاضری ایجاد کنید.",
+                "د کارکوونکو د ورځنۍ حاضرۍ د ثبت لپاره د حاضرۍ یوه دوره جوړه کړئ."
+              )}
             </p>
           </div>
         )}
@@ -1283,21 +1348,25 @@ export default function EmployeeAttendance() {
           >
             <header>
               <div>
-                <span>Attendance Setup</span>
+                <span>{tx("Attendance Setup", "تنظیم حاضری", "د حاضرۍ تنظیم")}</span>
                 <h2>
                   {editId
-                    ? "Edit Attendance"
-                    : "Add Employee Attendance"}
+                    ? tx("Edit Attendance", "ویرایش حاضری", "حاضري سمول")
+                    : tx("Add Employee Attendance", "افزودن حاضری کارمند", "د کارکوونکي حاضري زیاتول")}
                 </h2>
                 <p>
-                  Select the date range and active employees.
+                  {tx(
+                    "Select the date range and active employees.",
+                    "محدوده تاریخ و کارمندان فعال را انتخاب کنید.",
+                    "د نېټې موده او فعال کارکوونکي وټاکئ."
+                  )}
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={closeForm}
-                aria-label="Close"
+                aria-label={tx("Close", "بستن", "تړل")}
               >
                 <X size={18} />
               </button>
@@ -1305,12 +1374,12 @@ export default function EmployeeAttendance() {
 
             <div className="employee-attendance-form-grid">
               <label className="full">
-                <span>Attendance Name</span>
+                <span>{tx("Attendance Name", "نام حاضری", "د حاضرۍ نوم")}</span>
                 <input
                   name="name"
                   value={form.name}
                   onChange={updateField}
-                  placeholder="Example: January 2026 Attendance"
+                  placeholder={tx("Example: January 2026 Attendance", "مثال: حاضری جنوری ۲۰۲۶", "بېلګه: د ۲۰۲۶ جنوري حاضري")}
                   autoFocus
                 />
               </label>
@@ -1339,9 +1408,9 @@ export default function EmployeeAttendance() {
               <div className="employee-attendance-employees full">
                 <div className="employee-attendance-employee-header">
                   <div>
-                    <span>Select Active Employees</span>
+                    <span>{tx("Select Active Employees", "انتخاب کارمندان فعال", "فعال کارکوونکي وټاکئ")}</span>
                     <small>
-                      {form.employeeIds.length} selected
+                      {form.employeeIds.length} {tx("selected", "انتخاب‌شده", "ټاکل شوي")}
                     </small>
                   </div>
 
@@ -1349,7 +1418,7 @@ export default function EmployeeAttendance() {
                     type="button"
                     onClick={selectAllVisible}
                   >
-                    Select Visible
+                    {tx("Select Visible", "انتخاب موارد قابل‌نمایش", "ښکاره موارد وټاکئ")}
                   </button>
                 </div>
 
@@ -1360,7 +1429,7 @@ export default function EmployeeAttendance() {
                     onChange={(event) =>
                       setEmployeeSearch(event.target.value)
                     }
-                    placeholder="Search active employees..."
+                    placeholder={tx("Search active employees...", "جستجوی کارمندان فعال...", "فعال کارکوونکي ولټوئ...")}
                   />
                 </label>
 
@@ -1397,7 +1466,7 @@ export default function EmployeeAttendance() {
                           <small>
                             {employee.departments?.join(", ") ||
                               employee.roles?.join(", ") ||
-                              "Employee"}
+                              tx("Employee", "کارمند", "کارکوونکی")}
                           </small>
                         </span>
 
@@ -1409,30 +1478,32 @@ export default function EmployeeAttendance() {
                   })}
 
                   {!filteredEmployees.length && (
-                    <p>No active employees found.</p>
+                    <p>{tx("No active employees found.", "هیچ کارمند فعال پیدا نشد.", "فعال کارکوونکی ونه موندل شو.")}</p>
                   )}
                 </div>
               </div>
 
               <label className="full">
-                <span>Note</span>
+                <span>{tx("Note", "یادداشت", "یادښت")}</span>
                 <textarea
                   name="note"
                   value={form.note}
                   onChange={updateField}
                   rows="4"
-                  placeholder="Write an optional note..."
+                  placeholder={tx("Write an optional note...", "یادداشت اختیاری بنویسید...", "اختیاري یادښت ولیکئ...")}
                 />
               </label>
             </div>
 
             <footer>
               <button type="button" onClick={closeForm}>
-                Cancel
+                {tx("Cancel", "لغو", "لغوه")}
               </button>
 
               <button type="submit" className="primary">
-                {editId ? "Save Changes" : "Create Attendance"}
+                {editId
+                  ? tx("Save Changes", "ذخیره تغییرات", "بدلونونه خوندي کړئ")
+                  : tx("Create Attendance", "ایجاد حاضری", "حاضري جوړه کړئ")}
               </button>
             </footer>
           </form>
@@ -1453,7 +1524,7 @@ export default function EmployeeAttendance() {
           >
             <header>
               <div>
-                <span>Daily Attendance</span>
+                <span>{tx("Daily Attendance", "حاضری روزانه", "ورځنۍ حاضري")}</span>
                 <h2>{currentAttendance.name}</h2>
                 <p>
                   {formatDate(currentAttendance.startDate)} -{" "}
@@ -1474,7 +1545,7 @@ export default function EmployeeAttendance() {
 
             <div className="employee-attendance-details-layout">
               <aside className="employee-attendance-dates">
-                <h3>Attendance Dates</h3>
+                <h3>{tx("Attendance Dates", "تاریخ‌های حاضری", "د حاضرۍ نېټې")}</h3>
 
                 <div>
                   {attendanceDates.map((date) => {
@@ -1505,7 +1576,7 @@ export default function EmployeeAttendance() {
                           <strong>{formatDate(date)}</strong>
                           <small>
                             {completed}/{selectedEmployees.length}{" "}
-                            recorded
+                            {tx("recorded", "ثبت‌شده", "ثبت شوي")}
                           </small>
                         </span>
 
@@ -1519,13 +1590,13 @@ export default function EmployeeAttendance() {
               <main className="employee-attendance-daily">
                 <div className="employee-attendance-daily-header">
                   <div>
-                    <span>Selected Date</span>
+                    <span>{tx("Selected Date", "تاریخ انتخاب‌شده", "ټاکل شوې نېټه")}</span>
                     <h3>{formatDate(selectedDate)}</h3>
                   </div>
 
                   <div>
                     <Users size={16} />
-                    {selectedEmployees.length} Employees
+                    {selectedEmployees.length} {tx("Employees", "کارمند", "کارکوونکي")}
                   </div>
                 </div>
 
@@ -1558,20 +1629,20 @@ export default function EmployeeAttendance() {
                             <small>
                               {record?.status
                                 ? [
-                                    record.status,
+                                    translateAttendanceValue(record.status),
                                     record.status === "Absent"
-                                      ? record.absenceType
+                                      ? translateAttendanceValue(record.absenceType)
                                       : "",
                                     record.status === "Absent" &&
                                     record.absenceType === "Hourly" &&
                                     record.hours
-                                      ? `${record.hours} hour(s)`
+                                      ? `${record.hours} ${tx("hour(s)", "ساعت", "ساعت")}`
                                       : "",
                                     record.reason,
                                   ]
                                     .filter(Boolean)
                                     .join(" · ")
-                                : "Not recorded"}
+                                : tx("Not recorded", "ثبت‌نشده", "ثبت شوی نه دی")}
                             </small>
                           </div>
                         </div>
@@ -1588,7 +1659,7 @@ export default function EmployeeAttendance() {
                               markPresent(employee)
                             }
                           >
-                            Present
+                            {tx("Present", "حاضر", "حاضر")}
                           </button>
 
                           <button
@@ -1602,7 +1673,7 @@ export default function EmployeeAttendance() {
                               openStatus(employee, "Absent")
                             }
                           >
-                            Absent
+                            {tx("Absent", "غایب", "غایب")}
                           </button>
 
                           <button
@@ -1616,7 +1687,7 @@ export default function EmployeeAttendance() {
                               openStatus(employee, "Leave")
                             }
                           >
-                            Leave
+                            {tx("Leave", "رخصتی", "رخصتي")}
                           </button>
                         </div>
                       </article>
@@ -1641,12 +1712,12 @@ export default function EmployeeAttendance() {
           >
             <header>
               <div>
-                <span>Attendance Status</span>
+                <span>{tx("Attendance Status", "وضعیت حاضری", "د حاضرۍ حالت")}</span>
                 <h2>
                   {employeeName(statusModal.employee)}
                 </h2>
                 <p>
-                  {statusModal.status} · {formatDate(selectedDate)}
+                  {translateAttendanceValue(statusModal.status)} · {formatDate(selectedDate)}
                 </p>
               </div>
 
@@ -1660,7 +1731,7 @@ export default function EmployeeAttendance() {
 
             {statusModal.status === "Leave" && (
               <label>
-                <span>Leave Reason</span>
+                <span>{tx("Leave Reason", "دلیل رخصتی", "د رخصتۍ دلیل")}</span>
                 <textarea
                   rows="3"
                   value={statusForm.reason}
@@ -1670,7 +1741,7 @@ export default function EmployeeAttendance() {
                       reason: event.target.value,
                     }))
                   }
-                  placeholder="Enter the leave reason..."
+                  placeholder={tx("Enter the leave reason...", "دلیل رخصتی را وارد کنید...", "د رخصتۍ دلیل ولیکئ...")}
                   autoFocus
                 />
               </label>
@@ -1679,7 +1750,7 @@ export default function EmployeeAttendance() {
             {statusModal.status === "Absent" && (
               <>
                 <label>
-                  <span>Absence Type</span>
+                  <span>{tx("Absence Type", "نوع غیابت", "د غیابت ډول")}</span>
 
                   <div className="employee-attendance-absence-types">
                     {["Full Day", "Half Day", "Hourly"].map(
@@ -1703,7 +1774,7 @@ export default function EmployeeAttendance() {
                             }))
                           }
                         >
-                          {type}
+                          {translateAttendanceValue(type)}
                         </button>
                       )
                     )}
@@ -1712,7 +1783,7 @@ export default function EmployeeAttendance() {
 
                 {statusForm.absenceType === "Hourly" && (
                   <label>
-                    <span>Absent Hours</span>
+                    <span>{tx("Absent Hours", "ساعات غیابت", "د غیابت ساعتونه")}</span>
                     <input
                       type="number"
                       min="0.5"
@@ -1724,14 +1795,14 @@ export default function EmployeeAttendance() {
                           hours: event.target.value,
                         }))
                       }
-                      placeholder="Example: 2"
+                      placeholder={tx("Example: 2", "مثال: ۲", "بېلګه: ۲")}
                       autoFocus
                     />
                   </label>
                 )}
 
                 <label>
-                  <span>Note / Reason</span>
+                  <span>{tx("Note / Reason", "یادداشت / دلیل", "یادښت / دلیل")}</span>
                   <textarea
                     rows="3"
                     value={statusForm.reason}
@@ -1741,7 +1812,7 @@ export default function EmployeeAttendance() {
                         reason: event.target.value,
                       }))
                     }
-                    placeholder="Optional absence note..."
+                    placeholder={tx("Optional absence note...", "یادداشت اختیاری غیابت...", "د غیابت اختیاري یادښت...")}
                   />
                 </label>
               </>
@@ -1752,11 +1823,11 @@ export default function EmployeeAttendance() {
                 type="button"
                 onClick={() => setStatusModal(null)}
               >
-                Cancel
+                {tx("Cancel", "لغو", "لغوه")}
               </button>
 
               <button type="submit" className="primary">
-                Save Status
+                {tx("Save Status", "ذخیره وضعیت", "حالت خوندي کړئ")}
               </button>
             </footer>
           </form>
@@ -1776,11 +1847,14 @@ export default function EmployeeAttendance() {
               <AlertTriangle size={27} />
             </span>
 
-            <h2>Delete attendance?</h2>
+            <h2>{tx("Delete attendance?", "حاضری حذف شود؟", "حاضري حذف شي؟")}</h2>
 
             <p>
-              “{deleteTarget.name}” and all of its daily
-              records will be permanently deleted.
+              {tx(
+                "This attendance and all of its daily records will be permanently deleted.",
+                "این حاضری و تمام سوابق روزانه آن به‌طور دایمی حذف می‌شود.",
+                "دا حاضري او د هغې ټول ورځني ریکارډونه به د تل لپاره حذف شي."
+              )}
             </p>
 
             <div>
@@ -1788,7 +1862,7 @@ export default function EmployeeAttendance() {
                 type="button"
                 onClick={() => setDeleteTarget(null)}
               >
-                Cancel
+                {tx("Cancel", "لغو", "لغوه")}
               </button>
 
               <button
@@ -1797,7 +1871,7 @@ export default function EmployeeAttendance() {
                 onClick={removeAttendance}
               >
                 <Trash2 size={15} />
-                Delete Attendance
+                {tx("Delete Attendance", "حذف حاضری", "حاضري حذف کړئ")}
               </button>
             </div>
           </div>

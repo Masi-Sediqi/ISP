@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   CartesianGrid,
@@ -124,6 +124,82 @@ function Finance() {
 
   const [formData, setFormData] =
     useState(emptyFinanceForm);
+
+  const [interfaceLanguage, setInterfaceLanguage] = useState(
+    () => localStorage.getItem("isp-language") || "en"
+  );
+
+  useEffect(() => {
+    const syncInterfaceLanguage = (event) => {
+      const nextLanguage =
+        event?.detail ||
+        localStorage.getItem("isp-language") ||
+        "en";
+
+      setInterfaceLanguage(nextLanguage);
+    };
+
+    window.addEventListener(
+      "isp-language-changed",
+      syncInterfaceLanguage
+    );
+    window.addEventListener(
+      "storage",
+      syncInterfaceLanguage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncInterfaceLanguage
+      );
+      window.removeEventListener(
+        "storage",
+        syncInterfaceLanguage
+      );
+    };
+  }, []);
+
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
+
+  const translateFinanceValue = (value) => {
+    const key = String(value || "");
+
+    const labels = {
+      Income: tx("Income", "عواید", "عاید"),
+      Expense: tx("Expense", "مصارف", "لګښت"),
+      Other: tx("Other", "سایر", "نور"),
+      "Project Sales": tx("Project Sales", "فروش پروژه", "د پروژې پلور"),
+      "Sales Income": tx("Sales Income", "عواید فروش", "د پلور عاید"),
+      Services: tx("Services", "خدمات", "خدمتونه"),
+      Assets: tx("Assets", "دارایی‌ها", "شتمنۍ"),
+      Salary: tx("Salary", "معاش", "معاش"),
+      Repair: tx("Repair", "ترمیم", "ترمیم"),
+      Fuel: tx("Fuel", "سوخت", "سون توکي"),
+      Purchases: tx("Purchases", "خریداری‌ها", "پېرودنې"),
+      "Supplier Payment": tx("Supplier Payment", "پرداخت تأمین‌کننده", "د عرضه کوونکي تادیه"),
+      "Customer Payment": tx("Customer Payment", "پرداخت مشتری", "د پېرودونکي تادیه"),
+      "Customer Refund": tx("Customer Refund", "بازپرداخت مشتری", "پېرودونکي ته بېرته تادیه"),
+      "Security Deposit": tx("Security Deposit", "ودیعه تضمینی", "ضمانتي امانت"),
+      "Travel Income": tx("Travel Income", "عواید سفر", "د سفر عاید"),
+      "Travel Expense": tx("Travel Expense", "مصارف سفر", "د سفر لګښت"),
+      "Vehicle Expense": tx("Vehicle Expense", "مصارف وسایط", "د وسایطو لګښت"),
+      "Employee Adjustment": tx("Employee Adjustment", "تعدیلات کارمند", "د کارکوونکي تعدیلات"),
+      Manual: tx("Manual", "دستی", "لاسي"),
+      System: tx("System", "سیستم", "سیسټم"),
+      "Asset Purchase": tx("Asset Purchase", "خرید دارایی", "د شتمنۍ پېرود"),
+      "Customer Payout": tx("Customer Payout", "پرداخت به مشتری", "پېرودونکي ته تادیه"),
+      "Device Sale": tx("Device Sale", "فروش دستگاه", "د وسیلې پلور"),
+      "Employee Payment": tx("Employee Payment", "پرداخت کارمند", "د کارکوونکي تادیه"),
+    };
+
+    return labels[key] || value;
+  };
 
   const categoryOptions = useMemo(() => {
     const savedCategories = financeCategories
@@ -670,7 +746,7 @@ function Finance() {
   const openEditModal = (transaction) => {
     if (transaction.source !== "manual") {
       notify(
-        "System-generated financial records cannot be edited from this page.",
+        tx("System-generated financial records cannot be edited from this page.", "سوابق مالی ایجادشده توسط سیستم از این صفحه قابل ویرایش نیستند.", "د سیسټم لخوا جوړ شوي مالي ریکارډونه له دې پاڼې نه شي سمېدای."),
         "error"
       );
       return;
@@ -721,7 +797,7 @@ function Finance() {
 
     if (!title) {
       notify(
-        "Please enter a category name.",
+        tx("Please enter a category name.", "لطفاً نام کتگوری را وارد کنید.", "مهرباني وکړئ د کټګورۍ نوم ولیکئ."),
         "error"
       );
       return;
@@ -768,7 +844,7 @@ function Finance() {
     setNewCategory("");
 
     notify(
-      "New category added successfully."
+      tx("New category added successfully.", "کتگوری جدید با موفقیت اضافه شد.", "نوې کټګوري په بریالیتوب سره زیاته شوه.")
     );
   };
 
@@ -782,7 +858,7 @@ function Finance() {
     const nextTitle = categoryEditTitle.trim();
 
     if (!editingCategory || !nextTitle) {
-      notify("Please enter a category name.", "error");
+      notify(tx("Please enter a category name.", "لطفاً نام کتگوری را وارد کنید.", "مهرباني وکړئ د کټګورۍ نوم ولیکئ."), "error");
       return;
     }
 
@@ -798,7 +874,7 @@ function Finance() {
     );
 
     if (isDefaultCategory || duplicateCategory) {
-      notify("This category already exists.", "error");
+      notify(tx("This category already exists.", "این کتگوری از قبل موجود است.", "دا کټګوري لا دمخه شته."), "error");
       return;
     }
 
@@ -840,7 +916,7 @@ function Finance() {
     }));
     setEditingCategory(null);
     setCategoryEditTitle("");
-    notify("Category updated successfully.");
+    notify(tx("Category updated successfully.", "کتگوری با موفقیت ویرایش شد.", "کټګوري په بریالیتوب سره سمه شوه."));
   };
 
   const deleteCategory = async (category) => {
@@ -876,7 +952,7 @@ function Finance() {
     }));
     setEditingCategory(null);
     setCategoryEditTitle("");
-    notify("Category deleted successfully.");
+    notify(tx("Category deleted successfully.", "کتگوری با موفقیت حذف شد.", "کټګوري په بریالیتوب سره حذف شوه."));
   };
 
   const handleSubmit = async (
@@ -890,7 +966,7 @@ function Finance() {
 
     if (!formData.date) {
       notify(
-        "Please select a date.",
+        tx("Please select a date.", "لطفاً تاریخ را انتخاب کنید.", "مهرباني وکړئ نېټه وټاکئ."),
         "error"
       );
       return;
@@ -898,7 +974,7 @@ function Finance() {
 
     if (!formData.title.trim()) {
       notify(
-        "Please enter a title.",
+        tx("Please enter a title.", "لطفاً عنوان را وارد کنید.", "مهرباني وکړئ سرلیک ولیکئ."),
         "error"
       );
       return;
@@ -906,7 +982,7 @@ function Finance() {
 
     if (!formData.category) {
       notify(
-        "Please select a category.",
+        tx("Please select a category.", "لطفاً کتگوری را انتخاب کنید.", "مهرباني وکړئ کټګوري وټاکئ."),
         "error"
       );
       return;
@@ -917,7 +993,7 @@ function Finance() {
       amount <= 0
     ) {
       notify(
-        "Amount must be greater than zero.",
+        tx("Amount must be greater than zero.", "مبلغ باید بیشتر از صفر باشد.", "اندازه باید له صفر څخه زیاته وي."),
         "error"
       );
       return;
@@ -955,7 +1031,7 @@ function Finance() {
       if (!saved) return;
 
       notify(
-        "Financial record updated successfully."
+        tx("Financial record updated successfully.", "رکورد مالی با موفقیت ویرایش شد.", "مالي ریکارډ په بریالیتوب سره سم شو.")
       );
     } else {
       const saved =
@@ -982,8 +1058,8 @@ function Finance() {
 
       notify(
         formData.type === "income"
-          ? "Income recorded successfully."
-          : "Expense recorded successfully."
+          ? tx("Income recorded successfully.", "عواید با موفقیت ثبت شد.", "عاید په بریالیتوب سره ثبت شو.")
+          : tx("Expense recorded successfully.", "مصرف با موفقیت ثبت شد.", "لګښت په بریالیتوب سره ثبت شو.")
       );
     }
 
@@ -1001,7 +1077,7 @@ function Finance() {
         "manual"
       ) {
         notify(
-          "System-generated financial records cannot be deleted from this page.",
+          tx("System-generated financial records cannot be deleted from this page.", "سوابق مالی ایجادشده توسط سیستم از این صفحه قابل حذف نیستند.", "د سیسټم لخوا جوړ شوي مالي ریکارډونه له دې پاڼې نه شي حذف کېدای."),
           "error"
         );
 
@@ -1023,7 +1099,7 @@ function Finance() {
       if (!saved) return;
 
       notify(
-        "Financial record deleted successfully."
+        tx("Financial record deleted successfully.", "رکورد مالی با موفقیت حذف شد.", "مالي ریکارډ په بریالیتوب سره حذف شو.")
       );
 
       setDeleteTransaction(null);
@@ -1036,14 +1112,14 @@ function Finance() {
     if (
       transaction.source === "manual"
     ) {
-      return "Manual";
+      return tx("Manual", "دستی", "لاسي");
     }
 
     if (
       transaction.source ===
       "asset-purchase"
     ) {
-      return "Asset Purchase";
+      return tx("Asset Purchase", "خرید دارایی", "د شتمنۍ پېرود");
     }
 
     if (
@@ -1051,43 +1127,43 @@ function Finance() {
       "customer-payment"
     ) {
       return transaction.type === "expense"
-        ? "Customer Payout"
-        : "Customer Payment";
+        ? tx("Customer Payout", "پرداخت به مشتری", "پېرودونکي ته تادیه")
+        : tx("Customer Payment", "پرداخت مشتری", "د پېرودونکي تادیه");
     }
 
     if (
       transaction.source ===
       "customer-device-sale"
     ) {
-      return "Device Sale";
+      return tx("Device Sale", "فروش دستگاه", "د وسیلې پلور");
     }
 
     if (
       transaction.source ===
       "employee-adjustment"
     ) {
-      return "Employee Adjustment";
+      return tx("Employee Adjustment", "تعدیلات کارمند", "د کارکوونکي تعدیلات");
     }
 
     if (
       transaction.source ===
       "employee-payment"
     ) {
-      return "Employee Payment";
+      return tx("Employee Payment", "پرداخت کارمند", "د کارکوونکي تادیه");
     }
 
     if (
       transaction.source ===
       "supplier-payment"
     ) {
-      return "Supplier Payment";
+      return tx("Supplier Payment", "پرداخت تأمین‌کننده", "د عرضه کوونکي تادیه");
     }
 
     if (
       transaction.source ===
       "travel-expense"
     ) {
-      return "Travel Expense";
+      return tx("Travel Expense", "مصارف سفر", "د سفر لګښت");
     }
 
     if (
@@ -1096,24 +1172,26 @@ function Finance() {
       transaction.source ===
       "car-repair"
     ) {
-      return "Vehicle Expense";
+      return tx("Vehicle Expense", "مصارف وسایط", "د وسایطو لګښت");
     }
 
-    return "System";
+    return tx("System", "سیستم", "سیسټم");
   };
 
   return (
-    <div className="finance-page">
+    <div className={`finance-page ${interfaceLanguage !== "en" ? "finance-page-rtl" : ""}`}>
       <div className="finance-header">
         <div>
           <h1>
-            Income and Expenses
+            {tx("Income and Expenses", "عواید و مصارف", "عاید او لګښتونه")}
           </h1>
 
           <p>
-            Record income and expenses,
-            manage categories, and review
-            the complete financial flow.
+            {tx(
+              "Record income and expenses, manage categories, and review the complete financial flow.",
+              "عواید و مصارف را ثبت کرده، کتگوری‌ها را مدیریت و جریان کامل مالی را بررسی کنید.",
+              "عاید او لګښتونه ثبت کړئ، کټګورۍ مدیریت کړئ او بشپړ مالي جریان وڅېړئ."
+            )}
           </p>
         </div>
 
@@ -1122,29 +1200,29 @@ function Finance() {
           className="finance-add-btn"
           onClick={openAddModal}
         >
-          + Add Income or Expense
+          + {tx("Add Income or Expense", "افزودن عاید یا مصرف", "عاید یا لګښت زیاتول")}
         </button>
       </div>
 
       <div className="finance-stats">
         <div className="finance-stat-card income">
-          <span>Total Income</span>
+          <span>{tx("Total Income", "مجموع عواید", "ټول عاید")}</span>
 
           <strong>
             {formatAmount(totalIncome)}
           </strong>
 
-          <p>AFN received</p>
+          <p>{tx("AFN received", "افغانی دریافت‌شده", "ترلاسه شوي افغانۍ")}</p>
         </div>
 
         <div className="finance-stat-card expense">
-          <span>Total Expenses</span>
+          <span>{tx("Total Expenses", "مجموع مصارف", "ټول لګښتونه")}</span>
 
           <strong>
             {formatAmount(totalExpense)}
           </strong>
 
-          <p>AFN spent</p>
+          <p>{tx("AFN spent", "افغانی مصرف‌شده", "لګول شوي افغانۍ")}</p>
         </div>
 
         <div
@@ -1155,8 +1233,8 @@ function Finance() {
         >
           <span>
             {netResult >= 0
-              ? "Net Profit"
-              : "Net Loss"}
+              ? tx("Net Profit", "سود خالص", "خالصه ګټه")
+              : tx("Net Loss", "زیان خالص", "خالص تاوان")}
           </span>
 
           <strong>
@@ -1166,8 +1244,11 @@ function Finance() {
           </strong>
 
           <p>
-            Difference between income
-            and expenses
+            {tx(
+              "Difference between income and expenses",
+              "تفاوت میان عواید و مصارف",
+              "د عاید او لګښتونو توپیر"
+            )}
           </p>
         </div>
       </div>
@@ -1176,19 +1257,22 @@ function Finance() {
         <div className="finance-overview-card">
           <div className="finance-chart-title">
             <h3>
-              Financial Overview
+              {tx("Financial Overview", "نمای کلی مالی", "مالي عمومي کتنه")}
             </h3>
 
             <p>
-              Compare total income,
-              expenses, and net result.
+              {tx(
+                "Compare total income, expenses, and net result.",
+                "مجموع عواید، مصارف و نتیجه خالص را مقایسه کنید.",
+                "ټول عاید، لګښتونه او خالصه پایله پرتله کړئ."
+              )}
             </p>
           </div>
 
           <div className="finance-progress-list">
             <div>
               <span>
-                <b>Income</b>
+                <b>{tx("Income", "عواید", "عاید")}</b>
 
                 <strong>
                   {formatAmount(
@@ -1212,7 +1296,7 @@ function Finance() {
 
             <div>
               <span>
-                <b>Expenses</b>
+                <b>{tx("Expenses", "مصارف", "لګښتونه")}</b>
 
                 <strong>
                   {formatAmount(
@@ -1238,8 +1322,8 @@ function Finance() {
               <span>
                 <b>
                   {netResult >= 0
-                    ? "Net Profit"
-                    : "Net Loss"}
+                    ? tx("Net Profit", "سود خالص", "خالصه ګټه")
+                    : tx("Net Loss", "زیان خالص", "خالص تاوان")}
                 </b>
 
                 <strong>
@@ -1273,13 +1357,19 @@ function Finance() {
         <div className="finance-chart-card">
           <div className="finance-chart-title">
             <h3>
-              Income, Expenses, and
-              Net Result by Date
+              {tx(
+                "Income, Expenses, and Net Result by Date",
+                "عواید، مصارف و نتیجه خالص بر اساس تاریخ",
+                "عاید، لګښتونه او خالصه پایله د نېټې له مخې"
+              )}
             </h3>
 
             <p>
-              Review daily financial
-              performance.
+              {tx(
+                "Review daily financial performance.",
+                "عملکرد مالی روزانه را بررسی کنید.",
+                "ورځنی مالي فعالیت وڅېړئ."
+              )}
             </p>
           </div>
 
@@ -1319,7 +1409,7 @@ function Finance() {
 
                 <Bar
                   dataKey="income"
-                  name="Income"
+                  name={tx("Income", "عواید", "عاید")}
                   fill="#16a34a"
                   radius={[
                     6,
@@ -1331,7 +1421,7 @@ function Finance() {
 
                 <Bar
                   dataKey="expense"
-                  name="Expense"
+                  name={tx("Expense", "مصارف", "لګښت")}
                   fill="#dc2626"
                   radius={[
                     6,
@@ -1344,7 +1434,7 @@ function Finance() {
                 <Line
                   type="monotone"
                   dataKey="net"
-                  name="Net Result"
+                  name={tx("Net Result", "نتیجه خالص", "خالصه پایله")}
                   stroke="#2563eb"
                   strokeWidth={3}
                 />
@@ -1358,12 +1448,15 @@ function Finance() {
         <div className="finance-table-header">
           <div>
             <h3>
-              Income and Expense Records
+              {tx("Income and Expense Records", "سوابق عواید و مصارف", "د عاید او لګښت ریکارډونه")}
             </h3>
 
             <p>
-              Manual and automatic
-              financial transactions.
+              {tx(
+                "Manual and automatic financial transactions.",
+                "تراکنش‌های مالی دستی و خودکار.",
+                "لاسي او اتومات مالي معاملې."
+              )}
             </p>
           </div>
 
@@ -1374,7 +1467,11 @@ function Finance() {
                 event.target.value
               )
             }
-            placeholder="Search financial records..."
+            placeholder={tx(
+              "Search financial records...",
+              "جستجوی سوابق مالی...",
+              "مالي ریکارډونه ولټوئ..."
+            )}
           />
         </div>
 
@@ -1382,14 +1479,14 @@ function Finance() {
           <table>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Source</th>
-                <th>Description</th>
-                <th>Actions</th>
+                <th>{tx("Date", "تاریخ", "نېټه")}</th>
+                <th>{tx("Type", "نوع", "ډول")}</th>
+                <th>{tx("Title", "عنوان", "سرلیک")}</th>
+                <th>{tx("Category", "کتگوری", "کټګوري")}</th>
+                <th>{tx("Amount", "مبلغ", "اندازه")}</th>
+                <th>{tx("Source", "منبع", "سرچینه")}</th>
+                <th>{tx("Description", "توضیحات", "تشریح")}</th>
+                <th>{tx("Actions", "عملیات", "عملونه")}</th>
               </tr>
             </thead>
 
@@ -1426,8 +1523,8 @@ function Finance() {
                         >
                           {transaction.type ===
                             "income"
-                            ? "Income"
-                            : "Expense"}
+                            ? tx("Income", "عواید", "عاید")
+                            : tx("Expense", "مصارف", "لګښت")}
                         </span>
                       </td>
 
@@ -1437,8 +1534,9 @@ function Finance() {
                       </td>
 
                       <td>
-                        {transaction.category ||
-                          "Other"}
+                        {translateFinanceValue(
+                          transaction.category || "Other"
+                        )}
                       </td>
 
                       <td>
@@ -1472,7 +1570,7 @@ function Finance() {
                             <button
                               type="button"
                               className="finance-action-toggle"
-                              aria-label="Open actions"
+                              aria-label={tx("Open actions", "باز کردن عملیات", "عملونه پرانیستل")}
                               aria-expanded={
                                 String(
                                   openActionId
@@ -1520,7 +1618,7 @@ function Finance() {
                                     <Pencil
                                       size={15}
                                     />
-                                    Edit
+                                    {tx("Edit", "ویرایش", "سمول")}
                                   </button>
 
                                   <button
@@ -1539,14 +1637,14 @@ function Finance() {
                                     <Trash2
                                       size={15}
                                     />
-                                    Delete
+                                    {tx("Delete", "حذف", "حذف")}
                                   </button>
                                 </div>
                               )}
                           </div>
                         ) : (
                           <span className="finance-system-record">
-                            System record
+                            {tx("System record", "رکورد سیستمی", "سیسټمي ریکارډ")}
                           </span>
                         )}
                       </td>
@@ -1562,9 +1660,11 @@ function Finance() {
                       colSpan="8"
                       className="finance-empty"
                     >
-                      No financial record
-                      has been registered
-                      yet.
+                      {tx(
+                        "No financial record has been registered yet.",
+                        "هنوز هیچ رکورد مالی ثبت نشده است.",
+                        "تر اوسه هېڅ مالي ریکارډ نه دی ثبت شوی."
+                      )}
                     </td>
                   </tr>
                 )}
@@ -1599,14 +1699,16 @@ function Finance() {
               <div>
                 <h3>
                   {editingTransaction
-                    ? "Edit Manual Financial Record"
-                    : "Add Manual Income or Expense"}
+                    ? tx("Edit Manual Financial Record", "ویرایش رکورد مالی دستی", "لاسي مالي ریکارډ سمول")
+                    : tx("Add Manual Income or Expense", "افزودن عاید یا مصرف دستی", "لاسي عاید یا لګښت زیاتول")}
                 </h3>
 
                 <p>
-                  Enter the date, type,
-                  title, category, amount,
-                  and description.
+                  {tx(
+                    "Enter the date, type, title, category, amount, and description.",
+                    "تاریخ، نوع، عنوان، کتگوری، مبلغ و توضیحات را وارد کنید.",
+                    "نېټه، ډول، سرلیک، کټګوري، اندازه او تشریح ولیکئ."
+                  )}
                 </p>
               </div>
 
@@ -1623,7 +1725,7 @@ function Finance() {
             >
               <div className="finance-form-grid">
                 <div className="finance-form-group">
-                  <label>Date</label>
+                  <label>{tx("Date", "تاریخ", "نېټه")}</label>
 
                   <input
                     type="date"
@@ -1645,7 +1747,7 @@ function Finance() {
                 </div>
 
                 <div className="finance-form-group">
-                  <label>Type</label>
+                  <label>{tx("Type", "نوع", "ډول")}</label>
 
                   <select
                     value={
@@ -1663,17 +1765,17 @@ function Finance() {
                     }
                   >
                     <option value="income">
-                      Income
+                      {tx("Income", "عواید", "عاید")}
                     </option>
 
                     <option value="expense">
-                      Expense
+                      {tx("Expense", "مصارف", "لګښت")}
                     </option>
                   </select>
                 </div>
 
                 <div className="finance-form-group">
-                  <label>Title</label>
+                  <label>{tx("Title", "عنوان", "سرلیک")}</label>
 
                   <input
                     value={
@@ -1689,13 +1791,13 @@ function Finance() {
                         })
                       )
                     }
-                    placeholder="Enter record title"
+                    placeholder={tx("Enter record title", "عنوان رکورد را وارد کنید", "د ریکارډ سرلیک ولیکئ")}
                     required
                   />
                 </div>
 
                 <div className="finance-form-group">
-                  <label>Amount</label>
+                  <label>{tx("Amount", "مبلغ", "اندازه")}</label>
 
                   <input
                     type="number"
@@ -1714,14 +1816,14 @@ function Finance() {
                         })
                       )
                     }
-                    placeholder="Enter amount"
+                    placeholder={tx("Enter amount", "مبلغ را وارد کنید", "اندازه ولیکئ")}
                     required
                   />
                 </div>
 
                 <div className="finance-form-group finance-form-full">
                   <label>
-                    Category
+                    {tx("Category", "کتگوری", "کټګوري")}
                   </label>
 
                   <div className="finance-category-row">
@@ -1755,7 +1857,7 @@ function Finance() {
                               category
                             }
                           >
-                            {category}
+                            {translateFinanceValue(category)}
                           </option>
                         )
                       )}
@@ -1771,7 +1873,7 @@ function Finance() {
                             .value
                         )
                       }
-                      placeholder="New category"
+                      placeholder={tx("New category", "کتگوری جدید", "نوې کټګوري")}
                     />
 
                     <button
@@ -1780,7 +1882,7 @@ function Finance() {
                         addCategory
                       }
                     >
-                      Add
+                      {tx("Add", "افزودن", "زیاتول")}
                     </button>
                   </div>
 
@@ -1797,7 +1899,7 @@ function Finance() {
                                 }
                               />
                               <button type="button" onClick={saveCategoryEdit}>
-                                Save
+                                {tx("Save", "ذخیره", "خوندي کول")}
                               </button>
                               <button
                                 type="button"
@@ -1807,24 +1909,24 @@ function Finance() {
                                   setCategoryEditTitle("");
                                 }}
                               >
-                                Cancel
+                                {tx("Cancel", "لغو", "لغوه")}
                               </button>
                             </>
                           ) : (
                             <>
-                              <span>{category.title}</span>
+                              <span>{translateFinanceValue(category.title)}</span>
                               <button
                                 type="button"
                                 onClick={() => beginEditCategory(category)}
                               >
-                                Edit
+                                {tx("Edit", "ویرایش", "سمول")}
                               </button>
                               <button
                                 type="button"
                                 className="danger"
                                 onClick={() => deleteCategory(category)}
                               >
-                                Delete
+                                {tx("Delete", "حذف", "حذف")}
                               </button>
                             </>
                           )}
@@ -1836,7 +1938,7 @@ function Finance() {
 
                 <div className="finance-form-group finance-form-full">
                   <label>
-                    Description
+                    {tx("Description", "توضیحات", "تشریح")}
                   </label>
 
                   <textarea
@@ -1854,7 +1956,7 @@ function Finance() {
                         })
                       )
                     }
-                    placeholder="Optional description"
+                    placeholder={tx("Optional description", "توضیحات اختیاری", "اختیاري تشریح")}
                   />
                 </div>
               </div>
@@ -1865,7 +1967,7 @@ function Finance() {
                   className="finance-cancel-btn"
                   onClick={closeModal}
                 >
-                  Cancel
+                  {tx("Cancel", "لغو", "لغوه")}
                 </button>
 
                 <button
@@ -1873,8 +1975,8 @@ function Finance() {
                   className="finance-save-btn"
                 >
                   {editingTransaction
-                    ? "Save Changes"
-                    : "Save Record"}
+                    ? tx("Save Changes", "ذخیره تغییرات", "بدلونونه خوندي کړئ")
+                    : tx("Save Record", "ذخیره رکورد", "ریکارډ خوندي کړئ")}
                 </button>
               </div>
             </form>
@@ -1900,17 +2002,24 @@ function Finance() {
             </div>
 
             <h3>
-              Delete Financial Record
+              {tx("Delete Financial Record", "حذف رکورد مالی", "مالي ریکارډ حذف کول")}
             </h3>
 
             <p>
-              Are you sure you want to
-              delete{" "}
+              {tx(
+                "Are you sure you want to delete",
+                "آیا مطمئن هستید که می‌خواهید حذف کنید",
+                "ایا ډاډه یاست چې حذف یې کړئ"
+              )}{" "}
               <strong>
                 {deleteTransaction.title}
               </strong>
-              ? This action cannot be
-              undone.
+              ؟{" "}
+              {tx(
+                "This action cannot be undone.",
+                "این عمل قابل بازگشت نیست.",
+                "دا عمل بېرته نه شي راګرځېدلی."
+              )}
             </p>
 
             <div className="finance-delete-actions">
@@ -1923,7 +2032,7 @@ function Finance() {
                   )
                 }
               >
-                Cancel
+                {tx("Cancel", "لغو", "لغوه")}
               </button>
 
               <button
@@ -1933,7 +2042,7 @@ function Finance() {
                   confirmDeleteTransaction
                 }
               >
-                Delete
+                {tx("Delete", "حذف", "حذف")}
               </button>
             </div>
           </div>

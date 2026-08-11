@@ -183,6 +183,135 @@ function App() {
   const [packageMenuOpen, setPackageMenuOpen] = useState(false);
   const sidebarInfoRef = useRef(null);
 
+  const [interfaceLanguage, setInterfaceLanguage] = useState(
+    () => localStorage.getItem("isp-language") || "en"
+  );
+
+  useEffect(() => {
+    const syncInterfaceLanguage = (event) => {
+      const nextLanguage =
+        event?.detail || localStorage.getItem("isp-language") || "en";
+
+      setInterfaceLanguage(nextLanguage);
+    };
+
+    window.addEventListener("isp-language-changed", syncInterfaceLanguage);
+    window.addEventListener("storage", syncInterfaceLanguage);
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncInterfaceLanguage
+      );
+      window.removeEventListener("storage", syncInterfaceLanguage);
+    };
+  }, []);
+
+  const sidebarTranslations = {
+    en: {
+      dashboard: "Dashboard",
+      myAccount: "My Account",
+      customers: "Customers",
+      consultantCustomers: "Consultant Customers",
+      travelCustomers: "Travel Customers",
+      technologyCustomers: "Technology Customers",
+      mediaCustomers: "Media Customers",
+      projects: "Projects",
+      projectSales: "Project Sales",
+      projectLicense: "Project License",
+      employees: "Employees",
+      allEmployees: "All Employees",
+      employeeAttendance: "Employee Attendance",
+      packages: "Packages",
+      visaPackage: "Visa Package",
+      travelPackage: "Travel Package",
+      technologyPackage: "Technology Package",
+      mediaPackage: "Media Package",
+      reception: "Reception",
+      suppliers: "Suppliers",
+      assets: "Assets",
+      finances: "Finances",
+      reports: "Reports",
+      settings: "Settings",
+      aiAgent: "AI Agent",
+      recycleBin: "Recycle Bin",
+      helpCenter: "Help Center",
+      developer: "Developer",
+      faq: "FAQ",
+      userGuide: "User Guide",
+      termsPrivacy: "Terms & Privacy",
+    },
+    dr: {
+      dashboard: "داشبورد",
+      myAccount: "حساب من",
+      customers: "مشتریان",
+      consultantCustomers: "مشتریان مشاوره",
+      travelCustomers: "مشتریان سفر",
+      technologyCustomers: "مشتریان تکنالوژی",
+      mediaCustomers: "مشتریان رسانه",
+      projects: "پروژه‌ها",
+      projectSales: "فروش پروژه",
+      projectLicense: "جواز پروژه",
+      employees: "کارمندان",
+      allEmployees: "همه کارمندان",
+      employeeAttendance: "حاضری کارمندان",
+      packages: "پکیج‌ها",
+      visaPackage: "پکیج ویزه",
+      travelPackage: "پکیج سفر",
+      technologyPackage: "پکیج تکنالوژی",
+      mediaPackage: "پکیج رسانه",
+      reception: "پذیرش",
+      suppliers: "تأمین‌کنندگان",
+      assets: "دارایی‌ها",
+      finances: "امور مالی",
+      reports: "گزارش‌ها",
+      settings: "تنظیمات",
+      aiAgent: "دستیار هوشمند",
+      recycleBin: "سطل بازیافت",
+      helpCenter: "مرکز راهنما",
+      developer: "توسعه‌دهنده",
+      faq: "پرسش‌های متداول",
+      userGuide: "راهنمای کاربر",
+      termsPrivacy: "شرایط و حریم خصوصی",
+    },
+    ps: {
+      dashboard: "ډشبورډ",
+      myAccount: "زما حساب",
+      customers: "پېرودونکي",
+      consultantCustomers: "مشورتي پېرودونکي",
+      travelCustomers: "د سفر پېرودونکي",
+      technologyCustomers: "د ټکنالوژۍ پېرودونکي",
+      mediaCustomers: "د رسنیو پېرودونکي",
+      projects: "پروژې",
+      projectSales: "د پروژې پلور",
+      projectLicense: "د پروژې جواز",
+      employees: "کارکوونکي",
+      allEmployees: "ټول کارکوونکي",
+      employeeAttendance: "د کارکوونکو حاضري",
+      packages: "بستې",
+      visaPackage: "د ویزې بسته",
+      travelPackage: "د سفر بسته",
+      technologyPackage: "د ټکنالوژۍ بسته",
+      mediaPackage: "د رسنیو بسته",
+      reception: "استقبال",
+      suppliers: "عرضه کوونکي",
+      assets: "شتمنۍ",
+      finances: "مالي چارې",
+      reports: "راپورونه",
+      settings: "تنظیمات",
+      aiAgent: "هوښیار مرستیال",
+      recycleBin: "کثافات",
+      helpCenter: "د مرستې مرکز",
+      developer: "پراختیا ورکوونکی",
+      faq: "عامې پوښتنې",
+      userGuide: "د کارن لارښود",
+      termsPrivacy: "شرایط او محرمیت",
+    },
+  };
+
+  const sidebarText =
+    sidebarTranslations[interfaceLanguage] || sidebarTranslations.en;
+
   const assignmentAlertReadyRef =
     useRef(false);
 
@@ -678,60 +807,59 @@ const myAssignedCustomers = customers
   };
 
   const menuItems = [
-    { to: "/", label: "Dashboard", moduleKey: "dashboard", icon: LayoutDashboard },
+    { to: "/", label: sidebarText.dashboard, moduleKey: "dashboard", icon: LayoutDashboard },
     {
       to: "/reception",
-      label: "Reception",
+      label: sidebarText.reception,
       moduleKey: "customers",
       icon: UserRoundCog,
     },
-    { to: "/suppliers", label: "Suppliers", moduleKey: "suppliers", icon: Building2 },
-    { to: "/office-assets", label: "Assets", moduleKey: "dashboard", icon: Armchair, },
-    { to: "/finance", label: "Finances", moduleKey: "finance", icon: WalletCards },
-    { to: "/reports", label: "Reports", moduleKey: "reports", icon: FileBarChart },
-    { to: "/settings", label: "Settings", moduleKey: "settings", icon: SettingsIcon },
-    { to: "/agent", label: "AI Agent", moduleKey: "agent", icon: Bot },
-    { to: "/recycle-bin", label: "Recycle Bin", moduleKey: "dashboard", icon: Trash2 },
+    { to: "/suppliers", label: sidebarText.suppliers, moduleKey: "suppliers", icon: Building2 },
+    { to: "/office-assets", label: sidebarText.assets, moduleKey: "dashboard", icon: Armchair, },
+    { to: "/finance", label: sidebarText.finances, moduleKey: "finance", icon: WalletCards },
+    { to: "/reports", label: sidebarText.reports, moduleKey: "reports", icon: FileBarChart },
+    { to: "/settings", label: sidebarText.settings, moduleKey: "settings", icon: SettingsIcon },
+    { to: "/agent", label: sidebarText.aiAgent, moduleKey: "agent", icon: Bot },
+    { to: "/recycle-bin", label: sidebarText.recycleBin, moduleKey: "dashboard", icon: Trash2 },
   ];
 
   const customerMenuItems = [
-    { to: "/customers/consultants", label: "Consultant Customers", icon: BriefcaseBusiness },
-    { to: "/customers/travel", label: "Travel Customers", icon: Plane },
-    { to: "/customers/technology", label: "Technology Customers", icon: Cpu },
-    { to: "/customers/media", label: "Media Customers", icon: Clapperboard },
-
+    { to: "/customers/consultants", label: sidebarText.consultantCustomers, icon: BriefcaseBusiness },
+    { to: "/customers/travel", label: sidebarText.travelCustomers, icon: Plane },
+    { to: "/customers/technology", label: sidebarText.technologyCustomers, icon: Cpu },
+    { to: "/customers/media", label: sidebarText.mediaCustomers, icon: Clapperboard },
   ];
 
   const projectMenuItems = [
-    { to: "/projects", label: "Projects", icon: FolderKanban },
-    { to: "/project-sales", label: "Project Sales", icon: ReceiptText },
-    { to: "/project-license", label: "Project License", icon: FileText },
+    { to: "/projects", label: sidebarText.projects, icon: FolderKanban },
+    { to: "/project-sales", label: sidebarText.projectSales, icon: ReceiptText },
+    { to: "/project-license", label: sidebarText.projectLicense, icon: FileText },
   ];
 
   const employeeMenuItems = [
-    { to: "/employees", label: "All Employees", icon: Users },
-    { to: "/employees/attendance", label: "Employee Attendance", icon: CalendarCheck },
+    { to: "/employees", label: sidebarText.allEmployees, icon: Users },
+    { to: "/employees/attendance", label: sidebarText.employeeAttendance, icon: CalendarCheck },
   ];
 
   const packageMenuItems = [
     {
       to: "/packages/visa",
-      label: "Visa Package",
+      label: sidebarText.visaPackage,
       icon: FileText,
     },
     {
       to: "/packages/travel",
-      label: "Travel Package",
+      label: sidebarText.travelPackage,
       icon: Plane,
     },
     {
       to: "/packages/technology",
-      label: "Technology Package",
+      label: sidebarText.technologyPackage,
       icon: Cpu,
     },
     {
       to: "/packages/media",
-      label: "Media Package",
+      label: sidebarText.mediaPackage,
       icon: Clapperboard,
     },
   ];
@@ -739,31 +867,31 @@ const myAssignedCustomers = customers
   const sidebarInfoLinks = [
     {
       key: "help-center",
-      label: "Help Center",
+      label: sidebarText.helpCenter,
       icon: HelpCircle,
       to: "/help-center",
     },
     {
       key: "developer",
-      label: "Developer",
+      label: sidebarText.developer,
       icon: Code2,
       to: "/developer",
     },
     {
       key: "faq",
-      label: "FAQ",
+      label: sidebarText.faq,
       icon: CircleHelp,
       to: "/faq",
     },
     {
       key: "user-guide",
-      label: "User Guide",
+      label: sidebarText.userGuide,
       icon: BookOpen,
       to: "/user-guide",
     },
     {
       key: "terms-privacy",
-      label: "Terms & Privacy",
+      label: sidebarText.termsPrivacy,
       icon: ShieldCheck,
       to: "/terms-privacy",
     },
@@ -792,7 +920,7 @@ const myAssignedCustomers = customers
     );
   } else {
     appContent = (
-      <div className="app" dir="ltr">
+      <div className="app" dir={interfaceLanguage === "en" ? "ltr" : "rtl"}>
         <aside className="sidebar">
           <div className="brand">
             <div className="brand-logo">
@@ -813,7 +941,7 @@ const myAssignedCustomers = customers
 <>
   <NavLink to="/my-account">
     <CircleUserRound size={17}/>
-    <span>My Account</span>
+    <span>{sidebarText.myAccount}</span>
   </NavLink>
 
 </>
@@ -821,7 +949,7 @@ const myAssignedCustomers = customers
           {!isReceptionAccount && (
               <NavLink to="/">
                 <LayoutDashboard size={17} />
-                <span>Dashboard</span>
+                <span>{sidebarText.dashboard}</span>
               </NavLink>
             )}
 
@@ -837,7 +965,7 @@ const myAssignedCustomers = customers
                   >
                     <span className="sidebar-menu-label">
                       <Users size={17} />
-                      <span>Customers</span>
+                      <span>{sidebarText.customers}</span>
                     </span>
                     <ChevronDown className="sidebar-menu-chevron" size={15} />
                   </button>
@@ -872,7 +1000,7 @@ const myAssignedCustomers = customers
                 >
                   <span className="sidebar-menu-label">
                     <FolderKanban size={17} />
-                    <span>Projects</span>
+                    <span>{sidebarText.projects}</span>
                   </span>
                   <ChevronDown className="sidebar-menu-chevron" size={15} />
                 </button>
@@ -907,7 +1035,7 @@ const myAssignedCustomers = customers
                 >
                   <span className="sidebar-menu-label">
                     <UserRoundCog size={17} />
-                    <span>Employees</span>
+                    <span>{sidebarText.employees}</span>
                   </span>
 
                   <ChevronDown
@@ -952,7 +1080,7 @@ const myAssignedCustomers = customers
                 >
                   <span className="sidebar-menu-label">
                     <Package size={17} />
-                    <span>Packages</span>
+                    <span>{sidebarText.packages}</span>
                   </span>
 
                   <ChevronDown

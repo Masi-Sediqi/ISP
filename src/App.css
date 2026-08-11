@@ -565,6 +565,74 @@ body.theme-warm .sidebar-customer-menu.open > .sidebar-customer-trigger {
   text-align: right;
 }
 
+/* Consistent page-level RTL. Machine values and charts remain LTR. */
+.lang-rtl .page-content > *,
+.lang-rtl .page-content section,
+.lang-rtl .page-content form,
+.lang-rtl .page-content dialog,
+.lang-rtl .page-content [role="dialog"] {
+  direction: rtl;
+  text-align: right;
+}
+
+.lang-rtl .page-content input,
+.lang-rtl .page-content textarea,
+.lang-rtl .page-content select,
+.lang-rtl .page-content table th,
+.lang-rtl .page-content table td {
+  text-align: right;
+}
+
+.lang-rtl .page-content input[type="number"],
+.lang-rtl .page-content input[type="date"],
+.lang-rtl .page-content input[type="time"],
+.lang-rtl .page-content [data-no-translate],
+.lang-rtl .recharts-wrapper,
+.lang-rtl .recharts-surface {
+  direction: ltr;
+}
+
+/* These feature styles contain explicit left alignment, so override them
+   only while a right-to-left interface language is active. */
+.lang-rtl .reception-page,
+.lang-rtl .reception-modal,
+.lang-rtl .reception-detail-modal,
+.lang-rtl .reception-assign-modal,
+.lang-rtl .finance-page,
+.lang-rtl .finance-modal,
+.lang-rtl .settings-page,
+.lang-rtl .settings-card,
+.lang-rtl .settings-data-card {
+  direction: rtl;
+  text-align: right;
+}
+
+.lang-rtl .reception-page input,
+.lang-rtl .reception-page textarea,
+.lang-rtl .reception-page select,
+.lang-rtl .reception-modal input,
+.lang-rtl .reception-modal textarea,
+.lang-rtl .reception-modal select,
+.lang-rtl .finance-modal input,
+.lang-rtl .finance-modal textarea,
+.lang-rtl .finance-modal select,
+.lang-rtl .settings-page input,
+.lang-rtl .settings-page select,
+.lang-rtl .settings-preview-copy strong {
+  text-align: right !important;
+}
+
+.lang-rtl .reception-form-grid label,
+.lang-rtl .finance-form-group,
+.lang-rtl .settings-form label,
+.lang-rtl .settings-network-grid label,
+.lang-rtl .reception-modal-header,
+.lang-rtl .finance-modal-header,
+.lang-rtl .settings-section-title {
+  direction: rtl;
+  text-align: right !important;
+}
+
 .language-picker-dropdown {
   width: 224px;
   padding: 11px;

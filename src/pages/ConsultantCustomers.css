@@ -429,3 +429,424 @@ body.dark-mode .consultant-form-grid .followup-switch.off {
     padding-left: 8px;
   }
 }
+
+
+/* Searchable country picker */
+.consultant-country-picker {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.consultant-country-picker > span {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.consultant-country-trigger {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #dfe3e8;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fff;
+  color: #64748b;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.consultant-country-trigger:hover {
+  border-color: #c4b5fd;
+}
+
+.consultant-country-trigger.open,
+.consultant-country-trigger:focus-visible {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, .10);
+}
+
+.consultant-country-trigger-value {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.consultant-country-trigger-value.has-country {
+  color: #172033;
+  font-weight: 650;
+}
+
+.consultant-country-trigger-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.consultant-country-trigger > svg {
+  flex: 0 0 auto;
+  color: #94a3b8;
+  transition: transform .18s ease, color .18s ease;
+}
+
+.consultant-country-trigger.open > svg {
+  color: #7c3aed;
+  transform: rotate(180deg);
+}
+
+.consultant-country-menu {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid rgba(139, 92, 246, .20);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .99);
+  box-shadow: 0 22px 55px rgba(15, 23, 42, .18), 0 6px 18px rgba(124, 58, 237, .07);
+  backdrop-filter: blur(14px);
+  animation: consultantCountryOpen .16s ease both;
+}
+
+@keyframes consultantCountryOpen {
+  from { opacity: 0; transform: translateY(-5px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.consultant-country-search {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #f8fafc;
+  color: #7c3aed;
+}
+
+.consultant-country-search:focus-within {
+  border-color: #a78bfa;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, .08);
+}
+
+.consultant-country-search input {
+  min-width: 0;
+  min-height: 0 !important;
+  height: 100%;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #172033;
+}
+
+.consultant-country-search > button {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  background: #ede9fe;
+  color: #7c3aed;
+  cursor: pointer;
+}
+
+.consultant-country-results {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 7px;
+  padding: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #c4b5fd transparent;
+}
+
+.consultant-country-results::-webkit-scrollbar { width: 6px; }
+.consultant-country-results::-webkit-scrollbar-track { background: transparent; }
+.consultant-country-results::-webkit-scrollbar-thumb { border-radius: 999px; background: #c4b5fd; }
+
+.consultant-country-results > button {
+  width: 100%;
+  min-height: 38px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  color: #334155;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .14s ease, border-color .14s ease, transform .14s ease;
+}
+
+.consultant-country-results > button:hover {
+  border-color: #ede9fe;
+  background: #f7f5ff;
+  transform: translateX(2px);
+}
+
+.consultant-country-results > button.selected {
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+.consultant-country-flag-image-wrap {
+  width: 28px;
+  height: 20px;
+  flex: 0 0 28px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, .35);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .08);
+}
+
+.consultant-country-flag-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.consultant-country-results strong {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.consultant-country-results > button > svg {
+  color: #7c3aed;
+}
+
+.consultant-country-results > p {
+  margin: 0;
+  padding: 20px 10px;
+  color: #94a3b8;
+  font-size: 11px;
+  text-align: center;
+}
+
+body.dark-mode .consultant-country-picker > span { color: #f8fafc; }
+body.dark-mode .consultant-country-trigger {
+  border-color: #334155;
+  background: #111827;
+  color: #94a3b8;
+}
+body.dark-mode .consultant-country-trigger-value.has-country { color: #f8fafc; }
+body.dark-mode .consultant-country-menu {
+  border-color: #334155;
+  background: rgba(15, 23, 42, .99);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, .45);
+}
+body.dark-mode .consultant-country-search {
+  border-color: #334155;
+  background: #111827;
+}
+body.dark-mode .consultant-country-search input { color: #f8fafc !important; }
+body.dark-mode .consultant-country-flag-image-wrap { border-color: #475569; background: #111827; }
+body.dark-mode .consultant-country-results > button { color: #cbd5e1; }
+body.dark-mode .consultant-country-results > button:hover,
+body.dark-mode .consultant-country-results > button.selected {
+  border-color: #6366f1;
+  background: #312e81;
+  color: #e0e7ff;
+}
+
+.lang-rtl .consultant-country-trigger,
+.lang-rtl .consultant-country-results > button { text-align: right; }
+.lang-rtl .consultant-country-results > button:hover { transform: translateX(-2px); }
+
+@media (max-width: 720px) {
+  .consultant-country-menu {
+    position: fixed;
+    top: auto;
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
+    width: auto;
+    max-height: min(430px, 72vh);
+    border-radius: 18px;
+  }
+  .consultant-country-results { max-height: min(330px, 58vh); }
+}
+
+/* Real country flag images - do not render ISO/emoji codes */
+.consultant-country-flag-image-wrap {
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.consultant-country-flag-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  font-size: 0;
+  color: transparent;
+}
+
+
+/* Verified real-image country flags */
+.consultant-country-flag-image-wrap {
+  width: 26px !important;
+  height: 18px !important;
+  flex: 0 0 26px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(148, 163, 184, .38) !important;
+  border-radius: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #fff !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .10) !important;
+}
+
+.consultant-country-flag-image {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+
+.consultant-country-trigger-value.has-country {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.consultant-country-results > button {
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+}
+
+.consultant-country-table-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.consultant-country-table-value .table-flag {
+  width: 22px !important;
+  height: 15px !important;
+  flex-basis: 22px !important;
+}
+
+
+/* Other language field shown only when Language = Other */
+.consultant-other-language-field {
+  animation: consultantOtherLanguageOpen .18s ease both;
+}
+
+.consultant-other-language-field input {
+  border-color: #c4b5fd !important;
+  background: linear-gradient(180deg, #ffffff 0%, #faf8ff 100%) !important;
+}
+
+.consultant-other-language-field input:focus {
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, .11) !important;
+}
+
+@keyframes consultantOtherLanguageOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+body.dark-mode .consultant-other-language-field input {
+  border-color: #6d28d9 !important;
+  background: #111827 !important;
+  color: #f8fafc !important;
+}
+
+/* Component-owned RTL support for Consultant / Travel / Technology / Media customers */
+.consultant-page-rtl {
+  direction: rtl;
+}
+
+.consultant-page-rtl .consultant-heading,
+.consultant-page-rtl .consultant-list-header,
+.consultant-page-rtl .consultant-modal-header,
+.consultant-page-rtl .consultant-detail-hero,
+.consultant-page-rtl .consultant-detail-actions,
+.consultant-page-rtl .consultant-modal-actions {
+  direction: rtl;
+}
+
+.consultant-page-rtl .consultant-heading > div,
+.consultant-page-rtl .consultant-list-header > div:first-child,
+.consultant-page-rtl .consultant-modal-header > div,
+.consultant-page-rtl .consultant-form-grid label,
+.consultant-page-rtl .consultant-country-picker,
+.consultant-page-rtl .consultant-detail-grid > div {
+  text-align: right;
+}
+
+.consultant-page-rtl .consultant-form-grid input,
+.consultant-page-rtl .consultant-form-grid select,
+.consultant-page-rtl .consultant-form-grid textarea,
+.consultant-page-rtl .consultant-country-trigger,
+.consultant-page-rtl .consultant-country-search input,
+.consultant-page-rtl .consultant-list-header input {
+  direction: rtl;
+  text-align: right;
+}
+
+.consultant-page-rtl .consultant-country-trigger,
+.consultant-page-rtl .consultant-country-results > button,
+.consultant-page-rtl .consultant-name-preview,
+.consultant-page-rtl .consultant-contact span {
+  direction: rtl;
+}
+
+.consultant-page-rtl .consultant-name-preview {
+  text-align: right;
+}
+
+.consultant-page-rtl .consultant-table-wrap th,
+.consultant-page-rtl .consultant-table-wrap td {
+  text-align: right;
+}
+
+.consultant-page-rtl .consultant-row-actions,
+.consultant-page-rtl .consultant-modal-actions {
+  flex-direction: row-reverse;
+}

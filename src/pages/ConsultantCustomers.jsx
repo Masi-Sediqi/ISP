@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, BriefcaseBusiness, Eye, GraduationCap, Mail, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, Eye, GraduationCap, Mail, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 import { notify } from "../utils/notify";
 import { useLocalCollection } from "../hooks/useLocalCollection";
 import { useJsonCollection } from "../hooks/useJsonCollection";
@@ -424,6 +424,44 @@ function getCountryLabel(countryName) {
   return `${getCountryFlag(countryName)} ${countryName}`;
 }
 
+function getCountryFlagUrl(countryName) {
+  const code = countryCodes[countryName];
+  return code ? `https://flagcdn.com/w40/${code.toLowerCase()}.png` : "";
+}
+
+function getCountryFlagFallbackUrl(countryName) {
+  const code = countryCodes[countryName];
+  return code ? `https://hatscripts.github.io/circle-flags/flags/${code.toLowerCase()}.svg` : "";
+}
+
+function handleCountryFlagError(event, countryName) {
+  const image = event.currentTarget;
+
+  if (image.dataset.fallbackApplied === "true") {
+    image.style.display = "none";
+    return;
+  }
+
+  image.dataset.fallbackApplied = "true";
+  image.src = getCountryFlagFallbackUrl(countryName);
+}
+
+function CountryFlag({ country, className = "" }) {
+  if (!country) return null;
+
+  return (
+    <span className={`consultant-country-flag-image-wrap ${className}`.trim()} aria-hidden="true">
+      <img
+        src={getCountryFlagUrl(country)}
+        alt=""
+        className="consultant-country-flag-image"
+        onError={(event) => handleCountryFlagError(event, country)}
+        referrerPolicy="no-referrer"
+      />
+    </span>
+  );
+}
+
 function getAfghanistanDateTime() {
   const now = new Date();
 
@@ -554,6 +592,7 @@ const emptyForm = {
   purpose: "",
   city: "",
   language: "Dari",
+  otherLanguage: "",
   callType: "Incoming",
   needFollowup: "No",
   businessType: "",
@@ -573,6 +612,64 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
   const isTechnology = mode === "technology";
   const isMedia = mode === "media";
 
+  const [interfaceLanguage, setInterfaceLanguage] = useState(
+    () => localStorage.getItem("isp-language") || "en"
+  );
+
+  useEffect(() => {
+    const syncInterfaceLanguage = (event) => {
+      const nextLanguage =
+        event?.detail ||
+        localStorage.getItem("isp-language") ||
+        "en";
+
+      setInterfaceLanguage(nextLanguage);
+    };
+
+    window.addEventListener(
+      "isp-language-changed",
+      syncInterfaceLanguage
+    );
+    window.addEventListener(
+      "storage",
+      syncInterfaceLanguage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncInterfaceLanguage
+      );
+      window.removeEventListener(
+        "storage",
+        syncInterfaceLanguage
+      );
+    };
+  }, []);
+
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
+
+  const typeLabel = isTravel
+    ? tx("Travel Customer", "مشتری سفر", "د سفر پېرودونکی")
+    : isTechnology
+      ? tx("Technology Customer", "مشتری تکنالوژی", "د ټکنالوژۍ پېرودونکی")
+      : isMedia
+        ? tx("Media Production Customer", "مشتری تولیدات رسانه‌ای", "د رسنیزو تولیداتو پېرودونکی")
+        : tx("Consultant Customer", "مشتری مشاوره", "مشورتي پېرودونکی");
+
+  const typeLabelPlural = isTravel
+    ? tx("Travel Customers", "مشتریان سفر", "د سفر پېرودونکي")
+    : isTechnology
+      ? tx("Technology Customers", "مشتریان تکنالوژی", "د ټکنالوژۍ پېرودونکي")
+      : isMedia
+        ? tx("Media Production Customers", "مشتریان تولیدات رسانه‌ای", "د رسنیزو تولیداتو پېرودونکي")
+        : tx("Consultant Customers", "مشتریان مشاوره", "مشورتي پېرودونکي");
+
   const legacyCollectionName = isTravel
     ? "travelCustomers"
     : isTechnology
@@ -580,22 +677,6 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
       : isMedia
         ? "mediaProducts"
         : "consultantCustomers";
-
-  const typeLabel = isTravel
-    ? "Travel Customer"
-    : isTechnology
-      ? "Technology Customer"
-      : isMedia
-        ? "Media Production Customer"
-        : "Consultant Customer";
-
-  const typeLabelPlural = isTravel
-    ? "Travel Customers"
-    : isTechnology
-      ? "Technology Customers"
-      : isMedia
-        ? "Media Production Customers"
-        : "Consultant Customers";
 
   const [
     serverCustomers,
@@ -663,6 +744,10 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
   const [showForm, setShowForm] =
     useState(false);
   const [search, setSearch] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
+  const countryPickerRef = useRef(null);
+  const countrySearchRef = useRef(null);
   const [editId, setEditId] = useState(null);
   const [viewCustomer, setViewCustomer] =
     useState(null);
@@ -670,6 +755,39 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     deleteCustomer,
     setDeleteCustomer,
   ] = useState(null);
+
+  const filteredCountries = useMemo(() => {
+    const query = countrySearch.trim().toLowerCase();
+    if (!query) return countries;
+
+    return [...countries]
+      .filter((country) => country.toLowerCase().includes(query))
+      .sort((a, b) => {
+        const aStarts = a.toLowerCase().startsWith(query) ? 0 : 1;
+        const bStarts = b.toLowerCase().startsWith(query) ? 0 : 1;
+        return aStarts - bStarts || a.localeCompare(b);
+      });
+  }, [countrySearch]);
+
+  useEffect(() => {
+    if (!countryOpen) return undefined;
+
+    const handleOutsideCountry = (event) => {
+      if (countryPickerRef.current && !countryPickerRef.current.contains(event.target)) {
+        setCountryOpen(false);
+        setCountrySearch("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideCountry, true);
+    return () => document.removeEventListener("mousedown", handleOutsideCountry, true);
+  }, [countryOpen]);
+
+  useEffect(() => {
+    if (countryOpen) {
+      requestAnimationFrame(() => countrySearchRef.current?.focus());
+    }
+  }, [countryOpen]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -708,12 +826,17 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     setForm((current) => ({
       ...current,
       [name]: value,
+      ...(name === "language" && value !== "Other"
+        ? { otherLanguage: "" }
+        : {}),
     }));
   };
 
   const resetForm = () => {
     setForm(emptyForm);
     setEditId(null);
+    setCountryOpen(false);
+    setCountrySearch("");
     setShowForm(false);
   };
 
@@ -723,15 +846,23 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     if (!form.passportFullName.trim()) {
       notify(
         isMedia
-          ? "Person name is required."
-          : "Full name is required.",
+          ? tx("Person name is required.", "نام شخص ضروری است.", "د شخص نوم اړین دی.")
+          : tx("Full name is required.", "نام کامل ضروری است.", "بشپړ نوم اړین دی."),
         "error"
       );
       return;
     }
 
     if (isMedia && !String(form.brandName || "").trim()) {
-      notify("Brand name is required.", "error");
+      notify(tx("Brand name is required.", "نام برند ضروری است.", "د برانډ نوم اړین دی."), "error");
+      return;
+    }
+
+    if (
+      form.language === "Other" &&
+      !String(form.otherLanguage || "").trim()
+    ) {
+      notify(tx("Please enter the language name.", "لطفاً نام زبان را وارد کنید.", "مهرباني وکړئ د ژبې نوم ولیکئ."), "error");
       return;
     }
 
@@ -856,8 +987,8 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
     notify(
       editId
-        ? `${typeLabel} updated successfully.`
-        : `${typeLabel} registered successfully.`,
+        ? `${typeLabel} ${tx("updated successfully.", "با موفقیت ویرایش شد.", "په بریالیتوب سره سم شو.")}`
+        : `${typeLabel} ${tx("registered successfully.", "با موفقیت ثبت شد.", "په بریالیتوب سره ثبت شو.")}`,
       "success"
     );
 
@@ -896,7 +1027,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
     setDeleteCustomer(null);
     notify(
-      `${typeLabel} deleted successfully.`,
+      `${typeLabel} ${tx("deleted successfully.", "با موفقیت حذف شد.", "په بریالیتوب سره حذف شو.")}`,
       "success"
     );
   };
@@ -916,12 +1047,16 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     });
 
     setEditId(customer.id);
+    setCountryOpen(false);
+    setCountrySearch("");
     setShowForm(true);
   };
 
   const openCreate = () => {
     setForm(emptyForm);
     setEditId(null);
+    setCountryOpen(false);
+    setCountrySearch("");
     setShowForm(true);
   };
 
@@ -942,14 +1077,17 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
   };
 
   return (
-    <div className="consultant-page">
+    <div className={`consultant-page ${interfaceLanguage !== "en" ? "consultant-page-rtl" : ""}`}>
       <div className="consultant-heading">
         <div>
-          <span>Customer Services</span>
+          <span>{tx("Customer Services", "خدمات مشتریان", "د پېرودونکو خدمتونه")}</span>
           <h1>{typeLabelPlural}</h1>
           <p>
-            Register and manage customer
-            information from one workspace.
+            {tx(
+              "Register and manage customer information from one workspace.",
+              "معلومات مشتریان را از یک بخش ثبت و مدیریت کنید.",
+              "د پېرودونکو معلومات له یوه ځایه ثبت او مدیریت کړئ."
+            )}
           </p>
         </div>
 
@@ -958,15 +1096,19 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
           onClick={openCreate}
         >
           <Plus size={17} />
-          Add {typeLabel}
+          {tx("Add", "افزودن", "زیاتول")} {typeLabel}
         </button>
       </div>
 
       <section className="consultant-list-card">
         <div className="consultant-list-header">
           <div>
-            <h2>{typeLabel} List</h2>
-            <p>Registered customer records</p>
+            <h2>{typeLabel} {tx("List", "فهرست", "لېست")}</h2>
+            <p>{tx(
+              "Registered customer records",
+              "سوابق مشتریان ثبت‌شده",
+              "د ثبت شوو پېرودونکو ریکارډونه"
+            )}</p>
           </div>
 
           <div>
@@ -976,7 +1118,11 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="Search customers..."
+              placeholder={tx(
+                "Search customers...",
+                "جستجوی مشتریان...",
+                "پېرودونکي ولټوئ..."
+              )}
             />
           </div>
         </div>
@@ -986,35 +1132,35 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
             <thead>
               {isMedia ? (
                 <tr>
-                  <th>Full Name</th>
-                  <th>Phone Number</th>
-                  <th>Brand Name</th>
-                  <th>Purpose</th>
-                  <th>Note</th>
-                  <th>Registered</th>
-                  <th>Action</th>
+                  <th>{tx("Full Name", "نام کامل", "بشپړ نوم")}</th>
+                  <th>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</th>
+                  <th>{tx("Brand Name", "نام برند", "د برانډ نوم")}</th>
+                  <th>{tx("Purpose", "هدف", "موخه")}</th>
+                  <th>{tx("Note", "یادداشت", "یادښت")}</th>
+                  <th>{tx("Registered", "تاریخ ثبت", "ثبت شوی")}</th>
+                  <th>{tx("Action", "عملیات", "عمل")}</th>
                 </tr>
               ) : (
                 <tr>
-                  <th>Customer</th>
-                  <th>Contact</th>
-                  <th>Location</th>
-                  <th>Country</th>
+                  <th>{tx("Customer", "مشتری", "پېرودونکی")}</th>
+                  <th>{tx("Contact", "تماس", "اړیکه")}</th>
+                  <th>{tx("Location", "موقعیت", "ځای")}</th>
+                  <th>{tx("Country", "کشور", "هېواد")}</th>
 
                   {isTechnology && (
-                    <th>Service</th>
+                    <th>{tx("Service", "خدمت", "خدمت")}</th>
                   )}
 
                   {!isTravel &&
                     !isTechnology && (
-                      <th>Scholarship</th>
+                      <th>{tx("Scholarship", "بورسیه", "بورس")}</th>
                     )}
 
-                  <th>Unit / Price</th>
-                  <th>Purpose</th>
-                  <th>Follow-up</th>
-                  <th>Registered</th>
-                  <th>Action</th>
+                  <th>{tx("Unit / Price", "واحد / قیمت", "واحد / بیه")}</th>
+                  <th>{tx("Purpose", "هدف", "موخه")}</th>
+                  <th>{tx("Follow-up", "پیگیری", "تعقیب")}</th>
+                  <th>{tx("Registered", "تاریخ ثبت", "ثبت شوی")}</th>
+                  <th>{tx("Action", "عملیات", "عمل")}</th>
                 </tr>
               )}
             </thead>
@@ -1046,7 +1192,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
                           <span className="consultant-name-copy">
                             <strong>{customerName}</strong>
-                            <small>View details</small>
+                            <small>{tx("View details", "نمایش جزئیات", "تفصیل وګورئ")}</small>
                           </span>
                         </button>
                       </td>
@@ -1081,7 +1227,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                             onClick={() =>
                               setViewCustomer(customer)
                             }
-                            title="View details"
+                            title={tx("View details", "نمایش جزئیات", "تفصیل وګورئ")}
                           >
                             <Eye size={14} />
                           </button>
@@ -1092,7 +1238,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                             onClick={() =>
                               openEdit(customer)
                             }
-                            title="Edit"
+                            title={tx("Edit", "ویرایش", "سمول")}
                           >
                             <Pencil size={14} />
                           </button>
@@ -1103,7 +1249,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                             onClick={() =>
                               setDeleteCustomer(customer)
                             }
-                            title="Delete"
+                            title={tx("Delete", "حذف", "حذف")}
                           >
                             <Trash2 size={14} />
                           </button>
@@ -1131,7 +1277,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
                         <span className="consultant-name-copy">
                           <strong>{customerName}</strong>
-                          <small>View details</small>
+                          <small>{tx("View details", "نمایش جزئیات", "تفصیل وګورئ")}</small>
                         </span>
                       </button>
                     </td>
@@ -1153,9 +1299,12 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                     <td>{customer.city || "-"}</td>
 
                     <td>
-                      {customer.country
-                        ? getCountryLabel(customer.country)
-                        : "-"}
+                      {customer.country ? (
+                        <span className="consultant-country-table-value">
+                          <CountryFlag country={customer.country} className="table-flag" />
+                          <span>{customer.country}</span>
+                        </span>
+                      ) : "-"}
                     </td>
 
                     {isTechnology && (
@@ -1188,8 +1337,8 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         }`}
                       >
                         {customer.needFollowup === "Yes"
-                          ? "Required"
-                          : "No"}
+                          ? tx("Required", "ضروری", "اړین")
+                          : tx("No", "نخیر", "نه")}
                       </span>
                     </td>
 
@@ -1207,7 +1356,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           onClick={() =>
                             setViewCustomer(customer)
                           }
-                          title="View details"
+                          title={tx("View details", "نمایش جزئیات", "تفصیل وګورئ")}
                         >
                           <Eye size={14} />
                         </button>
@@ -1218,7 +1367,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           onClick={() =>
                             openEdit(customer)
                           }
-                          title="Edit"
+                          title={tx("Edit", "ویرایش", "سمول")}
                         >
                           <Pencil size={14} />
                         </button>
@@ -1229,7 +1378,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           onClick={() =>
                             setDeleteCustomer(customer)
                           }
-                          title="Delete"
+                          title={tx("Delete", "حذف", "حذف")}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -1245,7 +1394,11 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                     colSpan={isMedia ? 7 : 10}
                     className="consultant-empty"
                   >
-                    No customers registered yet.
+                    {tx(
+                      "No customers registered yet.",
+                      "هنوز هیچ مشتری ثبت نشده است.",
+                      "تر اوسه هېڅ پېرودونکی نه دی ثبت شوی."
+                    )}
                   </td>
                 </tr>
               )}
@@ -1269,16 +1422,28 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
               <div>
                 <h2>
                   {editId
-                    ? `Edit ${typeLabel}`
+                    ? `${tx("Edit", "ویرایش", "سمول")} ${typeLabel}`
                     : isMedia
-                      ? "Add Media Product"
-                      : `Add ${typeLabel}`}
+                      ? tx(
+                          "Add Media Product",
+                          "افزودن محصول رسانه‌ای",
+                          "رسنیز محصول زیاتول"
+                        )
+                      : `${tx("Add", "افزودن", "زیاتول")} ${typeLabel}`}
                 </h2>
 
                 <p>
                   {isMedia
-                    ? "Select the registration type and complete the required information."
-                    : `This record will also appear in the general ${mode} customer list.`}
+                    ? tx(
+                        "Select the registration type and complete the required information.",
+                        "نوع ثبت را انتخاب کرده و معلومات مورد نیاز را تکمیل کنید.",
+                        "د ثبت ډول وټاکئ او اړین معلومات بشپړ کړئ."
+                      )
+                    : tx(
+                        "This record will also appear in the general customer list.",
+                        "این مورد در فهرست عمومی مشتریان نیز نمایش داده می‌شود.",
+                        "دا ریکارډ به د پېرودونکو په عمومي لېست کې هم ښکاره شي."
+                      )}
                 </p>
               </div>
 
@@ -1295,100 +1460,114 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                 {isMedia ? (
                   <>
                     <label>
-                      <span>Full Name</span>
+                      <span>{tx("Full Name", "نام کامل", "بشپړ نوم")}</span>
                       <input
                         name="passportFullName"
                         value={form.passportFullName}
                         onChange={update}
-                        placeholder="Enter full name"
+                        placeholder={tx("Enter full name", "نام کامل را وارد کنید", "بشپړ نوم ولیکئ")}
                       />
                     </label>
 
-                    <label>
-                      <span>Phone Number</span>
-                      <input
-                        name="phone"
-                        value={form.phone}
-                        onChange={update}
-                        placeholder="Enter phone number"
-                      />
-                    </label>
+<label>
+  <span>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</span>
+  <input
+    type="text"
+    name="phone"
+    value={form.phone}
+    inputMode="numeric"
+    pattern="[0-9]*"
+    onChange={(event) => {
+      const value = event.target.value.replace(/\D/g, "");
+
+      setForm((current) => ({
+        ...current,
+        phone: value,
+      }));
+    }}
+    placeholder={tx("Enter phone number", "شماره تماس را وارد کنید", "د تلیفون شمېره ولیکئ")}
+  />
+</label>
 
                     <label>
-                      <span>Brand Name</span>
+                      <span>{tx("Brand Name", "نام برند", "د برانډ نوم")}</span>
                       <input
                         name="brandName"
                         value={form.brandName || ""}
                         onChange={update}
-                        placeholder="Enter brand name"
+                        placeholder={tx("Enter brand name", "نام برند را وارد کنید", "د برانډ نوم ولیکئ")}
                       />
                     </label>
 
                     <label>
-                      <span>Purpose</span>
+                      <span>{tx("Purpose", "هدف", "موخه")}</span>
                       <select
                         name="mediaPurpose"
                         value={form.mediaPurpose || "Video"}
                         onChange={update}
                       >
-                        <option value="Video">Video</option>
-                        <option value="Photo">Photo</option>
-                        <option value="Logo">Logo</option>
-                        <option value="Poster">Poster</option>
-                        <option value="Banner">Banner</option>
-                        <option value="Social Media Post">
-                          Social Media Post
-                        </option>
-                        <option value="Advertisement">
-                          Advertisement
-                        </option>
-                        <option value="Animation">
-                          Animation
-                        </option>
-                        <option value="Other">Other</option>
+                        <option value="Video">{tx("Video", "ویدیو", "ویډیو")}</option>
+                        <option value="Photo">{tx("Photo", "عکس", "انځور")}</option>
+                        <option value="Logo">{tx("Logo", "لوگو", "لوګو")}</option>
+                        <option value="Poster">{tx("Poster", "پوستر", "پوستر")}</option>
+                        <option value="Banner">{tx("Banner", "بنر", "بینر")}</option>
+                        <option value="Social Media Post">{tx("Social Media Post", "پست شبکه‌های اجتماعی", "د ټولنیزو رسنیو پوسټ")}</option>
+                        <option value="Advertisement">{tx("Advertisement", "اعلان", "اعلان")}</option>
+                        <option value="Animation">{tx("Animation", "انیمیشن", "انیمېشن")}</option>
+                        <option value="Other">{tx("Other", "دیگر", "نور")}</option>
                       </select>
                     </label>
 
                     <label className="consultant-form-full">
-                      <span>Note</span>
+                      <span>{tx("Note", "یادداشت", "یادښت")}</span>
                       <textarea
                         name="note"
                         value={form.note}
                         onChange={update}
                         rows="4"
-                        placeholder="Write additional notes"
+                        placeholder={tx("Write additional notes", "یادداشت اضافی بنویسید", "اضافي یادښت ولیکئ")}
                       />
                     </label>
                   </>
                 ) : (
                   <>
                     <label>
-                      <span>Full Name</span>
+                      <span>{tx("Full Name", "نام کامل", "بشپړ نوم")}</span>
                       <input
                         name="passportFullName"
                         value={form.passportFullName}
                         onChange={update}
                       />
                     </label>
+<label>
+  <span>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</span>
+  <input
+    type="text"
+    name="phone"
+    value={form.phone}
+    inputMode="numeric"
+    pattern="[0-9]*"
+    onChange={(event) => {
+      const value = event.target.value.replace(/\D/g, "");
+
+      setForm((current) => ({
+        ...current,
+        phone: value,
+      }));
+    }}
+    placeholder={tx("Enter phone number", "شماره تماس را وارد کنید", "د تلیفون شمېره ولیکئ")}
+  />
+</label>
 
                     <label>
-                      <span>Phone Number</span>
-                      <input
-                        name="phone"
-                        value={form.phone}
-                        onChange={update}
-                      />
-                    </label>
-
-                    <label>
-                      <span>City / Province</span>
+                      <span>{tx("City / Province", "شهر / ولایت", "ښار / ولایت")}</span>
                       <select
                         name="city"
                         value={form.city}
                         onChange={update}
                       >
                         <option value="">
-                          Select province
+                          {tx("Select province", "ولایت را انتخاب کنید", "ولایت وټاکئ")}
                         </option>
 
                         {provinces.map((province) => (
@@ -1402,56 +1581,140 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                       </select>
                     </label>
 
-                    <label>
-                      <span>Country</span>
-                      <select
-                        name="country"
-                        value={form.country}
-                        onChange={update}
+                    <div className="consultant-country-picker" ref={countryPickerRef}>
+                      <span>{tx("Country", "کشور", "هېواد")}</span>
+                      <button
+                        type="button"
+                        className={`consultant-country-trigger ${countryOpen ? "open" : ""}`}
+                        onClick={() => {
+                          setCountryOpen((open) => !open);
+                          setCountrySearch("");
+                        }}
+                        onKeyDown={(event) => {
+                          if (/^[a-zA-Z]$/.test(event.key)) {
+                            event.preventDefault();
+                            setCountryOpen(true);
+                            setCountrySearch(event.key);
+                          }
+                        }}
+                        aria-expanded={countryOpen}
                       >
-                        <option value="">
-                          Select country
-                        </option>
+                        <span className={`consultant-country-trigger-value ${form.country ? "has-country" : ""}`}>
+                          {form.country ? (
+                            <>
+                              <CountryFlag country={form.country} />
+                              <span className="consultant-country-trigger-name">{form.country}</span>
+                            </>
+                          ) : (
+                            tx("Select country", "کشور را انتخاب کنید", "هېواد وټاکئ")
+                          )}
+                        </span>
+                        <ChevronDown size={15} />
+                      </button>
 
-                        {countries.map((country) => (
-                          <option
-                            key={country}
-                            value={country}
-                          >
-                            {getCountryLabel(country)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                      {countryOpen && (
+                        <div className="consultant-country-menu">
+                          <div className="consultant-country-search">
+                            <Search size={15} />
+                            <input
+                              ref={countrySearchRef}
+                              value={countrySearch}
+                              onChange={(event) => setCountrySearch(event.target.value)}
+                              placeholder={tx("Search country...", "جستجوی کشور...", "هېواد ولټوئ...")}
+                              autoComplete="off"
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  setCountryOpen(false);
+                                  setCountrySearch("");
+                                }
+                              }}
+                            />
+                            {countrySearch && (
+                              <button type="button" onClick={() => setCountrySearch("")} aria-label={tx("Clear country search", "پاک کردن جستجوی کشور", "د هېواد لټون پاکول")}>
+                                <X size={13} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="consultant-country-results">
+                            {filteredCountries.map((country) => (
+                              <button
+                                type="button"
+                                key={country}
+                                className={form.country === country ? "selected" : ""}
+                                onClick={() => {
+                                  setForm((current) => ({ ...current, country }));
+                                  setCountryOpen(false);
+                                  setCountrySearch("");
+                                }}
+                              >
+                                <CountryFlag country={country} />
+                                <strong>{country}</strong>
+                                {form.country === country && <Check size={15} />}
+                              </button>
+                            ))}
+
+                            {!filteredCountries.length && (
+                              <p>{tx("No country found", "کشوری پیدا نشد", "هېواد ونه موندل شو")}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     <label>
-                      <span>Language</span>
+                      <span>{tx("Language", "زبان", "ژبه")}</span>
                       <select
                         name="language"
                         value={form.language}
                         onChange={update}
                       >
-                        <option>Dari</option>
-                        <option>Pashto</option>
-                        <option>English</option>
-                        <option>Other</option>
+                        <option value="Dari">
+                          {tx("Dari", "دری", "دري")}
+                        </option>
+                        <option value="Pashto">
+                          {tx("Pashto", "پشتو", "پښتو")}
+                        </option>
+                        <option value="English">
+                          {tx("English", "انگلیسی", "انګلیسي")}
+                        </option>
+                        <option value="Other">
+                          {tx("Other", "دیگر", "نور")}
+                        </option>
                       </select>
                     </label>
 
+                    {form.language === "Other" && (
+                      <label className="consultant-other-language-field">
+                        <span>{tx("Other Language", "زبان دیگر", "بله ژبه")}</span>
+                        <input
+                          name="otherLanguage"
+                          value={form.otherLanguage || ""}
+                          onChange={update}
+                          placeholder={tx("Enter language name", "نام زبان را وارد کنید", "د ژبې نوم ولیکئ")}
+                          autoFocus
+                        />
+                      </label>
+                    )}
+
                     <label>
-                      <span>Call Type</span>
+                      <span>{tx("Call Type", "نوع تماس", "د اړیکې ډول")}</span>
                       <select
                         name="callType"
                         value={form.callType}
                         onChange={update}
                       >
-                        <option>Incoming</option>
-                        <option>Outgoing</option>
+                        <option value="Incoming">
+                          {tx("Incoming", "ورودی", "راتلونکی")}
+                        </option>
+                        <option value="Outgoing">
+                          {tx("Outgoing", "خروجی", "وتونکی")}
+                        </option>
                       </select>
                     </label>
 
                     <label>
-                      <span>Unit</span>
+                      <span>{tx("Unit", "واحد", "واحد")}</span>
                       <select
                         name="unit"
                         value={form.unit}
@@ -1461,13 +1724,13 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           AFN - افغانی
                         </option>
                         <option value="USD">
-                          USD - Dollar
+                          {tx("USD - Dollar", "USD - دالر", "USD - ډالر")}
                         </option>
                       </select>
                     </label>
 
                     <label>
-                      <span>Price</span>
+                      <span>{tx("Price", "قیمت", "بیه")}</span>
                       <input
                         type="number"
                         min="0"
@@ -1475,29 +1738,29 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         name="price"
                         value={form.price}
                         onChange={update}
-                        placeholder="Enter price"
+                        placeholder={tx("Enter price", "قیمت را وارد کنید", "بیه ولیکئ")}
                       />
                     </label>
 
                     {!isTravel && !isTechnology && (
                       <label>
-                        <span>Scholarship Type</span>
+                        <span>{tx("Scholarship Type", "نوع بورسیه", "د بورس ډول")}</span>
                         <select
                           name="scholarshipType"
                           value={form.scholarshipType}
                           onChange={update}
                         >
                           <option value="">
-                            Select scholarship
+                            {tx("Select scholarship", "بورسیه را انتخاب کنید", "بورس وټاکئ")}
                           </option>
                           <option value="Fully Funded">
-                            Fully Funded
+                            {tx("Fully Funded", "کاملاً تمویل‌شده", "بشپړ تمویل شوی")}
                           </option>
                           <option value="Partial Funded">
-                            Partial Funded
+                            {tx("Partial Funded", "نیمه تمویل‌شده", "نیمه تمویل شوی")}
                           </option>
                           <option value="Private">
-                            Private
+                            {tx("Private", "خصوصی", "خصوصي")}
                           </option>
                         </select>
                       </label>
@@ -1506,7 +1769,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                     {isTechnology && (
                       <>
                         <label>
-                          <span>Business Type</span>
+                          <span>{tx("Business Type", "نوع کسب‌وکار", "د سوداګرۍ ډول")}</span>
                           <input
                             name="businessType"
                             value={form.businessType}
@@ -1515,35 +1778,35 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         </label>
 
                         <label>
-                          <span>Service Type</span>
+                          <span>{tx("Service Type", "نوع خدمت", "د خدمت ډول")}</span>
                           <select
                             name="technologyPurpose"
                             value={form.technologyPurpose}
                             onChange={update}
                           >
-                            <option>Database</option>
-                            <option>Website</option>
-                            <option>Application</option>
-                            <option>Networking</option>
-                            <option>Other</option>
+                            <option value="Database">{tx("Database", "دیتابیس", "ډیټابیس")}</option>
+                            <option value="Website">{tx("Website", "وب‌سایت", "وېب‌سایټ")}</option>
+                            <option value="Application">{tx("Application", "اپلیکیشن", "اپلېکېشن")}</option>
+                            <option value="Networking">{tx("Networking", "شبکه‌سازی", "شبکه")}</option>
+                            <option value="Other">{tx("Other", "دیگر", "نور")}</option>
                           </select>
                         </label>
                       </>
                     )}
 
                     <label className="consultant-form-full">
-                      <span>Purpose</span>
+                      <span>{tx("Purpose", "هدف", "موخه")}</span>
                       <textarea
                         name="purpose"
                         value={form.purpose}
                         onChange={update}
                         rows="3"
-                        placeholder="Enter customer purpose"
+                        placeholder={tx("Enter customer purpose", "هدف مشتری را وارد کنید", "د پېرودونکي موخه ولیکئ")}
                       />
                     </label>
 
                     <label className="followup-field">
-                      <span>Need Follow-up</span>
+                      <span>{tx("Need Follow-up", "نیاز به پیگیری", "تعقیب ته اړتیا")}</span>
                       <button
                         type="button"
                         role="switch"
@@ -1568,20 +1831,20 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         <span />
                         <b>
                           {form.needFollowup === "Yes"
-                            ? "ON"
-                            : "OFF"}
+                            ? tx("ON", "روشن", "فعال")
+                            : tx("OFF", "خاموش", "بند")}
                         </b>
                       </button>
                     </label>
 
                     <label className="consultant-form-full">
-                      <span>Note</span>
+                      <span>{tx("Note", "یادداشت", "یادښت")}</span>
                       <textarea
                         name="note"
                         value={form.note}
                         onChange={update}
                         rows="4"
-                        placeholder="Write additional customer notes..."
+                        placeholder={tx("Write additional customer notes...", "یادداشت اضافی مشتری را بنویسید...", "د پېرودونکي اضافي یادښت ولیکئ...")}
                       />
                     </label>
                   </>
@@ -1593,15 +1856,15 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                   type="button"
                   onClick={resetForm}
                 >
-                  Cancel
+                  {tx("Cancel", "لغو", "لغوه")}
                 </button>
 
                 <button type="submit">
                   {editId
-                    ? "Save Changes"
+                    ? tx("Save Changes", "ذخیره تغییرات", "بدلونونه وساتئ")
                     : isMedia
-                      ? "Save Media Product"
-                      : "Save Customer"}
+                      ? tx("Save Media Product", "ذخیره محصول رسانه‌ای", "رسنیز محصول وساتئ")
+                      : tx("Save Customer", "ذخیره مشتری", "پېرودونکی وساتئ")}
                 </button>
               </div>
             </form>
@@ -1656,34 +1919,34 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
             <div className="consultant-detail-grid">
               {[
-                ["Phone Number", viewCustomer.phone],
-                ["Brand Name", viewCustomer.brandName],
+                [tx("Phone Number", "شماره تماس", "د تلیفون شمېره"), viewCustomer.phone],
+                [tx("Brand Name", "نام برند", "د برانډ نوم"), viewCustomer.brandName],
                 [
-                  "Purpose",
+                  tx("Purpose", "هدف", "موخه"),
                   viewCustomer.mediaPurpose ||
                     viewCustomer.purpose,
                 ],
-                ["Email", viewCustomer.email],
-                ["City / Province", viewCustomer.city],
+                [tx("Email", "ایمیل", "برېښنالیک"), viewCustomer.email],
+                [tx("City / Province", "شهر / ولایت", "ښار / ولایت"), viewCustomer.city],
                 [
-                  "Country",
+                  tx("Country", "کشور", "هېواد"),
                   viewCustomer.country
                     ? getCountryLabel(
                         viewCustomer.country
                       )
                     : "",
                 ],
-                ["Language", viewCustomer.language],
-                ["Call Type", viewCustomer.callType],
-                ["Business Type", viewCustomer.businessType],
-                ["Scholarship Type", viewCustomer.scholarshipType],
-                ["Unit", viewCustomer.unit || viewCustomer.currencyUnit],
-                ["Price", formatPrice(viewCustomer)],
-                ["Purpose", viewCustomer.purpose],
-                ["Need Follow-up", viewCustomer.needFollowup],
-                ["Note", viewCustomer.note],
+                [tx("Language", "زبان", "ژبه"), viewCustomer.language],
+                [tx("Call Type", "نوع تماس", "د اړیکې ډول"), viewCustomer.callType],
+                [tx("Business Type", "نوع کسب‌وکار", "د سوداګرۍ ډول"), viewCustomer.businessType],
+                [tx("Scholarship Type", "نوع بورسیه", "د بورس ډول"), viewCustomer.scholarshipType],
+                [tx("Unit", "واحد", "واحد"), viewCustomer.unit || viewCustomer.currencyUnit],
+                [tx("Price", "قیمت", "بیه"), formatPrice(viewCustomer)],
+                [tx("Purpose", "هدف", "موخه"), viewCustomer.purpose],
+                [tx("Need Follow-up", "نیاز به پیگیری", "تعقیب ته اړتیا"), viewCustomer.needFollowup],
+                [tx("Note", "یادداشت", "یادښت"), viewCustomer.note],
                 [
-                  "Registration Date",
+                  tx("Registration Date", "تاریخ ثبت", "د ثبت نېټه"),
                   viewCustomer.afghanistanDate ||
                     viewCustomer.date ||
                     (viewCustomer.createdAt
@@ -1703,7 +1966,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                       : ""),
                 ],
                 [
-                  "Registration Time",
+                  tx("Registration Time", "زمان ثبت", "د ثبت وخت"),
                   viewCustomer.afghanistanTime ||
                     viewCustomer.time ||
                     (viewCustomer.createdAt
@@ -1729,9 +1992,10 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                   <div
                     key={label}
                     className={
-                      ["Purpose", "Note"].includes(
-                        label
-                      )
+                      [
+                        tx("Purpose", "هدف", "موخه"),
+                        tx("Note", "یادداشت", "یادښت"),
+                      ].includes(label)
                         ? "wide"
                         : ""
                     }
@@ -1751,7 +2015,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                 }}
               >
                 <Pencil size={15} />
-                Edit Information
+                {tx("Edit Information", "ویرایش معلومات", "معلومات سمول")}
               </button>
             </div>
           </div>
@@ -1775,17 +2039,27 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
               <AlertTriangle size={26} />
             </div>
 
-            <h2>Delete {typeLabel}?</h2>
+            <h2>
+              {tx("Delete", "حذف", "حذف")} {typeLabel}?
+            </h2>
 
             <p>
-              You are about to permanently
-              delete{" "}
+              {tx(
+                "You are about to permanently delete",
+                "شما در حال حذف دایمی",
+                "تاسو د تل لپاره حذف کوئ"
+              )}{" "}
               <strong>
                 {deleteCustomer.fullName ||
                   deleteCustomer.passportFullName ||
-                  `this ${typeLabel.toLowerCase()}`}
+                  typeLabel}
               </strong>
-              . This action cannot be undone.
+              .{" "}
+              {tx(
+                "This action cannot be undone.",
+                "این عمل قابل بازگشت نیست.",
+                "دا عمل بېرته نه شي راګرځېدلی."
+              )}
             </p>
 
             <div>
@@ -1795,7 +2069,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                   setDeleteCustomer(null)
                 }
               >
-                Cancel
+                {tx("Cancel", "لغو", "لغوه")}
               </button>
 
               <button
@@ -1803,7 +2077,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                 onClick={remove}
               >
                 <Trash2 size={15} />
-                Delete
+                {tx("Delete", "حذف", "حذف")}
               </button>
             </div>
           </div>

@@ -1000,3 +1000,70 @@ body.dark-mode
     flex: 1;
   }
 }
+
+/* Component-owned RTL support for Office Assets */
+.office-assets-page-rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+.office-assets-page-rtl .office-assets-heading,
+.office-assets-page-rtl .office-assets-list-header,
+.office-assets-page-rtl .office-asset-modal-header,
+.office-assets-page-rtl .office-asset-modal-actions,
+.office-assets-page-rtl .office-asset-delete-actions {
+  direction: rtl;
+}
+
+.office-assets-page-rtl .office-assets-heading > div,
+.office-assets-page-rtl .office-assets-list-header > div,
+.office-assets-page-rtl .office-asset-modal-header > div,
+.office-assets-page-rtl .office-asset-form-grid label,
+.office-assets-page-rtl .office-asset-type-field {
+  text-align: right;
+}
+
+.office-assets-page-rtl .office-assets-search input,
+.office-assets-page-rtl .office-asset-form-grid input,
+.office-assets-page-rtl .office-asset-form-grid textarea,
+.office-assets-page-rtl .office-asset-type-add input {
+  direction: rtl;
+  text-align: right;
+}
+
+.office-assets-page-rtl .office-assets-table-wrap th,
+.office-assets-page-rtl .office-assets-table-wrap td {
+  text-align: right;
+}
+
+.office-assets-page-rtl .office-asset-name,
+.office-assets-page-rtl .office-asset-type-trigger,
+.office-assets-page-rtl .office-asset-type-options > button {
+  direction: rtl;
+  text-align: right;
+}
+
+.office-assets-page-rtl .office-assets-stats > div > svg {
+  right: auto;
+  left: 16px;
+}
+
+.office-assets-page-rtl .office-asset-type-menu {
+  direction: rtl;
+}
+
+.office-assets-page-rtl .office-asset-modal-actions {
+  flex-direction: row-reverse;
+}
+
+.office-assets-page-rtl .office-asset-delete-modal {
+  direction: rtl;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .office-assets-page-rtl .office-assets-heading,
+  .office-assets-page-rtl .office-assets-list-header {
+    align-items: stretch;
+  }
+}

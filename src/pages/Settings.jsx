@@ -247,6 +247,11 @@ function Settings() {
   const apiAccessUrl = publicIp
     ? `http://${publicIp}:${apiPort}/api`
     : "";
+  const connectedNetworkName =
+    networkInfo?.wifiName ||
+    routerName.trim() ||
+    networkInfo?.adapterName ||
+    "Connected network";
 
   const copyText = async (text) => {
     try {
@@ -916,10 +921,31 @@ function Settings() {
             </div>
 
             <div className="settings-network-summary">
+              <div className="settings-current-network">
+                <Wifi size={22} />
+                <span>You are currently connected to this Wi-Fi / network</span>
+                <strong data-no-translate>{connectedNetworkName}</strong>
+                <p>Share the address below with other users connected to the same Wi-Fi so they can open ISP Smart.</p>
+                <div className="settings-share-address">
+                  <b data-no-translate>{accessUrl || "No IP address"}</b>
+                  {accessUrl && (
+                    <button
+                      type="button"
+                      onClick={() => copyText(accessUrl)}
+                      aria-label="Copy connection address"
+                      title="Copy connection address"
+                    >
+                      <Copy size={15} />
+                      <span>Copy address</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <Wifi size={18} />
-                <span>Router / Network</span>
-                <strong>{routerName || "Not set"}</strong>
+                <span>Detected Wi-Fi / Network</span>
+                <strong data-no-translate>{connectedNetworkName}</strong>
               </div>
 
               <div>

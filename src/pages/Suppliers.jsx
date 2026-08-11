@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useNavigate,
 } from "react-router-dom";
@@ -70,6 +70,58 @@ function Suppliers({ currentUser }) {
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteIndex, setDeleteIndex] = useState(null);
+
+  const [interfaceLanguage, setInterfaceLanguage] = useState(
+    () => localStorage.getItem("isp-language") || "en"
+  );
+
+  useEffect(() => {
+    const syncInterfaceLanguage = (event) => {
+      const nextLanguage =
+        event?.detail ||
+        localStorage.getItem("isp-language") ||
+        "en";
+
+      setInterfaceLanguage(nextLanguage);
+    };
+
+    window.addEventListener(
+      "isp-language-changed",
+      syncInterfaceLanguage
+    );
+    window.addEventListener(
+      "storage",
+      syncInterfaceLanguage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncInterfaceLanguage
+      );
+      window.removeEventListener(
+        "storage",
+        syncInterfaceLanguage
+      );
+    };
+  }, []);
+
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
+
+  const translateSupplierValue = (value) => {
+    const labels = {
+      Active: tx("Active", "فعال", "فعال"),
+      Inactive: tx("Inactive", "غیرفعال", "غیرفعال"),
+      Balance: tx("Balance", "بیلانس", "بیلانس"),
+    };
+
+    return labels[String(value || "")] || value;
+  };
 
   const [actionMenuPosition, setActionMenuPosition] = useState({
     top: 0,
@@ -188,7 +240,7 @@ function Suppliers({ currentUser }) {
 
   const openCreateModal = () => {
     if (!canCreateSupplier) {
-      notify("You do not have permission to create supplier records.", "error");
+      notify(tx("You do not have permission to create supplier records.", "شما اجازه ایجاد تأمین‌کننده را ندارید.", "تاسو د عرضه کوونکي د جوړولو اجازه نه لرئ."), "error");
       return;
     }
     resetForm();
@@ -217,7 +269,7 @@ function Suppliers({ currentUser }) {
 
     if (editIndex !== null) {
   if (!canEditSupplier) {
-    notify("You do not have permission to edit supplier records.", "error");
+    notify(tx("You do not have permission to edit supplier records.", "شما اجازه ویرایش تأمین‌کننده را ندارید.", "تاسو د عرضه کوونکي د سمون اجازه نه لرئ."), "error");
     return;
   }
   const updatedSuppliers = [...suppliers];
@@ -226,7 +278,7 @@ function Suppliers({ currentUser }) {
   const saved = await setSuppliers(updatedSuppliers);
 
   if (saved) {
-    notify("Supplier updated successfully.");
+    notify(tx("Supplier updated successfully.", "تأمین‌کننده با موفقیت ویرایش شد.", "عرضه کوونکی په بریالیتوب سره سم شو."));
     resetForm();
     setShowModal(false);
   }
@@ -235,7 +287,7 @@ function Suppliers({ currentUser }) {
 }
 
 if (!canCreateSupplier) {
-  notify("You do not have permission to create supplier records.", "error");
+  notify(tx("You do not have permission to create supplier records.", "شما اجازه ایجاد تأمین‌کننده را ندارید.", "تاسو د عرضه کوونکي د جوړولو اجازه نه لرئ."), "error");
   return;
 }
 
@@ -274,7 +326,7 @@ if (saved) {
     ]);
   }
 
-  notify("Supplier saved successfully.");
+  notify(tx("Supplier saved successfully.", "تأمین‌کننده با موفقیت ذخیره شد.", "عرضه کوونکی په بریالیتوب سره خوندي شو."));
   resetForm();
   setShowModal(false);
 }
@@ -285,7 +337,7 @@ if (saved) {
 
   const editSupplier = (index) => {
     if (!canEditSupplier) {
-      notify("You do not have permission to edit supplier records.", "error");
+      notify(tx("You do not have permission to edit supplier records.", "شما اجازه ویرایش تأمین‌کننده را ندارید.", "تاسو د عرضه کوونکي د سمون اجازه نه لرئ."), "error");
       return;
     }
     setEditIndex(index);
@@ -301,7 +353,7 @@ if (saved) {
 
   const openDeleteModal = (index) => {
   if (!canDeleteSupplier) {
-    notify("You do not have permission to delete supplier records.", "error");
+    notify(tx("You do not have permission to delete supplier records.", "شما اجازه حذف تأمین‌کننده را ندارید.", "تاسو د عرضه کوونکي د حذف اجازه نه لرئ."), "error");
     return;
   }
   setDeleteIndex(index);
@@ -317,66 +369,66 @@ const cancelDelete = () => {
 const confirmDelete = () => {
   if (deleteIndex === null) return;
   if (!canDeleteSupplier) {
-    notify("You do not have permission to delete supplier records.", "error");
+    notify(tx("You do not have permission to delete supplier records.", "شما اجازه حذف تأمین‌کننده را ندارید.", "تاسو د عرضه کوونکي د حذف اجازه نه لرئ."), "error");
     return;
   }
 
   setSuppliers(suppliers.filter((_, supplierIndex) => supplierIndex !== deleteIndex));
   setDeleteIndex(null);
   setDeleteModalOpen(false);
-  notify("Supplier deleted successfully.");
+  notify(tx("Supplier deleted successfully.", "تأمین‌کننده با موفقیت حذف شد.", "عرضه کوونکی په بریالیتوب سره حذف شو."));
 };
 
   return (
-    <div className="drivers-page suppliers-page">
+    <div className={`drivers-page suppliers-page ${interfaceLanguage !== "en" ? "suppliers-page-rtl" : ""}`}>
       <div className="drivers-header">
         <div>
-          <h1>Supplier Management</h1>
-          <p>Save, edit, delete, and manage all supplier records.</p>
+          <h1>{tx("Supplier Management", "مدیریت تأمین‌کنندگان", "د عرضه کوونکو مدیریت")}</h1>
+          <p>{tx("Save, edit, delete, and manage all supplier records.", "سوابق تمام تأمین‌کنندگان را ذخیره، ویرایش، حذف و مدیریت کنید.", "د ټولو عرضه کوونکو ریکارډونه خوندي، سم، حذف او مدیریت کړئ.")}</p>
         </div>
 
         {canCreateSupplier && (
           <button className="driver-add-btn" onClick={openCreateModal}>
-            + Add Supplier
+            + {tx("Add Supplier", "افزودن تأمین‌کننده", "عرضه کوونکی زیاتول")}
           </button>
         )}
       </div>
 
       <div className="drivers-stats">
         <div className="driver-stat-card">
-          <span>Total Suppliers</span>
+          <span>{tx("Total Suppliers", "مجموع تأمین‌کنندگان", "ټول عرضه کوونکي")}</span>
           <strong>{totalSuppliers}</strong>
-          <p>All registered suppliers</p>
+          <p>{tx("All registered suppliers", "تمام تأمین‌کنندگان ثبت‌شده", "ټول ثبت شوي عرضه کوونکي")}</p>
         </div>
 
         <div className="driver-stat-card">
-          <span>Active Suppliers</span>
+          <span>{tx("Active Suppliers", "تأمین‌کنندگان فعال", "فعال عرضه کوونکي")}</span>
           <strong>{activeSuppliers}</strong>
-          <p>Currently active suppliers</p>
+          <p>{tx("Currently active suppliers", "تأمین‌کنندگان فعال فعلی", "اوسني فعال عرضه کوونکي")}</p>
         </div>
 
         <div className="driver-stat-card">
-          <span>Inactive Suppliers</span>
+          <span>{tx("Inactive Suppliers", "تأمین‌کنندگان غیرفعال", "غیرفعال عرضه کوونکي")}</span>
           <strong>{inactiveSuppliers}</strong>
-          <p>Disabled supplier records</p>
+          <p>{tx("Disabled supplier records", "سوابق تأمین‌کنندگان غیرفعال", "د غیرفعالو عرضه کوونکو ریکارډونه")}</p>
         </div>
 
         <div className="driver-stat-card">
-          <span>Opening Balance</span>
+          <span>{tx("Opening Balance", "بیلانس ابتدایی", "پیل بیلانس")}</span>
           <strong>{money(totalOpeningBalance)}</strong>
-          <p>Total supplier opening balance</p>
+          <p>{tx("Total supplier opening balance", "مجموع بیلانس ابتدایی تأمین‌کنندگان", "د عرضه کوونکو ټول پیل بیلانس")}</p>
         </div>
       </div>
 
       <div className="drivers-table-card">
         <div className="drivers-table-header">
           <div>
-            <h3>Supplier List</h3>
-            <p>All suppliers saved in the system</p>
+            <h3>{tx("Supplier List", "فهرست تأمین‌کنندگان", "د عرضه کوونکو لېست")}</h3>
+            <p>{tx("All suppliers saved in the system", "تمام تأمین‌کنندگان ثبت‌شده در سیستم", "ټول عرضه کوونکي چې په سیسټم کې ثبت شوي")}</p>
           </div>
 
           <input
-            placeholder="Search supplier..."
+            placeholder={tx("Search supplier...", "جستجوی تأمین‌کننده...", "عرضه کوونکی ولټوئ...")}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -386,14 +438,14 @@ const confirmDelete = () => {
           <table>
             <thead>
               <tr>
-                <th>Supplier Name</th>
-                <th>Company</th>
-                <th>Contact Person</th>
-                <th>Phone</th>
-                <th>Email</th>
-                <th>Opening Balance</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <th>{tx("Supplier Name", "نام تأمین‌کننده", "د عرضه کوونکي نوم")}</th>
+                <th>{tx("Company", "شرکت", "شرکت")}</th>
+                <th>{tx("Contact Person", "شخص تماس", "د اړیکې شخص")}</th>
+                <th>{tx("Phone", "شماره تماس", "د تلیفون شمېره")}</th>
+                <th>{tx("Email", "ایمیل", "برېښنالیک")}</th>
+                <th>{tx("Opening Balance", "بیلانس ابتدایی", "پیل بیلانس")}</th>
+                <th>{tx("Status", "وضعیت", "حالت")}</th>
+                <th>{tx("Actions", "عملیات", "عملونه")}</th>
               </tr>
             </thead>
 
@@ -423,7 +475,7 @@ const confirmDelete = () => {
                             : "driver-badge inactive"
                         }
                       >
-                        {supplier.status}
+                        {translateSupplierValue(supplier.status)}
                       </span>
                     </td>
                     <td>
@@ -453,7 +505,7 @@ const confirmDelete = () => {
 {canEditSupplier && (
   <button type="button" onClick={() => editSupplier(index)}>
     <EditIcon />
-    <span>Edit</span>
+    <span>{tx("Edit", "ویرایش", "سمول")}</span>
   </button>
 )}
 
@@ -464,7 +516,7 @@ const confirmDelete = () => {
     onClick={() => openDeleteModal(index)}
   >
     <TrashIcon />
-    <span>Delete</span>
+    <span>{tx("Delete", "حذف", "حذف")}</span>
   </button>
 )}
       </div>
@@ -478,7 +530,7 @@ const confirmDelete = () => {
               {filteredSuppliers.length === 0 && (
                 <tr>
                   <td colSpan="8" className="employee-empty">
-                    No supplier has been registered yet.
+                    {tx("No supplier has been registered yet.", "هنوز هیچ تأمین‌کننده‌ای ثبت نشده است.", "تر اوسه هېڅ عرضه کوونکی نه دی ثبت شوی.")}
                   </td>
                 </tr>
               )}
@@ -501,8 +553,8 @@ const confirmDelete = () => {
           <div className="driver-modal" onClick={(event) => event.stopPropagation()}>
             <div className="driver-modal-header">
               <div>
-                <h3>{editIndex !== null ? "Edit Supplier" : "Add New Supplier"}</h3>
-                <p>Enter complete supplier information.</p>
+                <h3>{editIndex !== null ? tx("Edit Supplier", "ویرایش تأمین‌کننده", "عرضه کوونکی سمول") : tx("Add New Supplier", "افزودن تأمین‌کننده جدید", "نوی عرضه کوونکی زیاتول")}</h3>
+                <p>{tx("Enter complete supplier information.", "معلومات کامل تأمین‌کننده را وارد کنید.", "د عرضه کوونکي بشپړ معلومات ولیکئ.")}</p>
               </div>
 
               <button
@@ -519,80 +571,80 @@ const confirmDelete = () => {
             <form onSubmit={handleSubmit}>
             <div className="driver-form-grid">
   <div className="form-group form-full">
-    <label>Name / Company</label>
+    <label>{tx("Name / Company", "نام / شرکت", "نوم / شرکت")}</label>
     <input
       name="supplierName"
       value={formData.supplierName}
       onChange={handleChange}
-      placeholder="Enter supplier or company name"
+      placeholder={tx("Enter supplier or company name", "نام تأمین‌کننده یا شرکت را وارد کنید", "د عرضه کوونکي یا شرکت نوم ولیکئ")}
       required
     />
   </div>
 
   <div className="form-group">
-    <label>Contact Person</label>
+    <label>{tx("Contact Person", "شخص تماس", "د اړیکې شخص")}</label>
     <input
       name="contactPerson"
       value={formData.contactPerson}
       onChange={handleChange}
-      placeholder="Enter contact person name"
+      placeholder={tx("Enter contact person name", "نام شخص تماس را وارد کنید", "د اړیکې شخص نوم ولیکئ")}
     />
   </div>
 
   <div className="form-group">
-    <label>Phone Number</label>
+    <label>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</label>
     <input
       name="phone"
       value={formData.phone}
       onChange={handleChange}
-      placeholder="Example: 0799000000"
+      placeholder={tx("Example: 0799000000", "مثال: 0799000000", "بېلګه: 0799000000")}
       required
     />
   </div>
 
   <div className="form-group">
-    <label>Email</label>
+    <label>{tx("Email", "ایمیل", "برېښنالیک")}</label>
     <input
       type="email"
       name="email"
       value={formData.email}
       onChange={handleChange}
-      placeholder="Example: info@example.com"
+      placeholder={tx("Example: info@example.com", "مثال: info@example.com", "بېلګه: info@example.com")}
     />
   </div>
 
   <div className="form-group">
-    <label>Opening Balance</label>
+    <label>{tx("Opening Balance", "بیلانس ابتدایی", "پیل بیلانس")}</label>
     <input
       type="number"
       step="any"
       name="openingBalance"
       value={formData.openingBalance}
       onChange={handleChange}
-      placeholder="Example: -100 or 100"
+      placeholder={tx("Example: -100 or 100", "مثال: -100 یا 100", "بېلګه: -100 یا 100")}
     />
 
     <small className="supplier-balance-help">
-      Negative: We owe the supplier — Positive: Supplier owes us
+      {tx("Negative: We owe the supplier — Positive: Supplier owes us", "منفی: ما به تأمین‌کننده بدهکار هستیم — مثبت: تأمین‌کننده به ما بدهکار است", "منفي: موږ عرضه کوونکي ته پوروړي یو — مثبت: عرضه کوونکی موږ ته پوروړی دی")}
     </small>
   </div>
 
   <div className="form-group form-full">
-  <label>Item Supply</label>
+  <label>{tx("Item Supply", "اقلام تأمین‌شده", "عرضه شوي توکي")}</label>
 
   <div className="supplier-custom-type-add">
     <input
       name="customSupplierType"
       value={formData.customSupplierType}
       onChange={handleChange}
-      placeholder="Add supplied item..."
+      placeholder={tx("Add supplied item...", "قلم تأمین‌شده را اضافه کنید...", "عرضه شوی توکی زیات کړئ...")}
     />
 
     <button
       type="button"
       onClick={addCustomSupplierType}
     >
-      Add
+      {tx("Add", "افزودن", "زیاتول")}
     </button>
   </div>
 
@@ -617,12 +669,12 @@ const confirmDelete = () => {
 </div>
 
   <div className="form-group form-full">
-    <label>Notes</label>
+    <label>{tx("Notes", "یادداشت", "یادښت")}</label>
     <textarea
       name="note"
       value={formData.note}
       onChange={handleChange}
-      placeholder="Additional supplier notes..."
+      placeholder={tx("Additional supplier notes...", "یادداشت اضافی تأمین‌کننده...", "د عرضه کوونکي اضافي یادښت...")}
       rows="4"
     />
   </div>
@@ -637,11 +689,13 @@ const confirmDelete = () => {
                     setShowModal(false);
                   }}
                 >
-                  Cancel
+                  {tx("Cancel", "لغو", "لغوه")}
                 </button>
 
                 <button type="submit" className="driver-save-btn">
-                  {editIndex !== null ? "Save Changes" : "Save Supplier"}
+                  {editIndex !== null
+                    ? tx("Save Changes", "ذخیره تغییرات", "بدلونونه خوندي کړئ")
+                    : tx("Save Supplier", "ذخیره تأمین‌کننده", "عرضه کوونکی خوندي کړئ")}
                 </button>
               </div>
             </form>
@@ -655,10 +709,10 @@ const confirmDelete = () => {
         <TrashIcon />
       </div>
 
-      <h3>Delete Supplier</h3>
+      <h3>{tx("Delete Supplier", "حذف تأمین‌کننده", "عرضه کوونکی حذف کول")}</h3>
 
       <p>
-        Are you sure you want to delete this supplier? This action cannot be undone.
+        {tx("Are you sure you want to delete this supplier? This action cannot be undone.", "آیا مطمئن هستید که این تأمین‌کننده را حذف می‌کنید؟ این عمل قابل بازگشت نیست.", "ایا ډاډه یاست چې دا عرضه کوونکی حذف کړئ؟ دا عمل بېرته نه شي راګرځېدلی.")}
       </p>
 
       <div className="supplier-delete-actions">
@@ -667,7 +721,7 @@ const confirmDelete = () => {
           className="supplier-delete-cancel"
           onClick={cancelDelete}
         >
-          Cancel
+          {tx("Cancel", "لغو", "لغوه")}
         </button>
 
         <button
@@ -675,7 +729,7 @@ const confirmDelete = () => {
           className="supplier-delete-confirm"
           onClick={confirmDelete}
         >
-          Delete
+          {tx("Delete", "حذف", "حذف")}
         </button>
       </div>
     </div>

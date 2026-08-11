@@ -1196,3 +1196,74 @@ body.dark-mode .employee-attendance-absence-types button.active {
 .employee-attendance-card-actions button.print:active {
   transform: translateY(0);
 }
+
+/* Component-owned RTL support for Employee Attendance */
+.employee-attendance-page-rtl {
+  direction: rtl;
+}
+
+.employee-attendance-page-rtl .employee-attendance-heading,
+.employee-attendance-page-rtl .employee-attendance-toolbar,
+.employee-attendance-page-rtl .employee-attendance-form-modal > header,
+.employee-attendance-page-rtl .employee-attendance-details-modal > header,
+.employee-attendance-page-rtl .employee-attendance-status-modal > header,
+.employee-attendance-page-rtl .employee-attendance-form-modal > footer,
+.employee-attendance-page-rtl .employee-attendance-status-modal > footer {
+  direction: rtl;
+}
+
+.employee-attendance-page-rtl .employee-attendance-heading > div,
+.employee-attendance-page-rtl .employee-attendance-form-modal,
+.employee-attendance-page-rtl .employee-attendance-details-modal,
+.employee-attendance-page-rtl .employee-attendance-status-modal,
+.employee-attendance-page-rtl .employee-attendance-delete-modal {
+  text-align: right;
+}
+
+.employee-attendance-page-rtl .employee-attendance-toolbar input,
+.employee-attendance-page-rtl .employee-attendance-form-grid input,
+.employee-attendance-page-rtl .employee-attendance-form-grid textarea,
+.employee-attendance-page-rtl .employee-attendance-search input,
+.employee-attendance-page-rtl .employee-attendance-status-modal input,
+.employee-attendance-page-rtl .employee-attendance-status-modal select,
+.employee-attendance-page-rtl .employee-attendance-status-modal textarea {
+  direction: rtl;
+  text-align: right;
+}
+
+.employee-attendance-page-rtl .employee-attendance-employee-list > button,
+.employee-attendance-page-rtl .employee-attendance-dates button {
+  direction: rtl;
+  text-align: right;
+}
+
+.employee-attendance-page-rtl .employee-attendance-details-layout {
+  direction: rtl;
+}
+
+.employee-attendance-page-rtl .employee-attendance-dates {
+  border-right: 0;
+  border-left: 1px solid #e5e7eb;
+}
+
+.employee-attendance-page-rtl .employee-attendance-dates button > svg:last-child {
+  transform: rotate(180deg);
+}
+
+.employee-attendance-page-rtl .employee-attendance-daily-list article,
+.employee-attendance-page-rtl .employee-attendance-person,
+.employee-attendance-page-rtl .employee-attendance-status-buttons {
+  direction: rtl;
+}
+
+.employee-attendance-page-rtl .employee-attendance-form-modal > footer,
+.employee-attendance-page-rtl .employee-attendance-status-modal > footer {
+  flex-direction: row-reverse;
+}
+
+@media (max-width: 760px) {
+  .employee-attendance-page-rtl .employee-attendance-dates {
+    border-left: 0;
+    border-bottom: 1px solid #e5e7eb;
+  }
+}

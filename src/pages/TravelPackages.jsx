@@ -1,30 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  CalendarDays,
-  CircleDollarSign,
-  Edit3,
-  Eye,
-  FileText,
-  Landmark,
-  PackagePlus,
-  Plus,
-  Search,
-  Trash2,
-  X,
-} from "lucide-react";
-
-import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
-import { usePackageAvailabilityDate } from "../hooks/usePackageAvailabilityDate";
-import { createRecordId } from "../utils/ids";
+import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, Eye, GraduationCap, Mail, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 import { notify } from "../utils/notify";
-import {
-  isPackageAvailable,
-  isPackageManuallyAvailable,
-  packageAvailabilityLabel,
-} from "../utils/packageAvailability";
-import "./TravelPackages.css";
+import { useLocalCollection } from "../hooks/useLocalCollection";
+import { useJsonCollection } from "../hooks/useJsonCollection";
+import "./ConsultantCustomers.css";
 
+const provinces = ["Badakhshan","Badghis","Baghlan","Balkh","Bamyan","Daykundi","Farah","Faryab","Ghazni","Ghor","Helmand","Herat","Jowzjan","Kabul","Kandahar","Kapisa","Khost","Kunar","Kunduz","Laghman","Logar","Nangarhar","Nimroz","Nuristan","Paktia","Paktika","Panjshir","Parwan","Samangan","Sar-e Pol","Takhar","Uruzgan","Wardak","Zabul"];
 const countries = [
   "Afghanistan",
   "Albania",
@@ -64,14 +45,14 @@ const countries = [
   "China",
   "Colombia",
   "Comoros",
-  "Congo",
+  "Congo, Democratic Republic of the",
+  "Congo, Republic of the",
   "Costa Rica",
-  "Cote d'Ivoire",
+  "Côte d\'Ivoire",
   "Croatia",
   "Cuba",
   "Cyprus",
   "Czechia",
-  "Democratic Republic of the Congo",
   "Denmark",
   "Djibouti",
   "Dominica",
@@ -175,7 +156,7 @@ const countries = [
   "Saint Vincent and the Grenadines",
   "Samoa",
   "San Marino",
-  "Sao Tome and Principe",
+  "São Tomé and Príncipe",
   "Saudi Arabia",
   "Senegal",
   "Serbia",
@@ -205,7 +186,7 @@ const countries = [
   "Tonga",
   "Trinidad and Tobago",
   "Tunisia",
-  "Turkiye",
+  "Turkey",
   "Turkmenistan",
   "Tuvalu",
   "Uganda",
@@ -221,875 +202,1146 @@ const countries = [
   "Vietnam",
   "Yemen",
   "Zambia",
-  "Zimbabwe",
+  "Zimbabwe"
 ];
 
-const normalizeCountryName = (value) =>
-  String(value || "")
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-zA-Z]/g, "")
-    .toLowerCase();
-
-const countryNameAliases = {
-  bolivia: "BO",
-  brunei: "BN",
-  caboverde: "CV",
-  congo: "CG",
-  democraticrepublicofthecongo: "CD",
-  cotedivoire: "CI",
-  czechia: "CZ",
-  eswatini: "SZ",
-  iran: "IR",
-  laos: "LA",
-  micronesia: "FM",
-  moldova: "MD",
-  northkorea: "KP",
-  palestine: "PS",
-  russia: "RU",
-  southkorea: "KR",
-  syria: "SY",
-  taiwan: "TW",
-  tanzania: "TZ",
-  turkiye: "TR",
-  turkey: "TR",
-  unitedstates: "US",
-  vaticancity: "VA",
-  venezuela: "VE",
-  vietnam: "VN",
+const countryCodes = {
+  "Afghanistan": "AF",
+  "Albania": "AL",
+  "Algeria": "DZ",
+  "Andorra": "AD",
+  "Angola": "AO",
+  "Antigua and Barbuda": "AG",
+  "Argentina": "AR",
+  "Armenia": "AM",
+  "Australia": "AU",
+  "Austria": "AT",
+  "Azerbaijan": "AZ",
+  "Bahamas": "BS",
+  "Bahrain": "BH",
+  "Bangladesh": "BD",
+  "Barbados": "BB",
+  "Belarus": "BY",
+  "Belgium": "BE",
+  "Belize": "BZ",
+  "Benin": "BJ",
+  "Bhutan": "BT",
+  "Bolivia": "BO",
+  "Bosnia and Herzegovina": "BA",
+  "Botswana": "BW",
+  "Brazil": "BR",
+  "Brunei": "BN",
+  "Bulgaria": "BG",
+  "Burkina Faso": "BF",
+  "Burundi": "BI",
+  "Cabo Verde": "CV",
+  "Cambodia": "KH",
+  "Cameroon": "CM",
+  "Canada": "CA",
+  "Central African Republic": "CF",
+  "Chad": "TD",
+  "Chile": "CL",
+  "China": "CN",
+  "Colombia": "CO",
+  "Comoros": "KM",
+  "Congo, Democratic Republic of the": "CD",
+  "Congo, Republic of the": "CG",
+  "Costa Rica": "CR",
+  "Côte d'Ivoire": "CI",
+  "Croatia": "HR",
+  "Cuba": "CU",
+  "Cyprus": "CY",
+  "Czechia": "CZ",
+  "Denmark": "DK",
+  "Djibouti": "DJ",
+  "Dominica": "DM",
+  "Dominican Republic": "DO",
+  "Ecuador": "EC",
+  "Egypt": "EG",
+  "El Salvador": "SV",
+  "Equatorial Guinea": "GQ",
+  "Eritrea": "ER",
+  "Estonia": "EE",
+  "Eswatini": "SZ",
+  "Ethiopia": "ET",
+  "Fiji": "FJ",
+  "Finland": "FI",
+  "France": "FR",
+  "Gabon": "GA",
+  "Gambia": "GM",
+  "Georgia": "GE",
+  "Germany": "DE",
+  "Ghana": "GH",
+  "Greece": "GR",
+  "Grenada": "GD",
+  "Guatemala": "GT",
+  "Guinea": "GN",
+  "Guinea-Bissau": "GW",
+  "Guyana": "GY",
+  "Haiti": "HT",
+  "Honduras": "HN",
+  "Hungary": "HU",
+  "Iceland": "IS",
+  "India": "IN",
+  "Indonesia": "ID",
+  "Iran": "IR",
+  "Iraq": "IQ",
+  "Ireland": "IE",
+  "Israel": "IL",
+  "Italy": "IT",
+  "Jamaica": "JM",
+  "Japan": "JP",
+  "Jordan": "JO",
+  "Kazakhstan": "KZ",
+  "Kenya": "KE",
+  "Kiribati": "KI",
+  "Kuwait": "KW",
+  "Kyrgyzstan": "KG",
+  "Laos": "LA",
+  "Latvia": "LV",
+  "Lebanon": "LB",
+  "Lesotho": "LS",
+  "Liberia": "LR",
+  "Libya": "LY",
+  "Liechtenstein": "LI",
+  "Lithuania": "LT",
+  "Luxembourg": "LU",
+  "Madagascar": "MG",
+  "Malawi": "MW",
+  "Malaysia": "MY",
+  "Maldives": "MV",
+  "Mali": "ML",
+  "Malta": "MT",
+  "Marshall Islands": "MH",
+  "Mauritania": "MR",
+  "Mauritius": "MU",
+  "Mexico": "MX",
+  "Micronesia": "FM",
+  "Moldova": "MD",
+  "Monaco": "MC",
+  "Mongolia": "MN",
+  "Montenegro": "ME",
+  "Morocco": "MA",
+  "Mozambique": "MZ",
+  "Myanmar": "MM",
+  "Namibia": "NA",
+  "Nauru": "NR",
+  "Nepal": "NP",
+  "Netherlands": "NL",
+  "New Zealand": "NZ",
+  "Nicaragua": "NI",
+  "Niger": "NE",
+  "Nigeria": "NG",
+  "North Korea": "KP",
+  "North Macedonia": "MK",
+  "Norway": "NO",
+  "Oman": "OM",
+  "Pakistan": "PK",
+  "Palau": "PW",
+  "Palestine": "PS",
+  "Panama": "PA",
+  "Papua New Guinea": "PG",
+  "Paraguay": "PY",
+  "Peru": "PE",
+  "Philippines": "PH",
+  "Poland": "PL",
+  "Portugal": "PT",
+  "Qatar": "QA",
+  "Romania": "RO",
+  "Russia": "RU",
+  "Rwanda": "RW",
+  "Saint Kitts and Nevis": "KN",
+  "Saint Lucia": "LC",
+  "Saint Vincent and the Grenadines": "VC",
+  "Samoa": "WS",
+  "San Marino": "SM",
+  "São Tomé and Príncipe": "ST",
+  "Saudi Arabia": "SA",
+  "Senegal": "SN",
+  "Serbia": "RS",
+  "Seychelles": "SC",
+  "Sierra Leone": "SL",
+  "Singapore": "SG",
+  "Slovakia": "SK",
+  "Slovenia": "SI",
+  "Solomon Islands": "SB",
+  "Somalia": "SO",
+  "South Africa": "ZA",
+  "South Korea": "KR",
+  "South Sudan": "SS",
+  "Spain": "ES",
+  "Sri Lanka": "LK",
+  "Sudan": "SD",
+  "Suriname": "SR",
+  "Sweden": "SE",
+  "Switzerland": "CH",
+  "Syria": "SY",
+  "Taiwan": "TW",
+  "Tajikistan": "TJ",
+  "Tanzania": "TZ",
+  "Thailand": "TH",
+  "Timor-Leste": "TL",
+  "Togo": "TG",
+  "Tonga": "TO",
+  "Trinidad and Tobago": "TT",
+  "Tunisia": "TN",
+  "Turkey": "TR",
+  "Turkmenistan": "TM",
+  "Tuvalu": "TV",
+  "Uganda": "UG",
+  "Ukraine": "UA",
+  "United Arab Emirates": "AE",
+  "United Kingdom": "GB",
+  "United States": "US",
+  "Uruguay": "UY",
+  "Uzbekistan": "UZ",
+  "Vanuatu": "VU",
+  "Vatican City": "VA",
+  "Venezuela": "VE",
+  "Vietnam": "VN",
+  "Yemen": "YE",
+  "Zambia": "ZM",
+  "Zimbabwe": "ZW"
 };
 
-function buildCountryCodeMap() {
-  const map = new Map();
+function getCountryFlag(countryName) {
+  const code = countryCodes[countryName];
 
-  if (
-    typeof Intl === "undefined" ||
-    typeof Intl.DisplayNames !== "function"
-  ) {
-    return map;
-  }
+  if (!code) return "🌐";
 
-  const displayNames = new Intl.DisplayNames(
-    ["en"],
-    { type: "region" }
-  );
-
-  for (let first = 65; first <= 90; first += 1) {
-    for (let second = 65; second <= 90; second += 1) {
-      const code =
-        String.fromCharCode(first) +
-        String.fromCharCode(second);
-
-      const countryName = displayNames.of(code);
-
-      if (countryName && countryName !== code) {
-        map.set(
-          normalizeCountryName(countryName),
-          code
-        );
-      }
-    }
-  }
-
-  return map;
+  return code
+    .toUpperCase()
+    .split("")
+    .map((letter) =>
+      String.fromCodePoint(
+        127397 + letter.charCodeAt(0)
+      )
+    )
+    .join("");
 }
 
-const countryCodeMap = buildCountryCodeMap();
-
-function getCountryCode(countryName) {
-  const normalized =
-    normalizeCountryName(countryName);
-
-  return (
-    countryNameAliases[normalized] ||
-    countryCodeMap.get(normalized) ||
-    ""
-  );
+function getCountryLabel(countryName) {
+  return `${getCountryFlag(countryName)} ${countryName}`;
 }
 
 function getCountryFlagUrl(countryName) {
-  const code = getCountryCode(countryName);
-
-  if (!code) return "";
-
-  return `https://flagcdn.com/24x18/${code.toLowerCase()}.png`;
+  const code = countryCodes[countryName];
+  return code ? `https://flagcdn.com/w40/${code.toLowerCase()}.png` : "";
 }
 
-function TravelCountrySelect({
-  value,
-  onChange,
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const wrapperRef = useRef(null);
+function getCountryFlagFallbackUrl(countryName) {
+  const code = countryCodes[countryName];
+  return code ? `https://hatscripts.github.io/circle-flags/flags/${code.toLowerCase()}.svg` : "";
+}
 
-  useEffect(() => {
-    const closeOnOutsideClick = (event) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target)
-      ) {
-        setOpen(false);
-      }
-    };
+function handleCountryFlagError(event, countryName) {
+  const image = event.currentTarget;
 
-    document.addEventListener(
-      "mousedown",
-      closeOnOutsideClick
-    );
+  if (image.dataset.fallbackApplied === "true") {
+    image.style.display = "none";
+    return;
+  }
 
-    return () => {
-      document.removeEventListener(
-        "mousedown",
-        closeOnOutsideClick
-      );
-    };
-  }, []);
+  image.dataset.fallbackApplied = "true";
+  image.src = getCountryFlagFallbackUrl(countryName);
+}
 
-  const filteredCountries = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    if (!query) return countries;
-
-    return countries.filter((country) =>
-      country.toLowerCase().includes(query)
-    );
-  }, [search]);
-
-  const chooseCountry = (country) => {
-    onChange({
-      target: {
-        name: "country",
-        value: country,
-      },
-    });
-
-    setSearch("");
-    setOpen(false);
-  };
+function CountryFlag({ country, className = "" }) {
+  if (!country) return null;
 
   return (
-    <div
-      className={`travel-country-select ${
-        open ? "open" : ""
-      }`}
-      ref={wrapperRef}
-    >
-      <button
-        type="button"
-        className="travel-country-trigger"
-        onClick={() =>
-          setOpen((current) => !current)
-        }
-      >
-        {value ? (
-          <span className="travel-country-selected">
-            <img
-              className="travel-country-flag-image"
-              src={getCountryFlagUrl(value)}
-              alt=""
-            />
-
-            <span>{value}</span>
-          </span>
-        ) : (
-          <span className="travel-country-placeholder">
-            Select country
-          </span>
-        )}
-
-        <span className="travel-country-arrow">
-          ▾
-        </span>
-      </button>
-
-      {open && (
-        <div className="travel-country-menu">
-          <input
-            type="search"
-            value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
-            placeholder="Search country..."
-            autoFocus
-          />
-
-          <div className="travel-country-options">
-            {filteredCountries.map((country) => (
-              <button
-                type="button"
-                key={country}
-                className={
-                  value === country
-                    ? "selected"
-                    : ""
-                }
-                onClick={() =>
-                  chooseCountry(country)
-                }
-              >
-                <img
-                  className="travel-country-flag-image"
-                  src={getCountryFlagUrl(country)}
-                  alt=""
-                />
-
-                <span>{country}</span>
-              </button>
-            ))}
-
-            {!filteredCountries.length && (
-              <p>No country found.</p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+    <span className={`consultant-country-flag-image-wrap ${className}`.trim()} aria-hidden="true">
+      <img
+        src={getCountryFlagUrl(country)}
+        alt=""
+        className="consultant-country-flag-image"
+        onError={(event) => handleCountryFlagError(event, country)}
+        referrerPolicy="no-referrer"
+      />
+    </span>
   );
 }
 
+function getAfghanistanDateTime() {
+  const now = new Date();
 
-const currencyOptions = [
-  { code: "AFN", label: "AFN - افغانی" },
-  { code: "USD", label: "USD - US Dollar" },
-  { code: "EUR", label: "EUR - Euro" },
-  { code: "GBP", label: "GBP - British Pound" },
-  { code: "AED", label: "AED - UAE Dirham" },
-  { code: "SAR", label: "SAR - Saudi Riyal" },
-  { code: "TRY", label: "TRY - Turkish Lira" },
-  { code: "PKR", label: "PKR - Pakistani Rupee" },
-  { code: "INR", label: "INR - Indian Rupee" },
-  { code: "IRR", label: "IRR - Iranian Rial" },
-  { code: "CAD", label: "CAD - Canadian Dollar" },
-  { code: "AUD", label: "AUD - Australian Dollar" },
-  { code: "RUB", label: "RUB - Russian Ruble" },
-  { code: "CNY", label: "CNY - Chinese Yuan" },
-].filter((item) => ["AFN", "USD"].includes(item.code));
+  const date = new Intl.DateTimeFormat(
+    "en-CA",
+    {
+      timeZone: "Asia/Kabul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }
+  ).format(now);
 
-const defaultCategories = [
-  "Medical",
-  "Tourism",
-  "Checkup",
-  "Business",
-  "Study",
-  "Family Visit",
-];
+  const time = new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone: "Asia/Kabul",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    }
+  ).format(now);
+
+  return {
+    iso: now.toISOString(),
+    date,
+    time,
+    dateTime: `${date}, ${time}`,
+  };
+}
+
+function formatCustomerDateTime(customer) {
+  const date =
+    customer.afghanistanDate ||
+    customer.date ||
+    "";
+
+  const time =
+    customer.afghanistanTime ||
+    customer.time ||
+    "";
+
+  if (date && time) {
+    const normalizedTime = /\b(?:AM|PM)\b/i.test(time)
+      ? time
+      : new Intl.DateTimeFormat(
+          "en-US",
+          {
+            timeZone: "Asia/Kabul",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true,
+          }
+        ).format(
+          new Date(`1970-01-01T${time}`)
+        );
+
+    return (
+      <span
+        className="consultant-date-time"
+        style={{
+          display: "inline-flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: "3px",
+          lineHeight: 1.2,
+        }}
+      >
+        <strong>{date}</strong>
+        <small>{normalizedTime}</small>
+      </span>
+    );
+  }
+
+  if (customer.createdAt) {
+    const created = new Date(customer.createdAt);
+
+    const formattedDate =
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kabul",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(created);
+
+    const formattedTime =
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Kabul",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      }).format(created);
+
+    return (
+      <span
+        className="consultant-date-time"
+        style={{
+          display: "inline-flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: "3px",
+          lineHeight: 1.2,
+        }}
+      >
+        <strong>{formattedDate}</strong>
+        <small>{formattedTime}</small>
+      </span>
+    );
+  }
+
+  return "-";
+}
+
 
 const emptyForm = {
-  packageName: "",
+  passportFullName: "",
+  phone: "",
+  email: "",
+  educationLevel: "",
+  institutionName: "",
+  sourceEmployeeId: "",
+  sourceEmployeeName: "",
+  assignedEmployeeId: "",
+  assignedEmployeeName: "",
+  purpose: "",
+  city: "",
+  language: "Dari",
+  otherLanguage: "",
+  callType: "Incoming",
+  needFollowup: "No",
+  businessType: "",
+  companyName: "",
+  technologyPurpose: "Database",
+  price: "",
+  unit: "AFN",
+  scholarshipType: "",
   country: "",
-  startDate: "",
-  endDate: "",
-  category: "",
-  currency: "AFN",
-  availability: "Available",
-  costPrice: "",
-  sellingPrice: "",
-  bankStatementRequired: "No",
-  bankStatementAmount: "",
   note: "",
 };
 
-const normalize = (value) =>
-  String(value || "").trim().toLowerCase();
 
-const money = (value, currency = "AFN") =>
-  `${Number(value || 0).toLocaleString("en-US")} ${
-    currency || "AFN"
-  }`;
 
-const totalsByCurrency = (items, fieldName) => {
-  const totals = items.reduce((result, item) => {
-    const currency = item.currency || "AFN";
+function ConsultantCustomers({ mode = "consultant", currentUser }) {
+  const isTravel = mode === "travel";
+  const isTechnology = mode === "technology";
+  const isMedia = mode === "media";
 
-    result[currency] =
-      (result[currency] || 0) +
-      Number(item[fieldName] || 0);
+  const legacyCollectionName = isTravel
+    ? "travelCustomers"
+    : isTechnology
+      ? "technologyCustomers"
+      : isMedia
+        ? "mediaProducts"
+        : "consultantCustomers";
 
-    return result;
-  }, {});
+  const typeLabel = isTravel
+    ? "Travel Customer"
+    : isTechnology
+      ? "Technology Customer"
+      : isMedia
+        ? "Media Production Customer"
+        : "Consultant Customer";
 
-  const entries = Object.entries(totals);
+  const typeLabelPlural = isTravel
+    ? "Travel Customers"
+    : isTechnology
+      ? "Technology Customers"
+      : isMedia
+        ? "Media Production Customers"
+        : "Consultant Customers";
 
-  if (!entries.length) return "0 AFN";
-
-  return entries
-    .map(([currency, amount]) =>
-      money(amount, currency)
-    )
-    .join(" • ");
-};
-
-const formatDate = (value) => {
-  if (!value) return "-";
-
-  const date = new Date(`${value}T00:00:00`);
-
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleDateString("en-GB");
-};
-
-export default function TravelPackages() {
-  const packageAvailabilityDate = usePackageAvailabilityDate();
   const [
-    packages,
-    setPackages,
+    serverCustomers,
+    setServerCustomers,
     ,
-    packagesLoaded,
-  ] = useJsonCollection("travelPackages");
+    customersLoaded,
+  ] = useJsonCollection("customers");
+
+  const [localCustomers] =
+    useLocalCollection("employeeCustomers");
 
   const [
-    legacyLocalPackages,
-    setLegacyLocalPackages,
-  ] = useLocalCollection("travelPackages", {
-    archiveDeletes: false,
-  });
-
-  const [categories, setCategories] =
-    useState(defaultCategories);
-
-  const [search, setSearch] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [detailsItem, setDetailsItem] = useState(null);
-  const [deleteItem, setDeleteItem] = useState(null);
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(emptyForm);
-  const [newCategory, setNewCategory] = useState("");
-  const [categoryCreatorOpen, setCategoryCreatorOpen] =
-    useState(false);
+    legacyCustomers,
+    setLegacyCustomers,
+  ] = useLocalCollection(legacyCollectionName);
 
   useEffect(() => {
-    if (!packagesLoaded || !legacyLocalPackages.length) {
-      return;
-    }
+    if (!customersLoaded) return;
 
-    const merged = [...packages];
+    const localRecords = [
+      ...localCustomers,
+      ...legacyCustomers,
+    ].map((item) => ({
+      ...item,
+      customerType:
+        item.customerType || mode,
+      specializedCustomer: true,
+    }));
 
-    legacyLocalPackages.forEach((localItem) => {
-      const exists = merged.some(
-        (serverItem) =>
-          String(serverItem.id) === String(localItem.id)
-      );
+    const missing = localRecords.filter(
+      (item) =>
+        !serverCustomers.some(
+          (saved) =>
+            String(saved.id) ===
+            String(item.id)
+        )
+    );
 
-      if (!exists) {
-        merged.push(localItem);
-      }
-    });
-
-    if (merged.length === packages.length) {
-      setLegacyLocalPackages([]);
-      return;
-    }
-
-    Promise.resolve(setPackages(merged)).then((saved) => {
-      if (saved !== false) {
-        setLegacyLocalPackages([]);
-      }
-    });
-  }, [
-    legacyLocalPackages,
-    packages,
-    packagesLoaded,
-    setLegacyLocalPackages,
-    setPackages,
-  ]);
-
-  const filteredPackages = useMemo(() => {
-    const query = normalize(search);
-
-    return packages
-      .filter((item) => {
-        if (!query) return true;
-
-        return [
-          item.packageName,
-          item.country,
-          item.category,
-          item.note,
-          item.bankStatementRequired,
-          item.costPrice,
-          item.sellingPrice,
-          item.currency,
-        ].some((value) =>
-          normalize(value).includes(query)
-        );
-      })
-      .sort(
-        (first, second) =>
-          new Date(second.updatedAt || second.createdAt || 0) -
-          new Date(first.updatedAt || first.createdAt || 0)
-      );
-  }, [packages, search]);
-
-  const stats = useMemo(() => ({
-    total: packages.length,
-
-    totalCostLabel: totalsByCurrency(
-      packages,
-      "costPrice"
-    ),
-
-    totalSalesLabel: totalsByCurrency(
-      packages,
-      "sellingPrice"
-    ),
-
-    totalProfitLabel: totalsByCurrency(
-      packages.map((item) => ({
-        ...item,
-        profit:
-          Number(item.sellingPrice || 0) -
-          Number(item.costPrice || 0),
-      })),
-      "profit"
-    ),
-  }), [packages]);
-
-  const openCreate = () => {
-    setEditingId(null);
-    setForm(emptyForm);
-    setNewCategory("");
-    setCategoryCreatorOpen(false);
-    setModalOpen(true);
-  };
-
-  const openEdit = (item) => {
-    setEditingId(item.id);
-    setForm({
-      packageName: item.packageName || "",
-      country: item.country || "",
-      startDate: item.startDate || "",
-      endDate: item.endDate || "",
-      category: item.category || "",
-      currency: ["AFN", "USD"].includes(item.currency)
-        ? item.currency
-        : "AFN",
-      availability: isPackageManuallyAvailable(item)
-        ? "Available"
-        : "Not Available",
-      costPrice: String(item.costPrice ?? ""),
-      sellingPrice: String(item.sellingPrice ?? ""),
-      bankStatementRequired:
-        item.bankStatementRequired || "No",
-      bankStatementAmount: String(
-        item.bankStatementAmount ?? ""
-      ),
-      note: item.note || "",
-    });
-
-    if (
-      item.category &&
-      !categories.includes(item.category)
-    ) {
-      setCategories((current) => [
-        ...current,
-        item.category,
+    if (missing.length) {
+      setServerCustomers([
+        ...serverCustomers,
+        ...missing,
       ]);
     }
+  }, [
+    customersLoaded,
+    legacyCustomers,
+    localCustomers,
+    mode,
+    serverCustomers,
+    setServerCustomers,
+  ]);
 
-    setNewCategory("");
-    setCategoryCreatorOpen(false);
-    setModalOpen(true);
-  };
+  const customers = useMemo(
+    () =>
+      serverCustomers.filter(
+        (item) =>
+          item.specializedCustomer &&
+          item.customerType === mode
+      ),
+    [serverCustomers, mode]
+  );
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingId(null);
-    setForm(emptyForm);
-    setNewCategory("");
-    setCategoryCreatorOpen(false);
-  };
+  const [form, setForm] = useState(emptyForm);
+  const [showForm, setShowForm] =
+    useState(false);
+  const [search, setSearch] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
+  const countryPickerRef = useRef(null);
+  const countrySearchRef = useRef(null);
+  const [editId, setEditId] = useState(null);
+  const [viewCustomer, setViewCustomer] =
+    useState(null);
+  const [
+    deleteCustomer,
+    setDeleteCustomer,
+  ] = useState(null);
 
-  const updateField = (event) => {
+  const filteredCountries = useMemo(() => {
+    const query = countrySearch.trim().toLowerCase();
+    if (!query) return countries;
+
+    return [...countries]
+      .filter((country) => country.toLowerCase().includes(query))
+      .sort((a, b) => {
+        const aStarts = a.toLowerCase().startsWith(query) ? 0 : 1;
+        const bStarts = b.toLowerCase().startsWith(query) ? 0 : 1;
+        return aStarts - bStarts || a.localeCompare(b);
+      });
+  }, [countrySearch]);
+
+  useEffect(() => {
+    if (!countryOpen) return undefined;
+
+    const handleOutsideCountry = (event) => {
+      if (countryPickerRef.current && !countryPickerRef.current.contains(event.target)) {
+        setCountryOpen(false);
+        setCountrySearch("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideCountry, true);
+    return () => document.removeEventListener("mousedown", handleOutsideCountry, true);
+  }, [countryOpen]);
+
+  useEffect(() => {
+    if (countryOpen) {
+      requestAnimationFrame(() => countrySearchRef.current?.focus());
+    }
+  }, [countryOpen]);
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) return customers;
+
+    return customers.filter((customer) =>
+      [
+        customer.fullName,
+        customer.passportFullName,
+        customer.phone,
+        customer.city,
+        customer.email,
+        customer.country,
+        customer.scholarshipType,
+        customer.businessType,
+        customer.brandName,
+        customer.mediaPurpose,
+        customer.phone,
+        customer.note,
+        customer.technologyPurpose,
+        customer.purpose,
+        customer.price,
+        customer.unit,
+      ].some((value) =>
+        String(value || "")
+          .toLowerCase()
+          .includes(query)
+      )
+    );
+  }, [customers, search]);
+
+  const update = (event) => {
     const { name, value } = event.target;
 
     setForm((current) => ({
       ...current,
       [name]: value,
-      ...(name === "bankStatementRequired" &&
-      value === "No"
-        ? { bankStatementAmount: "" }
+      ...(name === "language" && value !== "Other"
+        ? { otherLanguage: "" }
         : {}),
     }));
   };
 
-  const addCategory = () => {
-    const value = newCategory.trim();
-
-    if (!value) {
-      notify("Enter a category name.", "error");
-      return;
-    }
-
-    const duplicate = categories.some(
-      (item) => normalize(item) === normalize(value)
-    );
-
-    if (!duplicate) {
-      setCategories((current) => [...current, value]);
-    }
-
-    setForm((current) => ({
-      ...current,
-      category: value,
-    }));
-
-    setNewCategory("");
-    setCategoryCreatorOpen(false);
-    notify("Category added.", "success");
+  const resetForm = () => {
+    setForm(emptyForm);
+    setEditId(null);
+    setCountryOpen(false);
+    setCountrySearch("");
+    setShowForm(false);
   };
 
-  const savePackage = async (event) => {
+  const save = async (event) => {
     event.preventDefault();
 
-    const packageName = form.packageName.trim();
-
-    if (!packageName) {
-      notify("Package name is required.", "error");
-      return;
-    }
-
-    if (!form.country) {
-      notify("Country is required.", "error");
-      return;
-    }
-
-    if (!form.startDate || !form.endDate) {
-      notify("Start date and end date are required.", "error");
-      return;
-    }
-
-    if (
-      new Date(form.endDate) <
-      new Date(form.startDate)
-    ) {
+    if (!form.passportFullName.trim()) {
       notify(
-        "End date cannot be earlier than start date.",
+        isMedia
+          ? "Person name is required."
+          : "Full name is required.",
         "error"
       );
       return;
     }
 
-    if (
-      form.availability === "Available" &&
-      form.endDate <= packageAvailabilityDate
-    ) {
-      notify(
-        "An available package must have an end date after today.",
-        "error"
-      );
+    if (isMedia && !String(form.brandName || "").trim()) {
+      notify("Brand name is required.", "error");
       return;
     }
-
-    if (!form.category) {
-      notify("Category is required.", "error");
-      return;
-    }
-
-    const costPrice = Number(form.costPrice);
-    const sellingPrice = Number(form.sellingPrice);
-
-    if (!(costPrice >= 0) || !(sellingPrice >= 0)) {
-      notify("Enter valid prices.", "error");
-      return;
-    }
-
-    const bankStatementAmount =
-      form.bankStatementRequired === "Yes"
-        ? Number(form.bankStatementAmount)
-        : 0;
 
     if (
-      form.bankStatementRequired === "Yes" &&
-      !(bankStatementAmount > 0)
+      form.language === "Other" &&
+      !String(form.otherLanguage || "").trim()
     ) {
-      notify(
-        "Enter the required bank statement amount.",
-        "error"
-      );
+      notify("Please enter the language name.", "error");
       return;
     }
 
-    const now = new Date().toISOString();
+    const afghanistan =
+      getAfghanistanDateTime();
 
-    const record = {
-      id: editingId || createRecordId(),
-      packageName,
-      country: form.country,
-      startDate: form.startDate,
-      endDate: form.endDate,
-      category: form.category,
-      currency: ["AFN", "USD"].includes(form.currency)
-        ? form.currency
-        : "AFN",
-      availability: form.availability,
-      isAvailable: form.availability === "Available",
-      costPrice,
-      sellingPrice,
-      profit: sellingPrice - costPrice,
-      bankStatementRequired:
-        form.bankStatementRequired,
-      bankStatementAmount,
-      note: form.note.trim(),
-      status: "Active",
-      createdAt:
-        packages.find(
-          (item) => String(item.id) === String(editingId)
-        )?.createdAt || now,
+    const now = afghanistan.iso;
+
+    const existingRecord = editId
+      ? customers.find(
+          (customer) =>
+            String(customer.id) ===
+            String(editId)
+        )
+      : null;
+
+    const normalizedForm = {
+      ...form,
+      fullName: form.passportFullName.trim(),
+      passportFullName:
+        form.passportFullName.trim(),
+      personName: form.passportFullName.trim(),
+      brandName: String(form.brandName || "").trim(),
+      mediaPurpose: String(
+        form.mediaPurpose || "Video"
+      ).trim(),
+      purpose: isMedia
+        ? String(form.mediaPurpose || "Video").trim()
+        : form.purpose,
+      customerType: mode,
+      specializedCustomer: true,
+      registeredFrom:
+        form.registeredFrom ||
+        existingRecord?.registeredFrom ||
+        "employee-dashboard",
+
+      afghanistanDate:
+        existingRecord?.afghanistanDate ||
+        existingRecord?.date ||
+        afghanistan.date,
+
+      afghanistanTime:
+        existingRecord?.afghanistanTime ||
+        existingRecord?.time ||
+        afghanistan.time,
+
+      afghanistanDateTime:
+        existingRecord?.afghanistanDateTime ||
+        afghanistan.dateTime,
+
+      date:
+        existingRecord?.date ||
+        existingRecord?.afghanistanDate ||
+        afghanistan.date,
+
+      time:
+        existingRecord?.time ||
+        existingRecord?.afghanistanTime ||
+        afghanistan.time,
+
       updatedAt: now,
     };
 
-    const nextPackages = editingId
-      ? packages.map((item) =>
-          String(item.id) === String(editingId)
+    const record = editId
+      ? {
+          ...(existingRecord || {}),
+          ...normalizedForm,
+          createdAt:
+            existingRecord?.createdAt ||
+            now,
+        }
+      : {
+          ...normalizedForm,
+          id:
+            typeof crypto !== "undefined" &&
+            crypto.randomUUID
+              ? crypto.randomUUID()
+              : `${Date.now()}`,
+          adminNotificationType: "customer-created",
+          adminNotificationSection: typeLabel,
+          adminNotificationAt: now,
+          createdByAccountId: currentUser?.id || "",
+          createdByEmployeeId: currentUser?.employeeId || "",
+          createdByName:
+            currentUser?.fullName ||
+            currentUser?.username ||
+            currentUser?.email ||
+            "Call Center",
+          createdAt: now,
+        };
+
+    const next = editId
+      ? serverCustomers.map((customer) =>
+          String(customer.id) ===
+          String(editId)
             ? record
-            : item
+            : customer
         )
-      : [...packages, record];
+      : [...serverCustomers, record];
 
-    const saved = await Promise.resolve(
-      setPackages(nextPackages)
-    );
+    const saved =
+      await setServerCustomers(next);
 
-    if (saved === false) return;
+    if (!saved) return;
+
+    if (
+      editId &&
+      legacyCustomers.some(
+        (customer) =>
+          String(customer.id) ===
+          String(editId)
+      )
+    ) {
+      await setLegacyCustomers(
+        legacyCustomers.filter(
+          (customer) =>
+            String(customer.id) !==
+            String(editId)
+        )
+      );
+    }
 
     notify(
-      editingId
-        ? "Travel package updated."
-        : "Travel package created.",
+      editId
+        ? `${typeLabel} updated successfully.`
+        : `${typeLabel} registered successfully.`,
       "success"
     );
 
-    closeModal();
+    resetForm();
   };
 
-  const confirmDelete = async () => {
-    if (!deleteItem) return;
+  const remove = async () => {
+    if (!deleteCustomer) return;
 
-    const nextPackages = packages.filter(
-      (item) =>
-        String(item.id) !== String(deleteItem.id)
+    const next = serverCustomers.filter(
+      (customer) =>
+        String(customer.id) !==
+        String(deleteCustomer.id)
     );
 
-    const saved = await Promise.resolve(
-      setPackages(nextPackages)
+    const saved =
+      await setServerCustomers(next);
+
+    if (!saved) return;
+
+    if (
+      legacyCustomers.some(
+        (customer) =>
+          String(customer.id) ===
+          String(deleteCustomer.id)
+      )
+    ) {
+      await setLegacyCustomers(
+        legacyCustomers.filter(
+          (customer) =>
+            String(customer.id) !==
+            String(deleteCustomer.id)
+        )
+      );
+    }
+
+    setDeleteCustomer(null);
+    notify(
+      `${typeLabel} deleted successfully.`,
+      "success"
     );
-
-    if (saved === false) return;
-
-    notify("Travel package deleted.", "success");
-    setDeleteItem(null);
   };
 
+  const openEdit = (customer) => {
+    setForm({
+      ...emptyForm,
+      ...customer,
+      passportFullName:
+        customer.passportFullName ||
+        customer.fullName ||
+        "",
+      unit:
+        customer.unit ||
+        customer.currencyUnit ||
+        "AFN",
+    });
 
-  if (!packagesLoaded) {
-    return (
-      <div className="page-loading">
-        Loading travel packages...
-      </div>
+    setEditId(customer.id);
+    setCountryOpen(false);
+    setCountrySearch("");
+    setShowForm(true);
+  };
+
+  const openCreate = () => {
+    setForm(emptyForm);
+    setEditId(null);
+    setCountryOpen(false);
+    setCountrySearch("");
+    setShowForm(true);
+  };
+
+  const formatPrice = (customer) => {
+    const price = Number(
+      customer.price ||
+      customer.totalAmount ||
+      0
     );
-  }
+
+    if (!price) return "-";
+
+    return `${price.toLocaleString("en-US")} ${
+      customer.unit ||
+      customer.currencyUnit ||
+      "AFN"
+    }`;
+  };
 
   return (
-    <div className="travel-packages-page">
-      <header className="travel-packages-header">
+    <div className="consultant-page">
+      <div className="consultant-heading">
         <div>
-          <span>PACKAGE MANAGEMENT</span>
-          <h1>Travel Packages</h1>
+          <span>Customer Services</span>
+          <h1>{typeLabelPlural}</h1>
           <p>
-            Create and manage travel packages, prices,
-            countries, dates, and bank requirements.
+            Register and manage customer
+            information from one workspace.
           </p>
         </div>
 
         <button
           type="button"
-          className="travel-package-primary-btn"
           onClick={openCreate}
         >
-          <PackagePlus size={17} />
-          Add Travel Package
+          <Plus size={17} />
+          Add {typeLabel}
         </button>
-      </header>
+      </div>
 
-      <section className="travel-package-stats">
-        <article>
-          <PackagePlus size={18} />
+      <section className="consultant-list-card">
+        <div className="consultant-list-header">
           <div>
-            <span>Total Packages</span>
-            <strong>{stats.total}</strong>
-          </div>
-        </article>
-
-        <article>
-          <CircleDollarSign size={18} />
-          <div>
-            <span>Total Cost</span>
-            <strong>{stats.totalCostLabel}</strong>
-          </div>
-        </article>
-
-        <article>
-          <Landmark size={18} />
-          <div>
-            <span>Total Selling</span>
-            <strong>{stats.totalSalesLabel}</strong>
-          </div>
-        </article>
-
-        <article>
-          <FileText size={18} />
-          <div>
-            <span>Expected Profit</span>
-            <strong>{stats.totalProfitLabel}</strong>
-          </div>
-        </article>
-      </section>
-
-      <section className="travel-package-table-card">
-        <header>
-          <div>
-            <h2>Travel Package List</h2>
-            <p>{filteredPackages.length} package records</p>
+            <h2>{typeLabel} List</h2>
+            <p>Registered customer records</p>
           </div>
 
-          <label className="travel-package-search">
-            <Search size={16} />
+          <div>
+            <Search size={15} />
             <input
-              type="search"
               value={search}
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="Search package, country or category..."
+              placeholder="Search customers..."
             />
-          </label>
-        </header>
+          </div>
+        </div>
 
-        <div className="travel-package-table-wrap">
+        <div className="consultant-table-wrap">
           <table>
             <thead>
-              <tr>
-                <th>Package</th>
-                <th>Country</th>
-                <th>Category</th>
-                <th>Start / End</th>
-                <th>Availability</th>
-                <th>Cost Price</th>
-                <th>Selling Price</th>
-                <th>Profit</th>
-                <th>Bank Statement</th>
-                <th>Actions</th>
-              </tr>
+              {isMedia ? (
+                <tr>
+                  <th>Full Name</th>
+                  <th>Phone Number</th>
+                  <th>Brand Name</th>
+                  <th>Purpose</th>
+                  <th>Note</th>
+                  <th>Registered</th>
+                  <th>Action</th>
+                </tr>
+              ) : (
+                <tr>
+                  <th>Customer</th>
+                  <th>Contact</th>
+                  <th>Location</th>
+                  <th>Country</th>
+
+                  {isTechnology && (
+                    <th>Service</th>
+                  )}
+
+                  {!isTravel &&
+                    !isTechnology && (
+                      <th>Scholarship</th>
+                    )}
+
+                  <th>Unit / Price</th>
+                  <th>Purpose</th>
+                  <th>Follow-up</th>
+                  <th>Registered</th>
+                  <th>Action</th>
+                </tr>
+              )}
             </thead>
 
             <tbody>
-              {filteredPackages.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <strong>{item.packageName}</strong>
-                    <small>{item.note || "No note"}</small>
+              {filtered.map((customer) => {
+                const customerName =
+                  customer.fullName ||
+                  customer.passportFullName ||
+                  customer.personName ||
+                  `Unnamed ${typeLabel}`;
 
-                    <span className="travel-package-currency">
-                      {item.currency || "AFN"}
-                    </span>
-                  </td>
+                if (isMedia) {
+                  return (
+                    <tr key={customer.id}>
+                      <td>
+                        <button
+                          type="button"
+                          className="consultant-name-preview"
+                          onClick={() =>
+                            setViewCustomer(customer)
+                          }
+                        >
+                          <span className="consultant-name-avatar">
+                            {String(customerName)
+                              .slice(0, 1)
+                              .toUpperCase()}
+                          </span>
 
-                  <td>{item.country}</td>
+                          <span className="consultant-name-copy">
+                            <strong>{customerName}</strong>
+                            <small>View details</small>
+                          </span>
+                        </button>
+                      </td>
 
-                  <td>
-                    <span className="travel-package-category">
-                      {item.category}
-                    </span>
-                  </td>
+                      <td>{customer.phone || "-"}</td>
 
-                  <td>
-                    <strong>{formatDate(item.startDate)}</strong>
-                    <small>{formatDate(item.endDate)}</small>
-                  </td>
+                      <td>{customer.brandName || "-"}</td>
 
-                  <td>
-                    <span
-                      className={`travel-package-availability ${
-                        isPackageAvailable(item, packageAvailabilityDate)
-                          ? "available"
-                          : "unavailable"
-                      }`}
-                    >
-                      {packageAvailabilityLabel(item, packageAvailabilityDate)}
-                    </span>
-                  </td>
+                      <td>
+                        {customer.mediaPurpose ||
+                          customer.purpose ||
+                          "-"}
+                      </td>
 
-                  <td>{money(item.costPrice, item.currency)}</td>
-                  <td>{money(item.sellingPrice, item.currency)}</td>
+                      <td>
+                        {customer.note ||
+                          customer.notes ||
+                          "-"}
+                      </td>
 
-                  <td
-                    className={
-                      Number(item.profit || 0) >= 0
-                        ? "visa-profit-positive"
-                        : "visa-profit-negative"
-                    }
-                  >
-                    {money(item.profit, item.currency)}
-                  </td>
+                      <td>
+                        {formatCustomerDateTime(
+                          customer
+                        )}
+                      </td>
 
-                  <td>
-                    <span
-                      className={`travel-package-bank ${
-                        item.bankStatementRequired === "Yes"
-                          ? "required"
-                          : "not-required"
-                      }`}
-                    >
-                      {item.bankStatementRequired === "Yes"
-                        ? money(
-                            item.bankStatementAmount,
-                            item.currency
-                          )
-                        : "Not Required"}
-                    </span>
-                  </td>
+                      <td>
+                        <div className="consultant-row-actions">
+                          <button
+                            className="view"
+                            type="button"
+                            onClick={() =>
+                              setViewCustomer(customer)
+                            }
+                            title="View details"
+                          >
+                            <Eye size={14} />
+                          </button>
 
-                  <td>
-                    <div className="travel-package-actions">
+                          <button
+                            className="edit"
+                            type="button"
+                            onClick={() =>
+                              openEdit(customer)
+                            }
+                            title="Edit"
+                          >
+                            <Pencil size={14} />
+                          </button>
+
+                          <button
+                            className="delete"
+                            type="button"
+                            onClick={() =>
+                              setDeleteCustomer(customer)
+                            }
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return (
+                  <tr key={customer.id}>
+                    <td>
                       <button
                         type="button"
-                        title="View"
-                        onClick={() => setDetailsItem(item)}
+                        className="consultant-name-preview"
+                        onClick={() =>
+                          setViewCustomer(customer)
+                        }
                       >
-                        <Eye size={15} />
-                      </button>
+                        <span className="consultant-name-avatar">
+                          {String(customerName)
+                            .slice(0, 1)
+                            .toUpperCase()}
+                        </span>
 
-                      <button
-                        type="button"
-                        title="Edit"
-                        onClick={() => openEdit(item)}
+                        <span className="consultant-name-copy">
+                          <strong>{customerName}</strong>
+                          <small>View details</small>
+                        </span>
+                      </button>
+                    </td>
+
+                    <td>
+                      <div className="consultant-contact">
+                        <span>
+                          <Phone size={13} />
+                          {customer.phone || "-"}
+                        </span>
+
+                        <span>
+                          <Mail size={13} />
+                          {customer.email || "-"}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td>{customer.city || "-"}</td>
+
+                    <td>
+                      {customer.country ? (
+                        <span className="consultant-country-table-value">
+                          <CountryFlag country={customer.country} className="table-flag" />
+                          <span>{customer.country}</span>
+                        </span>
+                      ) : "-"}
+                    </td>
+
+                    {isTechnology && (
+                      <td>
+                        {customer.technologyPurpose || "-"}
+                      </td>
+                    )}
+
+                    {!isTravel &&
+                      !isTechnology && (
+                        <td>
+                          {customer.scholarshipType || "-"}
+                        </td>
+                      )}
+
+                    <td>{formatPrice(customer)}</td>
+
+                    <td>
+                      {customer.purpose ||
+                        customer.technologyPurpose ||
+                        "-"}
+                    </td>
+
+                    <td>
+                      <span
+                        className={`consultant-followup-badge ${
+                          customer.needFollowup === "Yes"
+                            ? "yes"
+                            : "no"
+                        }`}
                       >
-                        <Edit3 size={15} />
-                      </button>
+                        {customer.needFollowup === "Yes"
+                          ? "Required"
+                          : "No"}
+                      </span>
+                    </td>
 
-                      <button
-                        type="button"
-                        className="delete"
-                        title="Delete"
-                        onClick={() => setDeleteItem(item)}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    <td>
+                      {formatCustomerDateTime(
+                        customer
+                      )}
+                    </td>
 
-              {!filteredPackages.length && (
+                    <td>
+                      <div className="consultant-row-actions">
+                        <button
+                          className="view"
+                          type="button"
+                          onClick={() =>
+                            setViewCustomer(customer)
+                          }
+                          title="View details"
+                        >
+                          <Eye size={14} />
+                        </button>
+
+                        <button
+                          className="edit"
+                          type="button"
+                          onClick={() =>
+                            openEdit(customer)
+                          }
+                          title="Edit"
+                        >
+                          <Pencil size={14} />
+                        </button>
+
+                        <button
+                          className="delete"
+                          type="button"
+                          onClick={() =>
+                            setDeleteCustomer(customer)
+                          }
+                          title="Delete"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {!filtered.length && (
                 <tr>
                   <td
-                    colSpan="10"
-                    className="travel-package-empty"
+                    colSpan={isMedia ? 7 : 10}
+                    className="consultant-empty"
                   >
-                    No travel packages found.
+                    No customers registered yet.
                   </td>
                 </tr>
               )}
@@ -1098,450 +1350,635 @@ export default function TravelPackages() {
         </div>
       </section>
 
-      {modalOpen && (
+      {showForm && (
         <div
-          className="travel-package-modal-backdrop"
-          onMouseDown={closeModal}
+          className="consultant-modal-backdrop"
+          onMouseDown={resetForm}
         >
-          <form
-            className="travel-package-modal"
-            onSubmit={savePackage}
+          <div
+            className="consultant-modal"
             onMouseDown={(event) =>
               event.stopPropagation()
             }
           >
-            <header>
+            <div className="consultant-modal-header">
               <div>
                 <h2>
-                  {editingId
-                    ? "Edit Travel Package"
-                    : "Add Travel Package"}
+                  {editId
+                    ? `Edit ${typeLabel}`
+                    : isMedia
+                      ? "Add Media Product"
+                      : `Add ${typeLabel}`}
                 </h2>
+
                 <p>
-                  Complete the package information below.
+                  {isMedia
+                    ? "Select the registration type and complete the required information."
+                    : `This record will also appear in the general ${mode} customer list.`}
                 </p>
               </div>
 
               <button
                 type="button"
-                className="travel-package-close-btn"
-                onClick={closeModal}
+                onClick={resetForm}
               >
                 <X size={19} />
               </button>
-            </header>
-
-            <div className="travel-package-form-grid">
-              <label>
-                <span>Package Name</span>
-                <input
-                  name="packageName"
-                  value={form.packageName}
-                  onChange={updateField}
-                  placeholder="Enter package name"
-                  autoFocus
-                />
-              </label>
-
-              <label>
-                <span>Country</span>
-
-                <TravelCountrySelect
-                  value={form.country}
-                  onChange={updateField}
-                />
-              </label>
-
-              <label>
-                <span>Unit</span>
-
-                <select
-                  name="currency"
-                  value={form.currency}
-                  onChange={updateField}
-                >
-                  {currencyOptions.map((item) => (
-                    <option
-                      key={item.code}
-                      value={item.code}
-                    >
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span>Availability</span>
-                <select
-                  name="availability"
-                  value={form.availability}
-                  onChange={updateField}
-                >
-                  <option value="Available">Available</option>
-                  <option value="Not Available">Not Available</option>
-                </select>
-              </label>
-
-              <label>
-                <span>Start Date</span>
-                <div className="visa-date-control">
-                  <CalendarDays size={15} />
-                  <input
-                    type="date"
-                    name="startDate"
-                    value={form.startDate}
-                    onChange={updateField}
-                  />
-                </div>
-              </label>
-
-              <label>
-                <span>End Date</span>
-                <div className="visa-date-control">
-                  <CalendarDays size={15} />
-                  <input
-                    type="date"
-                    name="endDate"
-                    value={form.endDate}
-                    onChange={updateField}
-                  />
-                </div>
-              </label>
-
-              <label className="visa-category-field">
-                <span>Category</span>
-                <div className="visa-category-control">
-                  <select
-                    name="category"
-                    value={form.category}
-                    onChange={updateField}
-                  >
-                    <option value="">Select category</option>
-                    {categories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="button"
-                    title="Add category"
-                    onClick={() =>
-                      setCategoryCreatorOpen((current) => !current)
-                    }
-                  >
-                    <Plus size={17} />
-                  </button>
-                </div>
-
-                {categoryCreatorOpen && (
-                  <div className="visa-new-category">
-                    <input
-                      value={newCategory}
-                      onChange={(event) =>
-                        setNewCategory(event.target.value)
-                      }
-                      placeholder="New category"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={addCategory}
-                    >
-                      Add
-                    </button>
-                  </div>
-                )}
-              </label>
-
-              <label>
-                <span>Cost Price ({form.currency})</span>
-                <input
-                  type="number"
-                  min="0"
-                  name="costPrice"
-                  value={form.costPrice}
-                  onChange={updateField}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                <span>Selling Price ({form.currency})</span>
-                <input
-                  type="number"
-                  min="0"
-                  name="sellingPrice"
-                  value={form.sellingPrice}
-                  onChange={updateField}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                <span>Expected Profit</span>
-                <input
-                  value={money(
-                    Number(form.sellingPrice || 0) -
-                      Number(form.costPrice || 0),
-                    form.currency
-                  )}
-                  readOnly
-                />
-              </label>
-
-              <fieldset className="visa-bank-fieldset">
-                <legend>Bank Statement Required</legend>
-
-                <label>
-                  <input
-                    type="radio"
-                    name="bankStatementRequired"
-                    value="Yes"
-                    checked={
-                      form.bankStatementRequired === "Yes"
-                    }
-                    onChange={updateField}
-                  />
-                  Yes
-                </label>
-
-                <label>
-                  <input
-                    type="radio"
-                    name="bankStatementRequired"
-                    value="No"
-                    checked={
-                      form.bankStatementRequired === "No"
-                    }
-                    onChange={updateField}
-                  />
-                  No
-                </label>
-              </fieldset>
-
-              {form.bankStatementRequired === "Yes" && (
-                <label>
-                  <span>Bank Statement Amount (AFN)</span>
-                  <input
-                    type="number"
-                    min="1"
-                    name="bankStatementAmount"
-                    value={form.bankStatementAmount}
-                    onChange={updateField}
-                    placeholder="Required amount"
-                  />
-                </label>
-              )}
-
-              <label className="visa-form-full">
-                <span>Note</span>
-                <textarea
-                  name="note"
-                  rows="4"
-                  value={form.note}
-                  onChange={updateField}
-                  placeholder="Write package notes..."
-                />
-              </label>
             </div>
 
-            <footer>
-              <button
-                type="button"
-                onClick={closeModal}
-              >
-                Cancel
-              </button>
+            <form onSubmit={save}>
+              <div className="consultant-form-grid">
+                {isMedia ? (
+                  <>
+                    <label>
+                      <span>Full Name</span>
+                      <input
+                        name="passportFullName"
+                        value={form.passportFullName}
+                        onChange={update}
+                        placeholder="Enter full name"
+                      />
+                    </label>
 
-              <button
-                type="submit"
-                className="primary"
-              >
-                {editingId
-                  ? "Update Package"
-                  : "Save Package"}
-              </button>
-            </footer>
-          </form>
+                    <label>
+                      <span>Phone Number</span>
+                      <input
+                        name="phone"
+                        value={form.phone}
+                        onChange={update}
+                        placeholder="Enter phone number"
+                      />
+                    </label>
+
+                    <label>
+                      <span>Brand Name</span>
+                      <input
+                        name="brandName"
+                        value={form.brandName || ""}
+                        onChange={update}
+                        placeholder="Enter brand name"
+                      />
+                    </label>
+
+                    <label>
+                      <span>Purpose</span>
+                      <select
+                        name="mediaPurpose"
+                        value={form.mediaPurpose || "Video"}
+                        onChange={update}
+                      >
+                        <option value="Video">Video</option>
+                        <option value="Photo">Photo</option>
+                        <option value="Logo">Logo</option>
+                        <option value="Poster">Poster</option>
+                        <option value="Banner">Banner</option>
+                        <option value="Social Media Post">
+                          Social Media Post
+                        </option>
+                        <option value="Advertisement">
+                          Advertisement
+                        </option>
+                        <option value="Animation">
+                          Animation
+                        </option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </label>
+
+                    <label className="consultant-form-full">
+                      <span>Note</span>
+                      <textarea
+                        name="note"
+                        value={form.note}
+                        onChange={update}
+                        rows="4"
+                        placeholder="Write additional notes"
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <>
+                    <label>
+                      <span>Full Name</span>
+                      <input
+                        name="passportFullName"
+                        value={form.passportFullName}
+                        onChange={update}
+                      />
+                    </label>
+
+                    <label>
+                      <span>Phone Number</span>
+                      <input
+                        name="phone"
+                        value={form.phone}
+                        onChange={update}
+                      />
+                    </label>
+
+                    <label>
+                      <span>City / Province</span>
+                      <select
+                        name="city"
+                        value={form.city}
+                        onChange={update}
+                      >
+                        <option value="">
+                          Select province
+                        </option>
+
+                        {provinces.map((province) => (
+                          <option
+                            key={province}
+                            value={province}
+                          >
+                            {province}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <div className="consultant-country-picker" ref={countryPickerRef}>
+                      <span>Country</span>
+                      <button
+                        type="button"
+                        className={`consultant-country-trigger ${countryOpen ? "open" : ""}`}
+                        onClick={() => {
+                          setCountryOpen((open) => !open);
+                          setCountrySearch("");
+                        }}
+                        onKeyDown={(event) => {
+                          if (/^[a-zA-Z]$/.test(event.key)) {
+                            event.preventDefault();
+                            setCountryOpen(true);
+                            setCountrySearch(event.key);
+                          }
+                        }}
+                        aria-expanded={countryOpen}
+                      >
+                        <span className={`consultant-country-trigger-value ${form.country ? "has-country" : ""}`}>
+                          {form.country ? (
+                            <>
+                              <CountryFlag country={form.country} />
+                              <span className="consultant-country-trigger-name">{form.country}</span>
+                            </>
+                          ) : (
+                            "Select country"
+                          )}
+                        </span>
+                        <ChevronDown size={15} />
+                      </button>
+
+                      {countryOpen && (
+                        <div className="consultant-country-menu">
+                          <div className="consultant-country-search">
+                            <Search size={15} />
+                            <input
+                              ref={countrySearchRef}
+                              value={countrySearch}
+                              onChange={(event) => setCountrySearch(event.target.value)}
+                              placeholder="Search country..."
+                              autoComplete="off"
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  setCountryOpen(false);
+                                  setCountrySearch("");
+                                }
+                              }}
+                            />
+                            {countrySearch && (
+                              <button type="button" onClick={() => setCountrySearch("")} aria-label="Clear country search">
+                                <X size={13} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="consultant-country-results">
+                            {filteredCountries.map((country) => (
+                              <button
+                                type="button"
+                                key={country}
+                                className={form.country === country ? "selected" : ""}
+                                onClick={() => {
+                                  setForm((current) => ({ ...current, country }));
+                                  setCountryOpen(false);
+                                  setCountrySearch("");
+                                }}
+                              >
+                                <CountryFlag country={country} />
+                                <strong>{country}</strong>
+                                {form.country === country && <Check size={15} />}
+                              </button>
+                            ))}
+
+                            {!filteredCountries.length && (
+                              <p>No country found</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <label>
+                      <span>Language</span>
+                      <select
+                        name="language"
+                        value={form.language}
+                        onChange={update}
+                      >
+                        <option>Dari</option>
+                        <option>Pashto</option>
+                        <option>English</option>
+                        <option>Other</option>
+                      </select>
+                    </label>
+
+                    {form.language === "Other" && (
+                      <label className="consultant-other-language-field">
+                        <span>Other Language</span>
+                        <input
+                          name="otherLanguage"
+                          value={form.otherLanguage || ""}
+                          onChange={update}
+                          placeholder="Enter language name"
+                          autoFocus
+                        />
+                      </label>
+                    )}
+
+                    <label>
+                      <span>Call Type</span>
+                      <select
+                        name="callType"
+                        value={form.callType}
+                        onChange={update}
+                      >
+                        <option>Incoming</option>
+                        <option>Outgoing</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      <span>Unit</span>
+                      <select
+                        name="unit"
+                        value={form.unit}
+                        onChange={update}
+                      >
+                        <option value="AFN">
+                          AFN - افغانی
+                        </option>
+                        <option value="USD">
+                          USD - Dollar
+                        </option>
+                      </select>
+                    </label>
+
+                    <label>
+                      <span>Price</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        name="price"
+                        value={form.price}
+                        onChange={update}
+                        placeholder="Enter price"
+                      />
+                    </label>
+
+                    {!isTravel && !isTechnology && (
+                      <label>
+                        <span>Scholarship Type</span>
+                        <select
+                          name="scholarshipType"
+                          value={form.scholarshipType}
+                          onChange={update}
+                        >
+                          <option value="">
+                            Select scholarship
+                          </option>
+                          <option value="Fully Funded">
+                            Fully Funded
+                          </option>
+                          <option value="Partial Funded">
+                            Partial Funded
+                          </option>
+                          <option value="Private">
+                            Private
+                          </option>
+                        </select>
+                      </label>
+                    )}
+
+                    {isTechnology && (
+                      <>
+                        <label>
+                          <span>Business Type</span>
+                          <input
+                            name="businessType"
+                            value={form.businessType}
+                            onChange={update}
+                          />
+                        </label>
+
+                        <label>
+                          <span>Service Type</span>
+                          <select
+                            name="technologyPurpose"
+                            value={form.technologyPurpose}
+                            onChange={update}
+                          >
+                            <option>Database</option>
+                            <option>Website</option>
+                            <option>Application</option>
+                            <option>Networking</option>
+                            <option>Other</option>
+                          </select>
+                        </label>
+                      </>
+                    )}
+
+                    <label className="consultant-form-full">
+                      <span>Purpose</span>
+                      <textarea
+                        name="purpose"
+                        value={form.purpose}
+                        onChange={update}
+                        rows="3"
+                        placeholder="Enter customer purpose"
+                      />
+                    </label>
+
+                    <label className="followup-field">
+                      <span>Need Follow-up</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={
+                          form.needFollowup === "Yes"
+                        }
+                        className={`followup-switch ${
+                          form.needFollowup === "Yes"
+                            ? "on"
+                            : "off"
+                        }`}
+                        onClick={() =>
+                          setForm((current) => ({
+                            ...current,
+                            needFollowup:
+                              current.needFollowup === "Yes"
+                                ? "No"
+                                : "Yes",
+                          }))
+                        }
+                      >
+                        <span />
+                        <b>
+                          {form.needFollowup === "Yes"
+                            ? "ON"
+                            : "OFF"}
+                        </b>
+                      </button>
+                    </label>
+
+                    <label className="consultant-form-full">
+                      <span>Note</span>
+                      <textarea
+                        name="note"
+                        value={form.note}
+                        onChange={update}
+                        rows="4"
+                        placeholder="Write additional customer notes..."
+                      />
+                    </label>
+                  </>
+                )}
+              </div>
+
+              <div className="consultant-modal-actions">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                >
+                  Cancel
+                </button>
+
+                <button type="submit">
+                  {editId
+                    ? "Save Changes"
+                    : isMedia
+                      ? "Save Media Product"
+                      : "Save Customer"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-      {detailsItem && (
+      {viewCustomer && (
         <div
-          className="travel-package-modal-backdrop"
-          onMouseDown={() => setDetailsItem(null)}
+          className="consultant-modal-backdrop"
+          onMouseDown={() =>
+            setViewCustomer(null)
+          }
         >
-          <section
-            className="travel-package-details-modal"
+          <div
+            className="consultant-detail-modal"
             onMouseDown={(event) =>
               event.stopPropagation()
             }
           >
-            <header>
+            <div className="consultant-detail-hero">
               <div>
-                <h2>{detailsItem.packageName}</h2>
-                <p>Complete travel package information.</p>
+                <b>
+                  {String(
+                    viewCustomer.fullName ||
+                    viewCustomer.passportFullName ||
+                    "C"
+                  )
+                    .slice(0, 1)
+                    .toUpperCase()}
+                </b>
+
+                <span>
+                  <small>{typeLabel}</small>
+                  <h2>
+                    {viewCustomer.fullName ||
+                      viewCustomer.passportFullName ||
+                      `Unnamed ${typeLabel}`}
+                  </h2>
+                </span>
               </div>
 
               <button
                 type="button"
-                className="travel-package-close-btn"
-                onClick={() => setDetailsItem(null)}
+                onClick={() =>
+                  setViewCustomer(null)
+                }
               >
-                <X size={19} />
+                <X size={18} />
               </button>
-            </header>
+            </div>
 
-            <div className="travel-package-details-grid">
-              <div>
-                <span>Country</span>
-                <strong>{detailsItem.country}</strong>
-              </div>
-
-              <div>
-                <span>Unit</span>
-                <strong>
-                  {detailsItem.currency || "AFN"}
-                </strong>
-              </div>
-
-              <div>
-                <span>Availability</span>
-                <strong>
-                  {packageAvailabilityLabel(
-                    detailsItem,
-                    packageAvailabilityDate
-                  )}
-                </strong>
-              </div>
-
-              <div>
-                <span>Category</span>
-                <strong>{detailsItem.category}</strong>
-              </div>
-
-              <div>
-                <span>Start Date</span>
-                <strong>
-                  {formatDate(detailsItem.startDate)}
-                </strong>
-              </div>
-
-              <div>
-                <span>End Date</span>
-                <strong>
-                  {formatDate(detailsItem.endDate)}
-                </strong>
-              </div>
-
-              <div>
-                <span>Cost Price</span>
-                <strong>
-                  {money(
-                    detailsItem.costPrice,
-                    detailsItem.currency
-                  )}
-                </strong>
-              </div>
-
-              <div>
-                <span>Selling Price</span>
-                <strong>
-                  {money(
-                    detailsItem.sellingPrice,
-                    detailsItem.currency
-                  )}
-                </strong>
-              </div>
-
-              <div>
-                <span>Profit</span>
-                <strong>
-                  {money(
-                    detailsItem.profit,
-                    detailsItem.currency
-                  )}
-                </strong>
-              </div>
-
-              <div>
-                <span>Bank Statement</span>
-                <strong>
-                  {detailsItem.bankStatementRequired === "Yes"
-                    ? money(
-                        detailsItem.bankStatementAmount,
-                        detailsItem.currency
+            <div className="consultant-detail-grid">
+              {[
+                ["Phone Number", viewCustomer.phone],
+                ["Brand Name", viewCustomer.brandName],
+                [
+                  "Purpose",
+                  viewCustomer.mediaPurpose ||
+                    viewCustomer.purpose,
+                ],
+                ["Email", viewCustomer.email],
+                ["City / Province", viewCustomer.city],
+                [
+                  "Country",
+                  viewCustomer.country
+                    ? getCountryLabel(
+                        viewCustomer.country
                       )
-                    : "Not Required"}
-                </strong>
-              </div>
+                    : "",
+                ],
+                ["Language", viewCustomer.language],
+                ["Call Type", viewCustomer.callType],
+                ["Business Type", viewCustomer.businessType],
+                ["Scholarship Type", viewCustomer.scholarshipType],
+                ["Unit", viewCustomer.unit || viewCustomer.currencyUnit],
+                ["Price", formatPrice(viewCustomer)],
+                ["Purpose", viewCustomer.purpose],
+                ["Need Follow-up", viewCustomer.needFollowup],
+                ["Note", viewCustomer.note],
+                [
+                  "Registration Date",
+                  viewCustomer.afghanistanDate ||
+                    viewCustomer.date ||
+                    (viewCustomer.createdAt
+                      ? new Intl.DateTimeFormat(
+                          "en-CA",
+                          {
+                            timeZone: "Asia/Kabul",
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                          }
+                        ).format(
+                          new Date(
+                            viewCustomer.createdAt
+                          )
+                        )
+                      : ""),
+                ],
+                [
+                  "Registration Time",
+                  viewCustomer.afghanistanTime ||
+                    viewCustomer.time ||
+                    (viewCustomer.createdAt
+                      ? new Intl.DateTimeFormat(
+                          "en-US",
+                          {
+                            timeZone: "Asia/Kabul",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                            hour12: true,
+                          }
+                        ).format(
+                          new Date(
+                            viewCustomer.createdAt
+                          )
+                        )
+                      : ""),
+                ],
+              ]
+                .filter(([, value]) => value)
+                .map(([label, value]) => (
+                  <div
+                    key={label}
+                    className={
+                      ["Purpose", "Note"].includes(
+                        label
+                      )
+                        ? "wide"
+                        : ""
+                    }
+                  >
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
             </div>
 
-            <div className="travel-package-note-box">
-              <span>Note</span>
-              <p>{detailsItem.note || "No note"}</p>
-            </div>
-
-            <footer>
+            <div className="consultant-detail-actions">
               <button
                 type="button"
                 onClick={() => {
-                  setDetailsItem(null);
-                  openEdit(detailsItem);
+                  setViewCustomer(null);
+                  openEdit(viewCustomer);
                 }}
               >
-                <Edit3 size={15} />
-                Edit Package
+                <Pencil size={15} />
+                Edit Information
               </button>
-            </footer>
-          </section>
+            </div>
+          </div>
         </div>
       )}
 
-      {deleteItem && (
+      {deleteCustomer && (
         <div
-          className="travel-package-modal-backdrop"
-          onMouseDown={() => setDeleteItem(null)}
+          className="consultant-modal-backdrop"
+          onMouseDown={() =>
+            setDeleteCustomer(null)
+          }
         >
-          <section
-            className="travel-package-delete-modal"
+          <div
+            className="consultant-delete-modal"
             onMouseDown={(event) =>
               event.stopPropagation()
             }
           >
-            <div>
-              <Trash2 size={24} />
+            <div className="consultant-delete-icon">
+              <AlertTriangle size={26} />
             </div>
 
-            <h2>Delete Travel Package?</h2>
+            <h2>Delete {typeLabel}?</h2>
 
             <p>
-              This will permanently delete{" "}
-              <strong>{deleteItem.packageName}</strong>.
+              You are about to permanently
+              delete{" "}
+              <strong>
+                {deleteCustomer.fullName ||
+                  deleteCustomer.passportFullName ||
+                  `this ${typeLabel.toLowerCase()}`}
+              </strong>
+              . This action cannot be undone.
             </p>
 
-            <footer>
+            <div>
               <button
                 type="button"
-                onClick={() => setDeleteItem(null)}
+                onClick={() =>
+                  setDeleteCustomer(null)
+                }
               >
                 Cancel
               </button>
 
               <button
                 type="button"
-                className="delete"
-                onClick={confirmDelete}
+                onClick={remove}
               >
+                <Trash2 size={15} />
                 Delete
               </button>
-            </footer>
-          </section>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
+export default ConsultantCustomers;

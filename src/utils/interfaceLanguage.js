@@ -64,6 +64,90 @@ const translations = {
 };
 
 Object.assign(translations.dr, {
+  "Income and Expenses": "عواید و مصارف",
+  "Record income and expenses, manage categories, and review the complete financial flow.": "عواید و مصارف را ثبت، دسته‌بندی‌ها را مدیریت و جریان کامل مالی را بررسی کنید.",
+  "Add Income or Expense": "افزودن عاید یا مصرف",
+  "AFN received": "افغانی دریافت‌شده",
+  "AFN spent": "افغانی مصرف‌شده",
+  "Net Profit": "سود خالص",
+  "Net Loss": "زیان خالص",
+  "Difference between income and expenses": "تفاوت میان عواید و مصارف",
+  "Financial Overview": "نمای کلی مالی",
+  "Compare total income, expenses, and net result.": "مجموع عواید، مصارف و نتیجه خالص را مقایسه کنید.",
+  "Income": "عاید",
+  "Income, Expenses and Net Result by Date": "عواید، مصارف و نتیجه خالص به تفکیک تاریخ",
+  "Review daily financial performance.": "عملکرد مالی روزانه را بررسی کنید.",
+  "Transaction Records": "ریکاردهای معاملات",
+  "All manual and automatic financial entries.": "تمام ثبت‌های مالی دستی و خودکار.",
+  "Search transactions...": "جستجوی معاملات...",
+  "All Types": "همه انواع",
+  "All Categories": "همه دسته‌ها",
+  "No financial records found.": "هیچ ریکارد مالی یافت نشد.",
+  "Add Financial Record": "افزودن ریکارد مالی",
+  "Edit Financial Record": "ویرایش ریکارد مالی",
+  "Income or Expense": "عاید یا مصرف",
+  "Expense": "مصرف",
+  "Title": "عنوان",
+  "Actions": "عملیات",
+  "REPORTING CENTER": "مرکز گزارش‌دهی",
+  "AVAILABLE REPORT": "گزارش آماده",
+  "COMING SOON": "به‌زودی",
+  "All customers from every department": "تمام مشتریان از همه بخش‌ها",
+  "Sold projects, customers and payments": "پروژه‌های فروخته‌شده، مشتریان و پرداخت‌ها",
+  "Employee records and departments": "ریکاردهای کارمندان و بخش‌ها",
+  "Suppliers, purchases and balances": "تأمین‌کنندگان، خریدها و بیلانس‌ها",
+  "Reception registrations and referrals": "ثبت‌ها و ارجاعات پذیرش",
+  "Income, expenses and balances": "عواید، مصارف و بیلانس‌ها",
+  "Financial": "مالی",
+  "Financial Report": "گزارش مالی",
+  "Customer Report": "گزارش مشتریان",
+  "Customers Report": "گزارش مشتریان",
+  "Projects Report": "گزارش پروژه‌ها",
+  "Employees Report": "گزارش کارمندان",
+  "Suppliers Report": "گزارش تأمین‌کنندگان",
+  "Reception Report": "گزارش پذیرش",
+  "OFFICIAL REPORT": "گزارش رسمی",
+  "Total Records": "مجموع ریکاردها",
+  "Customer Records": "ریکاردهای مشتریان",
+  "Project Sales Records": "ریکاردهای فروش پروژه",
+  "Employee Records": "ریکاردهای کارمندان",
+  "Supplier Records": "ریکاردهای تأمین‌کنندگان",
+  "Reception Records": "ریکاردهای پذیرش",
+  "No.": "شماره",
+  "Record": "ریکارد",
+  "Phone": "شماره تماس",
+  "Customer": "مشتری",
+  "Supplier": "تأمین‌کننده",
+  "Date & Time": "تاریخ و زمان",
+  "Total Amount": "مبلغ مجموعی",
+  "Total Paid": "مجموع پرداخت‌شده",
+  "Total Remaining": "مجموع باقی‌مانده",
+  "Remaining": "باقی‌مانده",
+  "Sold Projects": "پروژه‌های فروخته‌شده",
+  "Registered Customers": "مشتریان ثبت‌شده",
+  "Total Salary": "مجموع معاش",
+  "Net Ledger": "بیلانس خالص",
+  "Inactive / Other": "غیرفعال / سایر",
+  "Credit": "طلب",
+  "Debit": "بدهی",
+  "Net Balance": "بیلانس خالص",
+  "Total Suppliers": "مجموع تأمین‌کنندگان",
+  "Total Purchases": "مجموع خریدها",
+  "We Owe Suppliers": "بدهی ما به تأمین‌کنندگان",
+  "Suppliers Owe Us": "بدهی تأمین‌کنندگان به ما",
+  "Contact Person": "شخص تماس",
+  "Supply Type": "نوع تأمین",
+  "Purchases": "خریدها",
+  "Total Purchase": "مجموع خرید",
+  "Last Activity": "آخرین فعالیت",
+  "Total Registrations": "مجموع ثبت‌ها",
+  "Follow-up / Completed": "پیگیری / تکمیل‌شده",
+  "Follow-up": "پیگیری",
+  "Country": "کشور",
+  "Technology & Media": "تکنالوژی و رسانه",
+  "Technology / Media": "تکنالوژی / رسانه",
+  "Supplier Expenses": "مصارف تأمین‌کنندگان",
+  "Employee Expenses": "مصارف کارمندان",
   "Total Customers": "مجموع مشتریان",
   "All registered customers": "تمام مشتریان ثبت‌شده",
   "Customers in consulting services": "مشتریان بخش خدمات مشاوره",
@@ -701,6 +785,182 @@ Object.assign(translations.ps, {
   Draft: "مسوده",
 });
 
+// Screen-specific vocabulary is kept here so the latest, most complete Dari
+// wording wins over older shared labels above.
+Object.assign(translations.dr, {
+  // Reception and its registration/detail forms
+  "Reception": "رسپشن",
+  "Reception Registration": "ثبت رسپشن",
+  "Customer Registration": "ثبت مشتری",
+  "Add Customer": "افزودن مشتری",
+  "Customer Information": "معلومات مشتری",
+  "Customer Assignment": "تعیین مسئول مشتری",
+  "Customer Type": "نوع مشتری",
+  "Application Type": "نوع درخواست",
+  "Consultation records": "ریکاردهای مشاوره",
+  "Travel service records": "ریکاردهای خدمات سفر",
+  "Technology service records": "ریکاردهای خدمات تکنالوژی",
+  "Media Products": "محصولات رسانه‌ای",
+  "Videos and posts": "ویدیوها و پست‌ها",
+  "Edit Customer": "ویرایش مشتری",
+  "Delete Customer": "حذف مشتری",
+  "Delete Customer?": "مشتری حذف شود؟",
+  "View customer": "مشاهده مشتری",
+  "Close customer details": "بستن جزئیات مشتری",
+  "Assign Customer": "تعیین مسئول مشتری",
+  "Assign this customer": "این مشتری را تعیین کنید",
+  "Change assigned employee": "تغییر کارمند مسئول",
+  "Select responsible employee": "کارمند مسئول را انتخاب کنید",
+  "Registered through reception": "ثبت‌شده از طریق رسپشن",
+  "Registered Date": "تاریخ ثبت",
+  "Registered Time": "زمان ثبت",
+  "Search customers...": "جستجوی مشتریان...",
+  "Search country...": "جستجوی کشور...",
+  "Select country": "کشور را انتخاب کنید",
+  "Enter full name": "نام کامل را وارد کنید",
+  "Enter full name in passport": "نام کامل مطابق پاسپورت را وارد کنید",
+  "Enter phone number": "شماره تماس را وارد کنید",
+  "Enter email address": "آدرس ایمیل را وارد کنید",
+  "Enter customer purpose": "هدف مشتری را وارد کنید",
+  "Enter company name": "نام شرکت را وارد کنید",
+  "Enter contact number": "شماره تماس را وارد کنید",
+  "Enter person name": "نام شخص را وارد کنید",
+  "Enter brand name": "نام برند را وارد کنید",
+  "Write additional notes": "یادداشت‌های اضافی را بنویسید",
+  "Full Name In Passport": "نام کامل مطابق پاسپورت",
+  "Company Name": "نام شرکت",
+  "Contact Number": "شماره تماس",
+  "Person Name": "نام شخص",
+  "Brand Name": "نام برند",
+  "Educational Level": "سطح تحصیلات",
+  "Select source employee": "کارمند منبع را انتخاب کنید",
+  "Walk in Customer": "مشتری حضوری",
+  "Select employee": "کارمند را انتخاب کنید",
+  "Visa Package": "پکیج ویزه",
+  "Travel Package": "پکیج سفر",
+  "Technology Package": "پکیج تکنالوژی",
+  "Media Package": "پکیج رسانه",
+  "Select registered visa package": "پکیج ویزه ثبت‌شده را انتخاب کنید",
+  "Select registered travel package": "پکیج سفر ثبت‌شده را انتخاب کنید",
+  "Select registered technology package": "پکیج تکنالوژی ثبت‌شده را انتخاب کنید",
+  "Select registered media package": "پکیج رسانه ثبت‌شده را انتخاب کنید",
+  "Loading Visa Packages...": "پکیج‌های ویزه در حال بارگذاری است...",
+  "Loading Travel Packages...": "پکیج‌های سفر در حال بارگذاری است...",
+  "Loading Technology Packages...": "پکیج‌های تکنالوژی در حال بارگذاری است...",
+  "Loading Media Packages...": "پکیج‌های رسانه در حال بارگذاری است...",
+  "No available Visa Packages found.": "هیچ پکیج ویزه قابل‌دسترس یافت نشد.",
+  "No available Travel Packages found.": "هیچ پکیج سفر قابل‌دسترس یافت نشد.",
+  "No Technology Packages have been registered yet.": "هنوز هیچ پکیج تکنالوژی ثبت نشده است.",
+  "No Media Packages have been registered yet.": "هنوز هیچ پکیج رسانه ثبت نشده است.",
+  "No matching package found.": "پکیج مطابق یافت نشد.",
+  "Search package, country or category...": "جستجوی پکیج، کشور یا دسته‌بندی...",
+  "SELECTED VISA PACKAGE": "پکیج ویزه انتخاب‌شده",
+  "SELECTED TRAVEL PACKAGE": "پکیج سفر انتخاب‌شده",
+  "SELECTED TECHNOLOGY PACKAGE": "پکیج تکنالوژی انتخاب‌شده",
+  "SELECTED MEDIA PACKAGE": "پکیج رسانه انتخاب‌شده",
+  "Bank Statement": "صورت‌حساب بانکی",
+  "Documentation": "اسناد مورد نیاز",
+  "Package Note": "یادداشت پکیج",
+  "Selling Price": "قیمت فروش",
+  "Unit": "واحد",
+  "Save Media Product": "ذخیره محصول رسانه‌ای",
+  "Register Customer": "ثبت مشتری",
+
+  // Finance page, categories, dialogs and manual/contract entries
+  "Income and Expense Records": "ریکاردهای عواید و مصارف",
+  "Search financial records...": "جستجوی ریکاردهای مالی...",
+  "No financial record has been registered yet.": "هنوز هیچ ریکارد مالی ثبت نشده است.",
+  "Add Manual Income or Expense": "ثبت دستی عاید یا مصرف",
+  "Edit Manual Financial Record": "ویرایش ریکارد مالی دستی",
+  "Enter the date, type, title, category, amount, and description.": "تاریخ، نوع، عنوان، دسته‌بندی، مبلغ و توضیحات را وارد کنید.",
+  "Enter record title": "عنوان ریکارد را وارد کنید",
+  "Enter amount": "مبلغ را وارد کنید",
+  "Optional description": "توضیحات اختیاری",
+  "New category": "دسته‌بندی جدید",
+  "Open actions": "باز کردن عملیات",
+  "System record": "ریکارد سیستمی",
+  "Delete Financial Record": "حذف ریکارد مالی",
+  "Project Sales": "فروش پروژه",
+  "Sales Income": "عواید فروش",
+  "Services": "خدمات",
+  "Assets": "دارایی‌ها",
+  "Salary": "معاش",
+  "Repair": "ترمیم",
+  "Fuel": "تیل",
+  "Purchases": "خریدها",
+  "Supplier Payment": "پرداخت تأمین‌کننده",
+  "Customer Payment": "پرداخت مشتری",
+  "Customer Refund": "بازپرداخت به مشتری",
+  "Security Deposit": "ودیعه تضمینی",
+  "Other": "سایر",
+  "Travel Income": "عاید سفر",
+  "Travel Expense": "مصرف سفر",
+  "Vehicle Expense": "مصرف وسایط",
+  "Employee Adjustment": "تعدیل حساب کارمند",
+  "System-generated financial records cannot be edited from this page.": "ریکاردهای مالی سیستمی از این صفحه قابل ویرایش نیستند.",
+  "Please enter a category name.": "لطفاً نام دسته‌بندی را وارد کنید.",
+  "New category added successfully.": "دسته‌بندی جدید با موفقیت افزوده شد.",
+
+  // Settings and all tab forms
+  "Settings": "تنظیمات",
+  "Choose the system name, logo, and global values used across the app.": "نام سیستم، لوگو و مقادیر عمومی برنامه را تنظیم کنید.",
+  "System Identity": "هویت سیستم",
+  "App Data": "اطلاعات برنامه",
+  "Network Access": "دسترسی شبکه",
+  "This logo and name are used in the sidebar, login page, receipts, and reports.": "این لوگو و نام در نوار کناری، صفحه ورود، رسیدها و گزارش‌ها استفاده می‌شود.",
+  "System Name": "نام سیستم",
+  "System Subtitle": "عنوان فرعی سیستم",
+  "Logo": "لوگو",
+  "Remove Logo": "حذف لوگو",
+  "Save Settings": "ذخیره تنظیمات",
+  "Export a backup, import a backup, or clear all saved app data.": "نسخه پشتیبان را صادر یا وارد کنید، یا تمام اطلاعات ذخیره‌شده برنامه را پاک کنید.",
+  "Export Data": "صدور اطلاعات",
+  "Import Data": "ورود اطلاعات",
+  "Automatic Backup": "پشتیبان‌گیری خودکار",
+  "Scheduled App Backup": "پشتیبان‌گیری زمان‌بندی‌شده برنامه",
+  "Create backup files automatically while ISP Smart is open.": "هنگام باز بودن ISP Smart فایل پشتیبان به‌صورت خودکار ساخته شود.",
+  "Enabled": "فعال",
+  "Disabled": "غیرفعال",
+  "Backup Frequency": "تکرار پشتیبان‌گیری",
+  "Backup Time": "زمان پشتیبان‌گیری",
+  "Daily": "روزانه",
+  "Weekly": "هفته‌وار",
+  "Monthly": "ماهانه",
+  "Custom": "دلخواه",
+  "Day of Week": "روز هفته",
+  "Day of Month": "روز ماه",
+  "Every Number of Days": "هر چند روز",
+  "Sunday": "یک‌شنبه",
+  "Monday": "دوشنبه",
+  "Tuesday": "سه‌شنبه",
+  "Wednesday": "چهارشنبه",
+  "Thursday": "پنج‌شنبه",
+  "Friday": "جمعه",
+  "Saturday": "شنبه",
+  "Last Backup": "آخرین پشتیبان",
+  "Next Backup": "پشتیبان بعدی",
+  "Backup Now": "همین حالا پشتیبان بگیرید",
+  "Clear Data": "پاک‌کردن اطلاعات",
+  "Type CLEAR, then press Clear Data.": "عبارت CLEAR را تایپ کرده و سپس «پاک‌کردن اطلاعات» را بزنید.",
+  "Router / Network": "روتر / شبکه",
+  "Save the router name and share the system address with users connected to the same router.": "نام روتر را ذخیره و آدرس سیستم را با کاربران متصل به همان روتر شریک کنید.",
+  "Router / Wi-Fi Name": "نام روتر / وای‌فای",
+  "Example: Afghan Power Office": "مثال: دفتر افغان پاور",
+  "System IP Address": "آدرس IP سیستم",
+  "Detected Device": "دستگاه شناسایی‌شده",
+  "Backend API": "رابط API بک‌اند",
+  "Copy API address": "کاپی آدرس API",
+  "Copy system address": "کاپی آدرس سیستم",
+  "Share This Address": "این آدرس را شریک کنید",
+  "Save Network Settings": "ذخیره تنظیمات شبکه",
+  "You are currently connected to this Wi-Fi / network": "شما در حال حاضر به این وای‌فای / شبکه وصل هستید",
+  "Share the address below with other users connected to the same Wi-Fi so they can open ISP Smart.": "این آدرس را با کاربران دیگری که به همین وای‌فای وصل هستند شریک بسازید تا بتوانند ISP Smart را باز کنند.",
+  "Copy connection address": "کاپی آدرس اتصال",
+  "Copy address": "کاپی آدرس",
+  "Detected Wi-Fi / Network": "وای‌فای / شبکه شناسایی‌شده",
+  "Connected network": "شبکه متصل"
+});
+
 const originals = new WeakMap();
 let observer;
 
@@ -713,13 +973,18 @@ const englishByTranslation = Object.values(translations).reduce((result, diction
 
 function translatedValue(value, dictionary, language) {
   if (!value) return value;
-  const englishValue = /[,،]/.test(value)
-    ? value.split(/[,،]/).map((part) => {
+  // JSX often formats a sentence across several source lines. Normalize only
+  // for dictionary matching so those labels translate exactly like one-line text.
+  const normalizedValue = value.replace(/\s+/g, " ").trim();
+  const canonicalWhole = englishByTranslation[normalizedValue] || normalizedValue;
+  if (language === "en") return canonicalWhole;
+  if (dictionary[canonicalWhole]) return dictionary[canonicalWhole];
+  const englishValue = /[,،]/.test(normalizedValue)
+    ? normalizedValue.split(/[,،]/).map((part) => {
         const item = part.trim();
         return englishByTranslation[item] || item;
       }).join(", ")
-    : englishByTranslation[value] || value;
-  if (language === "en") return englishValue;
+    : englishByTranslation[normalizedValue] || normalizedValue;
   if (dictionary[englishValue]) return dictionary[englishValue];
   const showing = englishValue.match(/^Showing\s+(\d+)\s+to\s+(\d+)\s+of\s+(\d+)\s+records$/i);
   if (showing) {
@@ -745,6 +1010,10 @@ function translatedValue(value, dictionary, language) {
       ? `${recordCount[1]} مورد`
       : `${recordCount[1]} ریکارډونه`;
   }
+  const numberedDay = englishValue.match(/^Day\s+(\d+)$/i);
+  if (numberedDay) {
+    return language === "dr" ? `روز ${numberedDay[1]}` : `ورځ ${numberedDay[1]}`;
+  }
   if (englishValue.includes(",")) {
     return englishValue
       .split(",")
@@ -767,7 +1036,17 @@ function translateNode(root, language) {
   while ((node = walker.nextNode())) {
     if (!node.parentElement || ["SCRIPT", "STYLE"].includes(node.parentElement.tagName)) continue;
     if (node.parentElement.closest("[data-no-translate]")) continue;
-    if (!originals.has(node)) originals.set(node, node.nodeValue);
+    const savedOriginal = originals.get(node);
+    const savedTrimmed = savedOriginal?.trim() || "";
+    const currentTrimmed = node.nodeValue.trim();
+    const savedTranslation = savedOriginal
+      ? translatedValue(savedTrimmed, dictionary, language)
+      : null;
+    // React can reuse a text node and replace its contents. Do not retain the
+    // previous source string when that happens.
+    if (!savedOriginal || (currentTrimmed !== savedTrimmed && currentTrimmed !== savedTranslation)) {
+      originals.set(node, node.nodeValue);
+    }
     const original = originals.get(node);
     const trimmed = original.trim();
     const translated = translatedValue(trimmed, dictionary, language);
@@ -797,10 +1076,22 @@ export function applyInterfaceLanguage(language) {
   translateNode(document.body, language);
   observer?.disconnect();
   observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
-      if (node.nodeType === Node.ELEMENT_NODE) translateNode(node, language);
-    }));
+    observer.disconnect();
+    mutations.forEach((mutation) => {
+      if (mutation.type === "characterData") {
+        translateNode(mutation.target.parentElement || document.body, language);
+        return;
+      }
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          translateNode(node.parentElement || document.body, language);
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          translateNode(node, language);
+        }
+      });
+    });
+    observer.observe(document.body, { childList: true, characterData: true, subtree: true });
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, { childList: true, characterData: true, subtree: true });
   window.dispatchEvent(new CustomEvent("isp-language-changed", { detail: language }));
 }
