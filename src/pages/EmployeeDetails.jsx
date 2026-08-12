@@ -1,21 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
+  ClipboardList,
   Eye,
   EyeOff,
   Gift,
   KeyRound,
   MessageCircle,
   Pencil,
+  Trash2,
   TrendingUp,
   Users,
   WalletCards,
   X,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
+import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
 import "./EmployeeDetails.css";
@@ -40,12 +47,30 @@ const slug = (value) =>
     .replace(/[^a-z0-9]+/g, ".")
     .replace(/^\.|\.$/g, "") || "employee";
 
+const recordDomId = (prefix, id) =>
+  `${prefix}-${String(id || "")
+    .replace(/[^a-zA-Z0-9_-]/g, "-")
+    .slice(0, 80)}`;
+
+const parseRecordHash = (hash) => {
+  const clean = decodeURIComponent(
+    String(hash || "").replace(/^#/, "")
+  );
+  const [type, ...rest] = clean.split(":");
+
+  return {
+    type,
+    id: rest.join(":"),
+  };
+};
+
 export default function EmployeeDetails({
   accounts,
   setAccounts,
 }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [employees, , , loaded] =
     useJsonCollection("employees");
@@ -53,8 +78,11 @@ export default function EmployeeDetails({
   const [customers] =
     useJsonCollection("customers");
 
+  const [employeeReports] =
+    useJsonCollection("employeeReports");
+
   const [adjustments, setAdjustments] =
-    useLocalCollection("employeeAdjustments");
+    useEmployeeAdjustments();
 
   const [accountOpen, setAccountOpen] =
     useState(false);
@@ -79,8 +107,21 @@ export default function EmployeeDetails({
   const [adjustmentForm, setAdjustmentForm] =
     useState(adjustmentDefaults);
 
+  const [
+    editingAdjustmentId,
+    setEditingAdjustmentId,
+  ] = useState(null);
+
+  const [
+    deleteAdjustmentTarget,
+    setDeleteAdjustmentTarget,
+  ] = useState(null);
+
   const [activeWorkTab, setActiveWorkTab] =
     useState("customers");
+
+  const [highlightedTarget, setHighlightedTarget] =
+    useState(null);
 
   const [interfaceLanguage, setInterfaceLanguage] =
     useState(
@@ -143,7 +184,7 @@ export default function EmployeeDetails({
       debit: tx("Debit", "دیبت", "ډیبیټ"),
       bonus: tx("Bonus", "امتیاز", "امتیاز"),
       penalty: tx("Penalty", "جریمه", "جریمه"),
-      salary: tx("Salary", "معاش", "معاش"),
+      salary: tx("Payment", "\u067e\u0631\u062f\u0627\u062e\u062a", "\u062a\u0627\u062f\u06cc\u0647"),
       Pending: tx("Pending", "در انتظار", "په تمه"),
       Approved: tx("Approved", "تأییدشده", "تأیید شوی"),
       Rejected: tx("Rejected", "ردشده", "رد شوی"),
@@ -242,6 +283,50 @@ export default function EmployeeDetails({
     [adjustments, id]
   );
 
+  const employeeDailyReports = useMemo(() => {
+    const employeeId = String(employee?.id || "");
+    const accountId = String(employeeAccount?.id || "");
+    const employeeName = String(employee?.fullName || "")
+      .trim()
+      .toLowerCase();
+
+    return employeeReports
+      .filter((report) => {
+        const reportEmployeeId = String(
+          report.employeeId || ""
+        );
+
+        const reportAccountId = String(
+          report.accountId || ""
+        );
+
+        const reportEmployeeName = String(
+          report.employeeName || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        return (
+          (employeeId &&
+            reportEmployeeId === employeeId) ||
+          (accountId &&
+            reportAccountId === accountId) ||
+          (employeeName &&
+            reportEmployeeName ===
+              employeeName)
+        );
+      })
+      .sort(
+        (first, second) =>
+          new Date(second.createdAt || 0) -
+          new Date(first.createdAt || 0)
+      );
+  }, [
+    employeeReports,
+    employee,
+    employeeAccount,
+  ]);
+
 
   const totalBonus = employeeAdjustments
     .filter((item) => item.type === "bonus")
@@ -283,6 +368,8 @@ export default function EmployeeDetails({
       0
     );
 
+  const totalPayments = totalSalary;
+
   const totalCredit =
     totalCreditOnly +
     totalBonus +
@@ -300,7 +387,41 @@ export default function EmployeeDetails({
   const anyModalOpen =
     accountOpen ||
     adjustmentOpen ||
-    detailsOpen;
+    detailsOpen ||
+    Boolean(deleteAdjustmentTarget);
+
+  useEffect(() => {
+    const target = parseRecordHash(location.hash);
+
+    if (!target.type || !target.id) {
+      setHighlightedTarget(null);
+      return;
+    }
+
+    setHighlightedTarget(target);
+
+    if (target.type === "ledger") {
+      setActiveWorkTab("ledger");
+    }
+
+    if (target.type === "reports") {
+      setActiveWorkTab("reports");
+    }
+
+    window.setTimeout(() => {
+      const element = document.getElementById(
+        recordDomId(
+          `employee-${target.type}`,
+          target.id
+        )
+      );
+
+      element?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 120);
+  }, [location.hash]);
 
   useEffect(() => {
     if (!anyModalOpen) return undefined;
@@ -381,14 +502,34 @@ export default function EmployeeDetails({
     setAccountForm(accountDefaults);
   };
 
-  const openAdjustment = () => {
-    setAdjustmentForm(adjustmentDefaults);
+  const openAdjustment = (entry = null) => {
+    const ledgerEntry = entry?.id ? entry : null;
+
+    setEditingAdjustmentId(ledgerEntry?.id || null);
+    setAdjustmentForm(
+      ledgerEntry
+        ? {
+            type: ledgerEntry.type || "credit",
+            amount: ledgerEntry.amount || "",
+            reason: ledgerEntry.reason || "",
+          }
+        : adjustmentDefaults
+    );
     setAdjustmentOpen(true);
   };
 
   const closeAdjustment = () => {
     setAdjustmentOpen(false);
     setAdjustmentForm(adjustmentDefaults);
+    setEditingAdjustmentId(null);
+  };
+
+  const requestDeleteAdjustment = (entry) => {
+    setDeleteAdjustmentTarget(entry);
+  };
+
+  const closeDeleteAdjustment = () => {
+    setDeleteAdjustmentTarget(null);
   };
 
   const updateAccountField = (event) => {
@@ -474,8 +615,16 @@ export default function EmployeeDetails({
       return;
     }
 
+const departments =
+  Array.isArray(employee.departments) &&
+  employee.departments.length
+    ? employee.departments
+    : employee.department
+      ? [employee.department]
+      : ["Consultant"];
+
 const department =
-  employee.departments?.[0] ||
+  departments[0] ||
   "Consultant";
 
 const employeeRoles = Array.isArray(employee.roles)
@@ -483,6 +632,14 @@ const employeeRoles = Array.isArray(employee.roles)
   : employee.role
     ? [employee.role]
     : [];
+
+const hasEmployeeRole = (roleName) =>
+  employeeRoles.some(
+    (role) =>
+      String(role || "")
+        .trim()
+        .toLowerCase() === roleName
+  );
 
   const isAdminAccount = employeeRoles.some(
     (role) => {
@@ -498,12 +655,34 @@ const employeeRoles = Array.isArray(employee.roles)
     }
   );
   
-    const isReceptionAccount = employeeRoles.some(
-      (role) =>
-        String(role || "")
-          .trim()
-          .toLowerCase() === "reception"
-    );
+  const isReceptionAccount =
+    hasEmployeeRole("reception");
+
+  const isCallCenterAccount =
+    hasEmployeeRole("call center") ||
+    hasEmployeeRole("callcenter");
+
+  const employeePermissions = {
+    ...(!isReceptionAccount || isCallCenterAccount
+      ? {
+          dashboard: {
+            view: true,
+            create: true,
+            edit: true,
+          },
+        }
+      : {}),
+
+    ...(isReceptionAccount
+      ? {
+          customers: {
+            view: true,
+            create: true,
+            edit: true,
+          },
+        }
+      : {}),
+  };
 
 const record = {
   ...(employeeAccount || {}),
@@ -519,32 +698,29 @@ const record = {
 
   role: isAdminAccount
     ? "Admin"
-    : "Employee",
+    : employeeRoles[0] || "Employee",
+
+  primaryRole: isAdminAccount
+    ? "Admin"
+    : employeeRoles[0] || "Employee",
+
+  roles: employeeRoles.length
+    ? employeeRoles
+    : ["Employee"],
 
   accountType: isAdminAccount
     ? "admin"
     : "employee",
 
   department,
+  departments,
   status: "Active",
 
   permissions: isAdminAccount
   ? {
       all: true,
     }
-  : isReceptionAccount
-    ? {
-        customers: {
-          view: true,
-          create: true,
-          edit: true,
-        },
-      }
-    : {
-        dashboard: {
-          view: true,
-        },
-      },
+  : employeePermissions,
 
   isAdmin: isAdminAccount,
   isFullAdmin: isAdminAccount,
@@ -619,31 +795,120 @@ const record = {
 
     const now = new Date().toISOString();
 
+    const previousRecord = editingAdjustmentId
+      ? adjustments.find(
+          (item) =>
+            String(item.id) ===
+            String(editingAdjustmentId)
+        )
+      : null;
+
     const record = {
-      id: createRecordId(),
+      ...(previousRecord || {}),
+      id:
+        previousRecord?.id ||
+        createRecordId(),
       employeeId: employee.id,
+      employeeAccountId:
+        employeeAccount?.id ||
+        previousRecord?.employeeAccountId ||
+        "",
       employeeName: employee.fullName,
+      employeeEmail:
+        employee?.email ||
+        employeeAccount?.email ||
+        previousRecord?.employeeEmail ||
+        "",
+      employeeUsername:
+        employeeAccount?.username ||
+        previousRecord?.employeeUsername ||
+        "",
       ...adjustmentForm,
       amount,
-      createdAt: now,
+      createdAt:
+        previousRecord?.createdAt || now,
       updatedAt: now,
+      ...(!previousRecord
+        ? {
+            employeeNotificationType:
+              `ledger-${adjustmentForm.type}`,
+            employeeNotificationAt: now,
+          }
+        : {}),
     };
 
-    const saved = await setAdjustments([
-      ...adjustments,
-      record,
-    ]);
+    const nextAdjustments = previousRecord
+      ? adjustments.map((item) =>
+          String(item.id) ===
+          String(previousRecord.id)
+            ? record
+            : item
+        )
+      : [
+          ...adjustments,
+          record,
+        ];
+
+    const saved =
+      await setAdjustments(nextAdjustments);
 
     if (!saved) return;
 
+    window.dispatchEvent(
+      new CustomEvent("isp-employee-ledger-updated", {
+        detail: {
+          entryId: record.id,
+          employeeId: record.employeeId,
+          employeeAccountId: record.employeeAccountId,
+          updatedAt: record.updatedAt,
+        },
+      })
+    );
+
     notify(
-      adjustmentForm.type === "salary"
-        ? tx("Salary saved successfully.", "معاش با موفقیت ذخیره شد.", "معاش په بریالیتوب سره خوندي شو.")
-        : tx("Employee ledger entry saved.", "ثبت مالی کارمند ذخیره شد.", "د کارکوونکي مالي ثبت خوندي شو."),
+      previousRecord
+        ? tx("Employee ledger entry updated.", "\u062b\u0628\u062a \u0645\u0627\u0644\u06cc \u06a9\u0627\u0631\u0645\u0646\u062f \u0648\u06cc\u0631\u0627\u06cc\u0634 \u0634\u062f.", "\u062f \u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a \u0645\u0627\u0644\u064a \u062b\u0628\u062a \u0633\u0645 \u0634\u0648.")
+        : adjustmentForm.type === "salary"
+          ? tx("Payment saved successfully.", "\u067e\u0631\u062f\u0627\u062e\u062a \u0628\u0627 \u0645\u0648\u0641\u0642\u06cc\u062a \u0630\u062e\u06cc\u0631\u0647 \u0634\u062f.", "\u062a\u0627\u062f\u064a\u0647 \u067e\u0647 \u0628\u0631\u064a\u0627\u0644\u064a\u062a\u0648\u0628 \u0633\u0631\u0647 \u062e\u0648\u0646\u062f\u064a \u0634\u0648\u0647.")
+          : tx("Employee ledger entry saved.", "ثبت مالی کارمند ذخیره شد.", "د کارکوونکي مالي ثبت خوندي شو."),
       "success"
     );
 
     closeAdjustment();
+  };
+
+  const deleteAdjustment = async () => {
+    if (!deleteAdjustmentTarget) return;
+
+    const saved = await setAdjustments(
+      adjustments.filter(
+        (item) =>
+          String(item.id) !==
+          String(deleteAdjustmentTarget.id)
+      )
+    );
+
+    if (!saved) return;
+
+    window.dispatchEvent(
+      new CustomEvent("isp-employee-ledger-updated", {
+        detail: {
+          entryId: deleteAdjustmentTarget.id,
+          employeeId: deleteAdjustmentTarget.employeeId,
+          employeeAccountId:
+            deleteAdjustmentTarget.employeeAccountId,
+          deleted: true,
+          updatedAt: new Date().toISOString(),
+        },
+      })
+    );
+
+    notify(
+      tx("Employee ledger entry deleted.", "\u062b\u0628\u062a \u0645\u0627\u0644\u06cc \u06a9\u0627\u0631\u0645\u0646\u062f \u062d\u0630\u0641 \u0634\u062f.", "\u062f \u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a \u0645\u0627\u0644\u064a \u062b\u0628\u062a \u062d\u0630\u0641 \u0634\u0648."),
+      "success"
+    );
+
+    closeDeleteAdjustment();
   };
 
   if (!loaded) {
@@ -840,6 +1105,16 @@ const record = {
           <span>{tx("Employee Ledger", "حساب مالی کارمند", "د کارکوونکي مالي حساب")}</span>
           <strong>{employeeAdjustments.length}</strong>
         </button>
+
+        <button
+          type="button"
+          className={activeWorkTab === "reports" ? "active" : ""}
+          onClick={() => setActiveWorkTab("reports")}
+        >
+          <ClipboardList size={17} />
+          <span>{tx("Daily Reports", "راپورهای روزانه", "ورځني راپورونه")}</span>
+          <strong>{employeeDailyReports.length}</strong>
+        </button>
       </section>
 
       {activeWorkTab === "customers" && (
@@ -970,9 +1245,9 @@ const record = {
               <h2>{tx("Employee Ledger", "حساب مالی کارمند", "د کارکوونکي مالي حساب")}</h2>
               <p>
                 {tx(
-                  "Debit, credit, bonus and penalty records for",
-                  "سوابق دیبت، کریدت، امتیاز و جریمه برای",
-                  "د ډیبیټ، کریډیټ، امتیاز او جریمې ریکارډونه د"
+                  "Bonus, penalty, payment and remaining balance records for",
+                  "\u0633\u0648\u0627\u0628\u0642 \u0627\u0645\u062a\u06cc\u0627\u0632\u060c \u062c\u0631\u06cc\u0645\u0647\u060c \u067e\u0631\u062f\u0627\u062e\u062a \u0648 \u0628\u0627\u0642\u06cc \u0645\u0627\u0646\u062f\u0647 \u0628\u0631\u0627\u06cc",
+                  "\u062f \u0627\u0645\u062a\u06cc\u0627\u0632\u060c \u062c\u0631\u06cc\u0645\u06d0\u060c \u062a\u0627\u062f\u06cc\u06d0 \u0627\u0648 \u067e\u0627\u062a\u06d0 \u0628\u06cc\u0644\u0627\u0646\u0633 \u0631\u06cc\u06a9\u0627\u0631\u0689\u0648\u0646\u0647 \u062f"
                 )}{" "}
                 {employee.fullName ||
                   tx("this employee", "این کارمند", "دې کارکوونکي")}.
@@ -984,42 +1259,28 @@ const record = {
 
           <div className="employee-ledger-summary">
             <div>
-              <span>{tx("Credit", "کریدت", "کریډیټ")}</span>
-              <strong className="credit">
-                {totalCreditOnly.toLocaleString("en-US")} AFN
-              </strong>
-            </div>
-
-            <div>
-              <span>{tx("Debit", "دیبت", "ډیبیټ")}</span>
-              <strong className="debit">
-                {totalDebitOnly.toLocaleString("en-US")} AFN
-              </strong>
-            </div>
-
-            <div>
-              <span>{tx("Bonus", "امتیاز", "امتیاز")}</span>
+              <span>{tx("Total Bonuses", "\u0645\u062c\u0645\u0648\u0639 \u0627\u0645\u062a\u06cc\u0627\u0632\u0647\u0627", "\u062f \u0627\u0645\u062a\u06cc\u0627\u0632\u0648\u0646\u0648 \u0645\u062c\u0645\u0648\u0639\u0647")}</span>
               <strong>
                 {totalBonus.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
             <div>
-              <span>{tx("Penalty", "جریمه", "جریمه")}</span>
-              <strong>
+              <span>{tx("Total Penalties", "\u0645\u062c\u0645\u0648\u0639 \u062c\u0631\u06cc\u0645\u0647\u200c\u0647\u0627", "\u062f \u062c\u0631\u06cc\u0645\u0648 \u0645\u062c\u0645\u0648\u0639\u0647")}</span>
+              <strong className="debit">
                 {totalPenalty.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
             <div>
-              <span>{tx("Salary", "معاش", "معاش")}</span>
-              <strong>
-                {totalSalary.toLocaleString("en-US")} AFN
+              <span>{tx("Total Payments", "\u0645\u062c\u0645\u0648\u0639 \u067e\u0631\u062f\u0627\u062e\u062a\u200c\u0647\u0627", "\u062f \u062a\u0627\u062f\u06cc\u0627\u062a\u0648 \u0645\u062c\u0645\u0648\u0639\u0647")}</span>
+              <strong className="credit">
+                {totalPayments.toLocaleString("en-US")} AFN
               </strong>
             </div>
 
             <div>
-              <span>{tx("Current Balance", "بیلانس فعلی", "اوسنی بیلانس")}</span>
+              <span>{tx("Remaining", "\u0628\u0627\u0642\u06cc \u0645\u0627\u0646\u062f\u0647", "\u067e\u0627\u062a\u06d0")}</span>
               <strong
                 className={
                   ledgerBalance < 0
@@ -1041,6 +1302,7 @@ const record = {
                   <th>{tx("Debit", "دیبت", "ډیبیټ")}</th>
                   <th>{tx("Credit", "کریدت", "کریډیټ")}</th>
                   <th>{tx("Reason / Note", "دلیل / یادداشت", "لامل / یادښت")}</th>
+                  <th>{tx("Actions", "\u0639\u0645\u0644\u06cc\u0627\u062a", "\u06a9\u0693\u0646\u06d0")}</th>
                 </tr>
               </thead>
 
@@ -1053,7 +1315,21 @@ const record = {
                     entry.type === "salary";
 
                   return (
-                    <tr key={entry.id}>
+                    <tr
+                      key={entry.id}
+                      id={recordDomId(
+                        "employee-ledger",
+                        entry.id
+                      )}
+                      className={
+                        highlightedTarget?.type ===
+                          "ledger" &&
+                        String(highlightedTarget?.id) ===
+                          String(entry.id)
+                          ? "employee-target-highlight"
+                          : ""
+                      }
+                    >
                       <td>
                         {entry.createdAt
                           ? new Date(
@@ -1064,9 +1340,9 @@ const record = {
 
                       <td>
                         <span
-                          className={`employee-ledger-type ${translateValue(entry.type)}`}
+                          className={`employee-ledger-type ${entry.type}`}
                         >
-                          {entry.type}
+                          {translateValue(entry.type)}
                         </span>
                       </td>
 
@@ -1083,6 +1359,33 @@ const record = {
                       </td>
 
                       <td>{entry.reason || "-"}</td>
+
+                      <td>
+                        <div className="employee-ledger-actions">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openAdjustment(entry)
+                            }
+                            aria-label={tx("Edit ledger entry", "\u0648\u06cc\u0631\u0627\u06cc\u0634 \u062b\u0628\u062a \u0645\u0627\u0644\u06cc", "\u0645\u0627\u0644\u064a \u062b\u0628\u062a \u0633\u0645\u0648\u0644")}
+                            title={tx("Edit", "\u0648\u06cc\u0631\u0627\u06cc\u0634", "\u0633\u0645\u0648\u0644")}
+                          >
+                            <Pencil size={14} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="delete"
+                            onClick={() =>
+                              requestDeleteAdjustment(entry)
+                            }
+                            aria-label={tx("Delete ledger entry", "\u062d\u0630\u0641 \u062b\u0628\u062a \u0645\u0627\u0644\u06cc", "\u0645\u0627\u0644\u064a \u062b\u0628\u062a \u062d\u0630\u0641\u0648\u0644")}
+                            title={tx("Delete", "\u062d\u0630\u0641", "\u062d\u0630\u0641\u0648\u0644")}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1090,7 +1393,7 @@ const record = {
                 {!employeeAdjustments.length && (
                   <tr>
                     <td
-                      colSpan="5"
+                      colSpan="6"
                       className="employee-work-empty"
                     >
                       {tx(
@@ -1103,6 +1406,87 @@ const record = {
                 )}
               </tbody>
             </table>
+          </div>
+        </section>
+      )}
+
+      {activeWorkTab === "reports" && (
+        <section className="employee-work-card employee-report-card">
+          <div className="employee-work-header">
+            <div>
+              <span>{tx("Daily Work Reports", "راپورهای کاری روزانه", "ورځني کاري راپورونه")}</span>
+              <h2>{tx("Employee Reports", "راپورهای کارمند", "د کارکوونکي راپورونه")}</h2>
+              <p>
+                {tx(
+                  "End-of-day reports submitted by",
+                  "راپورهای آخر روز ثبت‌شده توسط",
+                  "د ورځې پای راپورونه چې ثبت کړي"
+                )}{" "}
+                {employee.fullName ||
+                  tx("this employee", "این کارمند", "دې کارکوونکي")}.
+              </p>
+            </div>
+
+            <strong>{employeeDailyReports.length}</strong>
+          </div>
+
+          <div className="employee-report-list">
+            {employeeDailyReports.map((report) => (
+              <article
+                key={report.id}
+                id={recordDomId(
+                  "employee-reports",
+                  report.id
+                )}
+                className={
+                  highlightedTarget?.type ===
+                    "reports" &&
+                  String(highlightedTarget?.id) ===
+                    String(report.id)
+                    ? "employee-target-highlight"
+                    : ""
+                }
+              >
+                <div className="employee-report-date">
+                  <strong>
+                    {report.afghanistanDate ||
+                      report.date ||
+                      "-"}
+                  </strong>
+
+                  <span>
+                    {report.afghanistanTime ||
+                      report.time ||
+                      "-"}
+                  </span>
+                </div>
+
+                <div className="employee-report-body">
+                  <p>{report.reportText}</p>
+
+                  {report.updatedAt &&
+                    report.updatedAt !==
+                      report.createdAt && (
+                      <small>
+                        {tx("Edited", "ویرایش‌شده", "سم شوی")}{" "}
+                        {new Date(
+                          report.updatedAt
+                        ).toLocaleString()}
+                      </small>
+                    )}
+                </div>
+              </article>
+            ))}
+
+            {!employeeDailyReports.length && (
+              <div className="employee-work-empty employee-report-empty">
+                {tx(
+                  "No daily reports have been submitted by this employee yet.",
+                  "هنوز هیچ راپور روزانه توسط این کارمند ثبت نشده است.",
+                  "تر اوسه د دې کارکوونکي لخوا ورځنی راپور نه دی ثبت شوی."
+                )}
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -1351,11 +1735,110 @@ const record = {
 
                   <div>
                     <span>{tx("Department Dashboard", "داشبورد دیپارتمنت", "د څانګې ډشبورډ")}</span>
-                    <strong>{translateValue(employeeAccount.department) || "-"}</strong>
+                    <strong>
+                      {Array.isArray(
+                        employeeAccount.departments
+                      ) &&
+                      employeeAccount.departments.length
+                        ? employeeAccount.departments
+                            .map(translateValue)
+                            .join(", ")
+                        : translateValue(
+                            employeeAccount.department
+                          ) || "-"}
+                    </strong>
                   </div>
                 </div>
               </section>
             )}
+          </div>
+        </div>
+      )}
+
+      {deleteAdjustmentTarget && (
+        <div
+          className="employee-profile-modal"
+          role="presentation"
+          onMouseDown={closeDeleteAdjustment}
+        >
+          <div
+            className="employee-ledger-delete-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="employee-ledger-delete-title"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <header className="employee-ledger-delete-header">
+              <div className="employee-ledger-delete-icon">
+                <AlertTriangle size={22} />
+              </div>
+
+              <div>
+                <h2 id="employee-ledger-delete-title">
+                  {tx("Delete Ledger Entry", "\u062d\u0630\u0641 \u062b\u0628\u062a \u0645\u0627\u0644\u06cc", "\u0645\u0627\u0644\u064a \u062b\u0628\u062a \u062d\u0630\u0641\u0648\u0644")}
+                </h2>
+
+                <p>
+                  {tx(
+                    "Are you sure you want to delete this employee ledger entry?",
+                    "\u0622\u06cc\u0627 \u0645\u0637\u0645\u0626\u0646 \u0647\u0633\u062a\u06cc\u062f \u06a9\u0647 \u0627\u06cc\u0646 \u062b\u0628\u062a \u0645\u0627\u0644\u06cc \u06a9\u0627\u0631\u0645\u0646\u062f \u062d\u0630\u0641 \u0634\u0648\u062f\u061f",
+                    "\u0627\u06cc\u0627 \u0628\u0627\u0648\u0631\u064a \u06cc\u0627\u0633\u062a \u0686\u06d0 \u062f\u0627 \u062f \u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a \u0645\u0627\u0644\u064a \u062b\u0628\u062a \u062d\u0630\u0641 \u0634\u064a\u061f"
+                  )}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="employee-profile-modal-close"
+                onClick={closeDeleteAdjustment}
+                aria-label={tx("Close", "\u0628\u0633\u062a\u0646", "\u062a\u0693\u0644")}
+              >
+                <X size={19} />
+              </button>
+            </header>
+
+            <div className="employee-ledger-delete-summary">
+              <div>
+                <span>{tx("Type", "\u0646\u0648\u0639", "\u0689\u0648\u0644")}</span>
+                <strong>
+                  {translateValue(deleteAdjustmentTarget.type)}
+                </strong>
+              </div>
+
+              <div>
+                <span>{tx("Amount", "\u0645\u0628\u0644\u063a", "\u0627\u0646\u062f\u0627\u0632\u0647")}</span>
+                <strong className="amount">
+                  {Number(
+                    deleteAdjustmentTarget.amount || 0
+                  ).toLocaleString("en-US")}{" "}
+                  AFN
+                </strong>
+              </div>
+
+              <div className="wide">
+                <span>{tx("Reason / Note", "\u062f\u0644\u06cc\u0644 / \u06cc\u0627\u062f\u062f\u0627\u0634\u062a", "\u0644\u0627\u0645\u0644 / \u06cc\u0627\u062f\u069a\u062a")}</span>
+                <p>{deleteAdjustmentTarget.reason || "-"}</p>
+              </div>
+            </div>
+
+            <footer className="employee-ledger-delete-actions">
+              <button
+                type="button"
+                onClick={closeDeleteAdjustment}
+              >
+                {tx("Cancel", "\u0644\u063a\u0648", "\u0644\u063a\u0648\u0647")}
+              </button>
+
+              <button
+                type="button"
+                className="primary employee-ledger-delete-confirm"
+                onClick={deleteAdjustment}
+              >
+                {tx("Delete", "\u062d\u0630\u0641", "\u062d\u0630\u0641\u0648\u0644")}
+              </button>
+            </footer>
           </div>
         </div>
       )}
@@ -1378,14 +1861,16 @@ const record = {
             <header>
               <div>
                 <h2 id="employee-adjustment-title">
-                  {tx("Employee Ledger Entry", "ثبت مالی کارمند", "د کارکوونکي مالي ثبت")}
+                  {editingAdjustmentId
+                    ? tx("Edit Ledger Entry", "\u0648\u06cc\u0631\u0627\u06cc\u0634 \u062b\u0628\u062a \u0645\u0627\u0644\u06cc", "\u0645\u0627\u0644\u064a \u062b\u0628\u062a \u0633\u0645\u0648\u0644")
+                    : tx("Employee Ledger Entry", "ثبت مالی کارمند", "د کارکوونکي مالي ثبت")}
                 </h2>
 
                 <p>
                   {tx(
-                    "Add debit, credit, bonus, penalty, or salary for",
-                    "دیبت، کریدت، امتیاز، جریمه یا معاش را برای",
-                    "ډیبیټ، کریډیټ، امتیاز، جریمه یا معاش زیات کړئ د"
+                    "Add debit, credit, bonus, penalty, or payment for",
+                    "\u062f\u06cc\u0628\u062a\u060c \u06a9\u0631\u06cc\u062f\u062a\u060c \u0627\u0645\u062a\u06cc\u0627\u0632\u060c \u062c\u0631\u06cc\u0645\u0647 \u06cc\u0627 \u067e\u0631\u062f\u0627\u062e\u062a \u0631\u0627 \u0628\u0631\u0627\u06cc",
+                    "\u0689\u06cc\u0628\u06cc\u067c\u060c \u06a9\u0631\u06cc\u0689\u06cc\u067c\u060c \u0627\u0645\u062a\u06cc\u0627\u0632\u060c \u062c\u0631\u06cc\u0645\u0647 \u06cc\u0627 \u062a\u0627\u062f\u06cc\u0647 \u0632\u06cc\u0627\u062a\u0647 \u06a9\u0693\u0626 \u062f"
                   )}{" "}
                   {employee.fullName}.
                 </p>
@@ -1430,7 +1915,7 @@ const record = {
                 </option>
 
                 <option value="salary">
-                  {tx("Salary", "معاش", "معاش")}
+                  {tx("Payment", "\u067e\u0631\u062f\u0627\u062e\u062a", "\u062a\u0627\u062f\u06cc\u0647")}
                 </option>
               </select>
             </label>
@@ -1478,7 +1963,9 @@ const record = {
                 type="submit"
                 className="primary"
               >
-                {tx("Save", "ذخیره", "خوندي کول")}
+                {editingAdjustmentId
+                  ? tx("Save Changes", "\u0630\u062e\u06cc\u0631\u0647 \u062a\u063a\u06cc\u06cc\u0631\u0627\u062a", "\u0628\u062f\u0644\u0648\u0646\u0648\u0646\u0647 \u062e\u0648\u0646\u062f\u064a \u06a9\u0648\u0644")
+                  : tx("Save", "ذخیره", "خوندي کول")}
               </button>
             </footer>
           </form>

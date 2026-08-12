@@ -781,12 +781,84 @@ body.dark-mode .employee-details-modal section h3 {
   margin-top: 12px;
 }
 
+/* Employee daily reports */
+.employee-report-card {
+  overflow: hidden;
+}
+
+.employee-report-list {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.employee-report-list article {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 14px;
+  background: color-mix(in srgb, var(--panel-bg, #ffffff) 96%, #6366f1 4%);
+}
+
+.employee-report-date {
+  padding: 12px;
+  border-radius: 12px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  background: #eef2ff;
+}
+
+.employee-report-date strong,
+.employee-report-date span {
+  display: block;
+}
+
+.employee-report-date strong {
+  color: #3730a3;
+  font-size: 14px;
+}
+
+.employee-report-date span {
+  color: #6366f1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.employee-report-body {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.employee-report-body p {
+  margin: 0;
+  color: var(--text, #172033);
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.employee-report-body small {
+  color: var(--muted-text, #64748b);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.employee-report-empty {
+  display: grid;
+  place-items: center;
+}
+
 /* Employee ledger */
 .employee-ledger-summary {
   padding: 14px 18px;
   border-bottom: 1px solid var(--border, #e5e7eb);
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   background: color-mix(
     in srgb,
@@ -844,7 +916,8 @@ body.dark-mode .employee-details-modal section h3 {
 }
 
 .employee-ledger-type.credit,
-.employee-ledger-type.bonus {
+.employee-ledger-type.bonus,
+.employee-ledger-type.salary {
   border-color: #bbf7d0;
   background: #f0fdf4;
   color: #15803d;
@@ -860,6 +933,158 @@ body.dark-mode .employee-details-modal section h3 {
 .employee-ledger-table td:nth-child(3),
 .employee-ledger-table td:nth-child(4) {
   font-weight: 750;
+}
+
+.employee-ledger-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.employee-ledger-actions button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--panel-bg, #ffffff);
+  color: var(--text, #0f172a);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.employee-ledger-actions button:hover {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.employee-ledger-actions button.delete:hover {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.employee-ledger-delete-modal {
+  width: min(500px, calc(100vw - 28px));
+  padding: 0;
+  border: 1px solid #fee2e2;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, #fff7f7 0, #ffffff 118px);
+  color: #172033;
+  box-shadow:
+    0 26px 90px rgb(15 23 42 / 28%),
+    0 0 0 1px rgb(255 255 255 / 65%) inset;
+  overflow: hidden;
+  animation: employeeProfileModalOpen 180ms ease-out;
+}
+
+.employee-ledger-delete-header {
+  padding: 20px 20px 14px;
+  align-items: flex-start !important;
+}
+
+.employee-ledger-delete-icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border: 1px solid #fecaca;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  background: #fee2e2;
+  color: #dc2626;
+  box-shadow: 0 10px 24px rgb(220 38 38 / 14%);
+}
+
+.employee-ledger-delete-header h2 {
+  margin-top: 1px;
+  font-size: 21px;
+  line-height: 1.2;
+}
+
+.employee-ledger-delete-header p {
+  max-width: 330px;
+}
+
+.employee-ledger-delete-summary {
+  margin: 0 20px 18px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  background: #ffffff;
+  box-shadow: 0 12px 35px rgb(15 23 42 / 6%);
+}
+
+.employee-ledger-delete-summary > div {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.employee-ledger-delete-summary .wide {
+  grid-column: 1 / -1;
+}
+
+.employee-ledger-delete-summary span,
+.employee-ledger-delete-summary strong {
+  display: block;
+}
+
+.employee-ledger-delete-summary span {
+  margin-bottom: 5px;
+  color: var(--muted-text, #64748b);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.employee-ledger-delete-summary strong {
+  color: #172033;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.employee-ledger-delete-summary strong.amount {
+  color: #dc2626;
+  font-size: 20px;
+}
+
+.employee-ledger-delete-summary p {
+  margin: 0;
+  color: var(--muted-text, #64748b);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.employee-ledger-delete-actions {
+  padding: 0 20px 20px;
+  gap: 10px !important;
+}
+
+.employee-ledger-delete-actions button {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-weight: 850;
+}
+
+.employee-ledger-delete-confirm {
+  border-color: #dc2626 !important;
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 24px rgb(220 38 38 / 22%);
+}
+
+.employee-ledger-delete-confirm:hover {
+  background: #b91c1c !important;
 }
 
 body.dark-mode .employee-work-tabs {
@@ -886,10 +1111,55 @@ body.dark-mode .employee-work-tabs button.active strong {
   color: #111827;
 }
 
-body.dark-mode .employee-ledger-summary,
-body.dark-mode .employee-ledger-summary > div {
+body.dark-mode .employee-report-list article {
   border-color: #334155;
   background: #111827;
+}
+
+body.dark-mode .employee-report-date {
+  background: #312e81;
+}
+
+body.dark-mode .employee-report-date strong,
+body.dark-mode .employee-report-date span {
+  color: #e0e7ff;
+}
+
+body.dark-mode .employee-report-body p {
+  color: #f8fafc;
+}
+
+body.dark-mode .employee-ledger-summary,
+body.dark-mode .employee-ledger-summary > div,
+body.dark-mode .employee-ledger-actions button,
+body.dark-mode .employee-ledger-delete-modal,
+body.dark-mode .employee-ledger-delete-summary {
+  border-color: #334155;
+  background: #111827;
+}
+
+body.dark-mode .employee-ledger-delete-modal {
+  background:
+    linear-gradient(180deg, #2b1218 0, #111827 118px);
+  color: #f8fafc;
+}
+
+body.dark-mode .employee-ledger-delete-icon {
+  border-color: #7f1d1d;
+  background: #451a1a;
+  color: #fecaca;
+}
+
+body.dark-mode .employee-ledger-delete-summary > div {
+  background: #0f172a;
+}
+
+body.dark-mode .employee-ledger-delete-summary strong {
+  color: #f8fafc;
+}
+
+body.dark-mode .employee-ledger-delete-summary strong.amount {
+  color: #fca5a5;
 }
 
 @media (max-width: 900px) {
@@ -916,6 +1186,27 @@ body.dark-mode .employee-ledger-summary > div {
 
   .employee-ledger-summary {
     grid-template-columns: 1fr;
+  }
+
+  .employee-report-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-ledger-delete-header {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) 38px;
+  }
+
+  .employee-ledger-delete-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-ledger-delete-actions {
+    flex-direction: column-reverse;
+  }
+
+  .employee-ledger-delete-actions button {
+    width: 100%;
   }
 }
 
@@ -1057,5 +1348,21 @@ body.dark-mode
   .employee-profile-page-rtl .employee-profile-hero aside {
     margin-right: 0;
     text-align: right;
+  }
+}
+.employee-target-highlight {
+  animation: employee-target-pulse 1.6s ease-out 1;
+  outline: 2px solid rgba(79, 70, 229, 0.46);
+  outline-offset: -2px;
+  background: #eef2ff !important;
+}
+
+@keyframes employee-target-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.34);
+  }
+
+  100% {
+    box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
   }
 }

@@ -3,6 +3,131 @@
   padding: 26px 28px 34px;
 }
 
+.projects-hub-page {
+  padding: 26px 28px 34px;
+}
+
+.projects-hub-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.projects-hub-heading h1 {
+  margin: 0 0 6px;
+  color: #111827;
+  font-size: 27px;
+}
+
+.projects-hub-heading p {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.project-section-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.project-section-card {
+  min-height: 92px;
+  padding: 15px;
+  border: 1px solid #eeeae2;
+  border-radius: 16px;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.project-section-card:hover,
+.project-section-card.active {
+  border-color: #4f46e5;
+  box-shadow: 0 14px 34px rgba(79, 70, 229, .14);
+  transform: translateY(-1px);
+}
+
+.project-section-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #475569;
+  display: grid;
+  place-items: center;
+}
+
+.project-section-card.active .project-section-icon {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.project-section-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.project-section-copy strong {
+  color: #111827;
+  font-size: 13px;
+}
+
+.project-section-copy small {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.project-section-card > b {
+  min-width: 34px;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+}
+
+.project-section-card.active > b {
+  background: #252525;
+  color: #ffffff;
+}
+
+.project-section-panel > .projects-page,
+.project-section-panel > .project-sales-page,
+.project-section-panel > .license-page {
+  padding: 0;
+}
+
+@media (max-width: 1000px) {
+  .project-section-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .projects-hub-page {
+    padding: 18px 14px 28px;
+  }
+
+  .project-section-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
 .projects-heading,
 .license-heading {
   display: flex;

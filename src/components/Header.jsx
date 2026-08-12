@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Activity,
   AlertTriangle,
   ArrowLeftRight,
   Bell,
@@ -12,6 +13,7 @@ import {
   FileCheck2,
   LogOut,
   Languages,
+  MessageCircle,
   Moon,
   Palette,
   Search,
@@ -24,6 +26,8 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
+import { useChat } from "../hooks/useChat";
 import { todayDateValue } from "../utils/afghanDate";
 import { applyInterfaceLanguage } from "../utils/interfaceLanguage";
 import { notify } from "../utils/notify";
@@ -49,6 +53,11 @@ const formatLocationName = (record) =>
   record?.sourceLocation ||
   "-";
 
+const withRecordHash = (path, type, id) =>
+  id
+    ? `${path}#${type}:${encodeURIComponent(String(id))}`
+    : path;
+
 function HeaderActions({ currentUser, onLogout, compact = false }) {
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState(null);
@@ -60,8 +69,12 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
 
   const responseAlertReadyRef = useRef(false);
   const responseSoundRef = useRef(null);
+  const assignedRequestAlertReadyRef = useRef(false);
+  const assignedRequestSoundRef = useRef(null);
   const adminCustomerAlertReadyRef = useRef(false);
-  const adminCustomerSoundRef = useRef(null);
+  const employeeLedgerSoundRef = useRef(null);
+  const chatMessageAlertReadyRef = useRef(false);
+  const chatMessageSoundRef = useRef(null);
   const [selectedCurrency, setSelectedCurrency] = useState(
     () => {
       const savedCurrency =
@@ -127,19 +140,103 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
   );
   const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem("isp-language") || "en");
 
+  const tx = (en, dr, ps) =>
+    selectedLanguage === "dr"
+      ? dr
+      : selectedLanguage === "ps"
+        ? ps
+        : en;
+
+  const ledgerTypeLabel = (type) => {
+    const labels = {
+      bonus: tx("Bonus", "\u0627\u0645\u062a\u06cc\u0627\u0632", "\u0627\u0645\u062a\u06cc\u0627\u0632"),
+      penalty: tx("Penalty", "\u062c\u0631\u06cc\u0645\u0647", "\u062c\u0631\u06cc\u0645\u0647"),
+      salary: tx("Salary / Payment", "\u0645\u0639\u0627\u0634 / \u067e\u0631\u062f\u0627\u062e\u062a", "\u0645\u0639\u0627\u0634 / \u062a\u0627\u062f\u06cc\u0647"),
+      credit: tx("Credit", "\u06a9\u0631\u06cc\u062f\u062a", "\u06a9\u0631\u06cc\u0689\u06cc\u067c"),
+      debit: tx("Debit", "\u062f\u06cc\u0628\u062a", "\u0689\u06cc\u0628\u06cc\u067c"),
+    };
+
+    return labels[type] || String(type || "-");
+  };
+
+  const ledgerAlertText = (entry) => {
+    const formattedAmount = money(entry.amount);
+
+    if (entry.type === "penalty") {
+      return tx(
+        `Penalty of ${formattedAmount} AFN was added to your account.`,
+        `${formattedAmount} \u0627\u0641\u063a\u0627\u0646\u06cc \u062c\u0631\u06cc\u0645\u0647 \u062f\u0631 \u062d\u0633\u0627\u0628 \u0634\u0645\u0627 \u062b\u0628\u062a \u0634\u062f.`,
+        `${formattedAmount} \u0627\u0641\u063a\u0627\u0646\u06cd \u062c\u0631\u06cc\u0645\u0647 \u0633\u062a\u0627\u0633\u0648 \u067e\u0647 \u062d\u0633\u0627\u0628 \u06a9\u06d0 \u062b\u0628\u062a \u0634\u0648\u0647.`
+      );
+    }
+
+    if (entry.type === "bonus") {
+      return tx(
+        `Bonus of ${formattedAmount} AFN was added to your account.`,
+        `${formattedAmount} \u0627\u0641\u063a\u0627\u0646\u06cc \u0627\u0645\u062a\u06cc\u0627\u0632 \u0628\u0631\u0627\u06cc \u0634\u0645\u0627 \u062b\u0628\u062a \u0634\u062f.`,
+        `${formattedAmount} \u0627\u0641\u063a\u0627\u0646\u06cd \u0627\u0645\u062a\u06cc\u0627\u0632 \u0633\u062a\u0627\u0633\u0648 \u0644\u067e\u0627\u0631\u0647 \u062b\u0628\u062a \u0634\u0648.`
+      );
+    }
+
+    if (entry.type === "salary") {
+      return tx(
+        `Salary/payment of ${formattedAmount} AFN was added to your account.`,
+        `${formattedAmount} \u0627\u0641\u063a\u0627\u0646\u06cc \u0645\u0639\u0627\u0634 / \u067e\u0631\u062f\u0627\u062e\u062a \u062f\u0631 \u062d\u0633\u0627\u0628 \u0634\u0645\u0627 \u062c\u0645\u0639 \u0634\u062f.`,
+        `${formattedAmount} \u0627\u0641\u063a\u0627\u0646\u06cd \u0645\u0639\u0627\u0634 / \u062a\u0627\u062f\u06cc\u0647 \u0633\u062a\u0627\u0633\u0648 \u067e\u0647 \u062d\u0633\u0627\u0628 \u06a9\u06d0 \u062c\u0645\u0639 \u0634\u0648\u0647.`
+      );
+    }
+
+    if (entry.type === "debit") {
+      return tx(
+        `Debit of ${formattedAmount} AFN was added to your account.`,
+        `${formattedAmount} \u0627\u0641\u063a\u0627\u0646\u06cc \u062f\u06cc\u0628\u062a \u062f\u0631 \u062d\u0633\u0627\u0628 \u0634\u0645\u0627 \u062b\u0628\u062a \u0634\u062f.`,
+        `${formattedAmount} \u0627\u0641\u063a\u0627\u0646\u06cd \u0689\u06cc\u0628\u06cc\u067c \u0633\u062a\u0627\u0633\u0648 \u067e\u0647 \u062d\u0633\u0627\u0628 \u06a9\u06d0 \u062b\u0628\u062a \u0634\u0648.`
+      );
+    }
+
+    return tx(
+      `${ledgerTypeLabel(entry.type)} of ${formattedAmount} AFN was added to your account.`,
+      `${formattedAmount} \u0627\u0641\u063a\u0627\u0646\u06cc ${ledgerTypeLabel(entry.type)} \u062f\u0631 \u062d\u0633\u0627\u0628 \u0634\u0645\u0627 \u062b\u0628\u062a \u0634\u062f.`,
+      `${formattedAmount} \u0627\u0641\u063a\u0627\u0646\u06cd ${ledgerTypeLabel(entry.type)} \u0633\u062a\u0627\u0633\u0648 \u067e\u0647 \u062d\u0633\u0627\u0628 \u06a9\u06d0 \u062b\u0628\u062a \u0634\u0648.`
+    );
+  };
+
   const [assets] = useJsonCollection("assets");
   const [towerAssets] = useJsonCollection("towerAssets");
   const [securityDeposits] = useJsonCollection("securityDeposits");
   const [customerPackages] = useJsonCollection("customerPackages");
+  const [
+    employeeAdjustments,
+    ,
+    loadEmployeeAdjustments,
+    adjustmentsLoaded,
+  ] = useEmployeeAdjustments({
+    silentLoadErrors: true,
+  });
   const [
     customers,
     ,
     loadCustomers,
     customersLoaded,
   ] = useJsonCollection("customers");
+  const [
+    employeeReports,
+    ,
+    loadEmployeeReports,
+    reportsLoaded,
+  ] = useJsonCollection("employeeReports");
+  const [
+    employeeActivities,
+    ,
+    loadEmployeeActivities,
+    activitiesLoaded,
+  ] = useJsonCollection("employeeActivities", {
+    silentLoadErrors: true,
+  });
+  const { messages: chatMessages } = useChat(currentUser);
   const today = todayDateValue();
 
-  const currentUserIds = [
+const currentUserIds = [
   currentUser?.id,
   currentUser?.employeeId,
   currentUser?.accountId,
@@ -156,6 +253,12 @@ const currentUserNames = [
   .map((value) =>
     String(value).trim().toLowerCase()
   );
+
+const currentUserEmails = [
+  currentUser?.email,
+]
+  .filter(Boolean)
+  .map(normalize);
 
 const assignedCustomers = customers.filter(
   (customer) => {
@@ -219,6 +322,261 @@ const isAdminAccount =
     ["admin", "full admin", "administrator"].includes(role)
   );
 
+const isFullAdminAccount =
+  currentUser?.isDefaultAdmin === true ||
+  currentUser?.isFullAdmin === true ||
+  currentUser?.permissions?.all === true ||
+  currentUserRoles.some((role) =>
+    ["full admin", "administrator", "admin"].includes(role)
+  );
+
+const getLatestAssignmentTransfer = (customer) => {
+  const transfers = Array.isArray(
+    customer?.assignmentTransfers
+  )
+    ? customer.assignmentTransfers
+    : [];
+
+  return transfers[transfers.length - 1] || null;
+};
+
+const isAssignedFromReceptionToAdmin = (customer) =>
+  isAdminAccount &&
+  normalize(customer?.registeredFrom) === "reception" &&
+  Boolean(customer?.assignedAt);
+
+const isAssignedFromAdmin = (customer) => {
+  const latestTransfer =
+    getLatestAssignmentTransfer(customer);
+
+  return (
+    latestTransfer?.transferredByIsAdmin === true ||
+    customer?.lastTransferredByIsAdmin === true ||
+    ["admin", "full admin", "administrator"].includes(
+      normalize(latestTransfer?.transferredByRole)
+    ) ||
+    ["admin", "full admin", "administrator"].includes(
+      normalize(customer?.lastTransferredByRole)
+    )
+  );
+};
+
+const assignedRequestEvents = useMemo(
+  () =>
+    pendingAssignedCustomers.map((customer) => {
+      const latestTransfer =
+        getLatestAssignmentTransfer(customer);
+      const customerName =
+        customer.fullName ||
+        customer.customerName ||
+        customer.personName ||
+        "Customer";
+
+      return {
+        key: [
+          customer.id || customer.customerId,
+          customer.assignedEmployeeId ||
+            customer.assignedAccountId ||
+            "",
+          customer.assignedAt ||
+            customer.lastTransferredAt ||
+            customer.adminNotificationAt ||
+            "",
+        ].join("|"),
+        customer,
+        customerName,
+        shouldPlaySound:
+          isAssignedFromReceptionToAdmin(customer) ||
+          isAssignedFromAdmin(customer),
+        title: tx(
+          "New Customer Request",
+          "\u062f\u0631\u062e\u0648\u0627\u0633\u062a \u062c\u062f\u06cc\u062f \u0645\u0634\u062a\u0631\u06cc",
+          "\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a \u0646\u0648\u06cc \u063a\u0648\u069a\u062a\u0646\u0647"
+        ),
+        description: tx(
+          `${customerName} was assigned to your account.`,
+          `${customerName} \u0628\u0647 \u062d\u0633\u0627\u0628 \u0634\u0645\u0627 \u0631\u0627\u062c\u0639 \u0634\u062f.`,
+          `${customerName} \u0633\u062a\u0627\u0633\u0648 \u062d\u0633\u0627\u0628 \u062a\u0647 \u0631\u0627\u062c\u0639 \u0634\u0648.`
+        ),
+        happenedAt:
+          customer.assignedAt ||
+          latestTransfer?.transferredAt ||
+          customer.adminNotificationAt,
+      };
+    }),
+  [
+    pendingAssignedCustomers,
+    isAdminAccount,
+    selectedLanguage,
+  ]
+);
+
+const employeeReportNotifications = isFullAdminAccount
+  ? employeeReports
+      .filter(
+        (report) =>
+          report.adminNotificationType ===
+            "employee-report-submitted" &&
+          report.adminNotificationAt
+      )
+      .sort(
+        (first, second) =>
+          new Date(
+            second.adminNotificationAt ||
+              second.createdAt ||
+              0
+          ) -
+          new Date(
+            first.adminNotificationAt ||
+              first.createdAt ||
+              0
+          )
+      )
+  : [];
+
+const employeeActivityNotifications = isFullAdminAccount
+  ? employeeActivities
+      .filter(
+        (activity) =>
+          activity.adminNotificationType ===
+            "employee-action" &&
+          activity.adminNotificationAt &&
+          activity.actorId &&
+          !currentUserIds.includes(
+            String(activity.actorId)
+          )
+      )
+      .sort(
+        (first, second) =>
+          new Date(
+            second.adminNotificationAt ||
+              second.createdAt ||
+              0
+          ) -
+          new Date(
+            first.adminNotificationAt ||
+              first.createdAt ||
+              0
+          )
+      )
+  : [];
+
+const incomingChatMessages = chatMessages
+  .filter(
+    (message) =>
+      currentUserIds.includes(String(message.toAccountId || "")) &&
+      !currentUserIds.includes(String(message.fromAccountId || "")) &&
+      !message.seen
+  )
+  .sort(
+    (first, second) =>
+      new Date(second.createdAt || 0) -
+      new Date(first.createdAt || 0)
+  );
+
+const collectionLabel = (collection) => {
+  const labels = {
+    customers: tx("Customers", "\u0645\u0634\u062a\u0631\u06cc\u0627\u0646", "\u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a"),
+    employeeReports: tx("Daily Reports", "\u0631\u0627\u067e\u0648\u0631\u0647\u0627\u06cc \u0631\u0648\u0632\u0627\u0646\u0647", "\u0648\u0631\u0681\u0646\u064a \u0631\u0627\u067e\u0648\u0631\u0648\u0646\u0647"),
+    employees: tx("Employees", "\u06a9\u0627\u0631\u0645\u0646\u062f\u0627\u0646", "\u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a"),
+    projects: tx("Projects", "\u067e\u0631\u0648\u0698\u0647\u200c\u0647\u0627", "\u067e\u0631\u0648\u0698\u06d0"),
+    assets: tx("Assets", "\u062f\u0627\u0631\u0627\u06cc\u06cc\u200c\u0647\u0627", "\u0634\u062a\u0645\u0646\u06cd"),
+    suppliers: tx("Suppliers", "\u062a\u0647\u06cc\u0647\u200c\u06a9\u0646\u0646\u062f\u0647\u200c\u0647\u0627", "\u0639\u0631\u0636\u0647 \u06a9\u0648\u0648\u0646\u06a9\u064a"),
+    transactions: tx("Finance", "\u0645\u0627\u0644\u06cc", "\u0645\u0627\u0644\u064a"),
+  };
+
+  return labels[collection] || collection;
+};
+
+const activityText = (activity) => {
+  const action = {
+    created: tx("created", "\u062b\u0628\u062a \u06a9\u0631\u062f", "\u062b\u0628\u062a \u06a9\u0693"),
+    updated: tx("updated", "\u0648\u06cc\u0631\u0627\u06cc\u0634 \u06a9\u0631\u062f", "\u0633\u0645 \u06a9\u0693"),
+    deleted: tx("deleted", "\u062d\u0630\u0641 \u06a9\u0631\u062f", "\u062d\u0630\u0641 \u06a9\u0693"),
+    changed: tx("changed", "\u062a\u063a\u06cc\u06cc\u0631 \u062f\u0627\u062f", "\u0628\u062f\u0644 \u06a9\u0693"),
+  }[activity.action] || tx("changed", "\u062a\u063a\u06cc\u06cc\u0631 \u062f\u0627\u062f", "\u0628\u062f\u0644 \u06a9\u0693");
+
+  return tx(
+    `${activity.actorName || "Employee"} ${action} ${activity.totalChanged || 1} record(s) in ${collectionLabel(activity.collection)}.`,
+    `${activity.actorName || "\u06a9\u0627\u0631\u0645\u0646\u062f"} ${activity.totalChanged || 1} \u0631\u06cc\u06a9\u0627\u0631\u062f \u0631\u0627 \u062f\u0631 ${collectionLabel(activity.collection)} ${action}.`,
+    `${activity.actorName || "\u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a"} \u067e\u0647 ${collectionLabel(activity.collection)} \u06a9\u06d0 ${activity.totalChanged || 1} \u0631\u06cc\u06a9\u0627\u0631\u0689 ${action}.`
+  );
+};
+
+const collectionPath = (collection, recordId = "") => {
+  const encodedId = recordId
+    ? encodeURIComponent(String(recordId))
+    : "";
+
+  const paths = {
+    customers: "/customers/consultants",
+    employees: encodedId
+      ? `/employees/${encodedId}`
+      : "/employees",
+    employeeReports: "/reports/employees",
+    projects: "/projects",
+    assets: "/office-assets",
+    suppliers: encodedId
+      ? `/suppliers/${encodedId}`
+      : "/suppliers",
+    transactions: "/finance",
+    employeeAdjustments: "/reports/financial",
+  };
+
+  return paths[collection] || "/";
+};
+
+const employeeLedgerNotifications = employeeAdjustments
+  .filter((entry) => {
+    const entryIds = [
+      entry.employeeId,
+      entry.employeeAccountId,
+      entry.accountId,
+    ]
+      .filter(Boolean)
+      .map(String);
+
+    const entryNames = [
+      entry.employeeName,
+      entry.employeeUsername,
+    ]
+      .filter(Boolean)
+      .map(normalize);
+
+    const entryEmails = [
+      entry.employeeEmail,
+    ]
+      .filter(Boolean)
+      .map(normalize);
+
+    return (
+      entryIds.some((entryId) =>
+        currentUserIds.includes(entryId)
+      ) ||
+      entryNames.some((entryName) =>
+        currentUserNames.includes(entryName)
+      ) ||
+      entryEmails.some((entryEmail) =>
+        currentUserEmails.includes(entryEmail)
+      )
+    );
+  })
+  .sort(
+    (first, second) =>
+      new Date(
+        second.employeeNotificationAt ||
+          second.createdAt ||
+          second.updatedAt ||
+          0
+      ) -
+      new Date(
+        first.employeeNotificationAt ||
+          first.createdAt ||
+          first.updatedAt ||
+          0
+      )
+  );
+
 const pendingAdminFollowUps = isAdminAccount
   ? customers.filter(
       (customer) =>
@@ -245,6 +603,12 @@ const responseOwnerNames = [
 
 const receptionResponseEvents =
   customers.flatMap((customer) => {
+    const transfers = Array.isArray(
+      customer.assignmentTransfers
+    )
+      ? customer.assignmentTransfers
+      : [];
+
     const creatorIds = [
       customer.createdByAccountId,
       customer.assignedByAccountId,
@@ -270,9 +634,29 @@ const receptionResponseEvents =
         responseOwnerNames.includes(name)
       );
 
-    if (!belongsToCurrentReception) {
-      return [];
-    }
+    const belongsToCurrentTransferOwner =
+      transfers.some((transfer) => {
+        const transferOwnerIds = [
+          transfer.transferredById,
+        ]
+          .filter(Boolean)
+          .map(String);
+
+        const transferOwnerNames = [
+          transfer.transferredByName,
+        ]
+          .filter(Boolean)
+          .map(normalize);
+
+        return (
+          transferOwnerIds.some((id) =>
+            responseOwnerIds.includes(id)
+          ) ||
+          transferOwnerNames.some((name) =>
+            responseOwnerNames.includes(name)
+          )
+        );
+      });
 
     const events = [];
     const status = normalize(
@@ -283,7 +667,11 @@ const receptionResponseEvents =
       ["accepted", "rejected"].includes(
         status
       ) &&
-      customer.assignmentRespondedAt
+      customer.assignmentRespondedAt &&
+      (
+        belongsToCurrentReception ||
+        belongsToCurrentTransferOwner
+      )
     ) {
       events.push({
         key: [
@@ -310,36 +698,32 @@ const receptionResponseEvents =
       });
     }
 
-    const transfers = Array.isArray(
-      customer.assignmentTransfers
-    )
-      ? customer.assignmentTransfers
-      : [];
+    if (belongsToCurrentReception) {
+      transfers.forEach((transfer) => {
+        if (!transfer?.transferredAt) return;
 
-    transfers.forEach((transfer) => {
-      if (!transfer?.transferredAt) return;
-
-      events.push({
-        key: [
-          customer.id,
-          "reassigned",
-          transfer.id ||
+        events.push({
+          key: [
+            customer.id,
+            "reassigned",
+            transfer.id ||
+              transfer.transferredAt,
+          ].join("|"),
+          customer,
+          action: `assigned the request to ${
+            transfer.toEmployeeName ||
+            "another employee"
+          }`,
+          actorName:
+            transfer.transferredByName ||
+            transfer.fromEmployeeName ||
+            "Employee",
+          happenedAt:
             transfer.transferredAt,
-        ].join("|"),
-        customer,
-        action: `assigned the request to ${
-          transfer.toEmployeeName ||
-          "another employee"
-        }`,
-        actorName:
-          transfer.transferredByName ||
-          transfer.fromEmployeeName ||
-          "Employee",
-        happenedAt:
-          transfer.transferredAt,
-        toastType: "info",
+          toastType: "info",
+        });
       });
-    });
+    }
 
     return events;
   });
@@ -349,7 +733,10 @@ const adminCustomerCreateEvents = useMemo(
     customers
       .filter(
         (customer) =>
-          customer.adminNotificationType === "customer-created" &&
+          [
+            "customer-created",
+            "reception-assignment",
+          ].includes(customer.adminNotificationType) &&
           customer.adminNotificationAt
       )
       .map((customer) => ({
@@ -367,10 +754,6 @@ const adminCustomerCreateEvents = useMemo(
           customer.createdByName ||
           customer.receptionName ||
           "Call Center",
-        shouldPlaySound:
-          customer.adminNotificationSound === true ||
-          customer.adminNotificationType ===
-            "reception-assignment",
       })),
   [customers]
 );
@@ -431,6 +814,261 @@ useEffect(() => {
     );
   };
 }, [customersLoaded, loadCustomers]);
+
+useEffect(() => {
+  if (!reportsLoaded) return undefined;
+
+  let loading = false;
+
+  const refreshReports = async () => {
+    if (loading) return;
+
+    loading = true;
+
+    try {
+      await loadEmployeeReports();
+    } finally {
+      loading = false;
+    }
+  };
+
+  const intervalId = window.setInterval(
+    refreshReports,
+    2000
+  );
+
+  window.addEventListener(
+    "isp-employee-report-updated",
+    refreshReports
+  );
+
+  window.addEventListener(
+    "storage",
+    refreshReports
+  );
+
+  return () => {
+    window.clearInterval(intervalId);
+
+    window.removeEventListener(
+      "isp-employee-report-updated",
+      refreshReports
+    );
+
+    window.removeEventListener(
+      "storage",
+      refreshReports
+    );
+  };
+}, [reportsLoaded, loadEmployeeReports]);
+
+useEffect(() => {
+  if (!activitiesLoaded) return undefined;
+
+  let loading = false;
+
+  const refreshActivities = async () => {
+    if (loading) return;
+
+    loading = true;
+
+    try {
+      await loadEmployeeActivities();
+    } finally {
+      loading = false;
+    }
+  };
+
+  const intervalId = window.setInterval(
+    refreshActivities,
+    1500
+  );
+
+  window.addEventListener(
+    "isp-employee-activity-updated",
+    refreshActivities
+  );
+
+  window.addEventListener(
+    "storage",
+    refreshActivities
+  );
+
+  return () => {
+    window.clearInterval(intervalId);
+
+    window.removeEventListener(
+      "isp-employee-activity-updated",
+      refreshActivities
+    );
+
+    window.removeEventListener(
+      "storage",
+      refreshActivities
+    );
+  };
+}, [activitiesLoaded, loadEmployeeActivities]);
+
+useEffect(() => {
+  if (!adjustmentsLoaded) return undefined;
+
+  let loading = false;
+
+  const refreshAdjustments = async () => {
+    if (loading) return;
+
+    loading = true;
+
+    try {
+      await loadEmployeeAdjustments();
+    } finally {
+      loading = false;
+    }
+  };
+
+  const intervalId = window.setInterval(
+    refreshAdjustments,
+    1500
+  );
+
+  window.addEventListener(
+    "isp-employee-ledger-updated",
+    refreshAdjustments
+  );
+
+  window.addEventListener(
+    "storage",
+    refreshAdjustments
+  );
+
+  return () => {
+    window.clearInterval(intervalId);
+
+    window.removeEventListener(
+      "isp-employee-ledger-updated",
+      refreshAdjustments
+    );
+
+    window.removeEventListener(
+      "storage",
+      refreshAdjustments
+    );
+  };
+}, [
+  adjustmentsLoaded,
+  loadEmployeeAdjustments,
+]);
+
+useEffect(() => {
+  if (
+    !customersLoaded ||
+    !currentUser
+  ) {
+    return;
+  }
+
+  const accountKey = String(
+    currentUser.id ||
+      currentUser.employeeId ||
+      currentUser.accountId ||
+      "employee"
+  );
+
+  const storageKey =
+    `isp-seen-assigned-customer-requests:${accountKey}`;
+
+  let seen = [];
+
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(storageKey) || "[]"
+    );
+
+    seen = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    seen = [];
+  }
+
+  const seenSet = new Set(seen.map(String));
+
+  if (!assignedRequestAlertReadyRef.current) {
+    assignedRequestEvents.forEach((event) =>
+      seenSet.add(event.key)
+    );
+
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify([...seenSet].slice(-300))
+    );
+
+    assignedRequestAlertReadyRef.current = true;
+    return;
+  }
+
+  const newEvents = assignedRequestEvents.filter(
+    (event) => !seenSet.has(event.key)
+  );
+
+  if (!newEvents.length) return;
+
+  newEvents.forEach((event) => {
+    seenSet.add(event.key);
+    notify(event.description, "info", {
+      system: true,
+      title: event.title,
+      path: withRecordHash(
+        "/my-account",
+        "customer",
+        event.customer?.id ||
+          event.customer?.customerId
+      ),
+    });
+  });
+
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify([...seenSet].slice(-300))
+  );
+
+  if (
+    !newEvents.some((event) => event.shouldPlaySound)
+  ) {
+    return;
+  }
+
+  try {
+    if (!assignedRequestSoundRef.current) {
+      assignedRequestSoundRef.current = new Audio(
+        "/sounds/open-up-587.mp3"
+      );
+
+      assignedRequestSoundRef.current.preload =
+        "auto";
+
+      assignedRequestSoundRef.current.volume = 0.8;
+    }
+
+    assignedRequestSoundRef.current.currentTime = 0;
+
+    const playResult =
+      assignedRequestSoundRef.current.play();
+
+    if (
+      playResult &&
+      typeof playResult.catch === "function"
+    ) {
+      playResult.catch(() => {
+        // The visual alert still appears if audio is blocked.
+      });
+    }
+  } catch {
+    // Keep the assignment notification working without sound.
+  }
+}, [
+  assignedRequestEvents,
+  customersLoaded,
+  currentUser,
+]);
 
 /*
  * Reception receives a response alert when an assigned
@@ -507,10 +1145,20 @@ useEffect(() => {
       event.customer.personName ||
       "Customer";
 
-    notify(
-      `${event.actorName} ${event.action} for ${customerName}.`,
-      event.toastType
-    );
+    const message =
+      `${event.actorName} ${event.action} for ${customerName}.`;
+
+    notify(message, event.toastType, {
+      system: true,
+      title: "Customer Request Response",
+      path: event.customer?.id
+        ? withRecordHash(
+            "/my-account",
+            "customer",
+            event.customer.id
+          )
+        : "/my-account",
+    });
   });
 
   localStorage.setItem(
@@ -624,7 +1272,12 @@ useEffect(() => {
 
     notify(
       `${event.creator} registered ${customerName} from ${event.section}.`,
-      "info"
+      "info",
+      {
+        system: true,
+        title: "New Customer Registered",
+        path: "/customers/consultants",
+      }
     );
   });
 
@@ -632,29 +1285,84 @@ useEffect(() => {
     storageKey,
     JSON.stringify([...seenSet].slice(-500))
   );
+}, [
+  adminCustomerCreateEvents,
+  customersLoaded,
+  currentUser,
+]);
 
-  if (
-    !newEvents.some((event) => event.shouldPlaySound)
-  ) {
-    return;
-  }
+useEffect(() => {
+  if (!currentUser) return;
+
+  const accountKey = String(
+    currentUser.employeeId ||
+      currentUser.id ||
+      currentUser.accountId ||
+      "employee"
+  );
+
+  const storageKey =
+    `isp-seen-employee-ledger-alerts:${accountKey}`;
+
+  let seen = [];
 
   try {
-    if (!adminCustomerSoundRef.current) {
-      adminCustomerSoundRef.current = new Audio(
-        "/sounds/open-up-587.mp3"
+    const parsed = JSON.parse(
+      localStorage.getItem(storageKey) || "[]"
+    );
+
+    seen = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    seen = [];
+  }
+
+  const seenSet = new Set(seen.map(String));
+  const ledgerKey = (entry) =>
+    String(
+      entry.id ||
+        `${entry.employeeNotificationAt || ""}:${entry.type || ""}:${entry.amount || ""}`
+    );
+
+  const newEntries = employeeLedgerNotifications.filter(
+    (entry) => !seenSet.has(ledgerKey(entry))
+  );
+
+  if (!newEntries.length) return;
+
+  newEntries.forEach((entry) => {
+    seenSet.add(ledgerKey(entry));
+    notify(ledgerAlertText(entry), "success", {
+      system: true,
+      title: ledgerTypeLabel(entry.type),
+      path: withRecordHash(
+        "/my-account",
+        "ledger",
+        entry.id
+      ),
+    });
+  });
+
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify([...seenSet].slice(-300))
+  );
+
+  try {
+    if (!employeeLedgerSoundRef.current) {
+      employeeLedgerSoundRef.current = new Audio(
+        "/sounds/soft-bells-495.mp3"
       );
 
-      adminCustomerSoundRef.current.preload =
+      employeeLedgerSoundRef.current.preload =
         "auto";
 
-      adminCustomerSoundRef.current.volume = 0.8;
+      employeeLedgerSoundRef.current.volume = 0.85;
     }
 
-    adminCustomerSoundRef.current.currentTime = 0;
+    employeeLedgerSoundRef.current.currentTime = 0;
 
     const playResult =
-      adminCustomerSoundRef.current.play();
+      employeeLedgerSoundRef.current.play();
 
     if (
       playResult &&
@@ -665,12 +1373,266 @@ useEffect(() => {
       });
     }
   } catch {
-    // Keep the admin message working even when audio is unavailable.
+    // Keep the ledger notification working without sound.
   }
 }, [
-  adminCustomerCreateEvents,
-  customersLoaded,
   currentUser,
+  employeeLedgerNotifications,
+]);
+
+useEffect(() => {
+  if (
+    !currentUser ||
+    !isFullAdminAccount
+  ) {
+    return;
+  }
+
+  const accountKey = String(
+    currentUser.id ||
+      currentUser.employeeId ||
+      currentUser.accountId ||
+      "full-admin"
+  );
+
+  const storageKey =
+    `isp-seen-employee-report-alerts:${accountKey}`;
+
+  let seen = [];
+
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(storageKey) || "[]"
+    );
+
+    seen = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    seen = [];
+  }
+
+  const seenSet = new Set(seen.map(String));
+  const reportKey = (report) =>
+    String(
+      report.id ||
+        `${report.adminNotificationAt || ""}:${report.employeeName || ""}`
+    );
+
+  const newReports =
+    employeeReportNotifications.filter(
+      (report) => !seenSet.has(reportKey(report))
+    );
+
+  if (!newReports.length) return;
+
+  newReports.forEach((report) => {
+    seenSet.add(reportKey(report));
+
+    const message = tx(
+      `${report.employeeName || "Employee"} submitted their daily report.`,
+      `${report.employeeName || "\u06a9\u0627\u0631\u0645\u0646\u062f"} \u0631\u0627\u067e\u0648\u0631 \u0631\u0648\u0632\u0627\u0646\u0647 \u062e\u0648\u062f \u0631\u0627 \u062b\u0628\u062a \u06a9\u0631\u062f.`,
+      `${report.employeeName || "\u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a"} \u062e\u067e\u0644 \u0648\u0631\u0681\u0646\u06cc \u0631\u0627\u067e\u0648\u0631 \u062b\u0628\u062a \u06a9\u0693.`
+    );
+
+    notify(message, "info", {
+      system: true,
+      title: tx("Daily Report Submitted", "\u0631\u0627\u067e\u0648\u0631 \u0631\u0648\u0632\u0627\u0646\u0647 \u062b\u0628\u062a \u0634\u062f", "\u0648\u0631\u0681\u0646\u06cc \u0631\u0627\u067e\u0648\u0631 \u062b\u0628\u062a \u0634\u0648"),
+      path: report.employeeId
+        ? withRecordHash(
+            `/employees/${encodeURIComponent(String(report.employeeId))}`,
+            "reports",
+            report.id
+          )
+        : "/employees",
+    });
+  });
+
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify([...seenSet].slice(-500))
+  );
+}, [
+  currentUser,
+  employeeReportNotifications,
+  isFullAdminAccount,
+  tx,
+]);
+
+useEffect(() => {
+  if (
+    !currentUser ||
+    !isFullAdminAccount
+  ) {
+    return;
+  }
+
+  const accountKey = String(
+    currentUser.id ||
+      currentUser.employeeId ||
+      currentUser.accountId ||
+      "full-admin"
+  );
+
+  const storageKey =
+    `isp-seen-employee-activity-alerts:${accountKey}`;
+
+  let seen = [];
+
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(storageKey) || "[]"
+    );
+
+    seen = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    seen = [];
+  }
+
+  const seenSet = new Set(seen.map(String));
+  const activityKey = (activity) =>
+    String(
+      activity.id ||
+        `${activity.adminNotificationAt || ""}:${activity.actorId || ""}:${activity.collection || ""}`
+    );
+
+  const newActivities =
+    employeeActivityNotifications.filter(
+      (activity) =>
+        !seenSet.has(activityKey(activity))
+    );
+
+  if (!newActivities.length) return;
+
+  newActivities.forEach((activity) => {
+    seenSet.add(activityKey(activity));
+    notify(activityText(activity), "info", {
+      system: true,
+      title: tx("Employee Action", "\u0639\u0645\u0644\u06a9\u0631\u062f \u06a9\u0627\u0631\u0645\u0646\u062f", "\u062f \u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a \u0639\u0645\u0644"),
+      path: collectionPath(
+        activity.collection,
+        activity.primaryRecordId ||
+          activity.changedIds?.[0] ||
+          activity.createdIds?.[0] ||
+          activity.updatedIds?.[0]
+      ),
+    });
+  });
+
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify([...seenSet].slice(-600))
+  );
+}, [
+  currentUser,
+  employeeActivityNotifications,
+  isFullAdminAccount,
+  tx,
+]);
+
+useEffect(() => {
+  if (compact || !currentUser) return;
+
+  const accountKey = String(
+    currentUser.id ||
+      currentUser.employeeId ||
+      currentUser.accountId ||
+      "employee"
+  );
+
+  const storageKey = `isp-seen-chat-message-alerts:${accountKey}`;
+
+  let seen = [];
+
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(storageKey) || "[]"
+    );
+
+    seen = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    seen = [];
+  }
+
+  const seenSet = new Set(seen.map(String));
+  const incomingMessages = chatMessages.filter(
+    (message) =>
+      currentUserIds.includes(String(message.toAccountId || "")) &&
+      !currentUserIds.includes(String(message.fromAccountId || ""))
+  );
+
+  if (!chatMessageAlertReadyRef.current) {
+    incomingMessages.forEach((message) => {
+      if (message.id) seenSet.add(String(message.id));
+    });
+
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify([...seenSet].slice(-800))
+    );
+
+    chatMessageAlertReadyRef.current = true;
+    return;
+  }
+
+  const newMessages = incomingMessages.filter(
+    (message) => message.id && !seenSet.has(String(message.id))
+  );
+
+  if (!newMessages.length) return;
+
+  newMessages.forEach((message) => {
+    seenSet.add(String(message.id));
+
+    const alertText = tx(
+      `${message.senderName || "Employee"} sent you a message.`,
+      `${message.senderName || "\u06a9\u0627\u0631\u0645\u0646\u062f"} \u0628\u0631\u0627\u06cc \u0634\u0645\u0627 \u067e\u06cc\u0627\u0645 \u0641\u0631\u0633\u062a\u0627\u062f.`,
+      `${message.senderName || "\u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a"} \u062a\u0627\u0633\u0648 \u062a\u0647 \u067e\u06cc\u063a\u0627\u0645 \u0648\u0644\u06d0\u0696\u0647.`
+    );
+
+    notify(alertText, "info", {
+      system: true,
+      title: tx("New Message", "\u067e\u06cc\u0627\u0645 \u062c\u062f\u06cc\u062f", "\u0646\u0648\u06cc \u067e\u06cc\u063a\u0627\u0645"),
+      path: `/messages?chat=${encodeURIComponent(
+        String(message.fromAccountId || "")
+      )}`,
+    });
+  });
+
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify([...seenSet].slice(-800))
+  );
+
+  try {
+    if (!chatMessageSoundRef.current) {
+      chatMessageSoundRef.current = new Audio(
+        "/sounds/soft-bells-495.mp3"
+      );
+
+      chatMessageSoundRef.current.preload = "auto";
+      chatMessageSoundRef.current.volume = 0.85;
+    }
+
+    chatMessageSoundRef.current.currentTime = 0;
+
+    const playResult = chatMessageSoundRef.current.play();
+
+    if (
+      playResult &&
+      typeof playResult.catch === "function"
+    ) {
+      playResult.catch(() => {
+        // The visual notification still appears if audio is blocked.
+      });
+    }
+  } catch {
+    // Keep message notifications working without sound.
+  }
+}, [
+  chatMessages,
+  compact,
+  currentUser,
+  currentUserIds,
+  tx,
 ]);
 
   const damagedOrLostAssets = assets.filter((asset) =>
@@ -719,8 +1681,14 @@ useEffect(() => {
         return {
           title: "New Customer Registered",
           description: `${event.creator} registered ${customerName} from ${event.section}`,
+          path: "/customers/consultants",
+          happenedAt:
+            event.customer.adminNotificationAt ||
+            event.customer.createdAt,
         };
       }),
+    },
+    {
       key: "follow-up-admin-review",
       title: "Follow-Up Reviews",
       count: pendingAdminFollowUps.length,
@@ -744,17 +1712,103 @@ useEffect(() => {
       title: "Customer Requests",
       count: assignedCustomerCount,
       icon: Users,
-      items: pendingAssignedCustomers.map(
-        (customer) => ({
-          title: "New Customer Request",
-          description: `${
-            customer.fullName ||
-            customer.customerName ||
-            customer.personName ||
-            "Customer"
-          } was assigned to your account`,
+      items: assignedRequestEvents.map((event) => ({
+        title: event.title,
+        description: event.description,
+        path: withRecordHash(
+          "/my-account",
+          "customer",
+          event.customer?.id ||
+            event.customer?.customerId
+        ),
+        happenedAt: event.happenedAt,
+      })),
+    },
+    {
+      key: "employee-report-submitted",
+      title: tx("Daily Reports", "\u0631\u0627\u067e\u0648\u0631\u0647\u0627\u06cc \u0631\u0648\u0632\u0627\u0646\u0647", "\u0648\u0631\u0681\u0646\u064a \u0631\u0627\u067e\u0648\u0631\u0648\u0646\u0647"),
+      count: employeeReportNotifications.length,
+      icon: FileCheck2,
+      items: employeeReportNotifications.map(
+        (report) => ({
+          title: tx("Daily Report Submitted", "\u0631\u0627\u067e\u0648\u0631 \u0631\u0648\u0632\u0627\u0646\u0647 \u062b\u0628\u062a \u0634\u062f", "\u0648\u0631\u0681\u0646\u06cc \u0631\u0627\u067e\u0648\u0631 \u062b\u0628\u062a \u0634\u0648"),
+          description: tx(
+            `${report.employeeName || "Employee"} submitted their daily report.`,
+            `${report.employeeName || "\u06a9\u0627\u0631\u0645\u0646\u062f"} \u0631\u0627\u067e\u0648\u0631 \u0631\u0648\u0632\u0627\u0646\u0647 \u062e\u0648\u062f \u0631\u0627 \u062b\u0628\u062a \u06a9\u0631\u062f.`,
+            `${report.employeeName || "\u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a"} \u062e\u067e\u0644 \u0648\u0631\u0681\u0646\u06cc \u0631\u0627\u067e\u0648\u0631 \u062b\u0628\u062a \u06a9\u0693.`
+          ),
+          path: report.employeeId
+            ? withRecordHash(
+                `/employees/${encodeURIComponent(
+                  String(report.employeeId)
+                )}`,
+                "reports",
+                report.id
+              )
+            : "/employees",
+          happenedAt:
+            report.adminNotificationAt ||
+            report.createdAt,
         })
       ),
+    },
+    {
+      key: "employee-activity",
+      title: tx("Employee Activity", "\u0641\u0639\u0627\u0644\u06cc\u062a \u06a9\u0627\u0631\u0645\u0646\u062f\u0627\u0646", "\u062f \u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u0648 \u0641\u0639\u0627\u0644\u06cc\u062a"),
+      count: employeeActivityNotifications.length,
+      icon: Activity,
+      items: employeeActivityNotifications.map(
+        (activity) => ({
+          title: tx("Employee Action", "\u0639\u0645\u0644\u06a9\u0631\u062f \u06a9\u0627\u0631\u0645\u0646\u062f", "\u062f \u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a \u0639\u0645\u0644"),
+          description: activityText(activity),
+          path: collectionPath(
+            activity.collection,
+            activity.primaryRecordId ||
+              activity.changedIds?.[0] ||
+              activity.createdIds?.[0] ||
+              activity.updatedIds?.[0]
+          ),
+          happenedAt:
+            activity.adminNotificationAt ||
+            activity.createdAt,
+        })
+      ),
+    },
+    {
+      key: "employee-ledger",
+      title: tx("Your Ledger", "\u062d\u0633\u0627\u0628 \u0634\u0645\u0627", "\u0633\u062a\u0627\u0633\u0648 \u062d\u0633\u0627\u0628"),
+      count: employeeLedgerNotifications.length,
+      icon: Banknote,
+      items: employeeLedgerNotifications.map(
+        (entry) => ({
+          title: ledgerTypeLabel(entry.type),
+          description: ledgerAlertText(entry),
+          path: withRecordHash(
+            "/my-account",
+            "ledger",
+            entry.id
+          ),
+          happenedAt:
+            entry.employeeNotificationAt ||
+            entry.createdAt,
+        })
+      ),
+    },
+    {
+      key: "chat-messages",
+      title: tx("Messages", "\u067e\u06cc\u0627\u0645\u200c\u0647\u0627", "\u067e\u06cc\u063a\u0627\u0645\u0648\u0646\u0647"),
+      count: incomingChatMessages.length,
+      icon: MessageCircle,
+      items: incomingChatMessages.map((message) => ({
+        title: tx("New Message", "\u067e\u06cc\u0627\u0645 \u062c\u062f\u06cc\u062f", "\u0646\u0648\u06cc \u067e\u06cc\u063a\u0627\u0645"),
+        description:
+          message.text ||
+          tx("Attachment received", "\u0641\u0627\u06cc\u0644 \u062f\u0631\u06cc\u0627\u0641\u062a \u0634\u062f", "\u0641\u0627\u06cc\u0644 \u062a\u0631\u0644\u0627\u0633\u0647 \u0634\u0648"),
+        path: `/messages?chat=${encodeURIComponent(
+          String(message.fromAccountId || "")
+        )}`,
+        happenedAt: message.createdAt,
+      })),
     },
     {
       key: "stock",
@@ -764,6 +1818,12 @@ useEffect(() => {
       items: lowStockAssets.map((asset) => ({
         title: "Low Stock Alert",
         description: `${asset.assetId || asset.deviceName || "Asset"} has only ${money(asset.quantity)} ${asset.purchaseUsageUnit || asset.purchaseUnit || "unit(s)"} left`,
+        path:
+          asset.id || asset.assetId
+            ? `/office-assets/${encodeURIComponent(
+                String(asset.id || asset.assetId)
+              )}`
+            : "/office-assets",
       })),
     },
     {
@@ -774,6 +1834,12 @@ useEffect(() => {
       items: damagedOrLostAssets.map((asset) => ({
         title: `${asset.status || "Asset"} Asset`,
         description: `${asset.assetId || asset.deviceName || "Asset"} needs attention`,
+        path:
+          asset.id || asset.assetId
+            ? `/office-assets/${encodeURIComponent(
+                String(asset.id || asset.assetId)
+              )}`
+            : "/office-assets",
       })),
     },
     {
@@ -871,11 +1937,45 @@ useEffect(() => {
     });
   }
 
+  function openNotification(item) {
+    if (!item.path) return;
+
+    dismissNotification(item.key);
+    setOpenMenu(null);
+    navigate(item.path);
+  }
+
   const themes = [
-    { key: "light", label: "Light", color: "#f7f5f1" },
-    { key: "dark", label: "Dark", color: "#0f172a" },
-    { key: "ocean", label: "Ocean", color: "#0ea5e9" },
-    { key: "warm", label: "Warm", color: "#f59e0b" },
+    {
+      key: "light",
+      label: tx("Light", "\u0631\u0648\u0634\u0646", "\u0631\u0648\u069a\u0627\u0646\u0647"),
+      color: "#f7f5f1",
+    },
+    {
+      key: "dark",
+      label: tx("Dark", "\u062a\u0627\u0631\u06cc\u06a9", "\u062a\u06cc\u0627\u0631\u0647"),
+      color: "#0f172a",
+    },
+    {
+      key: "ocean",
+      label: tx("Ocean", "\u0627\u0642\u06cc\u0627\u0646\u0648\u0633", "\u0633\u0645\u0646\u062f\u0631"),
+      color: "#0ea5e9",
+    },
+    {
+      key: "warm",
+      label: tx("Warm", "\u06af\u0631\u0645", "\u062a\u0648\u062f"),
+      color: "#f59e0b",
+    },
+    {
+      key: "professional",
+      label: tx("Professional", "\u062d\u0631\u0641\u0647\u200c\u0627\u06cc", "\u0645\u0633\u0644\u06a9\u064a"),
+      color: "linear-gradient(135deg, #fef3c7 0%, #ffffff 48%, #e0f2fe 100%)",
+    },
+    {
+      key: "winter",
+      label: tx("Winter Snow", "\u0628\u0631\u0641 \u0632\u0645\u0633\u062a\u0627\u0646\u06cc", "\u0698\u0645\u0646\u06cd \u0648\u0627\u0648\u0631\u0647"),
+      color: "linear-gradient(145deg, #020617 0%, #111827 55%, #334155 100%)",
+    },
   ];
 
   const currencies = ["AFN", "USD"];
@@ -997,10 +2097,18 @@ useEffect(() => {
   function applyTheme(theme) {
     setSelectedTheme(theme);
     localStorage.setItem("isp-theme", theme);
-    document.body.classList.remove("dark-mode", "theme-ocean", "theme-warm");
+    document.body.classList.remove(
+      "dark-mode",
+      "theme-ocean",
+      "theme-warm",
+      "theme-professional",
+      "theme-winter"
+    );
     if (theme === "dark") document.body.classList.add("dark-mode");
     if (theme === "ocean") document.body.classList.add("theme-ocean");
     if (theme === "warm") document.body.classList.add("theme-warm");
+    if (theme === "professional") document.body.classList.add("theme-professional");
+    if (theme === "winter") document.body.classList.add("dark-mode", "theme-winter");
   }
 
   function toggleDarkMode() {
@@ -1344,15 +2452,21 @@ useEffect(() => {
             aria-expanded={openMenu === "themes"}
           >
             <Palette size={18} />
-            <span>Themes</span>
+            <span>
+              {tx("Themes", "\u067e\u0648\u0633\u062a\u0647\u200c\u0647\u0627", "\u067e\u0648\u0633\u062a\u06a9\u064a")}
+            </span>
             <ChevronDown size={14} />
           </button>
 
           {openMenu === "themes" && (
             <div className="dropdown header-picker-dropdown theme-picker-dropdown">
               <div className="header-picker-title">
-                <strong>Choose Theme</strong>
-                <span>Interface appearance</span>
+                <strong>
+                  {tx("Choose Theme", "\u0627\u0646\u062a\u062e\u0627\u0628 \u067e\u0648\u0633\u062a\u0647", "\u067e\u0648\u0633\u062a\u06a9\u06cc \u0648\u067c\u0627\u06a9\u0626")}
+                </strong>
+                <span>
+                  {tx("Interface appearance", "\u0638\u0627\u0647\u0631 \u0633\u06cc\u0633\u062a\u0645", "\u062f \u0633\u06cc\u0633\u062a\u0645 \u0685\u06d0\u0631\u0647")}
+                </span>
               </div>
               <div className="theme-picker-grid">
                 {themes.map((theme) => (
@@ -1365,7 +2479,10 @@ useEffect(() => {
                       setOpenMenu(null);
                     }}
                   >
-                    <i style={{ background: theme.color }}></i>
+                    <i
+                      className={`theme-preview-${theme.key}`}
+                      style={{ background: theme.color }}
+                    ></i>
                     <span>{theme.label}</span>
                     {selectedTheme === theme.key && <CheckCheck size={14} />}
                   </button>
@@ -1448,9 +2565,7 @@ useEffect(() => {
                             role={item.path ? "button" : undefined}
                             tabIndex={item.path ? 0 : undefined}
                             onClick={() => {
-                              if (!item.path) return;
-                              setOpenMenu(null);
-                              navigate(item.path);
+                              openNotification(item);
                             }}
                             onKeyDown={(event) => {
                               if (
@@ -1458,8 +2573,7 @@ useEffect(() => {
                                 (event.key === "Enter" || event.key === " ")
                               ) {
                                 event.preventDefault();
-                                setOpenMenu(null);
-                                navigate(item.path);
+                                openNotification(item);
                               }
                             }}
                           >
@@ -1721,7 +2835,7 @@ function Header({ currentUser, onLogout }) {
         key: `customer-${itemId(customer)}`,
         title: `${customer.customerId || "-"} - ${customer.customerName || "Customer"}`,
         subtitle: customer.phone || customer.address || "Customer record",
-        path: `/customers/${customer.id}`,
+        path: "/customers/consultants",
         details: [
           `Status: ${customer.status || "-"}`,
           `Current Devices: ${deviceTransfers.filter((transfer) => String(transfer.destinationRecordId || "") === String(customer.id) && transfer.destinationType === "Customer").length}`,

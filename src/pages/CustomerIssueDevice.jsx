@@ -3366,17 +3366,6 @@ if (!movementsSaved) {
           </p>
         </div>
 
-        <div className="customer-issue-header-actions">
-          <Link
-            className="customer-issue-detail-link"
-            to={`/customers/${
-              customer.id ||
-              customer.customerId
-            }`}
-          >
-            Customer Full Detail
-          </Link>
-        </div>
       </div>
 
       <div className="customer-issue-stats">

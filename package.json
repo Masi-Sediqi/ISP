@@ -13,27 +13,30 @@
     "server": "node transport-backend/server.js",
     "web": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vite build",
-    "build:desktop": "npm run build && electron-builder --win nsis",
+    "build:desktop": "npm run build && electron-builder --win squirrel",
     "preview": "vite preview",
     "lint": "eslint .",
     "start:lan": "node scripts/start-lan.cjs",
     "postgres:prepare": "node transport-backend/scripts/prepare-postgres.js",
     "postgres:migrate": "node transport-backend/scripts/migrate-json-to-postgres.js"
   },
-  "build": {
+    "build": {
     "appId": "com.afghanpower.ispsmart",
     "productName": "Afghan Power",
+    "artifactName": "Afghan Power Setup ${version}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
     },
+    "compression": "store",
     "files": [
       "dist/**/*",
       "electron/**/*",
       "transport-backend/**/*",
-      "!transport-backend/.env",
+      "!transport-backend/node_modules/**/*",
+      "!transport-backend/package-lock.json",
       "package.json",
-      "node_modules/**/*"
+      "LICENSE"
     ],
     "extraResources": [
       {
@@ -46,17 +49,11 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        "squirrel"
       ],
       "icon": "build/icon.ico",
-      "executableName": "Afghan Power"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Afghan Power"
+      "executableName": "Afghan Power",
+      "signAndEditExecutable": false
     }
   },
   "dependencies": {

@@ -28,7 +28,7 @@ function CustomerReceipt() {
       <div className="receipt-page">
         <div className="receipt-sheet">
           <h2>Receipt record was not found.</h2>
-          <button type="button" onClick={() => navigate(`/customers/${customerIndex}`)}>
+          <button type="button" onClick={() => navigate("/customers/consultants")}>
             Back
           </button>
         </div>
@@ -45,7 +45,7 @@ function CustomerReceipt() {
   return (
     <div className="receipt-page">
       <div className="receipt-toolbar">
-        <button type="button" onClick={() => navigate(`/customers/${customerIndex}`)}>
+        <button type="button" onClick={() => navigate("/customers/consultants")}>
           <ArrowRight size={16} /> Back
         </button>
         <button type="button" className="receipt-print-btn" onClick={() => window.print()}>

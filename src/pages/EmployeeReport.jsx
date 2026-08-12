@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
+import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import "./Reports.css";
 import "./EmployeeReport.css";
 
@@ -89,7 +89,7 @@ export default function EmployeeReport({
     useJsonCollection("customers");
 
   const [adjustments] =
-    useLocalCollection("employeeAdjustments");
+    useEmployeeAdjustments();
 
   const [search, setSearch] = useState("");
   const [department, setDepartment] =

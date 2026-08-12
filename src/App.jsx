@@ -5,37 +5,29 @@ import {
   useRef,
   useState,
 } from "react";
+import axios from "axios";
 import { MessageCircle } from "lucide-react";
 import {
   Routes,
   Route,
-  Link,
   NavLink,
+  Navigate,
   useLocation,
 } from "react-router-dom";
 
 import {
   Armchair,
-  Banknote,
   BookOpen,
-  CalendarCheck,
   Bot,
-  BriefcaseBusiness,
   Building2,
-  Clapperboard,
   CircleHelp,
   Code2,
-  Cpu,
-  ChevronDown,
   FileBarChart,
-  FileText,
   FolderKanban,
   HelpCircle,
   Info,
   LayoutDashboard,
-  Plane,
   Package,
-  ReceiptText,
   Settings as SettingsIcon,
   ShieldCheck,
   Trash2,
@@ -50,7 +42,7 @@ import ToastHost from "./components/ToastHost";
 import brandLogo from "./assets/logo.PNG";
 import { useJsonCollection } from "./hooks/useJsonCollection";
 import { canViewModule } from "./utils/permissions";
-import { notify } from "./utils/notify";
+import { notify, requestSystemNotificationPermission } from "./utils/notify";
 import ReportFinancial from "./pages/ReportFinancial";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -59,22 +51,19 @@ const MyAccount = lazy(() =>
 );
 const Suppliers = lazy(() => import("./pages/Suppliers"));
 const SupplierDetails = lazy(() => import("./pages/SupplierDetails"));
-const Customers = lazy(() => import("./pages/Customers"));
 const ConsultantCustomers = lazy(() => import("./pages/ConsultantCustomers"));
-const CustomerDetails = lazy(() => import("./pages/CustomerDetails"));
 const Accounts = lazy(() => import("./pages/Accounts"));
 const Finance = lazy(() => import("./pages/Finance"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Settings = lazy(() => import("./pages/Settings"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
 const Agent = lazy(() => import("./pages/Agent"));
-const Employees = lazy(() => import("./pages/Employees"));
+const EmployeesHub = lazy(() => import("./pages/EmployeesHub"));
 const EmployeeDetails = lazy(() => import("./pages/EmployeeDetails"));
 const EmployeePerformance = lazy(() =>
   import("./pages/EmployeePerformance")
 );
 const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard"));
-const EmployeeAttendance = lazy(() => import("./pages/EmployeeAttendance"));
 import ProjectReport from "./pages/ProjectReport";
 import EmployeeReport from "./pages/EmployeeReport";
 import SupplierReport from "./pages/SupplierReport";
@@ -82,9 +71,7 @@ import ReceptionReport from "./pages/ReceptionReport";
 const OfficeAssets = lazy(() => import("./pages/OfficeAssets"));
 const OfficeAssetDetails = lazy(() => import("./pages/OfficeAssetDetails"));
 
-const Projects = lazy(() => import("./pages/Projects"));
-const ProjectLicense = lazy(() => import("./pages/ProjectLicense"));
-const ProjectSales = lazy(() => import("./pages/ProjectSales"));
+const ProjectsHub = lazy(() => import("./pages/ProjectsHub"));
 const Login = lazy(() => import("./pages/Login"));
 const HelpCenter = lazy(() => import("./pages/HelpCenter"));
 const Developer = lazy(() => import("./pages/Developer"));
@@ -98,11 +85,9 @@ const FAQ = lazy(() =>
 );
 const Reception = lazy(() => import("./pages/Reception"));
 const CustomerFollowUp = lazy(() => import("./pages/CustomerFollowUp"));
-const VisaPackages = lazy(() => import("./pages/VisaPackages"));
-const TravelPackages = lazy(() => import("./pages/TravelPackages"));
-const TechnologyPackages = lazy(() => import("./pages/TechnologyPackages"));
-const MediaPackages = lazy(() => import("./pages/MediaPackages"));
+const Packages = lazy(() => import("./pages/Packages"));
 const RecycleBin = lazy(() => import("./pages/RecycleBin"));
+const Messages = lazy(() => import("./pages/Messages"));
 
 
 const UserGuide = lazy(() => import("./pages/UserGuide"));
@@ -177,10 +162,6 @@ function App() {
     ] = useJsonCollection("customers");
   
   const [sidebarInfoOpen, setSidebarInfoOpen] = useState(false);
-  const [customerMenuOpen, setCustomerMenuOpen] = useState(false);
-  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
-  const [employeeMenuOpen, setEmployeeMenuOpen] = useState(false);
-  const [packageMenuOpen, setPackageMenuOpen] = useState(false);
   const sidebarInfoRef = useRef(null);
 
   const [interfaceLanguage, setInterfaceLanguage] = useState(
@@ -207,10 +188,44 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    document.body.classList.toggle(
+      "lang-rtl",
+      interfaceLanguage === "dr" || interfaceLanguage === "ps"
+    );
+  }, [interfaceLanguage]);
+
+  useEffect(() => {
+    const enableNotifications = () => {
+      requestSystemNotificationPermission();
+    };
+
+    window.addEventListener("pointerdown", enableNotifications, {
+      once: true,
+    });
+    window.addEventListener("keydown", enableNotifications, {
+      once: true,
+    });
+
+    const removeOpenPathListener =
+      window.ispDesktop?.onOpenNotificationPath?.((path) => {
+        if (path) {
+          window.location.hash = `#${path}`;
+        }
+      });
+
+    return () => {
+      window.removeEventListener("pointerdown", enableNotifications);
+      window.removeEventListener("keydown", enableNotifications);
+      removeOpenPathListener?.();
+    };
+  }, []);
+
   const sidebarTranslations = {
     en: {
       dashboard: "Dashboard",
       myAccount: "My Account",
+      messages: "Message",
       customers: "Customers",
       consultantCustomers: "Consultant Customers",
       travelCustomers: "Travel Customers",
@@ -219,7 +234,7 @@ function App() {
       projects: "Projects",
       projectSales: "Project Sales",
       projectLicense: "Project License",
-      employees: "Employees",
+      employees: "Employees & Attendance",
       allEmployees: "All Employees",
       employeeAttendance: "Employee Attendance",
       packages: "Packages",
@@ -244,6 +259,7 @@ function App() {
     dr: {
       dashboard: "داشبورد",
       myAccount: "حساب من",
+      messages: "پیام",
       customers: "مشتریان",
       consultantCustomers: "مشتریان مشاوره",
       travelCustomers: "مشتریان سفر",
@@ -252,7 +268,7 @@ function App() {
       projects: "پروژه‌ها",
       projectSales: "فروش پروژه",
       projectLicense: "جواز پروژه",
-      employees: "کارمندان",
+      employees: "کارمندان و حاضری",
       allEmployees: "همه کارمندان",
       employeeAttendance: "حاضری کارمندان",
       packages: "پکیج‌ها",
@@ -277,6 +293,7 @@ function App() {
     ps: {
       dashboard: "ډشبورډ",
       myAccount: "زما حساب",
+      messages: "پیغام",
       customers: "پېرودونکي",
       consultantCustomers: "مشورتي پېرودونکي",
       travelCustomers: "د سفر پېرودونکي",
@@ -285,7 +302,7 @@ function App() {
       projects: "پروژې",
       projectSales: "د پروژې پلور",
       projectLicense: "د پروژې جواز",
-      employees: "کارکوونکي",
+      employees: "کارکوونکي او حاضري",
       allEmployees: "ټول کارکوونکي",
       employeeAttendance: "د کارکوونکو حاضري",
       packages: "بستې",
@@ -347,6 +364,51 @@ function App() {
       ? [linkedEmployee.role]
       : [];
 
+  const linkedEmployeeDepartments = Array.isArray(
+    linkedEmployee?.departments
+  )
+    ? linkedEmployee.departments
+    : linkedEmployee?.department
+      ? [linkedEmployee.department]
+      : [];
+
+  const signedInAccountRoles = Array.isArray(
+    signedInAccount?.roles
+  )
+    ? signedInAccount.roles
+    : signedInAccount?.primaryRole
+      ? [signedInAccount.primaryRole]
+      : signedInAccount?.role
+        ? [signedInAccount.role]
+        : [];
+
+  const signedInAccountHasOnlyGenericEmployeeRole =
+    signedInAccountRoles.length === 1 &&
+    String(signedInAccountRoles[0] || "")
+      .trim()
+      .toLowerCase() === "employee";
+
+  const effectiveUserRoles =
+    signedInAccountRoles.length &&
+    !signedInAccountHasOnlyGenericEmployeeRole
+      ? signedInAccountRoles
+      : linkedEmployeeRoles.length
+        ? linkedEmployeeRoles
+        : signedInAccountRoles;
+
+  const signedInAccountDepartments = Array.isArray(
+    signedInAccount?.departments
+  )
+    ? signedInAccount.departments
+    : signedInAccount?.department
+      ? [signedInAccount.department]
+      : [];
+
+  const effectiveUserDepartments =
+    linkedEmployeeDepartments.length
+      ? linkedEmployeeDepartments
+      : signedInAccountDepartments;
+
   const employeeHasAdminRole =
     linkedEmployeeRoles.some((role) => {
       const normalizedRole = String(role || "")
@@ -388,6 +450,15 @@ function App() {
   const currentUser = signedInAccount
     ? {
       ...signedInAccount,
+      roles: effectiveUserRoles,
+      primaryRole:
+        effectiveUserRoles[0] ||
+        signedInAccount.primaryRole ||
+        signedInAccount.role,
+      departments: effectiveUserDepartments,
+      department:
+        effectiveUserDepartments[0] ||
+        signedInAccount.department,
 
       ...(isAdminAccount
         ? {
@@ -404,6 +475,37 @@ function App() {
         : {}),
     }
     : null;
+
+  useEffect(() => {
+    if (sessionId) {
+      axios.defaults.headers.common["x-isp-session-id"] = String(sessionId);
+      return;
+    }
+
+    delete axios.defaults.headers.common["x-isp-session-id"];
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      localStorage.removeItem("isp-current-user");
+      return;
+    }
+
+    localStorage.setItem(
+      "isp-current-user",
+      JSON.stringify({
+        id: currentUser.id || "",
+        employeeId: currentUser.employeeId || "",
+        fullName: currentUser.fullName || "",
+        username: currentUser.username || "",
+        email: currentUser.email || "",
+        role: currentUser.role || "",
+        primaryRole: currentUser.primaryRole || "",
+        accountType: currentUser.accountType || "",
+        roles: Array.isArray(currentUser.roles) ? currentUser.roles : [],
+      })
+    );
+  }, [currentUser]);
 
 
     const currentAccountIds = [
@@ -483,10 +585,23 @@ const myAssignedCustomers = customers
         .toLowerCase() === "reception"
   );
 
+  const isCallCenterAccount = currentUserRoles.some(
+    (role) => {
+      const normalizedRole = String(role || "")
+        .trim()
+        .toLowerCase();
+
+      return (
+        normalizedRole === "call center" ||
+        normalizedRole === "callcenter"
+      );
+    }
+  );
+
   const isEmployeeAccount =
     currentUser?.accountType === "employee" &&
     !isAdminAccount &&
-    !isReceptionAccount;
+    (!isReceptionAccount || isCallCenterAccount);
 
   /*
    * Refresh the customer collection while the app is open.
@@ -656,7 +771,14 @@ const myAssignedCustomers = customers
 
       notify(
         `${customerName} (${customerType}) has been assigned to you.`,
-        "info"
+        "info",
+        {
+          system: true,
+          title: "New Customer Request",
+          path: `/my-account#customer:${encodeURIComponent(
+            String(customer.id || customer.customerId || "")
+          )}`,
+        }
       );
     });
 
@@ -720,10 +842,12 @@ const myAssignedCustomers = customers
     const receptionAllowedPaths = [
       "/reception",
       "/my-account",
+      "/messages",
     ];
 
     if (
       isReceptionAccount &&
+      !isCallCenterAccount &&
       !receptionAllowedPaths.includes(
         location.pathname
       ) &&
@@ -736,6 +860,8 @@ const myAssignedCustomers = customers
     const employeeAllowedPaths = [
       "/",
       "/my-account",
+      "/messages",
+      ...(isReceptionAccount ? ["/reception"] : []),
     ];
 
     if (
@@ -749,6 +875,7 @@ const myAssignedCustomers = customers
     }
   }, [
     isReceptionAccount,
+    isCallCenterAccount,
     isEmployeeAccount,
     location.pathname,
   ]);
@@ -821,47 +948,6 @@ const myAssignedCustomers = customers
     { to: "/settings", label: sidebarText.settings, moduleKey: "settings", icon: SettingsIcon },
     { to: "/agent", label: sidebarText.aiAgent, moduleKey: "agent", icon: Bot },
     { to: "/recycle-bin", label: sidebarText.recycleBin, moduleKey: "dashboard", icon: Trash2 },
-  ];
-
-  const customerMenuItems = [
-    { to: "/customers/consultants", label: sidebarText.consultantCustomers, icon: BriefcaseBusiness },
-    { to: "/customers/travel", label: sidebarText.travelCustomers, icon: Plane },
-    { to: "/customers/technology", label: sidebarText.technologyCustomers, icon: Cpu },
-    { to: "/customers/media", label: sidebarText.mediaCustomers, icon: Clapperboard },
-  ];
-
-  const projectMenuItems = [
-    { to: "/projects", label: sidebarText.projects, icon: FolderKanban },
-    { to: "/project-sales", label: sidebarText.projectSales, icon: ReceiptText },
-    { to: "/project-license", label: sidebarText.projectLicense, icon: FileText },
-  ];
-
-  const employeeMenuItems = [
-    { to: "/employees", label: sidebarText.allEmployees, icon: Users },
-    { to: "/employees/attendance", label: sidebarText.employeeAttendance, icon: CalendarCheck },
-  ];
-
-  const packageMenuItems = [
-    {
-      to: "/packages/visa",
-      label: sidebarText.visaPackage,
-      icon: FileText,
-    },
-    {
-      to: "/packages/travel",
-      label: sidebarText.travelPackage,
-      icon: Plane,
-    },
-    {
-      to: "/packages/technology",
-      label: sidebarText.technologyPackage,
-      icon: Cpu,
-    },
-    {
-      to: "/packages/media",
-      label: sidebarText.mediaPackage,
-      icon: Clapperboard,
-    },
   ];
 
   const sidebarInfoLinks = [
@@ -946,173 +1032,55 @@ const myAssignedCustomers = customers
 
 </>
 )}
-          {!isReceptionAccount && (
+          <NavLink to="/messages">
+            <MessageCircle size={17} />
+            <span>{sidebarText.messages}</span>
+          </NavLink>
+
+          {(!isReceptionAccount || isCallCenterAccount) && (
               <NavLink to="/">
                 <LayoutDashboard size={17} />
                 <span>{sidebarText.dashboard}</span>
               </NavLink>
             )}
 
+            {!isAdminAccount &&
+              isReceptionAccount &&
+              canViewModule(currentUser, "customers") && (
+                <NavLink to="/reception">
+                  <UserRoundCog size={17} />
+                  <span>{sidebarText.reception}</span>
+                </NavLink>
+              )}
+
             {!isEmployeeAccount &&
               !isReceptionAccount &&
               canViewModule(currentUser, "customers") && (
-                <div className={`sidebar-customer-menu ${customerMenuOpen ? "open" : ""}`}>
-                  <button
-                    type="button"
-                    className="sidebar-customer-trigger"
-                    onClick={() => setCustomerMenuOpen((open) => !open)}
-                    aria-expanded={customerMenuOpen}
-                  >
-                    <span className="sidebar-menu-label">
-                      <Users size={17} />
-                      <span>{sidebarText.customers}</span>
-                    </span>
-                    <ChevronDown className="sidebar-menu-chevron" size={15} />
-                  </button>
-
-                  {customerMenuOpen && (
-                    <div className="sidebar-customer-submenu">
-                      {customerMenuItems.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <Link
-                            key={item.to}
-                            to={item.to}
-                            className={`${location.pathname}${location.search}` === item.to ? "active" : ""}
-                          >
-                            <Icon size={14} />
-                            <span>{item.label}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                <NavLink to="/customers">
+                  <Users size={17} />
+                  <span>{sidebarText.customers}</span>
+                </NavLink>
               )}
 
             {!isEmployeeAccount && canViewModule(currentUser, "dashboard") && (
-              <div className={`sidebar-customer-menu ${projectMenuOpen ? "open" : ""}`}>
-                <button
-                  type="button"
-                  className="sidebar-customer-trigger"
-                  onClick={() => setProjectMenuOpen((open) => !open)}
-                  aria-expanded={projectMenuOpen}
-                >
-                  <span className="sidebar-menu-label">
-                    <FolderKanban size={17} />
-                    <span>{sidebarText.projects}</span>
-                  </span>
-                  <ChevronDown className="sidebar-menu-chevron" size={15} />
-                </button>
-
-                {projectMenuOpen && (
-                  <div className="sidebar-customer-submenu">
-                    {projectMenuItems.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.to}
-                          to={item.to}
-                          className={location.pathname === item.to ? "active" : ""}
-                        >
-                          <Icon size={14} />
-                          <span>{item.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <NavLink to="/projects">
+                <FolderKanban size={17} />
+                <span>{sidebarText.projects}</span>
+              </NavLink>
             )}
 
             {!isEmployeeAccount && canViewModule(currentUser, "dashboard") && (
-              <div className={`sidebar-customer-menu ${employeeMenuOpen ? "open" : ""}`}>
-                <button
-                  type="button"
-                  className="sidebar-customer-trigger"
-                  onClick={() => setEmployeeMenuOpen((open) => !open)}
-                  aria-expanded={employeeMenuOpen}
-                >
-                  <span className="sidebar-menu-label">
-                    <UserRoundCog size={17} />
-                    <span>{sidebarText.employees}</span>
-                  </span>
-
-                  <ChevronDown
-                    className="sidebar-menu-chevron"
-                    size={15}
-                  />
-                </button>
-
-                {employeeMenuOpen && (
-                  <div className="sidebar-customer-submenu">
-                    {employeeMenuItems.map((item) => {
-                      const Icon = item.icon;
-
-                      return (
-                        <Link
-                          key={item.to}
-                          to={item.to}
-                          className={
-                            location.pathname === item.to
-                              ? "active"
-                              : ""
-                          }
-                          onClick={() => setEmployeeMenuOpen(false)}
-                        >
-                          <Icon size={14} />
-                          <span>{item.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <NavLink to="/employees">
+                <UserRoundCog size={17} />
+                <span>{sidebarText.employees}</span>
+              </NavLink>
             )}
 
             {!isEmployeeAccount && canViewModule(currentUser, "dashboard") && (
-              <div className={`sidebar-customer-menu ${packageMenuOpen ? "open" : ""}`}>
-                <button
-                  type="button"
-                  className="sidebar-customer-trigger"
-                  onClick={() => setPackageMenuOpen((open) => !open)}
-                  aria-expanded={packageMenuOpen}
-                >
-                  <span className="sidebar-menu-label">
-                    <Package size={17} />
-                    <span>{sidebarText.packages}</span>
-                  </span>
-
-                  <ChevronDown
-                    className="sidebar-menu-chevron"
-                    size={15}
-                  />
-                </button>
-
-                {packageMenuOpen && (
-                  <div className="sidebar-customer-submenu">
-                    {packageMenuItems.map((item) => {
-                      const Icon = item.icon;
-
-                      return (
-                        <Link
-                          key={item.to}
-                          to={item.to}
-                          className={
-                            location.pathname === item.to
-                              ? "active"
-                              : ""
-                          }
-                          onClick={() => setPackageMenuOpen(false)}
-                        >
-                          <Icon size={14} />
-                          <span>{item.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <NavLink to="/packages">
+                <Package size={17} />
+                <span>{sidebarText.packages}</span>
+              </NavLink>
             )}
 
             {!isEmployeeAccount && menuItems
@@ -1183,7 +1151,7 @@ const myAssignedCustomers = customers
                 <Route path="/" element={isEmployeeAccount ? <EmployeeDashboard currentUser={currentUser} /> : protect("dashboard", <Dashboard />)} />
                 <Route
                   path="/projects"
-                  element={protect("dashboard", <Projects />)}
+                  element={protect("dashboard", <ProjectsHub />)}
                 />
 
                 <Route
@@ -1217,10 +1185,10 @@ const myAssignedCustomers = customers
                     <Reception currentUser={currentUser} />
                   )}
                 />
-                <Route path="/employees" element={<Employees />} />
+                <Route path="/employees" element={<EmployeesHub />} />
                 <Route
                   path="/employees/attendance"
-                  element={<EmployeeAttendance />}
+                  element={<EmployeesHub initialSection="attendance" />}
                 />
                 <Route
                   path="/employees/salaries"
@@ -1259,6 +1227,15 @@ const myAssignedCustomers = customers
                   }
                 />
 
+                <Route
+                  path="/messages"
+                  element={
+                    <Messages
+                      currentUser={currentUser}
+                    />
+                  }
+                />
+
 
                 <Route
                   path="/customer-follow-up/:id"
@@ -1276,54 +1253,61 @@ const myAssignedCustomers = customers
 
                 <Route
                   path="/project-license"
-                  element={protect("dashboard", <ProjectLicense />)}
+                  element={protect("dashboard", <ProjectsHub initialSection="license" />)}
                 />
                 <Route
                   path="/project-sales"
-                  element={protect("dashboard", <ProjectSales />)}
+                  element={protect("dashboard", <ProjectsHub initialSection="sales" />)}
                 />
                 <Route
                   path="/recycle-bin"
                   element={protect("dashboard", <RecycleBin />)}
                 />
                 <Route
+                  path="/packages"
+                  element={protect(
+                    "dashboard",
+                    <Packages />
+                  )}
+                />
+                <Route
                   path="/packages/visa"
                   element={protect(
                     "dashboard",
-                    <VisaPackages />
+                    <Packages initialSection="visa" />
                   )}
                 />
                 <Route
                   path="/packages/travel"
                   element={protect(
                     "dashboard",
-                    <TravelPackages />
+                    <Packages initialSection="travel" />
                   )}
                 />
                 <Route
                   path="/packages/technology"
                   element={protect(
                     "dashboard",
-                    <TechnologyPackages />
+                    <Packages initialSection="technology" />
                   )}
                 />
                 <Route
                   path="/packages/media"
                   element={protect(
                     "dashboard",
-                    <MediaPackages />
+                    <Packages initialSection="media" />
                   )}
                 />
 
                 <Route path="/suppliers" element={protect("suppliers", <Suppliers currentUser={currentUser} />)} />
                 <Route path="/suppliers/:id" element={protect("suppliers", <SupplierDetails />)} />
 
-                <Route path="/customers" element={protect("customers", <Customers currentUser={currentUser} />)} />
+                <Route path="/customers" element={protect("customers", <ConsultantCustomers currentUser={currentUser} />)} />
                 <Route path="/customers/consultants" element={protect("customers", <ConsultantCustomers currentUser={currentUser} />)} />
                 <Route path="/customers/travel" element={protect("customers", <ConsultantCustomers mode="travel" currentUser={currentUser} />)} />
                 <Route path="/customers/technology" element={protect("customers", <ConsultantCustomers mode="technology" currentUser={currentUser} />)} />
                 <Route path="/customers/media" element={protect("customers", <ConsultantCustomers mode="media" currentUser={currentUser} />)} />
-                <Route path="/customers/:id" element={protect("customers", <CustomerDetails />)} />
+                <Route path="/customers/:id" element={<Navigate to="/customers/consultants" replace />} />
                 <Route path="/finance" element={protect("finance", <Finance />)} />
                 <Route path="/reports" element={protect("reports", <Reports />)} />
                 <Route path="/agent" element={protect("agent", <Agent />)} />

@@ -23,7 +23,7 @@ import {
   } from "react-router-dom";
   
   import { useJsonCollection } from "../hooks/useJsonCollection";
-  import { useLocalCollection } from "../hooks/useLocalCollection";
+  import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
   import { notify } from "../utils/notify";
   import "./CustomerFollowUp.css";
   
@@ -663,7 +663,7 @@ import {
     const [
       employeeAdjustments,
       setEmployeeAdjustments,
-    ] = useLocalCollection("employeeAdjustments");
+    ] = useEmployeeAdjustments();
   
     const customer = useMemo(
       () =>
@@ -1311,41 +1311,71 @@ import {
       const now =
         new Date().toISOString();
 
-      return setEmployeeAdjustments([
+      const commissionRecord = {
+        id:
+          previous?.id ||
+          `follow-up-commission-${customer.id}`,
+        employeeId:
+          employee.id ||
+          employee.employeeId,
+        employeeName:
+          employee.fullName ||
+          employee.employeeName ||
+          employee.name ||
+          customer.sourceEmployeeName ||
+          "Call Center",
+        employeeEmail: employee.email || "",
+        employeeUsername: employee.username || "",
+        type: "credit",
+        amount: commission,
+        currencyUnit:
+          form.currencyUnit || "AFN",
+        currency:
+          form.currencyUnit || "AFN",
+        salaryPercentage: percentage,
+        source:
+          "follow-up-approval-commission",
+        referenceId: customer.id,
+        customerId: customer.id,
+        customerName:
+          getCustomerName(customer),
+        reason:
+          `${percentage}% commission for Source employee ${customer.sourceEmployeeName || customer.source || ""} from approved application total amount`,
+        createdAt:
+          previous?.createdAt || now,
+        updatedAt: now,
+        ...(!previous
+          ? {
+              employeeNotificationType:
+                "ledger-credit",
+              employeeNotificationAt: now,
+            }
+          : {}),
+      };
+
+      const saved = await setEmployeeAdjustments([
         ...withoutCurrent,
-        {
-          id:
-            previous?.id ||
-            `follow-up-commission-${customer.id}`,
-          employeeId:
-            employee.id ||
-            employee.employeeId,
-          employeeName:
-            employee.fullName ||
-            employee.employeeName ||
-            employee.name ||
-            customer.sourceEmployeeName ||
-            "Call Center",
-          type: "credit",
-          amount: commission,
-          currencyUnit:
-            form.currencyUnit || "AFN",
-          currency:
-            form.currencyUnit || "AFN",
-          salaryPercentage: percentage,
-          source:
-            "follow-up-approval-commission",
-          referenceId: customer.id,
-          customerId: customer.id,
-          customerName:
-            getCustomerName(customer),
-          reason:
-            `${percentage}% commission for Source employee ${customer.sourceEmployeeName || customer.source || ""} from approved application total amount`,
-          createdAt:
-            previous?.createdAt || now,
-          updatedAt: now,
-        },
+        commissionRecord,
       ]);
+
+      if (saved) {
+        window.dispatchEvent(
+          new CustomEvent(
+            "isp-employee-ledger-updated",
+            {
+              detail: {
+                entryId: commissionRecord.id,
+                employeeId:
+                  commissionRecord.employeeId,
+                updatedAt:
+                  commissionRecord.updatedAt,
+              },
+            }
+          )
+        );
+      }
+
+      return saved;
     }
 
     async function saveFollowUp(event) {

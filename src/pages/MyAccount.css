@@ -83,6 +83,612 @@
   background: #ffffff;
 }
 
+.my-account-ledger-panel {
+  margin-bottom: 16px;
+  padding: 17px 18px;
+  border: 1px solid #eeeae2;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.my-account-ledger-panel.in-tab {
+  margin: 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+.my-account-ledger-title {
+  margin-bottom: 14px;
+}
+
+.my-account-ledger-title span {
+  color: #6366f1;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.my-account-ledger-title h2 {
+  margin: 5px 0 0;
+  font-size: 18px;
+}
+
+.my-account-ledger-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.my-account-ledger-cards article {
+  position: relative;
+  min-width: 0;
+  min-height: 104px;
+  padding: 14px;
+  border: 1px solid #edf0f4;
+  border-radius: 14px;
+  display: grid;
+  align-content: space-between;
+  gap: 10px;
+  background: #fbfcff;
+}
+
+.my-account-ledger-cards article > div {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+}
+
+.my-account-ledger-cards article span,
+.my-account-ledger-cards article strong {
+  display: block;
+}
+
+.my-account-ledger-cards article span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.my-account-ledger-cards article strong {
+  color: #172033;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.my-account-ledger-cards .bonus > div {
+  background: #ecfdf5;
+  color: #15803d;
+}
+
+.my-account-ledger-cards .penalty > div {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.my-account-ledger-cards .payment > div {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.my-account-ledger-cards .remaining > div {
+  background: #f8fafc;
+  color: #475569;
+}
+
+.my-account-ledger-type {
+  min-height: 25px;
+  padding: 0 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 8px;
+  font-weight: 850;
+  text-transform: capitalize;
+}
+
+.my-account-ledger-type.bonus,
+.my-account-ledger-type.credit,
+.my-account-ledger-type.salary {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.my-account-ledger-type.penalty,
+.my-account-ledger-type.debit {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.my-account-ledger-credit {
+  color: #15803d !important;
+  font-weight: 850;
+}
+
+.my-account-ledger-debit {
+  color: #dc2626 !important;
+  font-weight: 850;
+}
+
+.my-account-ledger-table td:nth-child(3),
+.my-account-ledger-table td:nth-child(4) {
+  white-space: nowrap;
+}
+
+.my-account-tabs {
+  margin-bottom: 16px;
+  padding: 5px;
+  border: 1px solid #eeeae2;
+  border-radius: 14px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  background: #ffffff;
+}
+
+.my-account-tabs button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.my-account-tabs button strong {
+  min-width: 23px;
+  height: 23px;
+  padding: 0 7px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 10px;
+}
+
+.my-account-tabs button.active {
+  background: #252525;
+  color: #ffffff;
+}
+
+.my-account-tabs button.active strong {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.my-account-tab-hidden {
+  display: none !important;
+}
+
+.my-account-report-panel {
+  display: none;
+  margin-bottom: 16px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);
+  gap: 14px;
+}
+
+.my-account-report-form-card,
+.my-account-report-history {
+  min-width: 0;
+  border: 1px solid #eeeae2;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.my-account-report-form-card {
+  padding: 17px 18px;
+}
+
+.my-account-report-form-card > header,
+.my-account-report-history > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.my-account-report-form-card > header span,
+.my-account-report-history > header span {
+  color: #6366f1;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.my-account-report-form-card h2 {
+  margin: 5px 0;
+  font-size: 18px;
+}
+
+.my-account-report-form-card p {
+  margin: 0;
+  color: #8492a6;
+  font-size: 11px;
+}
+
+.my-account-report-clock {
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #f8fafc;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.my-account-report-clock span {
+  color: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.my-account-report-form-card form {
+  margin-top: 14px;
+}
+
+.my-account-report-form-card label {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.my-account-report-form-card label > svg {
+  width: 34px;
+  height: 34px;
+  padding: 9px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.my-account-report-form-card textarea {
+  width: 100%;
+  min-height: 128px;
+  padding: 12px 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  resize: vertical;
+  color: #172033;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.7;
+  outline: none;
+}
+
+.my-account-report-form-card textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.my-account-report-form-card footer {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.my-account-report-form-card button,
+.my-account-report-list button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #f1f5f9;
+  color: #172033;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.my-account-report-form-card button {
+  padding: 0 13px;
+}
+
+.my-account-report-form-card .primary {
+  background: #252525;
+  color: #ffffff;
+}
+
+.my-account-report-form-card button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.my-account-report-history {
+  overflow: hidden;
+}
+
+.my-account-report-history > header {
+  padding: 15px 16px;
+  border-bottom: 1px solid #eeeae2;
+  align-items: center;
+}
+
+.my-account-report-history > header strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 19px;
+}
+
+.my-account-report-history > header small {
+  color: #94a3b8;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.my-account-report-list {
+  max-height: 255px;
+  overflow-y: auto;
+}
+
+.my-account-report-list article {
+  position: relative;
+  padding: 14px 92px 14px 16px;
+  border-bottom: 1px solid #eeeae2;
+  display: grid;
+  gap: 7px;
+}
+
+.my-account-report-list article:last-child {
+  border-bottom: 0;
+}
+
+.my-account-report-list article > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.my-account-report-list article span {
+  color: #172033;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.my-account-report-list article small {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.my-account-report-list article p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.7;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.my-account-report-list button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  color: #4f46e5;
+  background: #eef2ff;
+}
+
+.my-account-report-list button.delete-report {
+  right: 52px;
+  color: #dc2626;
+  background: #fff1f2;
+}
+
+.my-account-report-list button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.my-account-report-empty {
+  padding: 34px 16px;
+  color: #94a3b8;
+  font-size: 11px;
+  text-align: center;
+}
+
+.my-account-report-records > header {
+  align-items: center;
+}
+
+.my-account-report-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.my-account-report-header-actions small {
+  color: #94a3b8;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.my-account-report-header-actions button {
+  min-height: 39px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #252525;
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.my-account-report-list.full {
+  max-height: none;
+}
+
+.my-account-report-list.full article {
+  min-height: 94px;
+  padding-block: 16px;
+}
+
+.my-account-report-list.full article p {
+  -webkit-line-clamp: 5;
+}
+
+.my-account-report-modal {
+  width: min(620px, 100%);
+  padding: 20px;
+  border: 1px solid #eeeae2;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #172033;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.32);
+}
+
+.my-account-report-modal > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.my-account-report-modal > header span {
+  display: block;
+  margin-bottom: 5px;
+  color: #6366f1;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.my-account-report-modal h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.my-account-report-modal p {
+  margin: 6px 0 0;
+  color: #8492a6;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.my-account-report-modal > header > button {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #f1f5f9;
+  color: #172033;
+  cursor: pointer;
+}
+
+.my-account-report-modal-time {
+  margin: 14px 0;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.my-account-report-modal label {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.my-account-report-modal textarea {
+  width: 100%;
+  min-height: 170px;
+  padding: 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  resize: vertical;
+  color: #172033;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.8;
+  outline: none;
+}
+
+.my-account-report-modal textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.my-account-report-modal footer {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.my-account-report-modal footer button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: #f1f5f9;
+  color: #172033;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.my-account-report-modal footer .primary {
+  background: #252525;
+  color: #ffffff;
+}
+
+.my-account-report-modal button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .my-account-records > header {
   padding: 17px 18px;
   border-bottom: 1px solid #eeeae2;
@@ -518,13 +1124,25 @@ body.dark-mode .my-account-page {
 }
 
 body.dark-mode .my-account-records,
+body.dark-mode .my-account-ledger-panel,
+body.dark-mode .my-account-tabs,
+body.dark-mode .my-account-report-form-card,
+body.dark-mode .my-account-report-history,
+body.dark-mode .my-account-report-modal,
 body.dark-mode .my-account-detail-modal,
 body.dark-mode .my-account-detail-grid > div {
   border-color: #334155;
   background: #1e293b;
 }
 
+body.dark-mode .my-account-ledger-cards article {
+  border-color: #334155;
+  background: #111827;
+}
+
 body.dark-mode .my-account-table-wrap th,
+body.dark-mode .my-account-report-clock,
+body.dark-mode .my-account-report-modal-time,
 body.dark-mode .my-account-modal-summary,
 body.dark-mode .my-account-message-history {
   border-color: #334155;
@@ -533,6 +1151,8 @@ body.dark-mode .my-account-message-history {
 
 body.dark-mode .my-account-table-wrap th,
 body.dark-mode .my-account-table-wrap td,
+body.dark-mode .my-account-report-history > header,
+body.dark-mode .my-account-report-list article,
 body.dark-mode .my-account-records > header,
 body.dark-mode .my-account-detail-modal > header {
   border-color: #334155;
@@ -540,10 +1160,75 @@ body.dark-mode .my-account-detail-modal > header {
 
 body.dark-mode .my-account-user strong,
 body.dark-mode .my-account-customer strong,
+body.dark-mode .my-account-ledger-title h2,
+body.dark-mode .my-account-ledger-cards article strong,
+body.dark-mode .my-account-tabs button.active,
+body.dark-mode .my-account-report-form-card h2,
+body.dark-mode .my-account-report-history > header strong,
+body.dark-mode .my-account-report-list article span,
+body.dark-mode .my-account-report-modal h2,
+body.dark-mode .my-account-report-modal label,
 body.dark-mode .my-account-detail-modal h2,
 body.dark-mode .my-account-detail-grid strong,
 body.dark-mode .my-account-coming-actions strong {
   color: #f8fafc;
+}
+
+body.dark-mode .my-account-tabs button {
+  color: #cbd5e1;
+}
+
+body.dark-mode .my-account-tabs button strong {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+body.dark-mode .my-account-tabs button.active {
+  background: #7c3aed;
+}
+
+body.dark-mode .my-account-ledger-cards .bonus > div {
+  background: #064e3b;
+  color: #bbf7d0;
+}
+
+body.dark-mode .my-account-ledger-cards .penalty > div {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
+body.dark-mode .my-account-ledger-cards .payment > div {
+  background: #1e3a8a;
+  color: #bfdbfe;
+}
+
+body.dark-mode .my-account-ledger-cards .remaining > div {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+body.dark-mode .my-account-ledger-type {
+  background: #312e81;
+  color: #e0e7ff;
+}
+
+body.dark-mode .my-account-ledger-type.bonus,
+body.dark-mode .my-account-ledger-type.credit,
+body.dark-mode .my-account-ledger-type.salary {
+  background: #064e3b;
+  color: #bbf7d0;
+}
+
+body.dark-mode .my-account-ledger-type.penalty,
+body.dark-mode .my-account-ledger-type.debit {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
+body.dark-mode .my-account-report-header-actions button,
+body.dark-mode .my-account-report-modal footer .primary {
+  background: #7c3aed;
+  color: #ffffff;
 }
 
 body.dark-mode .my-account-record-row:hover {
@@ -554,6 +1239,38 @@ body.dark-mode .my-account-message-form textarea {
   border-color: #334155;
   background: #0f172a;
   color: #f8fafc;
+}
+
+body.dark-mode .my-account-report-form-card textarea {
+  border-color: #334155;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+body.dark-mode .my-account-report-modal textarea {
+  border-color: #334155;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+body.dark-mode .my-account-report-modal > header > button,
+body.dark-mode .my-account-report-modal footer button {
+  background: #334155;
+  color: #f8fafc;
+}
+
+body.dark-mode .my-account-report-form-card button {
+  background: #334155;
+  color: #f8fafc;
+}
+
+body.dark-mode .my-account-report-form-card .primary {
+  background: #7c3aed;
+}
+
+body.dark-mode .my-account-report-list button {
+  background: #312e81;
+  color: #e0e7ff;
 }
 
 /* Responsive */
@@ -568,12 +1285,34 @@ body.dark-mode .my-account-message-form textarea {
     flex-direction: column;
   }
 
+  .my-account-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .my-account-ledger-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .my-account-tabs button {
+    justify-content: flex-start;
+  }
+
+  .my-account-tabs button strong {
+    margin-left: auto;
+  }
+
   .my-account-detail-grid {
     grid-template-columns: 1fr;
   }
 
   .my-account-detail-grid > div.wide {
     grid-column: auto;
+  }
+
+  .my-account-report-panel {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -584,9 +1323,39 @@ body.dark-mode .my-account-message-form textarea {
   }
 
   .my-account-modal-actions,
-  .my-account-message-form > div {
+  .my-account-message-form > div,
+  .my-account-report-header-actions,
+  .my-account-report-modal > header,
+  .my-account-report-modal footer,
+  .my-account-report-form-card footer,
+  .my-account-report-form-card > header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .my-account-report-header-actions button,
+  .my-account-report-modal footer button {
+    width: 100%;
+  }
+
+  .my-account-ledger-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .my-account-report-clock {
+    justify-content: center;
+  }
+
+  .my-account-report-form-card label {
+    grid-template-columns: 1fr;
+  }
+
+  .my-account-report-form-card label > svg {
+    display: none;
+  }
+
+  .my-account-report-form-card button {
+    width: 100%;
   }
 }
 
@@ -1004,5 +1773,21 @@ body.dark-mode .my-account-edit-assignment:hover {
 @media (max-width: 520px) {
   .my-account-edit-assignment {
     width: 100%;
+  }
+}
+.my-account-target-highlight {
+  animation: my-account-target-pulse 1.6s ease-out 1;
+  outline: 2px solid rgba(79, 70, 229, 0.46);
+  outline-offset: -2px;
+  background: #eef2ff !important;
+}
+
+@keyframes my-account-target-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.34);
+  }
+
+  100% {
+    box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
   }
 }

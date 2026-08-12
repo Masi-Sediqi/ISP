@@ -1,473 +1,316 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Clapperboard,
+  Cpu,
+  Edit3,
+  FileText,
+  Package,
+  Plane,
+  Plus,
+  Trash2,
+} from "lucide-react";
+
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import VisaPackages from "./VisaPackages";
+import TechnologyPackages from "./TechnologyPackages";
+import MediaPackages from "./MediaPackages";
 import "./Packages.css";
 
-const emptyForm = {
-  packageCode: "",
+const emptyTravelForm = {
   packageName: "",
-  speed: "",
-  monthlyPrice: "",
-  durationDays: "30",
-  dataLimit: "",
-  serviceType: "Home",
-  status: "Active",
-  description: "",
+  destination: "",
+  durationDays: "",
+  price: "",
+  currency: "AFN",
+  availability: "Available",
+  endDate: "",
+  note: "",
 };
 
-function InfoIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" stroke="currentColor" strokeWidth="2" />
-      <path d="M12 16v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M12 8h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
-}
+const packageSections = [
+  {
+    key: "visa",
+    title: "Visa Packages",
+    titleDr: "پکیج ویزه",
+    titlePs: "د ویزې بسته",
+    description: "Visa service packages",
+    descriptionDr: "پکیج‌های خدمات ویزه",
+    descriptionPs: "د ویزې خدمتونو بستې",
+    icon: FileText,
+    collection: "visaPackages",
+  },
+  {
+    key: "travel",
+    title: "Travel Packages",
+    titleDr: "پکیج سفر",
+    titlePs: "د سفر بسته",
+    description: "Travel service packages",
+    descriptionDr: "پکیج‌های خدمات سفر",
+    descriptionPs: "د سفر خدمتونو بستې",
+    icon: Plane,
+    collection: "travelPackages",
+  },
+  {
+    key: "technology",
+    title: "Technology Packages",
+    titleDr: "پکیج تکنالوژی",
+    titlePs: "د ټکنالوژۍ بسته",
+    description: "Technology service packages",
+    descriptionDr: "پکیج‌های خدمات تکنالوژی",
+    descriptionPs: "د ټکنالوژۍ خدمتونو بستې",
+    icon: Cpu,
+    collection: "technologyPackages",
+  },
+  {
+    key: "media",
+    title: "Media Packages",
+    titleDr: "پکیج رسانه",
+    titlePs: "د رسنیو بسته",
+    description: "Media production packages",
+    descriptionDr: "پکیج‌های تولیدات رسانه‌ای",
+    descriptionPs: "د رسنیزو تولیداتو بستې",
+    icon: Clapperboard,
+    collection: "mediaPackages",
+  },
+];
 
-function EditIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path d="M12 20h9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+const money = (value, currency = "AFN") =>
+  `${Number(value || 0).toLocaleString("en-US")} ${currency || "AFN"}`;
 
-function TrashIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M8 6V4h8v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M6 6l1 15h10l1-15" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-const money = (value) => Number(value || 0).toLocaleString("en-US");
-
-function Packages() {
-  const navigate = useNavigate();
-  const [packages, setPackages] = useJsonCollection("packages");
-
-  const [formData, setFormData] = useState(emptyForm);
-  const [showModal, setShowModal] = useState(false);
-  const [editIndex, setEditIndex] = useState(null);
+function TravelPackagesPanel() {
+  const [travelPackages, setTravelPackages] = useJsonCollection("travelPackages");
+  const [form, setForm] = useState(emptyTravelForm);
+  const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState("");
-  const [detailRecord, setDetailRecord] = useState(null);
-  const [deleteIndex, setDeleteIndex] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  const [openAction, setOpenAction] = useState(null);
-  const [actionPosition, setActionPosition] = useState({ top: 0, left: 0 });
+  const filteredPackages = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return travelPackages;
 
-  const activePackages = packages.filter((item) => item.status === "Active").length;
-  const inactivePackages = packages.filter((item) => item.status === "Inactive").length;
-  const averagePrice =
-    packages.length > 0
-      ? packages.reduce((sum, item) => sum + Number(item.monthlyPrice || 0), 0) / packages.length
-      : 0;
-
-  const filteredPackages = packages
-    .map((item, originalIndex) => ({ ...item, originalIndex }))
-    .filter((item) => {
-      const keyword = search.toLowerCase();
-
-      return (
-        (item.packageCode || "").toLowerCase().includes(keyword) ||
-        (item.packageName || "").toLowerCase().includes(keyword) ||
-        (item.speed || "").toLowerCase().includes(keyword) ||
-        (item.dataLimit || "").toLowerCase().includes(keyword) ||
-        (item.serviceType || "").toLowerCase().includes(keyword) ||
-        (item.status || "").toLowerCase().includes(keyword)
-      );
-    });
-
-  const generatePackageCode = () => {
-    const numbers = packages
-      .map((item) => String(item.packageCode || ""))
-      .map((code) => Number(code.replace("PKG-", "")))
-      .filter((number) => !Number.isNaN(number));
-
-    const nextNumber = numbers.length ? Math.max(...numbers) + 1 : 1;
-
-    setFormData((previous) => ({
-      ...previous,
-      packageCode: `PKG-${String(nextNumber).padStart(4, "0")}`,
-    }));
-  };
+    return travelPackages.filter((item) =>
+      [
+        item.packageName,
+        item.destination,
+        item.durationDays,
+        item.price,
+        item.currency,
+        item.availability,
+        item.note,
+      ].some((value) => String(value || "").toLowerCase().includes(query))
+    );
+  }, [travelPackages, search]);
 
   const resetForm = () => {
-    setFormData(emptyForm);
-    setEditIndex(null);
+    setForm(emptyTravelForm);
+    setEditingId(null);
   };
 
-  const openCreateModal = () => {
+  const openCreate = () => {
     resetForm();
-    setShowModal(true);
+    setModalOpen(true);
   };
 
-  const closeModal = () => {
-    resetForm();
-    setShowModal(false);
-  };
-
-  const handleChange = (event) => {
+  const update = (event) => {
     const { name, value } = event.target;
-
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+    setForm((current) => ({ ...current, [name]: value }));
   };
 
-  const packageExists = (data) => {
-    return packages.some((item, index) => {
-      if (editIndex !== null && index === editIndex) return false;
-
-      const sameCode =
-        data.packageCode &&
-        item.packageCode &&
-        data.packageCode.toLowerCase() === item.packageCode.toLowerCase();
-
-      const sameNameSpeed =
-        data.packageName &&
-        data.speed &&
-        item.packageName &&
-        item.speed &&
-        data.packageName.toLowerCase() === item.packageName.toLowerCase() &&
-        data.speed.toLowerCase() === item.speed.toLowerCase();
-
-      return sameCode || sameNameSpeed;
-    });
-  };
-
-  const handleSubmit = async (event) => {
+  const save = async (event) => {
     event.preventDefault();
 
-    const cleanData = {
-      id: editIndex !== null ? packages[editIndex]?.id || Date.now() : Date.now(),
-      packageCode: formData.packageCode.trim(),
-      packageName: formData.packageName.trim(),
-      speed: formData.speed.trim(),
-      monthlyPrice: Number(formData.monthlyPrice || 0),
-      durationDays: Number(formData.durationDays || 30),
-      dataLimit: formData.dataLimit.trim(),
-      serviceType: formData.serviceType,
-      status: formData.status,
-      description: formData.description.trim(),
-      createdAt: editIndex !== null ? packages[editIndex]?.createdAt || new Date().toISOString() : new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    if (!form.packageName.trim()) {
+      notify("Please enter travel package name.", "error");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const record = {
+      id: editingId || `${Date.now()}`,
+      packageName: form.packageName.trim(),
+      destination: form.destination.trim(),
+      durationDays: Number(form.durationDays || 0),
+      price: Number(form.price || 0),
+      currency: form.currency,
+      availability: form.availability,
+      isAvailable: form.availability === "Available",
+      endDate: form.endDate,
+      note: form.note.trim(),
+      createdAt:
+        travelPackages.find((item) => String(item.id) === String(editingId))
+          ?.createdAt || now,
+      updatedAt: now,
     };
 
-    if (!cleanData.packageCode) {
-      notify("Please enter or generate package code.", "error");
-      return;
-    }
+    const nextPackages = editingId
+      ? travelPackages.map((item) =>
+          String(item.id) === String(editingId) ? record : item
+        )
+      : [...travelPackages, record];
 
-    if (!cleanData.packageName) {
-      notify("Please enter package name.", "error");
-      return;
-    }
+    const saved = await setTravelPackages(nextPackages);
+    if (!saved) return;
 
-    if (!cleanData.speed) {
-      notify("Please enter package speed.", "error");
-      return;
-    }
-
-    if (packageExists(cleanData)) {
-      notify("Package code or package name with speed already exists.", "error");
-      return;
-    }
-
-    if (editIndex !== null) {
-      const updatedPackages = [...packages];
-      updatedPackages[editIndex] = cleanData;
-
-      const saved = await setPackages(updatedPackages);
-
-      if (saved) {
-        notify("Package updated successfully.");
-        closeModal();
-      }
-
-      return;
-    }
-
-    const saved = await setPackages([...packages, cleanData]);
-
-    if (saved) {
-      notify("Package saved successfully.");
-      closeModal();
-    }
+    notify(
+      editingId
+        ? "Travel package updated successfully."
+        : "Travel package saved successfully."
+    );
+    resetForm();
+    setModalOpen(false);
   };
 
-  const openEditModal = (index) => {
-    setEditIndex(index);
-    setFormData({
-      ...emptyForm,
-      ...packages[index],
-      monthlyPrice: String(packages[index]?.monthlyPrice || ""),
-      durationDays: String(packages[index]?.durationDays || 30),
+  const edit = (item) => {
+    setEditingId(item.id);
+    setForm({
+      ...emptyTravelForm,
+      ...item,
+      durationDays: String(item.durationDays || ""),
+      price: String(item.price || ""),
+      availability: item.isAvailable === false ? "Unavailable" : item.availability || "Available",
     });
-    setShowModal(true);
-    setOpenAction(null);
+    setModalOpen(true);
   };
 
-  const openDeleteModal = (index) => {
-    setDeleteIndex(index);
-    setOpenAction(null);
-  };
+  const remove = async (item) => {
+    const saved = await setTravelPackages(
+      travelPackages.filter((record) => String(record.id) !== String(item.id))
+    );
 
-  const cancelDelete = () => {
-    setDeleteIndex(null);
-  };
-
-  const confirmDelete = async () => {
-    if (deleteIndex === null) return;
-
-    const saved = await setPackages(packages.filter((_, index) => index !== deleteIndex));
-
-    if (saved) {
-      notify("Package deleted successfully.");
-      setDeleteIndex(null);
-    }
-  };
-
-  const toggleActionMenu = (event, index) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-
-    setActionPosition({
-      top: rect.bottom + 8,
-      left: rect.right - 160,
-    });
-
-    setOpenAction(openAction === index ? null : index);
-  };
-
-  const getStatusClass = (status) => {
-    if (status === "Active") return "package-badge active";
-    if (status === "Inactive") return "package-badge inactive";
-    return "package-badge";
+    if (saved) notify("Travel package deleted successfully.");
   };
 
   return (
-    <div className="packages-page">
-      <div className="packages-header">
-        <div>
-          <h1>Package Management</h1>
-          <p>Create reusable internet packages for customers.</p>
-        </div>
-
-        <button type="button" className="package-add-btn" onClick={openCreateModal}>
-          + Add Package
-        </button>
-      </div>
-
-      <div className="package-stats">
-        <div className="package-stat-card">
-          <span>Total Packages</span>
-          <strong>{packages.length}</strong>
-          <p>All registered packages</p>
-        </div>
-
-        <div className="package-stat-card">
-          <span>Active Packages</span>
-          <strong>{activePackages}</strong>
-          <p>Available for customers</p>
-        </div>
-
-        <div className="package-stat-card">
-          <span>Inactive Packages</span>
-          <strong>{inactivePackages}</strong>
-          <p>Disabled packages</p>
-        </div>
-
-        <div className="package-stat-card">
-          <span>Average Price</span>
-          <strong>{money(averagePrice)} AFN</strong>
-          <p>Average package price</p>
-        </div>
-      </div>
-
-      <div className="package-table-card">
+    <div className="travel-package-panel">
+      <section className="package-table-card">
         <div className="package-table-header">
           <div>
-            <h3>Package List</h3>
-            <p>Reusable internet packages saved in the system</p>
+            <h3>Travel Package List</h3>
+            <p>Saved travel packages from this department</p>
           </div>
 
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search package..."
-          />
+          <div className="travel-package-list-tools">
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search travel package..."
+            />
+
+            <button type="button" className="package-add-btn" onClick={openCreate}>
+              <Plus size={16} />
+              Add Travel Package
+            </button>
+          </div>
         </div>
 
         <div className="package-table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Code</th>
-                <th>Package Name</th>
-                <th>Speed</th>
-                <th>Price</th>
+                <th>Package</th>
+                <th>Destination</th>
                 <th>Duration</th>
-                <th>Data Limit</th>
-                <th>Type</th>
-                <th>Status</th>
+                <th>Price</th>
+                <th>Availability</th>
+                <th>End Date</th>
                 <th>Actions</th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredPackages.map((item) => {
-                const index = item.originalIndex;
+              {filteredPackages.map((item) => (
+                <tr key={item.id}>
+                  <td className="package-strong">{item.packageName || "-"}</td>
+                  <td>{item.destination || "-"}</td>
+                  <td>{item.durationDays ? `${item.durationDays} days` : "-"}</td>
+                  <td>{money(item.price, item.currency)}</td>
+                  <td>
+                    <span
+                      className={
+                        item.isAvailable === false ||
+                        item.availability === "Unavailable"
+                          ? "package-badge inactive"
+                          : "package-badge active"
+                      }
+                    >
+                      {item.isAvailable === false
+                        ? "Unavailable"
+                        : item.availability || "Available"}
+                    </span>
+                  </td>
+                  <td>{item.endDate || "-"}</td>
+                  <td>
+                    <div className="travel-package-actions">
+                      <button type="button" onClick={() => edit(item)}>
+                        <Edit3 size={15} />
+                      </button>
+                      <button type="button" onClick={() => remove(item)}>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
 
-                return (
-                  <tr key={item.id || index}>
-                    <td className="package-strong">{item.packageCode || "-"}</td>
-                    <td>{item.packageName || "-"}</td>
-                    <td>{item.speed || "-"}</td>
-                    <td>{money(item.monthlyPrice)} AFN</td>
-                    <td>{item.durationDays || 30} days</td>
-                    <td>{item.dataLimit || "Unlimited"}</td>
-                    <td>{item.serviceType || "-"}</td>
-                    <td>
-                      <span className={getStatusClass(item.status)}>
-                        {item.status || "Unknown"}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="package-action-cell">
-                        <button
-                          type="button"
-                          className="package-action-btn"
-                          onClick={(event) => toggleActionMenu(event, index)}
-                        >
-                          ⋮
-                        </button>
-
-                        {openAction === index && (
-                          <div
-                            className="package-action-menu"
-                            style={{
-                              top: `${actionPosition.top}px`,
-                              left: `${actionPosition.left}px`,
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigate(
-                                  `/packages/${item.id || item.packageCode}/details`
-                                );
-                                setOpenAction(null);
-                              }}
-                            >
-                              <InfoIcon />
-                              <span>Full Detail</span>
-                            </button>
-
-                            <button type="button" onClick={() => openEditModal(index)}>
-                              <EditIcon />
-                              <span>Edit</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              className="danger-action"
-                              onClick={() => openDeleteModal(index)}
-                            >
-                              <TrashIcon />
-                              <span>Delete</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {filteredPackages.length === 0 && (
+              {!filteredPackages.length && (
                 <tr>
-                  <td colSpan="9" className="package-empty">
-                    No package has been registered yet.
+                  <td colSpan="7" className="package-empty">
+                    No travel package has been registered yet.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
-      {showModal && (
-        <div className="package-modal-backdrop" onClick={closeModal}>
+      {modalOpen && (
+        <div
+          className="package-modal-backdrop"
+          onClick={() => {
+            resetForm();
+            setModalOpen(false);
+          }}
+        >
           <div className="package-modal" onClick={(event) => event.stopPropagation()}>
             <div className="package-modal-header">
               <div>
-                <h3>{editIndex !== null ? "Edit Package" : "Add Package"}</h3>
-                <p>Enter package speed, price, duration, and service information.</p>
+                <h3>{editingId ? "Edit Travel Package" : "Add Travel Package"}</h3>
+                <p>Register travel packages for reception and employee forms.</p>
               </div>
 
-              <button type="button" onClick={closeModal}>
+              <button
+                type="button"
+                onClick={() => {
+                  resetForm();
+                  setModalOpen(false);
+                }}
+              >
                 ×
               </button>
             </div>
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={save}>
               <div className="package-form-grid">
-                <div className="package-form-group">
-                  <label>Package Code</label>
-                  <div className="package-code-field">
-                    <input
-                      name="packageCode"
-                      value={formData.packageCode}
-                      onChange={handleChange}
-                      placeholder="Example: PKG-0001"
-                      required
-                    />
-
-                    <button type="button" onClick={generatePackageCode}>
-                      Generate
-                    </button>
-                  </div>
-                </div>
-
                 <div className="package-form-group">
                   <label>Package Name</label>
                   <input
                     name="packageName"
-                    value={formData.packageName}
-                    onChange={handleChange}
-                    placeholder="Example: Home Internet"
+                    value={form.packageName}
+                    onChange={update}
+                    placeholder="Example: Dubai Tour"
                     required
                   />
                 </div>
 
                 <div className="package-form-group">
-                  <label>Speed</label>
+                  <label>Destination</label>
                   <input
-                    name="speed"
-                    value={formData.speed}
-                    onChange={handleChange}
-                    placeholder="Example: 10 Mbps"
-                    required
-                  />
-                </div>
-
-                <div className="package-form-group">
-                  <label>Monthly Price</label>
-                  <input
-                    type="number"
-                    min="0"
-                    name="monthlyPrice"
-                    value={formData.monthlyPrice}
-                    onChange={handleChange}
-                    placeholder="Example: 1500"
-                    required
+                    name="destination"
+                    value={form.destination}
+                    onChange={update}
+                    placeholder="Example: Dubai"
                   />
                 </div>
 
@@ -475,128 +318,165 @@ function Packages() {
                   <label>Duration Days</label>
                   <input
                     type="number"
-                    min="1"
+                    min="0"
                     name="durationDays"
-                    value={formData.durationDays}
-                    onChange={handleChange}
-                    placeholder="Example: 30"
+                    value={form.durationDays}
+                    onChange={update}
+                    placeholder="Example: 7"
                   />
                 </div>
 
                 <div className="package-form-group">
-                  <label>Data Limit</label>
+                  <label>Price</label>
                   <input
-                    name="dataLimit"
-                    value={formData.dataLimit}
-                    onChange={handleChange}
-                    placeholder="Example: Unlimited / 100GB"
+                    type="number"
+                    min="0"
+                    name="price"
+                    value={form.price}
+                    onChange={update}
+                    placeholder="Example: 15000"
                   />
                 </div>
 
                 <div className="package-form-group">
-                  <label>Service Type</label>
-                  <select name="serviceType" value={formData.serviceType} onChange={handleChange}>
-                    <option value="Home">Home</option>
-                    <option value="Business">Business</option>
-                    <option value="Corporate">Corporate</option>
-                    <option value="Government">Government</option>
+                  <label>Currency</label>
+                  <select name="currency" value={form.currency} onChange={update}>
+                    <option value="AFN">AFN</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
                   </select>
                 </div>
 
                 <div className="package-form-group">
-                  <label>Status</label>
-                  <select name="status" value={formData.status} onChange={handleChange}>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
+                  <label>Availability</label>
+                  <select
+                    name="availability"
+                    value={form.availability}
+                    onChange={update}
+                  >
+                    <option value="Available">Available</option>
+                    <option value="Unavailable">Unavailable</option>
                   </select>
+                </div>
+
+                <div className="package-form-group">
+                  <label>End Date</label>
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={form.endDate}
+                    onChange={update}
+                  />
                 </div>
 
                 <div className="package-form-group package-form-full">
-                  <label>Description</label>
+                  <label>Note</label>
                   <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    placeholder="Package description..."
+                    name="note"
+                    value={form.note}
+                    onChange={update}
+                    placeholder="Travel package notes..."
                   />
                 </div>
               </div>
 
               <div className="package-modal-actions">
-                <button type="button" className="package-cancel-btn" onClick={closeModal}>
+                <button
+                  type="button"
+                  className="package-cancel-btn"
+                  onClick={() => {
+                    resetForm();
+                    setModalOpen(false);
+                  }}
+                >
                   Cancel
                 </button>
 
                 <button type="submit" className="package-save-btn">
-                  {editIndex !== null ? "Save Changes" : "Save Package"}
+                  {editingId ? "Save Changes" : "Save Travel Package"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      {detailRecord && (
-        <div className="package-detail-backdrop" onClick={() => setDetailRecord(null)}>
-          <div className="package-detail-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="package-detail-header">
-              <div>
-                <h3>Package Full Detail</h3>
-                <p>Complete package information.</p>
-              </div>
+function Packages({ initialSection = "visa" }) {
+  const [activeSection, setActiveSection] = useState(initialSection);
+  const [visaPackages] = useJsonCollection("visaPackages");
+  const [travelPackages] = useJsonCollection("travelPackages");
+  const [technologyPackages] = useJsonCollection("technologyPackages");
+  const [mediaPackages] = useJsonCollection("mediaPackages");
 
-              <button type="button" onClick={() => setDetailRecord(null)}>
-                ×
-              </button>
-            </div>
+  const sectionCounts = {
+    visa: visaPackages.length,
+    travel: travelPackages.length,
+    technology: technologyPackages.length,
+    media: mediaPackages.length,
+  };
 
-            <div className="package-detail-grid">
-              <div><span>Package Code</span><strong>{detailRecord.packageCode || "-"}</strong></div>
-              <div><span>Package Name</span><strong>{detailRecord.packageName || "-"}</strong></div>
-              <div><span>Speed</span><strong>{detailRecord.speed || "-"}</strong></div>
-              <div><span>Monthly Price</span><strong>{money(detailRecord.monthlyPrice)} AFN</strong></div>
-              <div><span>Duration</span><strong>{detailRecord.durationDays || 30} days</strong></div>
-              <div><span>Data Limit</span><strong>{detailRecord.dataLimit || "Unlimited"}</strong></div>
-              <div><span>Service Type</span><strong>{detailRecord.serviceType || "-"}</strong></div>
-              <div><span>Status</span><strong>{detailRecord.status || "-"}</strong></div>
-            </div>
+  const activeMeta =
+    packageSections.find((section) => section.key === activeSection) ||
+    packageSections[0];
 
-            <div className="package-detail-notes">
-              <span>Description</span>
-              <p>{detailRecord.description || "No description has been added for this package."}</p>
-            </div>
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
-            <div className="package-detail-actions">
-              <button type="button" onClick={() => setDetailRecord(null)}>
-                Close
-              </button>
-            </div>
-          </div>
+  return (
+    <div className="packages-page package-hub-page">
+      <div className="packages-header">
+        <div>
+          <h1>Packages</h1>
+          <p>Manage visa, travel, technology, and media packages from one page.</p>
         </div>
-      )}
+      </div>
 
-      {deleteIndex !== null && (
-        <div className="package-delete-backdrop" onClick={cancelDelete}>
-          <div className="package-delete-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="package-delete-icon">
-              <TrashIcon />
-            </div>
+      <div className="package-section-cards" aria-label="Package departments">
+        {packageSections.map((section) => {
+          const Icon = section.icon;
+          const isActive = section.key === activeSection;
 
-            <h3>Delete Package</h3>
-            <p>Are you sure you want to delete this package? This action cannot be undone.</p>
+          return (
+            <button
+              key={section.key}
+              type="button"
+              className={`package-section-card ${isActive ? "active" : ""}`}
+              onClick={() => setActiveSection(section.key)}
+              aria-pressed={isActive}
+            >
+              <span className="package-section-icon">
+                <Icon size={19} />
+              </span>
 
-            <div className="package-delete-actions">
-              <button type="button" className="package-delete-cancel" onClick={cancelDelete}>
-                Cancel
-              </button>
+              <span className="package-section-copy">
+                <strong>{section.title}</strong>
+                <small>{section.description}</small>
+              </span>
 
-              <button type="button" className="package-delete-confirm" onClick={confirmDelete}>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              <b>{sectionCounts[section.key] || 0}</b>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="package-active-heading">
+        <span>
+          <Package size={17} />
+          {activeMeta.title}
+        </span>
+        <p>{activeMeta.description}</p>
+      </div>
+
+      <div className="package-section-panel">
+        {activeSection === "visa" && <VisaPackages />}
+        {activeSection === "travel" && <TravelPackagesPanel />}
+        {activeSection === "technology" && <TechnologyPackages />}
+        {activeSection === "media" && <MediaPackages />}
+      </div>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { useJsonCollection } from "../hooks/useJsonCollection";
 import { apiUrl } from "../utils/api";
 import { notify } from "../utils/notify";
 import {
+  getCollectionLabel,
   getRecordIdentity,
   LOCAL_COLLECTION_PREFIX,
   readLocalRecycleBin,
@@ -18,10 +19,12 @@ import "./RecycleBin.css";
 
 const normalize = (value) => String(value || "").trim().toLowerCase();
 
-function collectionLabel(value) {
-  return String(value || "Record")
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/^./, (letter) => letter.toUpperCase());
+function itemRecordType(item) {
+  return (
+    item?.recordType ||
+    item?.sourceCollectionLabel ||
+    getCollectionLabel(item?.sourceCollection)
+  );
 }
 
 function formatDeletedAt(value) {
@@ -85,7 +88,12 @@ export default function RecycleBin() {
       return [
         item.recordLabel,
         item.sourceCollection,
+        item.sourceCollectionLabel,
+        item.recordType,
         item.recordId,
+        item.deletedByName,
+        item.deletedByEmail,
+        item.deletedByRole,
       ].some((value) => normalize(value).includes(query));
     });
   }, [allItems, search, sourceFilter]);
@@ -223,7 +231,7 @@ export default function RecycleBin() {
             <option value="all">All record types</option>
             {sources.map((source) => (
               <option key={source} value={source}>
-                {collectionLabel(source)}
+                {getCollectionLabel(source)}
               </option>
             ))}
           </select>
@@ -234,7 +242,8 @@ export default function RecycleBin() {
             <thead>
               <tr>
                 <th>Record</th>
-                <th>Original Module</th>
+                <th>Record Type</th>
+                <th>Deleted By</th>
                 <th>Deleted At</th>
                 <th>Storage</th>
                 <th>Actions</th>
@@ -244,14 +253,34 @@ export default function RecycleBin() {
             <tbody>
               {visibleItems.map((item) => {
                 const busy = busyId === String(item.id);
+                const recordType = itemRecordType(item);
+                const deletedByInfo = [
+                  item.deletedByRole,
+                  item.deletedByEmail,
+                ]
+                  .filter(Boolean)
+                  .join(" / ");
 
                 return (
                   <tr key={`${item.sourceType}-${item.id}`}>
                     <td>
                       <strong>{item.recordLabel || "Deleted Record"}</strong>
                       <small>{item.recordId || "No identifier"}</small>
+                      <details className="recycle-bin-record-details">
+                        <summary>View deleted data</summary>
+                        <pre>{JSON.stringify(item.record || {}, null, 2)}</pre>
+                      </details>
                     </td>
-                    <td>{collectionLabel(item.sourceCollection)}</td>
+                    <td>
+                      <span className="recycle-bin-type">{recordType}</span>
+                      <small>{item.sourceCollection || "-"}</small>
+                    </td>
+                    <td>
+                      <strong>{item.deletedByName || "Unknown user"}</strong>
+                      <small>
+                        {deletedByInfo || item.deletedByAccountId || "-"}
+                      </small>
+                    </td>
                     <td>{formatDeletedAt(item.deletedAt)}</td>
                     <td>
                       <span className="recycle-bin-storage">
@@ -286,7 +315,7 @@ export default function RecycleBin() {
 
               {!visibleItems.length && (
                 <tr>
-                  <td colSpan="5" className="recycle-bin-empty">
+                  <td colSpan="6" className="recycle-bin-empty">
                     <Trash2 size={32} />
                     <strong>Recycle Bin is empty</strong>
                     <span>Deleted records will appear here automatically.</span>

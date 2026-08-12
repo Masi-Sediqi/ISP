@@ -17,7 +17,7 @@ import {
 
 import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
+import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { notify } from "../utils/notify";
 
@@ -81,7 +81,7 @@ function Finance() {
     useJsonCollection("transactions");
 
   const [employeeAdjustments] =
-    useLocalCollection("employeeAdjustments");
+    useEmployeeAdjustments();
 
   const [financeCategories, setFinanceCategories] =
     useJsonCollection("financeCategories");

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
+import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import "./Reports.css";
 import "./ReportFinancial.css";
 
@@ -90,7 +90,7 @@ export default function ReportFinancial({
     useJsonCollection("transactions");
 
   const [employeeAdjustments] =
-    useLocalCollection("employeeAdjustments");
+    useEmployeeAdjustments();
 
   const [customerPayments] =
     useJsonCollection("customerPayments");

@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
+import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import { calculateLicenseEndDate } from "../utils/licenseDuration";
 import { apiUrl } from "../utils/api";
 import { notify } from "../utils/notify";
@@ -105,7 +105,7 @@ function ProjectSales() {
   const [customers] = useJsonCollection("customers");
   const [employees] = useJsonCollection("employees");
   const [employeeAdjustments, setEmployeeAdjustments] =
-    useLocalCollection("employeeAdjustments");
+    useEmployeeAdjustments();
   const [sales, setSales] = useJsonCollection("projectSales");
   const [settings] = useJsonCollection("settings");
   const [licenses, setLicenses] = useJsonCollection("projectLicenses");
@@ -494,6 +494,8 @@ async function upsertSourceEmployeeCommission(sale) {
       employee.name ||
       sale.sourceEmployeeName ||
       "Employee",
+    employeeEmail: employee.email || "",
+    employeeUsername: employee.username || "",
 
     type: "credit",
     amount: commissionAmount,
@@ -519,12 +521,33 @@ async function upsertSourceEmployeeCommission(sale) {
     createdAt:
       previousCommission?.createdAt || now,
     updatedAt: now,
+    ...(!previousCommission
+      ? {
+          employeeNotificationType:
+            "ledger-credit",
+          employeeNotificationAt: now,
+        }
+      : {}),
   };
 
-  return setEmployeeAdjustments([
+  const saved = await setEmployeeAdjustments([
     ...recordsWithoutCurrentCommission,
     commissionRecord,
   ]);
+
+  if (saved) {
+    window.dispatchEvent(
+      new CustomEvent("isp-employee-ledger-updated", {
+        detail: {
+          entryId: commissionRecord.id,
+          employeeId: commissionRecord.employeeId,
+          updatedAt: commissionRecord.updatedAt,
+        },
+      })
+    );
+  }
+
+  return saved;
 }
 
 async function saveSale(event) {

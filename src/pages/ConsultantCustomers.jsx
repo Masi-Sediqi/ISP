@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, Eye, GraduationCap, Mail, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
+import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, Clapperboard, Cpu, Eye, Mail, Pencil, Phone, Plane, Plus, Search, Trash2, Users, X } from "lucide-react";
 import { notify } from "../utils/notify";
 import { useLocalCollection } from "../hooks/useLocalCollection";
 import { useJsonCollection } from "../hooks/useJsonCollection";
@@ -605,12 +605,56 @@ const emptyForm = {
   note: "",
 };
 
+const departmentTypes = [
+  {
+    key: "consultant",
+    icon: BriefcaseBusiness,
+    label: "Consultant Customers",
+    labelDr: "مشتریان مشاوره",
+    labelPs: "مشورتي پېرودونکي",
+    description: "Consulting service customers",
+    descriptionDr: "مشتریان بخش خدمات مشاوره",
+    descriptionPs: "د مشورتي خدمتونو پېرودونکي",
+  },
+  {
+    key: "travel",
+    icon: Plane,
+    label: "Travel Customers",
+    labelDr: "مشتریان سفر",
+    labelPs: "د سفر پېرودونکي",
+    description: "Travel and visa service customers",
+    descriptionDr: "مشتریان بخش خدمات سفر",
+    descriptionPs: "د سفر خدمتونو پېرودونکي",
+  },
+  {
+    key: "technology",
+    icon: Cpu,
+    label: "Technology Customers",
+    labelDr: "مشتریان تکنالوژی",
+    labelPs: "د ټکنالوژۍ پېرودونکي",
+    description: "Technology service customers",
+    descriptionDr: "مشتریان بخش خدمات تکنالوژی",
+    descriptionPs: "د ټکنالوژۍ خدمتونو پېرودونکي",
+  },
+  {
+    key: "media",
+    icon: Clapperboard,
+    label: "Media Customers",
+    labelDr: "مشتریان رسانه",
+    labelPs: "د رسنیو پېرودونکي",
+    description: "Media production customers",
+    descriptionDr: "مشتریان بخش خدمات رسانه",
+    descriptionPs: "د رسنیو خدمتونو پېرودونکي",
+  },
+];
+
 
 
 function ConsultantCustomers({ mode = "consultant", currentUser }) {
-  const isTravel = mode === "travel";
-  const isTechnology = mode === "technology";
-  const isMedia = mode === "media";
+  const [activeMode, setActiveMode] = useState(mode);
+  const isTravel = activeMode === "travel";
+  const isTechnology = activeMode === "technology";
+  const isMedia = activeMode === "media";
 
   const [interfaceLanguage, setInterfaceLanguage] = useState(
     () => localStorage.getItem("isp-language") || "en"
@@ -653,6 +697,12 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
       : interfaceLanguage === "ps"
         ? ps
         : en;
+
+  useEffect(() => {
+    setActiveMode(mode);
+    setSearch("");
+    resetForm();
+  }, [mode]);
 
   const typeLabel = isTravel
     ? tx("Travel Customer", "مشتری سفر", "د سفر پېرودونکی")
@@ -702,7 +752,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     ].map((item) => ({
       ...item,
       customerType:
-        item.customerType || mode,
+        item.customerType || activeMode,
       specializedCustomer: true,
     }));
 
@@ -725,7 +775,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     customersLoaded,
     legacyCustomers,
     localCustomers,
-    mode,
+    activeMode,
     serverCustomers,
     setServerCustomers,
   ]);
@@ -735,9 +785,9 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
       serverCustomers.filter(
         (item) =>
           item.specializedCustomer &&
-          item.customerType === mode
+          item.customerType === activeMode
       ),
-    [serverCustomers, mode]
+    [serverCustomers, activeMode]
   );
 
   const [form, setForm] = useState(emptyForm);
@@ -892,7 +942,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
       purpose: isMedia
         ? String(form.mediaPurpose || "Video").trim()
         : form.purpose,
-      customerType: mode,
+      customerType: activeMode,
       specializedCustomer: true,
       registeredFrom:
         form.registeredFrom ||
@@ -1060,6 +1110,25 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     setShowForm(true);
   };
 
+  const selectDepartment = (nextMode) => {
+    if (nextMode === activeMode) return;
+
+    setActiveMode(nextMode);
+    setSearch("");
+    setViewCustomer(null);
+    setDeleteCustomer(null);
+    resetForm();
+  };
+
+  const departmentCards = departmentTypes.map((department) => ({
+    ...department,
+    count: serverCustomers.filter(
+      (item) =>
+        item.specializedCustomer &&
+        item.customerType === department.key
+    ).length,
+  }));
+
   const formatPrice = (customer) => {
     const price = Number(
       customer.price ||
@@ -1098,6 +1167,34 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
           <Plus size={17} />
           {tx("Add", "افزودن", "زیاتول")} {typeLabel}
         </button>
+      </div>
+
+      <div className="consultant-department-cards" aria-label="Customer departments">
+        {departmentCards.map((department) => {
+          const Icon = department.icon;
+          const isActive = department.key === activeMode;
+
+          return (
+            <button
+              key={department.key}
+              type="button"
+              className={`consultant-department-card ${isActive ? "active" : ""}`}
+              onClick={() => selectDepartment(department.key)}
+              aria-pressed={isActive}
+            >
+              <span className="consultant-department-icon">
+                <Icon size={19} />
+              </span>
+
+              <span className="consultant-department-copy">
+                <strong>{tx(department.label, department.labelDr, department.labelPs)}</strong>
+                <small>{tx(department.description, department.descriptionDr, department.descriptionPs)}</small>
+              </span>
+
+              <b>{department.count}</b>
+            </button>
+          );
+        })}
       </div>
 
       <section className="consultant-list-card">

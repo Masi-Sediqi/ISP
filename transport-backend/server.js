@@ -46,6 +46,7 @@ let dataDirectoryPrepared = false;
 const writeQueues = new Map();
 const licenseRateLimits = new Map();
 let recycleArchiveQueue = Promise.resolve();
+const MAX_CHAT_ATTACHMENT_BYTES = 2 * 1024 * 1024;
 
 const COLLECTIONS = new Set([
   "settings",
@@ -349,6 +350,44 @@ function recordLabel(record, collection) {
   );
 }
 
+function collectionLabel(value) {
+  const labels = {
+    customers: "Customer",
+    employees: "Employee",
+    employeeReports: "Daily Report",
+    employeeAdjustments: "Employee Ledger",
+    projects: "Project",
+    projectSales: "Project Sale",
+    projectLicenses: "Project License",
+    transactions: "Finance Record",
+    suppliers: "Supplier",
+    supplierPurchases: "Supplier Purchase",
+    assets: "Asset",
+    towerAssets: "Tower Asset",
+    officeAssets: "Office Asset",
+    customerPackages: "Customer Package",
+    securityDeposits: "Security Deposit",
+    employeeAttendances: "Employee Attendance",
+  };
+
+  return (
+    labels[value] ||
+    String(value || "Record")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/^./, (letter) => letter.toUpperCase())
+  );
+}
+
+function accountDisplayName(account) {
+  return (
+    account?.fullName ||
+    account?.employeeName ||
+    account?.username ||
+    account?.email ||
+    "Unknown user"
+  );
+}
+
 async function archiveRemovedRecords(collection, previousItems, nextItems, actorId = "") {
   if (collection === "recycleBin") return;
 
@@ -361,19 +400,31 @@ async function archiveRemovedRecords(collection, previousItems, nextItems, actor
 
   recycleArchiveQueue = recycleArchiveQueue.then(async () => {
     const recycleItems = await readCollection("recycleBin");
+    const accounts = await readCollection("accounts").catch(() => []);
+    const actor =
+      String(actorId) === String(DEFAULT_ADMIN_ACCOUNT.id)
+        ? DEFAULT_ADMIN_ACCOUNT
+        : accounts.find((account) => String(account.id) === String(actorId));
     const deletedAt = new Date().toISOString();
+    const recordType = collectionLabel(collection);
 
     const entries = removedItems.map((record, index) => ({
       id: `recycle-${Date.now()}-${index}-${Math.random()
         .toString(36)
         .slice(2, 9)}`,
       sourceCollection: collection,
+      sourceCollectionLabel: recordType,
+      recordType,
       sourceType: "server",
       recordId: recordIdentity(record),
       recordLabel: String(recordLabel(record, collection)),
       record,
       deletedAt,
       deletedByAccountId: actorId,
+      deletedByEmployeeId: actor?.employeeId || "",
+      deletedByName: accountDisplayName(actor),
+      deletedByEmail: actor?.email || "",
+      deletedByRole: actor?.primaryRole || actor?.role || actor?.accountType || "",
     }));
 
     await writeCollection("recycleBin", [...recycleItems, ...entries]);
@@ -680,10 +731,11 @@ io.on("connection", (socket) => {
     socket.data.accountId = normalizedAccountId;
     socket.join(`account:${normalizedAccountId}`);
 
-    onlineUsers.set(
-      normalizedAccountId,
-      socket.id
-    );
+    const accountSockets =
+      onlineUsers.get(normalizedAccountId) || new Set();
+
+    accountSockets.add(socket.id);
+    onlineUsers.set(normalizedAccountId, accountSockets);
 
     io.emit(
       "chat:online-users",
@@ -705,7 +757,43 @@ io.on("connection", (socket) => {
         payload?.text || ""
       ).trim();
 
-      if (!fromAccountId || !toAccountId || !text) {
+      const attachments = Array.isArray(payload?.attachments)
+        ? payload.attachments
+            .map((attachment) => ({
+              id: String(
+                attachment?.id ||
+                  `${Date.now()}-${Math.random()
+                    .toString(36)
+                    .slice(2, 8)}`
+              ),
+              name: String(attachment?.name || "Attachment"),
+              type: String(
+                attachment?.type || "application/octet-stream"
+              ),
+              size: Number(attachment?.size || 0),
+              dataUrl: String(attachment?.dataUrl || ""),
+            }))
+            .filter((attachment) => attachment.dataUrl)
+        : [];
+
+      const hasInvalidAttachment = attachments.some(
+        (attachment) =>
+          !Number.isFinite(attachment.size) ||
+          attachment.size <= 0 ||
+          attachment.size > MAX_CHAT_ATTACHMENT_BYTES ||
+          attachment.dataUrl.length > MAX_CHAT_ATTACHMENT_BYTES * 1.5
+      );
+
+      if (hasInvalidAttachment) {
+        callback?.({
+          success: false,
+          error: "Each attachment must be 2 MB or less.",
+        });
+
+        return;
+      }
+
+      if (!fromAccountId || !toAccountId || (!text && !attachments.length)) {
         callback?.({
           success: false,
           error: "Message information is incomplete.",
@@ -745,9 +833,10 @@ io.on("connection", (socket) => {
         ),
 
         text,
+        attachments,
 
         seen: false,
-        delivered: false,
+        delivered: onlineUsers.has(toAccountId),
 
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -781,6 +870,21 @@ io.on("connection", (socket) => {
         error: "Unable to send message.",
       });
     }
+  });
+
+  socket.on("chat:typing", (payload) => {
+    const fromAccountId = String(payload?.fromAccountId || "").trim();
+    const toAccountId = String(payload?.toAccountId || "").trim();
+
+    if (!fromAccountId || !toAccountId) return;
+
+    io.to(`account:${toAccountId}`).emit("chat:typing", {
+      fromAccountId,
+      toAccountId,
+      senderName: String(payload?.senderName || "Employee"),
+      isTyping: payload?.isTyping === true,
+      typedAt: new Date().toISOString(),
+    });
   });
 
   socket.on("chat:seen", async ({ messageIds }) => {
@@ -828,7 +932,17 @@ io.on("connection", (socket) => {
     const accountId = socket.data.accountId;
 
     if (accountId) {
-      onlineUsers.delete(accountId);
+      const accountSockets = onlineUsers.get(accountId);
+
+      if (accountSockets) {
+        accountSockets.delete(socket.id);
+
+        if (accountSockets.size) {
+          onlineUsers.set(accountId, accountSockets);
+        } else {
+          onlineUsers.delete(accountId);
+        }
+      }
 
       io.emit(
         "chat:online-users",

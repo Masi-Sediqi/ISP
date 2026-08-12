@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useLocalCollection } from "../hooks/useLocalCollection";
+import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import { usePackageAvailabilityDate } from "../hooks/usePackageAvailabilityDate";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
@@ -359,6 +360,7 @@ function CountrySelect({
   value,
   onChange,
   countries: countryList,
+  labels = {},
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -433,11 +435,13 @@ function CountrySelect({
             <span>{value}</span>
           </span>
         ) : (
-          <span>Select country</span>
+          <span>
+            {labels.selectCountry || "Select country"}
+          </span>
         )}
 
         <span className="employee-country-arrow">
-          ▾
+          v
         </span>
       </button>
 
@@ -449,7 +453,9 @@ function CountrySelect({
             onChange={(event) =>
               setSearch(event.target.value)
             }
-            placeholder="Search country..."
+            placeholder={
+              labels.searchCountry || "Search country..."
+            }
             autoFocus
           />
 
@@ -477,7 +483,10 @@ function CountrySelect({
             ))}
 
             {!filteredCountries.length && (
-              <p>No country found.</p>
+              <p>
+                {labels.noCountryFound ||
+                  "No country found."}
+              </p>
             )}
           </div>
         </div>
@@ -546,9 +555,145 @@ function getCallCenterSectionLabel(mode) {
 export default function EmployeeDashboard({
   currentUser,
 }) {
-  const mode = normalizeDepartment(
-    currentUser.department
-  );
+  const departmentModes = useMemo(() => {
+    const departments = [
+      ...(Array.isArray(currentUser.departments)
+        ? currentUser.departments
+        : []),
+      currentUser.department,
+    ].filter(Boolean);
+
+    const modes = departments.map(
+      normalizeDepartment
+    );
+
+    return Array.from(new Set(modes)).length
+      ? Array.from(new Set(modes))
+      : ["consultant"];
+  }, [
+    currentUser.departments,
+    currentUser.department,
+  ]);
+
+  const [activeMode, setActiveMode] =
+    useState(departmentModes[0]);
+
+  const [interfaceLanguage, setInterfaceLanguage] =
+    useState(
+      () => localStorage.getItem("isp-language") || "en"
+    );
+
+  useEffect(() => {
+    const syncInterfaceLanguage = (event) => {
+      setInterfaceLanguage(
+        event?.detail ||
+          localStorage.getItem("isp-language") ||
+          "en"
+      );
+    };
+
+    window.addEventListener(
+      "isp-language-changed",
+      syncInterfaceLanguage
+    );
+    window.addEventListener(
+      "storage",
+      syncInterfaceLanguage
+    );
+
+    return () => {
+      window.removeEventListener(
+        "isp-language-changed",
+        syncInterfaceLanguage
+      );
+      window.removeEventListener(
+        "storage",
+        syncInterfaceLanguage
+      );
+    };
+  }, []);
+
+  const tx = (en, dr, ps) =>
+    interfaceLanguage === "dr"
+      ? dr
+      : interfaceLanguage === "ps"
+        ? ps
+        : en;
+
+  const modeLabel = (value) => {
+    const labels = {
+      consultant: tx(
+        "Consultant",
+        "\u0645\u0634\u0627\u0648\u0631",
+        "\u0645\u0634\u0627\u0648\u0631"
+      ),
+      travel: tx(
+        "Travel",
+        "\u0633\u0641\u0631",
+        "\u0633\u0641\u0631"
+      ),
+      technology: tx(
+        "Technology",
+        "\u062a\u06a9\u0646\u0627\u0644\u0648\u0698\u06cc",
+        "\u067c\u06a9\u0646\u0627\u0644\u0648\u0698\u064a"
+      ),
+      media: tx(
+        "Media Production",
+        "\u062a\u0648\u0644\u06cc\u062f \u0631\u0633\u0627\u0646\u0647",
+        "\u062f \u0631\u0633\u0646\u06cc\u0648 \u062a\u0648\u0644\u06cc\u062f"
+      ),
+    };
+
+    return labels[value] || getModeTitle(value);
+  };
+
+  const callTypeLabel = (value) => {
+    const normalized = normalize(String(value || ""));
+
+    if (normalized === "incoming") {
+      return tx(
+        "Incoming",
+        "\u0648\u0627\u0631\u062f\u0647",
+        "\u0631\u0627\u062a\u0644\u0648\u0646\u06a9\u06cc"
+      );
+    }
+
+    if (normalized === "outgoing") {
+      return tx(
+        "Outgoing",
+        "\u062e\u0627\u0631\u062c\u0647",
+        "\u062a\u0644\u0648\u0646\u06a9\u06cc"
+      );
+    }
+
+    return value || "-";
+  };
+
+  const yesNoLabel = (value) => {
+    const normalized = normalize(String(value || ""));
+
+    if (normalized === "yes") {
+      return tx("Yes", "\u0628\u0644\u06cc", "\u0647\u0648");
+    }
+
+    if (normalized === "no") {
+      return tx("No", "\u0646\u062e\u06cc\u0631", "\u0646\u0647");
+    }
+
+    return value || "-";
+  };
+
+  useEffect(() => {
+    if (!departmentModes.includes(activeMode)) {
+      setActiveMode(departmentModes[0]);
+    }
+  }, [activeMode, departmentModes]);
+
+  const mode = departmentModes.includes(
+    activeMode
+  )
+    ? activeMode
+    : departmentModes[0];
 
   const currentEmployeeId =
     currentUser.employeeId ||
@@ -559,7 +704,7 @@ export default function EmployeeDashboard({
     currentUser.fullName ||
     currentUser.username ||
     currentUser.email ||
-    "Employee";
+    tx("Employee", "\u06a9\u0627\u0631\u0645\u0646\u062f", "\u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u06cc");
 
   const [
     serverCustomers,
@@ -578,7 +723,7 @@ export default function EmployeeDashboard({
     useJsonCollection("transactions");
 
   const [adjustments] =
-    useLocalCollection("employeeAdjustments");
+    useEmployeeAdjustments();
 
   const [
     visaPackages,
@@ -805,6 +950,20 @@ export default function EmployeeDashboard({
           ? "Database"
           : "",
     });
+  };
+
+  useEffect(() => {
+    setFilter("all");
+    setOpen(false);
+    setEditId(null);
+    setDeleteTarget(null);
+    resetForm();
+  }, [mode]);
+
+  const switchDepartmentMode = (nextMode) => {
+    if (nextMode === mode) return;
+
+    setActiveMode(nextMode);
   };
 
   const openCreateModal = () => {
@@ -1303,13 +1462,25 @@ export default function EmployeeDashboard({
     }
   };
 
-  const modeTitle = getModeTitle(mode);
+  const modeTitle = modeLabel(mode);
 
   const modalTitle = editId
-    ? `Edit ${modeTitle} Customer`
+    ? tx(
+        `Edit ${modeTitle} Customer`,
+        `\u0648\u06cc\u0631\u0627\u06cc\u0634 \u0645\u0634\u062a\u0631\u06cc ${modeTitle}`,
+        `\u062f ${modeTitle} \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a \u0633\u0645\u0648\u0644`
+      )
     : mode === "media"
-      ? "Add Media Production Customer"
-      : `Add ${modeTitle} Customer`;
+      ? tx(
+          "Add Media Production Customer",
+          "\u062b\u0628\u062a \u0645\u0634\u062a\u0631\u06cc \u062a\u0648\u0644\u06cc\u062f \u0631\u0633\u0627\u0646\u0647",
+          "\u062f \u0631\u0633\u0646\u06cc\u0648 \u062a\u0648\u0644\u06cc\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u06cc \u062b\u0628\u062a"
+        )
+      : tx(
+          `Add ${modeTitle} Customer`,
+          `\u062b\u0628\u062a \u0645\u0634\u062a\u0631\u06cc ${modeTitle}`,
+          `\u062f ${modeTitle} \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u06cc \u062b\u0628\u062a`
+        );
 
   const tableColumnCount =
     mode === "media"
@@ -1322,14 +1493,28 @@ export default function EmployeeDashboard({
     <div className="employee-dashboard">
       <header>
         <div>
-          <span>{mode} workspace</span>
+          <span>
+            {tx(
+              `${modeTitle} Workspace`,
+              `\u0641\u0636\u0627\u06cc \u06a9\u0627\u0631\u06cc ${modeTitle}`,
+              `\u062f ${modeTitle} \u06a9\u0627\u0631\u064a \u0633\u0627\u062d\u0647`
+            )}
+          </span>
 
           <h1>
-            Welcome, {currentUser.fullName}
+            {tx(
+              `Welcome, ${currentUser.fullName || currentEmployeeName}`,
+              `\u062e\u0648\u0634 \u0622\u0645\u062f\u06cc\u062f\u060c ${currentUser.fullName || currentEmployeeName}`,
+              `\u069a\u0647 \u0631\u0627\u063a\u0644\u0627\u0633\u062a\u060c ${currentUser.fullName || currentEmployeeName}`
+            )}
           </h1>
 
           <p>
-            Your private dashboard and customer records.
+            {tx(
+              "Your private dashboard and customer records.",
+              "\u062f\u0627\u0634\u0628\u0648\u0631\u062f \u062e\u0635\u0648\u0635\u06cc \u0648 \u0631\u06cc\u06a9\u0627\u0631\u062f\u0647\u0627\u06cc \u0645\u0634\u062a\u0631\u06cc\u0627\u0646 \u0634\u0645\u0627.",
+              "\u0633\u062a\u0627\u0633\u0648 \u0634\u062e\u0635\u064a \u0689\u0634\u0628\u0648\u0631\u0689 \u0627\u0648 \u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u0648 \u0631\u06cc\u06a9\u0627\u0631\u0689\u0648\u0646\u0647."
+            )}
           </p>
         </div>
 
@@ -1339,21 +1524,75 @@ export default function EmployeeDashboard({
         >
           <Plus size={17} />
           {mode === "media"
-            ? "Add Media Production Customer"
-            : `Add ${modeTitle} Customer`}
+            ? tx(
+                "Add Media Production Customer",
+                "\u062b\u0628\u062a \u0645\u0634\u062a\u0631\u06cc \u062a\u0648\u0644\u06cc\u062f \u0631\u0633\u0627\u0646\u0647",
+                "\u062f \u0631\u0633\u0646\u06cc\u0648 \u062a\u0648\u0644\u06cc\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u06cc \u062b\u0628\u062a"
+              )
+            : tx(
+                `Add ${modeTitle} Customer`,
+                `\u062b\u0628\u062a \u0645\u0634\u062a\u0631\u06cc ${modeTitle}`,
+                `\u062f ${modeTitle} \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u06cc \u062b\u0628\u062a`
+              )}
         </button>
       </header>
+
+      {departmentModes.length > 1 && (
+        <nav
+          className="employee-workspace-tabs"
+          aria-label={tx(
+            "Department forms",
+            "\u0641\u0648\u0631\u0645\u200c\u0647\u0627\u06cc \u062f\u06cc\u067e\u0627\u0631\u062a\u0645\u0646\u062a",
+            "\u062f \u0689\u06cc\u067e\u0627\u0631\u067c\u0645\u0646\u067c \u0641\u0648\u0631\u0645\u0648\u0646\u0647"
+          )}
+        >
+          {departmentModes.map((departmentMode) => (
+            <button
+              key={departmentMode}
+              type="button"
+              className={
+                departmentMode === mode
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                switchDepartmentMode(
+                  departmentMode
+                )
+              }
+            >
+              {tx(
+                `${modeLabel(departmentMode)} Form`,
+                `\u0641\u0648\u0631\u0645 ${modeLabel(departmentMode)}`,
+                `\u062f ${modeLabel(departmentMode)} \u0641\u0648\u0631\u0645`
+              )}
+            </button>
+          ))}
+        </nav>
+      )}
 
       <section className="employee-dashboard-cards">
         <div>
           <Users />
-          <span>Total Customers</span>
+          <span>
+            {tx(
+              "Total Customers",
+              "\u0645\u062c\u0645\u0648\u0639 \u0645\u0634\u062a\u0631\u06cc\u0627\u0646",
+              "\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u0648 \u0645\u062c\u0645\u0648\u0639"
+            )}
+          </span>
           <strong>{mine.length}</strong>
         </div>
 
         <div>
           <WalletCards />
-          <span>Total Income</span>
+          <span>
+            {tx(
+              "Total Income",
+              "\u0645\u062c\u0645\u0648\u0639 \u0639\u0648\u0627\u06cc\u062f",
+              "\u062f \u0639\u0648\u0627\u06cc\u062f\u0648 \u0645\u062c\u0645\u0648\u0639"
+            )}
+          </span>
           <strong>
             {income.toLocaleString()} AFN
           </strong>
@@ -1361,7 +1600,13 @@ export default function EmployeeDashboard({
 
         <div>
           <Gift />
-          <span>Bonus and Penalty</span>
+          <span>
+            {tx(
+              "Bonus and Penalty",
+              "\u0627\u0645\u062a\u06cc\u0627\u0632 \u0648 \u062c\u0631\u06cc\u0645\u0647",
+              "\u0627\u0645\u062a\u06cc\u0627\u0632 \u0627\u0648 \u062c\u0631\u06cc\u0645\u0647"
+            )}
+          </span>
           <strong>
             {bonus.toLocaleString()} AFN
           </strong>
@@ -1371,9 +1616,19 @@ export default function EmployeeDashboard({
       <section className="employee-dashboard-list">
         <div className="employee-dashboard-list-head">
           <div>
-            <h2>My Customers</h2>
+            <h2>
+              {tx(
+                "My Customers",
+                "\u0645\u0634\u062a\u0631\u06cc\u0627\u0646 \u0645\u0646",
+                "\u0632\u0645\u0627 \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a"
+              )}
+            </h2>
             <p>
-              Every record is linked to your employee profile.
+              {tx(
+                "Every record is linked to your employee profile.",
+                "\u0647\u0631 \u0631\u06cc\u06a9\u0627\u0631\u062f \u0628\u0647 \u067e\u0631\u0648\u0641\u0627\u06cc\u0644 \u06a9\u0627\u0631\u0645\u0646\u062f\u06cc \u0634\u0645\u0627 \u0648\u0635\u0644 \u0627\u0633\u062a.",
+                "\u0647\u0631 \u0631\u06cc\u06a9\u0627\u0631\u0689 \u0633\u062a\u0627\u0633\u0648 \u062f \u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a \u067e\u0631\u0648\u0641\u0627\u06cc\u0644 \u0633\u0631\u0647 \u062a\u0693\u0644\u06cc \u062f\u06cc."
+              )}
             </p>
           </div>
 
@@ -1388,15 +1643,27 @@ export default function EmployeeDashboard({
                 }
               >
                 <option value="all">
-                  All calls
+                  {tx(
+                    "All calls",
+                    "\u0647\u0645\u0647 \u062a\u0645\u0627\u0633\u200c\u0647\u0627",
+                    "\u067c\u0648\u0644 \u0632\u0646\u06ab\u0648\u0646\u0647"
+                  )}
                 </option>
 
                 <option value="incoming">
-                  Incoming
+                  {tx(
+                    "Incoming",
+                    "\u0648\u0627\u0631\u062f\u0647",
+                    "\u0631\u0627\u062a\u0644\u0648\u0646\u06a9\u06cc"
+                  )}
                 </option>
 
                 <option value="outgoing">
-                  Outgoing
+                  {tx(
+                    "Outgoing",
+                    "\u062e\u0627\u0631\u062c\u0647",
+                    "\u062a\u0644\u0648\u0646\u06a9\u06cc"
+                  )}
                 </option>
               </select>
             </label>
@@ -1407,34 +1674,34 @@ export default function EmployeeDashboard({
           <table>
             <thead>
               <tr>
-                <th>Full Name</th>
-                <th>Phone</th>
-                <th>City</th>
+                <th>{tx("Full Name", "\u0646\u0627\u0645 \u06a9\u0627\u0645\u0644", "\u0628\u0634\u067e\u0693 \u0646\u0648\u0645")}</th>
+                <th>{tx("Phone", "\u062a\u0645\u0627\u0633", "\u062a\u0644\u06cc\u0641\u0648\u0646")}</th>
+                <th>{tx("City", "\u0634\u0647\u0631", "\u069a\u0627\u0631")}</th>
 
                 {(mode === "consultant" ||
                   mode === "travel") && (
-                  <th>Country</th>
+                  <th>{tx("Country", "\u06a9\u0634\u0648\u0631", "\u0647\u06d0\u0648\u0627\u062f")}</th>
                 )}
 
                 {mode === "consultant" && (
-                  <th>Scholarship</th>
+                  <th>{tx("Scholarship", "\u0628\u0648\u0631\u0633\u06cc\u0647", "\u0628\u0648\u0631\u0633")}</th>
                 )}
 
-                <th>Unit</th>
-                <th>Price</th>
+                <th>{tx("Unit", "\u0648\u0627\u062d\u062f", "\u0648\u0627\u062d\u062f")}</th>
+                <th>{tx("Price", "\u0642\u06cc\u0645\u062a", "\u0628\u06cc\u0647")}</th>
 
                 {mode !== "media" && (
-                  <th>Call Type</th>
+                  <th>{tx("Call Type", "\u0646\u0648\u0639 \u062a\u0645\u0627\u0633", "\u062f \u0632\u0646\u06ab \u0689\u0648\u0644")}</th>
                 )}
 
-                <th>Purpose</th>
+                <th>{tx("Purpose", "\u0647\u062f\u0641", "\u0645\u0648\u062e\u0647")}</th>
 
                 {mode !== "media" && (
-                  <th>Follow-up</th>
+                  <th>{tx("Follow-up", "\u067e\u06cc\u06af\u06cc\u0631\u06cc", "\u062a\u0639\u0642\u06cc\u0628")}</th>
                 )}
 
-                <th>Date & Time</th>
-                <th>Actions</th>
+                <th>{tx("Date & Time", "\u062a\u0627\u0631\u06cc\u062e \u0648 \u0632\u0645\u0627\u0646", "\u0646\u06d0\u067c\u0647 \u0627\u0648 \u0648\u062e\u062a")}</th>
+                <th>{tx("Actions", "\u0639\u0645\u0644\u06cc\u0627\u062a", "\u0639\u0645\u0644\u0648\u0646\u0647")}</th>
               </tr>
             </thead>
 
@@ -1502,7 +1769,7 @@ export default function EmployeeDashboard({
 
                   {mode !== "media" && (
                     <td>
-                      {customer.callType || "-"}
+                      {callTypeLabel(customer.callType)}
                     </td>
                   )}
 
@@ -1524,8 +1791,7 @@ export default function EmployeeDashboard({
 
                   {mode !== "media" && (
                     <td>
-                      {customer.needFollowup ||
-                        "-"}
+                      {yesNoLabel(customer.needFollowup)}
                     </td>
                   )}
 
@@ -1553,8 +1819,16 @@ export default function EmployeeDashboard({
                         onClick={() =>
                           openEditModal(customer)
                         }
-                        title="Edit customer"
-                        aria-label="Edit customer"
+                        title={tx(
+                          "Edit customer",
+                          "\u0648\u06cc\u0631\u0627\u06cc\u0634 \u0645\u0634\u062a\u0631\u06cc",
+                          "\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a \u0633\u0645\u0648\u0644"
+                        )}
+                        aria-label={tx(
+                          "Edit customer",
+                          "\u0648\u06cc\u0631\u0627\u06cc\u0634 \u0645\u0634\u062a\u0631\u06cc",
+                          "\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a \u0633\u0645\u0648\u0644"
+                        )}
                       >
                         <Pencil size={14} />
                       </button>
@@ -1565,8 +1839,16 @@ export default function EmployeeDashboard({
                         onClick={() =>
                           requestDelete(customer)
                         }
-                        title="Delete customer"
-                        aria-label="Delete customer"
+                        title={tx(
+                          "Delete customer",
+                          "\u062d\u0630\u0641 \u0645\u0634\u062a\u0631\u06cc",
+                          "\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a \u062d\u0630\u0641\u0648\u0644"
+                        )}
+                        aria-label={tx(
+                          "Delete customer",
+                          "\u062d\u0630\u0641 \u0645\u0634\u062a\u0631\u06cc",
+                          "\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a \u062d\u0630\u0641\u0648\u0644"
+                        )}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -1581,7 +1863,11 @@ export default function EmployeeDashboard({
                     colSpan={tableColumnCount}
                     className="employee-empty-record"
                   >
-                    No customer records yet.
+                    {tx(
+                      "No customer records yet.",
+                      "\u0647\u0646\u0648\u0632 \u0647\u06cc\u0686 \u0631\u06cc\u06a9\u0627\u0631\u062f \u0645\u0634\u062a\u0631\u06cc \u062b\u0628\u062a \u0646\u0634\u062f\u0647 \u0627\u0633\u062a.",
+                      "\u062a\u0631 \u0627\u0648\u0633\u0647 \u0647\u06d0\u0685 \u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a \u0631\u06cc\u06a9\u0627\u0631\u0689 \u0646\u0634\u062a\u0647."
+                    )}
                   </td>
                 </tr>
               )}
@@ -1607,8 +1893,16 @@ export default function EmployeeDashboard({
 
                 <p>
                   {editId
-                    ? "Update the customer information."
-                    : `This record will also appear in the general ${mode} customer list.`}
+                    ? tx(
+                        "Update the customer information.",
+                        "\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u0645\u0634\u062a\u0631\u06cc \u0631\u0627 \u0628\u0647\u200c\u0631\u0648\u0632 \u06a9\u0646\u06cc\u062f.",
+                        "\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a \u0645\u0639\u0644\u0648\u0645\u0627\u062a \u062a\u0627\u0632\u0647 \u06a9\u0693\u0626."
+                      )
+                    : tx(
+                        `This record will also appear in the general ${modeTitle} customer list.`,
+                        `\u0627\u06cc\u0646 \u0631\u06cc\u06a9\u0627\u0631\u062f \u062f\u0631 \u0644\u0633\u062a \u0639\u0645\u0648\u0645\u06cc \u0645\u0634\u062a\u0631\u06cc\u0627\u0646 ${modeTitle} \u0646\u06cc\u0632 \u0646\u0645\u0627\u06cc\u0634 \u062f\u0627\u062f\u0647 \u0645\u06cc\u200c\u0634\u0648\u062f.`,
+                        `\u062f\u0627 \u0631\u06cc\u06a9\u0627\u0631\u0689 \u0628\u0647 \u062f ${modeTitle} \u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u0648 \u067e\u0647 \u0639\u0645\u0648\u0645\u064a \u0644\u06cc\u0633\u062a \u06a9\u06d0 \u0647\u0645 \u0685\u0631\u06ab\u0646\u062f \u0634\u064a.`
+                      )}
                 </p>
               </div>
 
@@ -1624,7 +1918,7 @@ export default function EmployeeDashboard({
               {mode === "consultant" && (
                 <div className="employee-visa-package-section wide">
                   <label className="employee-package-select-field">
-                    Visa Package
+                    {tx("Visa Package", "\u067e\u06a9\u06cc\u062c \u0648\u06cc\u0632\u0647", "\u062f \u0648\u06cc\u0632\u06d0 \u067e\u06a9\u06cc\u062c")}
 
                     <select
                       name="selectedVisaPackageId"
@@ -1632,7 +1926,11 @@ export default function EmployeeDashboard({
                       onChange={update}
                     >
                       <option value="">
-                        Select registered visa package
+                        {tx(
+                          "Select registered visa package",
+                          "\u067e\u06a9\u06cc\u062c \u0648\u06cc\u0632\u0647 \u062b\u0628\u062a\u200c\u0634\u062f\u0647 \u0631\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646\u06cc\u062f",
+                          "\u062b\u0628\u062a \u0634\u0648\u06cc \u062f \u0648\u06cc\u0632\u06d0 \u067e\u06a9\u06cc\u062c \u0648\u067c\u0627\u06a9\u0626"
+                        )}
                       </option>
 
                       {availableVisaPackages.map((item) => (
@@ -1648,14 +1946,14 @@ export default function EmployeeDashboard({
 
                   {!visaPackagesLoaded && (
                     <p className="employee-package-empty-note">
-                      Loading Visa Packages...
+                      {tx("Loading Visa Packages...", "\u067e\u06a9\u06cc\u062c\u200c\u0647\u0627\u06cc \u0648\u06cc\u0632\u0647 \u062f\u0631 \u062d\u0627\u0644 \u0628\u0627\u0631\u06af\u06cc\u0631\u06cc \u0627\u0633\u062a...", "\u062f \u0648\u06cc\u0632\u06d0 \u067e\u06a9\u06cc\u062c\u0648\u0646\u0647 \u0628\u0627\u0631\u06d0\u0696\u064a...")}
                     </p>
                   )}
 
                   {visaPackagesLoaded &&
                     !availableVisaPackages.length && (
                       <p className="employee-package-empty-note">
-                        No available Visa Packages found.
+                        {tx("No available Visa Packages found.", "\u0647\u06cc\u0686 \u067e\u06a9\u06cc\u062c \u0648\u06cc\u0632\u0647 \u062f\u0631 \u062f\u0633\u062a\u0631\u0633 \u06cc\u0627\u0641\u062a \u0646\u0634\u062f.", "\u0647\u06d0\u0685 \u0634\u062a\u0647 \u062f \u0648\u06cc\u0632\u06d0 \u067e\u06a9\u06cc\u062c \u0648\u0646\u0647 \u0645\u0648\u0646\u062f\u0644 \u0634\u0648.")}
                       </p>
                     )}
 
@@ -1663,7 +1961,7 @@ export default function EmployeeDashboard({
                     <section className="employee-package-preview">
                       <header>
                         <div>
-                          <span>SELECTED VISA PACKAGE</span>
+                          <span>{tx("Selected Visa Package", "\u067e\u06a9\u06cc\u062c \u0648\u06cc\u0632\u0647 \u0627\u0646\u062a\u062e\u0627\u0628\u200c\u0634\u062f\u0647", "\u067c\u0627\u06a9\u0644 \u0634\u0648\u06cc \u062f \u0648\u06cc\u0632\u06d0 \u067e\u06a9\u06cc\u062c")}</span>
                           <h3>
                             {selectedVisaPackage.packageName}
                           </h3>
@@ -1678,58 +1976,58 @@ export default function EmployeeDashboard({
 
                       <div className="employee-package-preview-grid">
                         <div>
-                          <span>Country</span>
+                          <span>{tx("Country", "\u06a9\u0634\u0648\u0631", "\u0647\u06d0\u0648\u0627\u062f")}</span>
                           <strong>
                             {selectedVisaPackage.country || "-"}
                           </strong>
                         </div>
 
                         <div>
-                          <span>Category</span>
+                          <span>{tx("Category", "\u06a9\u062a\u06af\u0648\u0631\u06cc", "\u06a9\u067c\u06ab\u0648\u0631\u064a")}</span>
                           <strong>
                             {selectedVisaPackage.category || "-"}
                           </strong>
                         </div>
 
                         <div>
-                          <span>Start Date</span>
+                          <span>{tx("Start Date", "\u062a\u0627\u0631\u06cc\u062e \u0634\u0631\u0648\u0639", "\u062f \u067e\u06cc\u0644 \u0646\u06d0\u067c\u0647")}</span>
                           <strong>
                             {selectedVisaPackage.startDate || "-"}
                           </strong>
                         </div>
 
                         <div>
-                          <span>End Date</span>
+                          <span>{tx("End Date", "\u062a\u0627\u0631\u06cc\u062e \u062e\u062a\u0645", "\u062f \u067e\u0627\u06cc \u0646\u06d0\u067c\u0647")}</span>
                           <strong>
                             {selectedVisaPackage.endDate || "-"}
                           </strong>
                         </div>
 
                         <div>
-                          <span>Bank Statement</span>
+                          <span>{tx("Bank Statement", "\u0627\u0633\u062a\u06cc\u062a\u0645\u0646\u062a \u0628\u0627\u0646\u06a9", "\u062f \u0628\u0627\u0646\u06a9 \u0627\u0633\u067c\u06cc\u067c\u0645\u0646\u067c")}</span>
                           <strong>
                             {selectedVisaPackage.bankStatementRequired === "Yes"
                               ? `${Number(
                                   selectedVisaPackage.bankStatementAmount || 0
                                 ).toLocaleString()} ${selectedVisaPackage.currency || "AFN"}`
-                              : "Not Required"}
+                              : tx("Not Required", "\u0636\u0631\u0648\u0631\u062a \u0646\u062f\u0627\u0631\u062f", "\u0627\u0693\u062a\u06cc\u0627 \u0646\u0634\u062a\u0647")}
                           </strong>
                         </div>
 
                         <div>
-                          <span>Documentation</span>
+                          <span>{tx("Documentation", "\u0627\u0633\u0646\u0627\u062f", "\u0627\u0633\u0646\u0627\u062f")}</span>
                           <strong>
                             {selectedVisaPackage.documentationRequired === "Yes"
                               ? (selectedVisaPackage.documents || []).join(", ") ||
-                                "Required"
-                              : "Not Required"}
+                                tx("Required", "\u0636\u0631\u0648\u0631\u06cc", "\u0627\u0693\u06cc\u0646")
+                              : tx("Not Required", "\u0636\u0631\u0648\u0631\u062a \u0646\u062f\u0627\u0631\u062f", "\u0627\u0693\u062a\u06cc\u0627 \u0646\u0634\u062a\u0647")}
                           </strong>
                         </div>
                       </div>
 
                       {selectedVisaPackage.note && (
                         <div className="employee-package-preview-note">
-                          <span>Package Note</span>
+                          <span>{tx("Package Note", "\u06cc\u0627\u062f\u062f\u0627\u0634\u062a \u067e\u06a9\u06cc\u062c", "\u062f \u067e\u06a9\u06cc\u062c \u06cc\u0627\u062f\u069a\u062a")}</span>
                           <p>{selectedVisaPackage.note}</p>
                         </div>
                       )}
@@ -1741,7 +2039,7 @@ export default function EmployeeDashboard({
               {mode === "travel" && (
                 <div className="employee-visa-package-section wide">
                   <label className="employee-package-select-field">
-                    Travel Package
+                    {tx("Travel Package", "\u067e\u06a9\u06cc\u062c \u0633\u0641\u0631", "\u062f \u0633\u0641\u0631 \u067e\u06a9\u06cc\u062c")}
 
                     <select
                       name="selectedTravelPackageId"
@@ -1749,7 +2047,7 @@ export default function EmployeeDashboard({
                       onChange={update}
                     >
                       <option value="">
-                        Select registered travel package
+                        {tx("Select registered travel package", "\u067e\u06a9\u06cc\u062c \u0633\u0641\u0631 \u062b\u0628\u062a\u200c\u0634\u062f\u0647 \u0631\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646\u06cc\u062f", "\u062b\u0628\u062a \u0634\u0648\u06cc \u062f \u0633\u0641\u0631 \u067e\u06a9\u06cc\u062c \u0648\u067c\u0627\u06a9\u0626")}
                       </option>
 
                       {availableTravelPackages.map((item) => (
@@ -1765,14 +2063,14 @@ export default function EmployeeDashboard({
 
                   {!travelPackagesLoaded && (
                     <p className="employee-package-empty-note">
-                      Loading Travel Packages...
+                      {tx("Loading Travel Packages...", "\u067e\u06a9\u06cc\u062c\u200c\u0647\u0627\u06cc \u0633\u0641\u0631 \u062f\u0631 \u062d\u0627\u0644 \u0628\u0627\u0631\u06af\u06cc\u0631\u06cc \u0627\u0633\u062a...", "\u062f \u0633\u0641\u0631 \u067e\u06a9\u06cc\u062c\u0648\u0646\u0647 \u0628\u0627\u0631\u06d0\u0696\u064a...")}
                     </p>
                   )}
 
                   {travelPackagesLoaded &&
                     !availableTravelPackages.length && (
                       <p className="employee-package-empty-note">
-                        No available Travel Packages found.
+                        {tx("No available Travel Packages found.", "\u0647\u06cc\u0686 \u067e\u06a9\u06cc\u062c \u0633\u0641\u0631 \u062f\u0631 \u062f\u0633\u062a\u0631\u0633 \u06cc\u0627\u0641\u062a \u0646\u0634\u062f.", "\u0647\u06d0\u0685 \u0634\u062a\u0647 \u062f \u0633\u0641\u0631 \u067e\u06a9\u06cc\u062c \u0648\u0646\u0647 \u0645\u0648\u0646\u062f\u0644 \u0634\u0648.")}
                       </p>
                     )}
 
@@ -1780,7 +2078,7 @@ export default function EmployeeDashboard({
                     <section className="employee-package-preview">
                       <header>
                         <div>
-                          <span>SELECTED TRAVEL PACKAGE</span>
+                          <span>{tx("Selected Travel Package", "\u067e\u06a9\u06cc\u062c \u0633\u0641\u0631 \u0627\u0646\u062a\u062e\u0627\u0628\u200c\u0634\u062f\u0647", "\u067c\u0627\u06a9\u0644 \u0634\u0648\u06cc \u062f \u0633\u0641\u0631 \u067e\u06a9\u06cc\u062c")}</span>
 
                           <h3>
                             {selectedTravelPackage.packageName}
@@ -1796,7 +2094,7 @@ export default function EmployeeDashboard({
 
                       <div className="employee-package-preview-grid">
                         <div>
-                          <span>Country</span>
+                          <span>{tx("Country", "\u06a9\u0634\u0648\u0631", "\u0647\u06d0\u0648\u0627\u062f")}</span>
 
                           <strong>
                             {selectedTravelPackage.country || "-"}
@@ -1804,7 +2102,7 @@ export default function EmployeeDashboard({
                         </div>
 
                         <div>
-                          <span>Category</span>
+                          <span>{tx("Category", "\u06a9\u062a\u06af\u0648\u0631\u06cc", "\u06a9\u067c\u06ab\u0648\u0631\u064a")}</span>
 
                           <strong>
                             {selectedTravelPackage.category || "-"}
@@ -1812,7 +2110,7 @@ export default function EmployeeDashboard({
                         </div>
 
                         <div>
-                          <span>Start Date</span>
+                          <span>{tx("Start Date", "\u062a\u0627\u0631\u06cc\u062e \u0634\u0631\u0648\u0639", "\u062f \u067e\u06cc\u0644 \u0646\u06d0\u067c\u0647")}</span>
 
                           <strong>
                             {selectedTravelPackage.startDate || "-"}
@@ -1820,7 +2118,7 @@ export default function EmployeeDashboard({
                         </div>
 
                         <div>
-                          <span>End Date</span>
+                          <span>{tx("End Date", "\u062a\u0627\u0631\u06cc\u062e \u062e\u062a\u0645", "\u062f \u067e\u0627\u06cc \u0646\u06d0\u067c\u0647")}</span>
 
                           <strong>
                             {selectedTravelPackage.endDate || "-"}
@@ -1828,7 +2126,7 @@ export default function EmployeeDashboard({
                         </div>
 
                         <div>
-                          <span>Bank Statement</span>
+                          <span>{tx("Bank Statement", "\u0627\u0633\u062a\u06cc\u062a\u0645\u0646\u062a \u0628\u0627\u0646\u06a9", "\u062f \u0628\u0627\u0646\u06a9 \u0627\u0633\u067c\u06cc\u067c\u0645\u0646\u067c")}</span>
 
                           <strong>
                             {selectedTravelPackage.bankStatementRequired ===
@@ -1837,14 +2135,14 @@ export default function EmployeeDashboard({
                                   selectedTravelPackage.bankStatementAmount ||
                                     0
                                 ).toLocaleString()} ${selectedTravelPackage.currency || "AFN"}`
-                              : "Not Required"}
+                              : tx("Not Required", "\u0636\u0631\u0648\u0631\u062a \u0646\u062f\u0627\u0631\u062f", "\u0627\u0693\u062a\u06cc\u0627 \u0646\u0634\u062a\u0647")}
                           </strong>
                         </div>
                       </div>
 
                       {selectedTravelPackage.note && (
                         <div className="employee-package-preview-note">
-                          <span>Package Note</span>
+                          <span>{tx("Package Note", "\u06cc\u0627\u062f\u062f\u0627\u0634\u062a \u067e\u06a9\u06cc\u062c", "\u062f \u067e\u06a9\u06cc\u062c \u06cc\u0627\u062f\u069a\u062a")}</span>
 
                           <p>
                             {selectedTravelPackage.note}
@@ -1859,7 +2157,7 @@ export default function EmployeeDashboard({
               {mode === "technology" && (
                 <div className="employee-visa-package-section wide">
                   <label className="employee-package-select-field">
-                    Technology Package
+                    {tx("Technology Package", "\u067e\u06a9\u06cc\u062c \u062a\u06a9\u0646\u0627\u0644\u0648\u0698\u06cc", "\u062f \u067c\u06a9\u0646\u0627\u0644\u0648\u0698\u06d0 \u067e\u06a9\u06cc\u062c")}
 
                     <select
                       name="selectedTechnologyPackageId"
@@ -1867,7 +2165,7 @@ export default function EmployeeDashboard({
                       onChange={update}
                     >
                       <option value="">
-                        Select registered technology package
+                        {tx("Select registered technology package", "\u067e\u06a9\u06cc\u062c \u062a\u06a9\u0646\u0627\u0644\u0648\u0698\u06cc \u062b\u0628\u062a\u200c\u0634\u062f\u0647 \u0631\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646\u06cc\u062f", "\u062b\u0628\u062a \u0634\u0648\u06cc \u062f \u067c\u06a9\u0646\u0627\u0644\u0648\u0698\u06d0 \u067e\u06a9\u06cc\u062c \u0648\u067c\u0627\u06a9\u0626")}
                       </option>
 
                       {technologyPackages.map((item) => (
@@ -1883,14 +2181,14 @@ export default function EmployeeDashboard({
 
                   {!technologyPackagesLoaded && (
                     <p className="employee-package-empty-note">
-                      Loading Technology Packages...
+                      {tx("Loading Technology Packages...", "\u067e\u06a9\u06cc\u062c\u200c\u0647\u0627\u06cc \u062a\u06a9\u0646\u0627\u0644\u0648\u0698\u06cc \u062f\u0631 \u062d\u0627\u0644 \u0628\u0627\u0631\u06af\u06cc\u0631\u06cc \u0627\u0633\u062a...", "\u062f \u067c\u06a9\u0646\u0627\u0644\u0648\u0698\u06d0 \u067e\u06a9\u06cc\u062c\u0648\u0646\u0647 \u0628\u0627\u0631\u06d0\u0696\u064a...")}
                     </p>
                   )}
 
                   {technologyPackagesLoaded &&
                     !technologyPackages.length && (
                       <p className="employee-package-empty-note">
-                        No Technology Packages have been registered yet.
+                        {tx("No Technology Packages have been registered yet.", "\u0647\u0646\u0648\u0632 \u0647\u06cc\u0686 \u067e\u06a9\u06cc\u062c \u062a\u06a9\u0646\u0627\u0644\u0648\u0698\u06cc \u062b\u0628\u062a \u0646\u0634\u062f\u0647 \u0627\u0633\u062a.", "\u062a\u0631 \u0627\u0648\u0633\u0647 \u0647\u06d0\u0685 \u062f \u067c\u06a9\u0646\u0627\u0644\u0648\u0698\u06d0 \u067e\u06a9\u06cc\u062c \u0646\u0647 \u062f\u06cc \u062b\u0628\u062a \u0634\u0648\u06cc.")}
                       </p>
                     )}
 
@@ -1898,7 +2196,7 @@ export default function EmployeeDashboard({
                     <section className="employee-package-preview">
                       <header>
                         <div>
-                          <span>SELECTED TECHNOLOGY PACKAGE</span>
+                          <span>{tx("Selected Technology Package", "\u067e\u06a9\u06cc\u062c \u062a\u06a9\u0646\u0627\u0644\u0648\u0698\u06cc \u0627\u0646\u062a\u062e\u0627\u0628\u200c\u0634\u062f\u0647", "\u067c\u0627\u06a9\u0644 \u0634\u0648\u06cc \u062f \u067c\u06a9\u0646\u0627\u0644\u0648\u0698\u06d0 \u067e\u06a9\u06cc\u062c")}</span>
 
                           <h3>
                             {selectedTechnologyPackage.packageName}
@@ -1914,7 +2212,7 @@ export default function EmployeeDashboard({
 
                       {selectedTechnologyPackage.note && (
                         <div className="employee-package-preview-note">
-                          <span>Package Note</span>
+                          <span>{tx("Package Note", "\u06cc\u0627\u062f\u062f\u0627\u0634\u062a \u067e\u06a9\u06cc\u062c", "\u062f \u067e\u06a9\u06cc\u062c \u06cc\u0627\u062f\u069a\u062a")}</span>
                           <p>{selectedTechnologyPackage.note}</p>
                         </div>
                       )}
@@ -1926,7 +2224,7 @@ export default function EmployeeDashboard({
               {mode === "media" && (
                 <div className="employee-visa-package-section wide">
                   <label className="employee-package-select-field">
-                    Media Package
+                    {tx("Media Package", "\u067e\u06a9\u06cc\u062c \u0631\u0633\u0627\u0646\u0647", "\u062f \u0631\u0633\u0646\u06cc\u0648 \u067e\u06a9\u06cc\u062c")}
 
                     <select
                       name="selectedMediaPackageId"
@@ -1934,7 +2232,7 @@ export default function EmployeeDashboard({
                       onChange={update}
                     >
                       <option value="">
-                        Select registered media package
+                        {tx("Select registered media package", "\u067e\u06a9\u06cc\u062c \u0631\u0633\u0627\u0646\u0647 \u062b\u0628\u062a\u200c\u0634\u062f\u0647 \u0631\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646\u06cc\u062f", "\u062b\u0628\u062a \u0634\u0648\u06cc \u062f \u0631\u0633\u0646\u06cc\u0648 \u067e\u06a9\u06cc\u062c \u0648\u067c\u0627\u06a9\u0626")}
                       </option>
 
                       {mediaPackages.map((item) => (
@@ -1950,14 +2248,14 @@ export default function EmployeeDashboard({
 
                   {!mediaPackagesLoaded && (
                     <p className="employee-package-empty-note">
-                      Loading Media Packages...
+                      {tx("Loading Media Packages...", "\u067e\u06a9\u06cc\u062c\u200c\u0647\u0627\u06cc \u0631\u0633\u0627\u0646\u0647 \u062f\u0631 \u062d\u0627\u0644 \u0628\u0627\u0631\u06af\u06cc\u0631\u06cc \u0627\u0633\u062a...", "\u062f \u0631\u0633\u0646\u06cc\u0648 \u067e\u06a9\u06cc\u062c\u0648\u0646\u0647 \u0628\u0627\u0631\u06d0\u0696\u064a...")}
                     </p>
                   )}
 
                   {mediaPackagesLoaded &&
                     !mediaPackages.length && (
                       <p className="employee-package-empty-note">
-                        No Media Packages have been registered yet.
+                        {tx("No Media Packages have been registered yet.", "\u0647\u0646\u0648\u0632 \u0647\u06cc\u0686 \u067e\u06a9\u06cc\u062c \u0631\u0633\u0627\u0646\u0647 \u062b\u0628\u062a \u0646\u0634\u062f\u0647 \u0627\u0633\u062a.", "\u062a\u0631 \u0627\u0648\u0633\u0647 \u0647\u06d0\u0685 \u062f \u0631\u0633\u0646\u06cc\u0648 \u067e\u06a9\u06cc\u062c \u0646\u0647 \u062f\u06cc \u062b\u0628\u062a \u0634\u0648\u06cc.")}
                       </p>
                     )}
 
@@ -1965,7 +2263,7 @@ export default function EmployeeDashboard({
                     <section className="employee-package-preview">
                       <header>
                         <div>
-                          <span>SELECTED MEDIA PACKAGE</span>
+                          <span>{tx("Selected Media Package", "\u067e\u06a9\u06cc\u062c \u0631\u0633\u0627\u0646\u0647 \u0627\u0646\u062a\u062e\u0627\u0628\u200c\u0634\u062f\u0647", "\u067c\u0627\u06a9\u0644 \u0634\u0648\u06cc \u062f \u0631\u0633\u0646\u06cc\u0648 \u067e\u06a9\u06cc\u062c")}</span>
 
                           <h3>
                             {selectedMediaPackage.packageName}
@@ -1981,14 +2279,14 @@ export default function EmployeeDashboard({
 
                       <div className="employee-package-preview-grid">
                         <div>
-                          <span>Country</span>
+                          <span>{tx("Country", "\u06a9\u0634\u0648\u0631", "\u0647\u06d0\u0648\u0627\u062f")}</span>
                           <strong>
                             {selectedMediaPackage.country || "-"}
                           </strong>
                         </div>
 
                         <div>
-                          <span>Category</span>
+                          <span>{tx("Category", "\u06a9\u062a\u06af\u0648\u0631\u06cc", "\u06a9\u067c\u06ab\u0648\u0631\u064a")}</span>
                           <strong>
                             {selectedMediaPackage.category || "-"}
                           </strong>
@@ -1997,7 +2295,7 @@ export default function EmployeeDashboard({
 
                       {selectedMediaPackage.note && (
                         <div className="employee-package-preview-note">
-                          <span>Package Note</span>
+                          <span>{tx("Package Note", "\u06cc\u0627\u062f\u062f\u0627\u0634\u062a \u067e\u06a9\u06cc\u062c", "\u062f \u067e\u06a9\u06cc\u062c \u06cc\u0627\u062f\u069a\u062a")}</span>
                           <p>{selectedMediaPackage.note}</p>
                         </div>
                       )}
@@ -2007,7 +2305,7 @@ export default function EmployeeDashboard({
               )}
 
               <label>
-                Full Name
+                {tx("Full Name", "\u0646\u0627\u0645 \u06a9\u0627\u0645\u0644", "\u0628\u0634\u067e\u0693 \u0646\u0648\u0645")}
 
                 <input
                   name="fullName"
@@ -2017,7 +2315,7 @@ export default function EmployeeDashboard({
               </label>
 
               <label>
-                Phone Number
+                {tx("Phone Number", "\u0646\u0645\u0628\u0631 \u062a\u0645\u0627\u0633", "\u062f \u062a\u0644\u06cc\u0641\u0648\u0646 \u0634\u0645\u06d0\u0631\u0647")}
 
                 <input
                   name="phone"
@@ -2029,19 +2327,19 @@ export default function EmployeeDashboard({
               {(mode === "technology" ||
                 mode === "media") && (
                 <label>
-                  Business Type
+                  {tx("Business Type", "\u0646\u0648\u0639 \u062a\u062c\u0627\u0631\u062a", "\u062f \u0633\u0648\u062f\u0627\u06ab\u0631\u06cd \u0689\u0648\u0644")}
 
                   <input
                     name="businessType"
                     value={form.businessType}
                     onChange={update}
-                    placeholder="Enter business type"
+                    placeholder={tx("Enter business type", "\u0646\u0648\u0639 \u062a\u062c\u0627\u0631\u062a \u0631\u0627 \u0648\u0627\u0631\u062f \u06a9\u0646\u06cc\u062f", "\u062f \u0633\u0648\u062f\u0627\u06ab\u0631\u06cd \u0689\u0648\u0644 \u0648\u0644\u06cc\u06a9\u0626")}
                   />
                 </label>
               )}
 
               <label>
-                City / Province
+                {tx("City / Province", "\u0634\u0647\u0631 / \u0648\u0644\u0627\u06cc\u062a", "\u069a\u0627\u0631 / \u0648\u0644\u0627\u06cc\u062a")}
 
                 <select
                   name="city"
@@ -2049,7 +2347,7 @@ export default function EmployeeDashboard({
                   onChange={update}
                 >
                   <option value="">
-                    Select province
+                    {tx("Select province", "\u0648\u0644\u0627\u06cc\u062a \u0631\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646\u06cc\u062f", "\u0648\u0644\u0627\u06cc\u062a \u0648\u067c\u0627\u06a9\u0626")}
                   </option>
 
                   {provinces.map((province) => (
@@ -2064,37 +2362,45 @@ export default function EmployeeDashboard({
               </label>
 
               <label>
-                Language
+                {tx("Language", "\u0632\u0628\u0627\u0646", "\u0698\u0628\u0647")}
 
                 <select
                   name="language"
                   value={form.language}
                   onChange={update}
                 >
-                  <option>Dari</option>
-                  <option>Pashto</option>
-                  <option>English</option>
-                  <option>Other</option>
+                  <option value="Dari">
+                    {tx("Dari", "\u062f\u0631\u06cc", "\u062f\u0631\u064a")}
+                  </option>
+                  <option value="Pashto">
+                    {tx("Pashto", "\u067e\u0634\u062a\u0648", "\u067e\u069a\u062a\u0648")}
+                  </option>
+                  <option value="English">
+                    {tx("English", "\u0627\u0646\u06af\u0644\u06cc\u0633\u06cc", "\u0627\u0646\u06ab\u0644\u06cc\u0633\u064a")}
+                  </option>
+                  <option value="Other">
+                    {tx("Other", "\u062f\u06cc\u06af\u0631", "\u0628\u0644")}
+                  </option>
                 </select>
               </label>
 
               {mode !== "media" && (
                 <label>
-                  Call Type
+                  {tx("Call Type", "\u0646\u0648\u0639 \u062a\u0645\u0627\u0633", "\u062f \u0632\u0646\u06ab \u0689\u0648\u0644")}
 
                   <select
                     name="callType"
                     value={form.callType}
                     onChange={update}
                   >
-                    <option>Incoming</option>
-                    <option>Outgoing</option>
+                    <option value="Incoming">{tx("Incoming", "\u0648\u0627\u0631\u062f\u0647", "\u0631\u0627\u062a\u0644\u0648\u0646\u06a9\u06cc")}</option>
+                    <option value="Outgoing">{tx("Outgoing", "\u062e\u0627\u0631\u062c\u0647", "\u062a\u0644\u0648\u0646\u06a9\u06cc")}</option>
                   </select>
                 </label>
               )}
 
               <label>
-                Unit
+                {tx("Unit", "\u0648\u0627\u062d\u062f", "\u0648\u0627\u062d\u062f")}
 
                 <select
                   name="currencyUnit"
@@ -2102,17 +2408,17 @@ export default function EmployeeDashboard({
                   onChange={update}
                 >
                   <option value="AFN">
-                    AFN - افغانی
+                    AFN - {tx("Afghani", "\u0627\u0641\u063a\u0627\u0646\u06cc", "\u0627\u0641\u063a\u0627\u0646\u06cd")}
                   </option>
 
                   <option value="USD">
-                    USD - Dollar
+                    USD - {tx("Dollar", "\u062f\u0627\u0644\u0631", "\u0689\u0627\u0644\u0631")}
                   </option>
                 </select>
               </label>
 
               <label>
-                Price
+                {tx("Price", "\u0642\u06cc\u0645\u062a", "\u0628\u06cc\u0647")}
 
                 <input
                   type="number"
@@ -2139,13 +2445,13 @@ export default function EmployeeDashboard({
                     (mode === "media" &&
                       Boolean(selectedMediaPackage))
                   }
-                  placeholder="Enter price"
+                  placeholder={tx("Enter price", "\u0642\u06cc\u0645\u062a \u0631\u0627 \u0648\u0627\u0631\u062f \u06a9\u0646\u06cc\u062f", "\u0628\u06cc\u0647 \u0648\u0644\u06cc\u06a9\u0626")}
                 />
               </label>
 
               {mode === "consultant" && (
                 <label>
-                  Scholarship Type
+                  {tx("Scholarship Type", "\u0646\u0648\u0639 \u0628\u0648\u0631\u0633\u06cc\u0647", "\u062f \u0628\u0648\u0631\u0633 \u0689\u0648\u0644")}
 
                   <select
                     name="scholarshipType"
@@ -2153,19 +2459,19 @@ export default function EmployeeDashboard({
                     onChange={update}
                   >
                     <option value="">
-                      Select scholarship
+                      {tx("Select scholarship", "\u0628\u0648\u0631\u0633\u06cc\u0647 \u0631\u0627 \u0627\u0646\u062a\u062e\u0627\u0628 \u06a9\u0646\u06cc\u062f", "\u0628\u0648\u0631\u0633 \u0648\u067c\u0627\u06a9\u0626")}
                     </option>
 
                     <option value="Fully Funded">
-                      Fully Funded
+                      {tx("Fully Funded", "\u0641\u0648\u0644 \u0641\u0646\u062f", "\u0628\u0634\u067e\u0693 \u062a\u0645\u0648\u06cc\u0644")}
                     </option>
 
                     <option value="Partial Funded">
-                      Partial Funded
+                      {tx("Partial Funded", "\u0642\u0633\u0645\u06cc \u0641\u0646\u062f", "\u0642\u0633\u0645\u064a \u062a\u0645\u0648\u06cc\u0644")}
                     </option>
 
                     <option value="Private">
-                      Private
+                      {tx("Private", "\u062e\u0635\u0648\u0635\u06cc", "\u0634\u062e\u0635\u064a")}
                     </option>
                   </select>
                 </label>
@@ -2173,36 +2479,44 @@ export default function EmployeeDashboard({
 
               {mode === "technology" && (
                 <label>
-                  Purpose
+                  {tx("Purpose", "\u0647\u062f\u0641", "\u0645\u0648\u062e\u0647")}
 
                   <select
                     name="technologyPurpose"
                     value={form.technologyPurpose}
                     onChange={update}
                   >
-                    <option>Database</option>
-                    <option>Web</option>
-                    <option>Application</option>
+                    <option value="Database">
+                      {tx("Database", "\u062f\u06cc\u062a\u0627\u0628\u06cc\u0633", "\u0689\u06cc\u067c\u0627\u0628\u06cc\u0633")}
+                    </option>
+
+                    <option value="Web">
+                      {tx("Web", "\u0648\u06cc\u0628", "\u0648\u06cc\u0628")}
+                    </option>
+
+                    <option value="Application">
+                      {tx("Application", "\u0627\u067e\u0644\u06cc\u06a9\u06cc\u0634\u0646", "\u0627\u067e\u0644\u06cc\u06a9\u06cc\u0634\u0646")}
+                    </option>
                   </select>
                 </label>
               )}
 
               {mode !== "technology" && (
                 <label className="wide">
-                  Purpose
+                  {tx("Purpose", "\u0647\u062f\u0641", "\u0645\u0648\u062e\u0647")}
 
                   <textarea
                     name="purpose"
                     value={form.purpose}
                     onChange={update}
-                    placeholder="Enter customer purpose"
+                    placeholder={tx("Enter customer purpose", "\u0647\u062f\u0641 \u0645\u0634\u062a\u0631\u06cc \u0631\u0627 \u0648\u0627\u0631\u062f \u06a9\u0646\u06cc\u062f", "\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a \u0645\u0648\u062e\u0647 \u0648\u0644\u06cc\u06a9\u0626")}
                   />
                 </label>
               )}
 
               {mode !== "media" && (
                 <label className="followup-field wide">
-                  Need Follow-up
+                  {tx("Need Follow-up", "\u0646\u06cc\u0627\u0632 \u0628\u0647 \u067e\u06cc\u06af\u06cc\u0631\u06cc", "\u062a\u0639\u0642\u06cc\u0628 \u062a\u0647 \u0627\u0693\u062a\u06cc\u0627")}
 
                   <button
                     type="button"
@@ -2229,8 +2543,8 @@ export default function EmployeeDashboard({
 
                     <b>
                       {form.needFollowup === "Yes"
-                        ? "ON"
-                        : "OFF"}
+                        ? tx("ON", "\u0641\u0639\u0627\u0644", "\u0641\u0639\u0627\u0644")
+                        : tx("OFF", "\u063a\u06cc\u0631\u0641\u0639\u0627\u0644", "\u063a\u06cc\u0631 \u0641\u0639\u0627\u0644")}
                     </b>
                   </button>
                 </label>
@@ -2238,13 +2552,13 @@ export default function EmployeeDashboard({
 
               {mode !== "media" && (
                 <label className="wide">
-                  Note
+                  {tx("Note", "\u06cc\u0627\u062f\u062f\u0627\u0634\u062a", "\u06cc\u0627\u062f\u069a\u062a")}
 
                   <textarea
                     name="note"
                     value={form.note}
                     onChange={update}
-                    placeholder="Write additional customer notes..."
+                    placeholder={tx("Write additional customer notes...", "\u06cc\u0627\u062f\u062f\u0627\u0634\u062a\u200c\u0647\u0627\u06cc \u0627\u0636\u0627\u0641\u06cc \u0645\u0634\u062a\u0631\u06cc \u0631\u0627 \u0628\u0646\u0648\u06cc\u0633\u06cc\u062f...", "\u062f \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u064a \u0627\u0636\u0627\u0641\u064a \u06cc\u0627\u062f\u069a\u062a\u0648\u0646\u0647 \u0648\u0644\u06cc\u06a9\u0626...")}
                     rows={4}
                   />
                 </label>
@@ -2256,7 +2570,7 @@ export default function EmployeeDashboard({
                 type="button"
                 onClick={closeCustomerModal}
               >
-                Cancel
+                {tx("Cancel", "\u0644\u063a\u0648", "\u0644\u063a\u0648\u0647")}
               </button>
 
               <button
@@ -2264,8 +2578,8 @@ export default function EmployeeDashboard({
                 className="primary"
               >
                 {editId
-                  ? "Save Changes"
-                  : "Save Customer"}
+                  ? tx("Save Changes", "\u0630\u062e\u06cc\u0631\u0647 \u062a\u063a\u06cc\u06cc\u0631\u0627\u062a", "\u0628\u062f\u0644\u0648\u0646\u0648\u0646\u0647 \u062e\u0648\u0646\u062f\u064a \u06a9\u0693\u0626")
+                  : tx("Save Customer", "\u0630\u062e\u06cc\u0631\u0647 \u0645\u0634\u062a\u0631\u06cc", "\u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u06cc \u062e\u0648\u0646\u062f\u064a \u06a9\u0693\u0626")}
               </button>
             </footer>
           </form>
@@ -2291,14 +2605,18 @@ export default function EmployeeDashboard({
               <Trash2 size={22} />
             </div>
 
-            <h2>Delete Customer</h2>
+            <h2>{tx("Delete Customer", "\u062d\u0630\u0641 \u0645\u0634\u062a\u0631\u06cc", "\u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u06cc \u062d\u0630\u0641\u0648\u0644")}</h2>
 
             <p>
-              Are you sure you want to delete{" "}
+              {tx(
+                "Are you sure you want to delete",
+                "\u0622\u06cc\u0627 \u0645\u0637\u0645\u0626\u0646 \u0647\u0633\u062a\u06cc\u062f \u06a9\u0647 \u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u06cc\u062f \u062d\u0630\u0641 \u06a9\u0646\u06cc\u062f",
+                "\u0627\u06cc\u0627 \u062a\u0627\u0633\u0648 \u0628\u0627\u0648\u0631\u064a \u06cc\u0627\u0633\u062a \u0686\u06d0 \u062d\u0630\u0641\u0648\u0644 \u063a\u0648\u0627\u0693\u0626"
+              )}{" "}
               <strong>
                 {deleteTarget.fullName ||
                   deleteTarget.customerName ||
-                  "this customer"}
+                  tx("this customer", "\u0627\u06cc\u0646 \u0645\u0634\u062a\u0631\u06cc", "\u062f\u0627 \u067e\u06d0\u0631\u0648\u062f\u0648\u0646\u06a9\u06cc")}
               </strong>
               ?
             </p>
@@ -2311,7 +2629,7 @@ export default function EmployeeDashboard({
                   setDeleteTarget(null)
                 }
               >
-                Cancel
+                {tx("Cancel", "\u0644\u063a\u0648", "\u0644\u063a\u0648\u0647")}
               </button>
 
               <button
@@ -2323,8 +2641,8 @@ export default function EmployeeDashboard({
                 <Trash2 size={14} />
 
                 {deleting
-                  ? "Deleting..."
-                  : "Delete"}
+                  ? tx("Deleting...", "\u062f\u0631 \u062d\u0627\u0644 \u062d\u0630\u0641...", "\u062d\u0630\u0641\u06d0\u0696\u064a...")
+                  : tx("Delete", "\u062d\u0630\u0641", "\u062d\u0630\u0641\u0648\u0644")}
               </button>
             </div>
           </div>
