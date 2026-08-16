@@ -244,11 +244,11 @@ body.theme-ocean .dashboard-trend-accent {
   background: #0ea5e9 !important;
 }
 
-body.theme-ocean .dashboard-trend-card .recharts-curve {
+body.theme-ocean .dashboard-trend-card svg path {
   stroke: #0ea5e9 !important;
 }
 
-body.theme-ocean .dashboard-trend-card .recharts-rectangle {
+body.theme-ocean .dashboard-trend-card svg rect {
   fill: #0ea5e9 !important;
 }
 
@@ -294,11 +294,11 @@ body.theme-warm .dashboard-trend-accent {
   background: #f59e0b !important;
 }
 
-body.theme-warm .dashboard-trend-card .recharts-curve {
+body.theme-warm .dashboard-trend-card svg path {
   stroke: #f59e0b !important;
 }
 
-body.theme-warm .dashboard-trend-card .recharts-rectangle {
+body.theme-warm .dashboard-trend-card svg rect {
   fill: #f59e0b !important;
 }
 
@@ -384,11 +384,11 @@ body.theme-professional .dashboard-trends-heading h2 {
   color: #075985;
 }
 
-body.theme-professional .dashboard-trend-card .recharts-curve {
+body.theme-professional .dashboard-trend-card svg path {
   stroke: #0284c7 !important;
 }
 
-body.theme-professional .dashboard-trend-card .recharts-rectangle {
+body.theme-professional .dashboard-trend-card svg rect {
   fill: #f59e0b !important;
 }
 
@@ -458,11 +458,11 @@ body.theme-winter .dashboard-trends-heading h2 {
   color: #bae6fd !important;
 }
 
-body.theme-winter .dashboard-trend-card .recharts-curve {
+body.theme-winter .dashboard-trend-card svg path {
   stroke: #38bdf8 !important;
 }
 
-body.theme-winter .dashboard-trend-card .recharts-rectangle {
+body.theme-winter .dashboard-trend-card svg rect {
   fill: #93c5fd !important;
 }
 
@@ -494,11 +494,11 @@ body.dark-mode .dashboard-trend-accent {
   background: #8b5cf6 !important;
 }
 
-body.dark-mode .dashboard-trend-card .recharts-curve {
+body.dark-mode .dashboard-trend-card svg path {
   stroke: #8b5cf6 !important;
 }
 
-body.dark-mode .dashboard-trend-card .recharts-rectangle {
+body.dark-mode .dashboard-trend-card svg rect {
   fill: #8b5cf6 !important;
 }
 
@@ -768,8 +768,7 @@ body.theme-warm .sidebar-customer-menu.open > .sidebar-customer-trigger {
 .lang-rtl .page-content input[type="date"],
 .lang-rtl .page-content input[type="time"],
 .lang-rtl .page-content [data-no-translate],
-.lang-rtl .recharts-wrapper,
-.lang-rtl .recharts-surface {
+.lang-rtl .page-content svg {
   direction: ltr;
 }
 

@@ -9,7 +9,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts";
+} from "../components/SimpleCharts";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { formatDateTime, todayDateValue } from "../utils/afghanDate";
 import "./AssetFullInformation.css";

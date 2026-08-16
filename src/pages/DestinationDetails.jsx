@@ -10,7 +10,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts";
+} from "../components/SimpleCharts";
 import TablePagination from "../components/TablePagination";
 import AfghanDateInput from "../components/AfghanDateInput";
 import { useJsonCollection } from "../hooks/useJsonCollection";

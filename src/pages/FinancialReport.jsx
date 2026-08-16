@@ -15,7 +15,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts";
+} from "../components/SimpleCharts";
 import TablePagination from "../components/TablePagination";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useTablePagination } from "../hooks/useTablePagination";

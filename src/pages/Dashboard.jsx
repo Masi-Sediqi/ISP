@@ -13,7 +13,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts";
+} from "../components/SimpleCharts";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { todayDateValue } from "../utils/afghanDate";
 import "../App.css";

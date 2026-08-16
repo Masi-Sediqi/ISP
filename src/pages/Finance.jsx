@@ -8,7 +8,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "recharts";
+} from "../components/SimpleCharts";
 import {
   MoreVertical,
   Pencil,
