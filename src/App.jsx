@@ -840,6 +840,7 @@ const myAssignedCustomers = customers
       );
 
     const receptionAllowedPaths = [
+      "/",
       "/reception",
       "/my-account",
       "/messages",
@@ -997,7 +998,7 @@ const myAssignedCustomers = customers
     appContent = (
       <Suspense fallback={<div className="page-loading">Loading...</div>}>
         <Login
-          accounts={accounts}
+          accounts={effectiveAccounts}
           setAccounts={setAccounts}
           onLogin={login}
           company={company}
@@ -1037,7 +1038,7 @@ const myAssignedCustomers = customers
             <span>{sidebarText.messages}</span>
           </NavLink>
 
-          {(!isReceptionAccount || isCallCenterAccount) && (
+          {canViewModule(currentUser, "dashboard") && (
               <NavLink to="/">
                 <LayoutDashboard size={17} />
                 <span>{sidebarText.dashboard}</span>

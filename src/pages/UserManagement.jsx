@@ -11,6 +11,7 @@ const defaultRoles = [
   "Storekeeper",
   "Technician",
   "Finance Officer",
+  "Reception",
   "Admin",
 ];
 
@@ -96,6 +97,15 @@ const makeRolePermissions = (role) => {
       permissions[key] = { view: false, create: false, edit: false, delete: false };
     });
     ["dashboard", "deviceTransfer", "towerAssets"].forEach((key) => {
+      permissions[key] = { view: true, create: true, edit: true, delete: false };
+    });
+  }
+
+  if (role === "Reception") {
+    Object.keys(permissions).forEach((key) => {
+      permissions[key] = { view: false, create: false, edit: false, delete: false };
+    });
+    ["dashboard", "customers"].forEach((key) => {
       permissions[key] = { view: true, create: true, edit: true, delete: false };
     });
   }

@@ -54,6 +54,10 @@ function Login({ accounts, setAccounts, onLogin, company }) {
       return notify("The email or password is incorrect.", "error");
     }
 
+    if (String(account.status || "Active").trim().toLowerCase() !== "active") {
+      return notify("This account is not active. Please contact the administrator.", "error");
+    }
+
     onLogin(account);
   };
 

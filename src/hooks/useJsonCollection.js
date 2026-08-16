@@ -1,54 +1,34 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import axios from "axios";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { notify } from "../utils/notify";
-import { apiUrl } from "../utils/api";
 import {
   archiveLocalRemovedRecords,
   getRecordIdentity,
 } from "../utils/recycleBin";
+import {
+  migrateLocalStorageCollection,
+  readIndexedCollection,
+  writeIndexedCollection,
+} from "../db/indexedDb";
+import {
+  currentActorSnapshot,
+  fetchMergedRemoteCollection,
+  flushSyncQueue,
+  queueCollectionChanges,
+  seedRemoteIfEmpty,
+} from "../sync/collectionSync";
+import { supabaseConfigured } from "../services/supabaseRest";
 
 const DISABLED_COLLECTIONS = new Set();
-const SERVER_ERROR_NOTIFICATION_COOLDOWN_MS = 10000;
 const ACTIVITY_COLLECTION = "employeeActivities";
 const ACTIVITY_IGNORED_COLLECTIONS = new Set([
   ACTIVITY_COLLECTION,
   "employeeReports",
   "recycleBin",
 ]);
-let lastServerErrorNotificationAt = 0;
+const REMOTE_REFRESH_MS = 8000;
 
-function notifyServerError(message) {
-  const now = Date.now();
-
-  if (now - lastServerErrorNotificationAt < SERVER_ERROR_NOTIFICATION_COOLDOWN_MS) {
-    return;
-  }
-
-  lastServerErrorNotificationAt = now;
-  notify(message, "error");
-}
-
-const normalize = (value) =>
-  String(value || "").trim().toLowerCase();
-
-function itemKey(item) {
-  return String(
-    item?.id ||
-      item?._id ||
-      item?.customerId ||
-      item?.assetId ||
-      item?.invoiceNumber ||
-      item?.billNumber ||
-      item?.createdAt ||
-      ""
-  );
-}
+const normalize = (value) => String(value || "").trim().toLowerCase();
 
 function isFullAdminAccount(account) {
   const roles = [
@@ -63,9 +43,7 @@ function isFullAdminAccount(account) {
     account?.isDefaultAdmin === true ||
     account?.isFullAdmin === true ||
     account?.permissions?.all === true ||
-    roles.some((role) =>
-      ["full admin", "administrator", "admin"].includes(role)
-    )
+    roles.some((role) => ["full admin", "administrator", "admin"].includes(role))
   );
 }
 
@@ -80,43 +58,25 @@ function actorName(account) {
 }
 
 function detectCollectionChange(previousItems, nextItems) {
-  const previousByKey = new Map(
-    previousItems.map((item) => [itemKey(item), item])
-  );
-
-  const nextByKey = new Map(
-    nextItems.map((item) => [itemKey(item), item])
-  );
-
-  let createdCount = 0;
-  let updatedCount = 0;
-  let deletedCount = 0;
+  const previousByKey = new Map(previousItems.map((item) => [getRecordIdentity(item), item]));
+  const nextByKey = new Map(nextItems.map((item) => [getRecordIdentity(item), item]));
   const createdIds = [];
   const updatedIds = [];
   const deletedIds = [];
 
   nextByKey.forEach((item, key) => {
     const previous = previousByKey.get(key);
-
-    if (!previous) {
-      createdCount += 1;
-      createdIds.push(key);
-      return;
-    }
-
-    if (JSON.stringify(previous) !== JSON.stringify(item)) {
-      updatedCount += 1;
-      updatedIds.push(key);
-    }
+    if (!previous) createdIds.push(key);
+    else if (JSON.stringify(previous) !== JSON.stringify(item)) updatedIds.push(key);
   });
 
   previousByKey.forEach((_, key) => {
-    if (!nextByKey.has(key)) {
-      deletedCount += 1;
-      deletedIds.push(key);
-    }
+    if (!nextByKey.has(key)) deletedIds.push(key);
   });
 
+  const createdCount = createdIds.length;
+  const updatedCount = updatedIds.length;
+  const deletedCount = deletedIds.length;
   const action =
     createdCount && !updatedCount && !deletedCount
       ? "created"
@@ -134,71 +94,25 @@ function detectCollectionChange(previousItems, nextItems) {
     createdIds,
     updatedIds,
     deletedIds,
-    changedIds: [
-      ...createdIds,
-      ...updatedIds,
-      ...deletedIds,
-    ],
-    totalChanged:
-      createdCount + updatedCount + deletedCount,
+    changedIds: [...createdIds, ...updatedIds, ...deletedIds],
+    totalChanged: createdCount + updatedCount + deletedCount,
   };
 }
 
-async function recordEmployeeActivity(
-  collectionName,
-  previousItems,
-  nextItems
-) {
-  if (ACTIVITY_IGNORED_COLLECTIONS.has(collectionName)) {
-    return;
-  }
+async function recordEmployeeActivity(collectionName, previousItems, nextItems) {
+  if (ACTIVITY_IGNORED_COLLECTIONS.has(collectionName)) return;
 
-  const sessionId =
-    localStorage.getItem("isp-system-session");
+  const actor = currentActorSnapshot();
+  if (!actor?.id || isFullAdminAccount(actor)) return;
 
-  if (!sessionId) return;
-
-  const change = detectCollectionChange(
-    previousItems,
-    nextItems
-  );
-
+  const change = detectCollectionChange(previousItems, nextItems);
   if (!change.totalChanged) return;
 
   try {
-    const accountsResponse = await axios.get(
-      apiUrl("accounts")
-    );
-
-    const accounts = Array.isArray(accountsResponse.data)
-      ? accountsResponse.data
-      : [];
-
-    const actor = accounts.find(
-      (account) =>
-        String(account.id) === String(sessionId)
-    );
-
-    if (!actor || isFullAdminAccount(actor)) {
-      return;
-    }
-
-    const activitiesResponse = await axios.get(
-      apiUrl(ACTIVITY_COLLECTION)
-    );
-
-    const activities = Array.isArray(
-      activitiesResponse.data
-    )
-      ? activitiesResponse.data
-      : [];
-
+    const activities = await readIndexedCollection(ACTIVITY_COLLECTION);
     const now = new Date().toISOString();
-
     const record = {
-      id: `${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       type: "employee-action",
       collection: collectionName,
       action: change.action,
@@ -209,194 +123,181 @@ async function recordEmployeeActivity(
       updatedIds: change.updatedIds,
       deletedIds: change.deletedIds,
       changedIds: change.changedIds,
-      primaryRecordId:
-        change.changedIds?.[0] || "",
+      primaryRecordId: change.changedIds?.[0] || "",
       totalChanged: change.totalChanged,
       actorId: actor.id,
       actorEmployeeId: actor.employeeId || "",
       actorName: actorName(actor),
       actorEmail: actor.email || "",
-      actorRole:
-        actor.primaryRole ||
-        actor.role ||
-        "Employee",
+      actorRole: actor.primaryRole || actor.role || "Employee",
       adminNotificationType: "employee-action",
       adminNotificationAt: now,
       adminNotificationSound: false,
       createdAt: now,
     };
 
-    await axios.put(apiUrl(ACTIVITY_COLLECTION), [
-      ...activities,
-      record,
-    ]);
+    const nextActivities = [...activities, record];
+    await writeIndexedCollection(ACTIVITY_COLLECTION, nextActivities);
+    await queueCollectionChanges(ACTIVITY_COLLECTION, activities, nextActivities);
+    flushSyncQueue();
 
     window.dispatchEvent(
-      new CustomEvent("isp-employee-activity-updated", {
-        detail: record,
-      })
+      new CustomEvent("isp-employee-activity-updated", { detail: record })
     );
   } catch (error) {
-    console.warn(
-      "Unable to record employee activity:",
-      error
-    );
+    console.warn("Unable to record employee activity:", error);
   }
 }
 
 export function useJsonCollection(name, options = {}) {
-  const silentLoadErrors = options.silentLoadErrors === true;
-  const disabled =
-    DISABLED_COLLECTIONS.has(name);
-
-  const [items, setItemsState] =
-    useState([]);
-
-  const [loaded, setLoaded] =
-    useState(disabled);
-
+  const disabled = DISABLED_COLLECTIONS.has(name);
+  const [items, setItemsState] = useState([]);
+  const [loaded, setLoaded] = useState(disabled);
   const itemsRef = useRef([]);
+  const loadingRef = useRef(false);
+
+  const applyItems = useCallback(
+    async (nextItems) => {
+      const safe = Array.isArray(nextItems) ? nextItems : [];
+      itemsRef.current = safe;
+      setItemsState(safe);
+      await writeIndexedCollection(name, safe);
+      return safe;
+    },
+    [name]
+  );
 
   const load = useCallback(async () => {
     if (disabled) {
       itemsRef.current = [];
       setItemsState([]);
       setLoaded(true);
-
       return [];
     }
+
+    if (loadingRef.current) return itemsRef.current;
+    loadingRef.current = true;
 
     try {
-      const response = await axios.get(
-        apiUrl(name)
+      let localItems = await migrateLocalStorageCollection(
+        name,
+        `isp-local-collection:${name}`
       );
 
-      const data = Array.isArray(
-        response.data
-      )
-        ? response.data
-        : [];
-
-      itemsRef.current = data;
-      setItemsState(data);
+      itemsRef.current = localItems;
+      setItemsState(localItems);
       setLoaded(true);
 
-      return data;
-    } catch (error) {
-      console.error(
-        `Unable to load ${name}:`,
-        error
-      );
-
-      itemsRef.current = [];
-      setItemsState([]);
-      setLoaded(true);
-
-      if (!silentLoadErrors) {
-        notifyServerError("Unable to load data. Please check the server connection.");
+      if (supabaseConfigured && navigator.onLine) {
+        try {
+          await flushSyncQueue();
+          await seedRemoteIfEmpty(name, localItems);
+          const merged = await fetchMergedRemoteCollection(name, localItems);
+          localItems = await applyItems(merged);
+        } catch (error) {
+          console.warn(`Unable to refresh ${name} from Supabase:`, error);
+        }
       }
 
+      return localItems;
+    } catch (error) {
+      console.error(`Unable to load ${name} from IndexedDB:`, error);
+      setLoaded(true);
+      notify(`Unable to load local ${name} data.`, "error");
       return [];
+    } finally {
+      loadingRef.current = false;
     }
-  }, [disabled, name, silentLoadErrors]);
+  }, [applyItems, disabled, name]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (disabled) return undefined;
+
+    const handleIndexedChange = (event) => {
+      const nextItems = Array.isArray(event?.detail) ? event.detail : null;
+      if (nextItems) {
+        itemsRef.current = nextItems;
+        setItemsState(nextItems);
+      } else {
+        readIndexedCollection(name).then((stored) => {
+          itemsRef.current = stored;
+          setItemsState(stored);
+        });
+      }
+    };
+
+    const handleOnline = async () => {
+      await flushSyncQueue();
+      load();
+    };
+
+    window.addEventListener(`isp-indexed:${name}`, handleIndexedChange);
+    window.addEventListener("online", handleOnline);
+
+    return () => {
+      window.removeEventListener(`isp-indexed:${name}`, handleIndexedChange);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [disabled, load, name]);
+
+  useEffect(() => {
+    if (disabled || !supabaseConfigured) return undefined;
+
+    const timer = window.setInterval(async () => {
+      if (!navigator.onLine || loadingRef.current) return;
+      try {
+        await flushSyncQueue();
+        const merged = await fetchMergedRemoteCollection(name, itemsRef.current);
+        if (JSON.stringify(merged) !== JSON.stringify(itemsRef.current)) {
+          await applyItems(merged);
+        }
+      } catch (error) {
+        console.warn(`Background sync failed for ${name}:`, error);
+      }
+    }, REMOTE_REFRESH_MS);
+
+    return () => window.clearInterval(timer);
+  }, [applyItems, disabled, name]);
+
   const setItems = useCallback(
     async (nextValue) => {
-      if (disabled) {
-        return false;
-      }
+      if (disabled) return false;
 
-      const previousItems =
-        itemsRef.current;
-
+      const previousItems = itemsRef.current;
       const nextItems =
-        typeof nextValue === "function"
-          ? nextValue(previousItems)
-          : nextValue;
+        typeof nextValue === "function" ? nextValue(previousItems) : nextValue;
 
       if (!Array.isArray(nextItems)) {
-        notify(
-          `Invalid data format for ${name}.`,
-          "error"
-        );
-
+        notify(`Invalid data format for ${name}.`, "error");
         return false;
       }
-
-      itemsRef.current = nextItems;
-      setItemsState(nextItems);
 
       try {
         if (name !== "recycleBin") {
-          const nextIdentities = new Set(
-            nextItems.map(getRecordIdentity)
-          );
-          const hasRemovedItems = previousItems.some(
-            (item) => !nextIdentities.has(getRecordIdentity(item))
-          );
-
-          if (hasRemovedItems) {
-            try {
-              await axios.get(apiUrl("recycleBin"));
-            } catch {
-              archiveLocalRemovedRecords(
-                name,
-                previousItems,
-                nextItems,
-                "server-fallback"
-              );
-            }
-          }
+          archiveLocalRemovedRecords(name, previousItems, nextItems, "indexeddb");
         }
 
-        const response = await axios.put(
-          apiUrl(name),
-          nextItems
-        );
+        await applyItems(nextItems);
+        await queueCollectionChanges(name, previousItems, nextItems);
+        recordEmployeeActivity(name, previousItems, nextItems);
 
-        const savedData = Array.isArray(
-          response.data
-        )
-          ? response.data
-          : nextItems;
-
-        itemsRef.current = savedData;
-        setItemsState(savedData);
-
-        recordEmployeeActivity(
-          name,
-          previousItems,
-          savedData
-        );
+        if (supabaseConfigured && navigator.onLine) {
+          flushSyncQueue();
+        }
 
         return true;
       } catch (error) {
-        console.error(
-          `Unable to save ${name}:`,
-          error
-        );
-
-        itemsRef.current =
-          previousItems;
-
-        setItemsState(previousItems);
-
-        notifyServerError("Unable to save data. Please check the server connection.");
-
+        console.error(`Unable to save ${name} to IndexedDB:`, error);
+        notify(`Unable to save ${name} locally.`, "error");
         return false;
       }
     },
-    [disabled, name]
+    [applyItems, disabled, name]
   );
 
-  return [
-    items,
-    setItems,
-    load,
-    loaded,
-  ];
+  return [items, setItems, load, loaded];
 }
