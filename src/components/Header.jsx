@@ -319,7 +319,7 @@ const isAdminAccount =
   currentUser?.permissions?.all === true ||
   currentUser?.accountType === "admin" ||
   currentUserRoles.some((role) =>
-    ["admin", "full admin", "administrator"].includes(role)
+    ["admin", "full admin", "full administrator", "administrator"].includes(role)
   );
 
 const isFullAdminAccount =
@@ -327,7 +327,7 @@ const isFullAdminAccount =
   currentUser?.isFullAdmin === true ||
   currentUser?.permissions?.all === true ||
   currentUserRoles.some((role) =>
-    ["full admin", "administrator", "admin"].includes(role)
+    ["full admin", "full administrator", "administrator", "admin"].includes(role)
   );
 
 const getLatestAssignmentTransfer = (customer) => {
@@ -352,10 +352,10 @@ const isAssignedFromAdmin = (customer) => {
   return (
     latestTransfer?.transferredByIsAdmin === true ||
     customer?.lastTransferredByIsAdmin === true ||
-    ["admin", "full admin", "administrator"].includes(
+    ["admin", "full admin", "full administrator", "administrator"].includes(
       normalize(latestTransfer?.transferredByRole)
     ) ||
-    ["admin", "full admin", "administrator"].includes(
+    ["admin", "full admin", "full administrator", "administrator"].includes(
       normalize(customer?.lastTransferredByRole)
     )
   );

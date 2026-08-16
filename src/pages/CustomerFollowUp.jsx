@@ -629,7 +629,7 @@ import {
       account?.permissions?.all === true ||
       account?.accountType === "admin" ||
       roles.some((role) =>
-        ["admin", "full admin", "administrator"].includes(role)
+        ["admin", "full admin", "full administrator", "administrator"].includes(role)
       )
     );
   }

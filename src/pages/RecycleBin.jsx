@@ -1,20 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
-import {
-  ArchiveRestore,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArchiveRestore, Search, Trash2 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { apiUrl } from "../utils/api";
+import { fetchRemoteCollection, pushRemoteChanges } from "../services/supabaseRest";
+import { currentActorSnapshot } from "../sync/collectionSync";
+import { getCollectionLabel, getRecordIdentity } from "../utils/recycleBin";
 import { notify } from "../utils/notify";
-import {
-  getCollectionLabel,
-  getRecordIdentity,
-  LOCAL_COLLECTION_PREFIX,
-  readLocalRecycleBin,
-  writeLocalRecycleBin,
-} from "../utils/recycleBin";
 import "./RecycleBin.css";
 
 const normalize = (value) => String(value || "").trim().toLowerCase();
@@ -29,7 +19,6 @@ function itemRecordType(item) {
 
 function formatDeletedAt(value) {
   if (!value) return "-";
-
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? String(value)
@@ -37,54 +26,32 @@ function formatDeletedAt(value) {
 }
 
 export default function RecycleBin() {
-  const [serverItems, setServerItems, , serverLoaded] =
-    useJsonCollection("recycleBin", { silentLoadErrors: true });
-  const [localItems, setLocalItems] = useState(readLocalRecycleBin);
+  const [items, setItems, , loaded] = useJsonCollection("recycleBin", {
+    silentLoadErrors: true,
+  });
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [busyId, setBusyId] = useState("");
 
-  useEffect(() => {
-    const reload = () => setLocalItems(readLocalRecycleBin());
-    window.addEventListener("isp-local-recycle-bin-updated", reload);
-    window.addEventListener("storage", reload);
-
-    return () => {
-      window.removeEventListener("isp-local-recycle-bin-updated", reload);
-      window.removeEventListener("storage", reload);
-    };
-  }, []);
-
   const allItems = useMemo(
     () =>
-      [...serverItems, ...localItems].sort(
+      [...items].sort(
         (first, second) =>
-          new Date(second.deletedAt || 0) -
-          new Date(first.deletedAt || 0)
+          new Date(second.deletedAt || 0) - new Date(first.deletedAt || 0)
       ),
-    [serverItems, localItems]
+    [items]
   );
 
   const sources = useMemo(
-    () =>
-      [...new Set(allItems.map((item) => item.sourceCollection).filter(Boolean))]
-        .sort(),
+    () => [...new Set(allItems.map((item) => item.sourceCollection).filter(Boolean))].sort(),
     [allItems]
   );
 
   const visibleItems = useMemo(() => {
     const query = normalize(search);
-
     return allItems.filter((item) => {
-      if (
-        sourceFilter !== "all" &&
-        item.sourceCollection !== sourceFilter
-      ) {
-        return false;
-      }
-
+      if (sourceFilter !== "all" && item.sourceCollection !== sourceFilter) return false;
       if (!query) return true;
-
       return [
         item.recordLabel,
         item.sourceCollection,
@@ -99,24 +66,7 @@ export default function RecycleBin() {
   }, [allItems, search, sourceFilter]);
 
   async function removeRecycleEntry(item) {
-    if (
-      item.recycleStorage === "local" ||
-      item.sourceType === "local" ||
-      item.sourceType === "server-fallback"
-    ) {
-      const nextItems = readLocalRecycleBin().filter(
-        (entry) => String(entry.id) !== String(item.id)
-      );
-      writeLocalRecycleBin(nextItems);
-      setLocalItems(nextItems);
-      return true;
-    }
-
-    return setServerItems(
-      serverItems.filter(
-        (entry) => String(entry.id) !== String(item.id)
-      )
-    );
+    return setItems(items.filter((entry) => String(entry.id) !== String(item.id)));
   }
 
   async function restoreItem(item) {
@@ -124,42 +74,25 @@ export default function RecycleBin() {
     setBusyId(String(item.id));
 
     try {
-      if (item.sourceType === "local") {
-        const storageKey = `${LOCAL_COLLECTION_PREFIX}${item.sourceCollection}`;
-        let currentItems = [];
+      if (!item?.sourceCollection || !item?.record) {
+        throw new Error("The recycle record is incomplete.");
+      }
 
-        try {
-          const parsed = JSON.parse(localStorage.getItem(storageKey) || "[]");
-          currentItems = Array.isArray(parsed) ? parsed : [];
-        } catch {
-          currentItems = [];
-        }
+      const currentItems = await fetchRemoteCollection(item.sourceCollection);
+      const alreadyExists = currentItems.some(
+        (record) => getRecordIdentity(record) === item.recordId
+      );
 
-        if (
-          !currentItems.some(
-            (record) => getRecordIdentity(record) === item.recordId
-          )
-        ) {
-          currentItems.push(item.record);
-          localStorage.setItem(storageKey, JSON.stringify(currentItems));
-          window.dispatchEvent(
-            new Event(`isp-local:${item.sourceCollection}`)
-          );
-        }
-      } else {
-        const response = await axios.get(apiUrl(item.sourceCollection));
-        const currentItems = Array.isArray(response.data) ? response.data : [];
-
-        if (
-          !currentItems.some(
-            (record) => getRecordIdentity(record) === item.recordId
-          )
-        ) {
-          await axios.put(apiUrl(item.sourceCollection), [
-            ...currentItems,
-            item.record,
-          ]);
-        }
+      if (!alreadyExists) {
+        const actor = currentActorSnapshot();
+        await pushRemoteChanges({
+          collection: item.sourceCollection,
+          upserts: [item.record],
+          deletes: [],
+          actorId: actor.id || actor.employeeId || "",
+          ownerId: actor.employeeId || actor.id || "",
+          identityFn: getRecordIdentity,
+        });
       }
 
       const removed = await removeRecycleEntry(item);
@@ -168,10 +101,11 @@ export default function RecycleBin() {
         return;
       }
 
+      window.dispatchEvent(new Event(`isp-supabase:${item.sourceCollection}`));
       notify("Record restored successfully.", "success");
     } catch (error) {
       console.error("Unable to restore recycle record:", error);
-      notify("Unable to restore this record.", "error");
+      notify(error?.message || "Unable to restore this record.", "error");
     } finally {
       setBusyId("");
     }
@@ -179,7 +113,6 @@ export default function RecycleBin() {
 
   async function permanentlyDelete(item) {
     if (busyId) return;
-
     const confirmed = window.confirm(
       `Permanently delete “${item.recordLabel || "this record"}”? This cannot be undone.`
     );
@@ -188,17 +121,13 @@ export default function RecycleBin() {
     setBusyId(String(item.id));
     try {
       const removed = await removeRecycleEntry(item);
-      if (removed !== false) {
-        notify("Record permanently deleted.", "success");
-      }
+      if (removed !== false) notify("Record permanently deleted.", "success");
     } finally {
       setBusyId("");
     }
   }
 
-  if (!serverLoaded) {
-    return <div className="page-loading">Loading Recycle Bin...</div>;
-  }
+  if (!loaded) return <div className="page-loading">Loading Recycle Bin...</div>;
 
   return (
     <div className="recycle-bin-page">
@@ -206,9 +135,8 @@ export default function RecycleBin() {
         <div>
           <span>DATA RECOVERY</span>
           <h1>Recycle Bin</h1>
-          <p>Restore deleted records or remove them permanently.</p>
+          <p>Restore deleted Supabase records or remove them permanently.</p>
         </div>
-
         <strong>{allItems.length} deleted record(s)</strong>
       </header>
 
@@ -218,109 +146,43 @@ export default function RecycleBin() {
             <Search size={16} />
             <input
               type="search"
+              placeholder="Search deleted records..."
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search deleted records..."
             />
           </label>
-
-          <select
-            value={sourceFilter}
-            onChange={(event) => setSourceFilter(event.target.value)}
-          >
-            <option value="all">All record types</option>
+          <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+            <option value="all">All sections</option>
             {sources.map((source) => (
-              <option key={source} value={source}>
-                {getCollectionLabel(source)}
-              </option>
+              <option key={source} value={source}>{getCollectionLabel(source)}</option>
             ))}
           </select>
         </header>
 
         <div className="recycle-bin-table-wrap">
-          <table>
+          <table className="recycle-bin-table">
             <thead>
               <tr>
-                <th>Record</th>
-                <th>Record Type</th>
-                <th>Deleted By</th>
-                <th>Deleted At</th>
-                <th>Storage</th>
-                <th>Actions</th>
+                <th>Record</th><th>Section</th><th>Deleted By</th><th>Deleted At</th><th>Actions</th>
               </tr>
             </thead>
-
             <tbody>
-              {visibleItems.map((item) => {
-                const busy = busyId === String(item.id);
-                const recordType = itemRecordType(item);
-                const deletedByInfo = [
-                  item.deletedByRole,
-                  item.deletedByEmail,
-                ]
-                  .filter(Boolean)
-                  .join(" / ");
-
-                return (
-                  <tr key={`${item.sourceType}-${item.id}`}>
-                    <td>
-                      <strong>{item.recordLabel || "Deleted Record"}</strong>
-                      <small>{item.recordId || "No identifier"}</small>
-                      <details className="recycle-bin-record-details">
-                        <summary>View deleted data</summary>
-                        <pre>{JSON.stringify(item.record || {}, null, 2)}</pre>
-                      </details>
-                    </td>
-                    <td>
-                      <span className="recycle-bin-type">{recordType}</span>
-                      <small>{item.sourceCollection || "-"}</small>
-                    </td>
-                    <td>
-                      <strong>{item.deletedByName || "Unknown user"}</strong>
-                      <small>
-                        {deletedByInfo || item.deletedByAccountId || "-"}
-                      </small>
-                    </td>
-                    <td>{formatDeletedAt(item.deletedAt)}</td>
-                    <td>
-                      <span className="recycle-bin-storage">
-                        {item.sourceType === "local" ? "Local" : "System"}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="recycle-bin-actions">
-                        <button
-                          type="button"
-                          className="restore"
-                          disabled={busy}
-                          onClick={() => restoreItem(item)}
-                        >
-                          <ArchiveRestore size={15} />
-                          Restore
-                        </button>
-                        <button
-                          type="button"
-                          className="delete"
-                          disabled={busy}
-                          onClick={() => permanentlyDelete(item)}
-                        >
-                          <Trash2 size={15} />
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {!visibleItems.length && (
-                <tr>
-                  <td colSpan="6" className="recycle-bin-empty">
-                    <Trash2 size={32} />
-                    <strong>Recycle Bin is empty</strong>
-                    <span>Deleted records will appear here automatically.</span>
+              {visibleItems.map((item) => (
+                <tr key={item.id}>
+                  <td><strong>{item.recordLabel || "Record"}</strong><small>{itemRecordType(item)}</small></td>
+                  <td>{getCollectionLabel(item.sourceCollection)}</td>
+                  <td>{item.deletedByName || item.deletedByEmail || "-"}</td>
+                  <td>{formatDeletedAt(item.deletedAt)}</td>
+                  <td>
+                    <div className="recycle-bin-actions">
+                      <button type="button" disabled={busyId === String(item.id)} onClick={() => restoreItem(item)} title="Restore"><ArchiveRestore size={16} /> Restore</button>
+                      <button type="button" className="danger" disabled={busyId === String(item.id)} onClick={() => permanentlyDelete(item)} title="Delete permanently"><Trash2 size={16} /></button>
+                    </div>
                   </td>
                 </tr>
+              ))}
+              {!visibleItems.length && (
+                <tr><td colSpan="5" className="recycle-bin-empty">No deleted records found.</td></tr>
               )}
             </tbody>
           </table>

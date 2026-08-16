@@ -415,6 +415,7 @@ function App() {
       return (
         normalizedRole === "admin" ||
         normalizedRole === "full admin" ||
+        normalizedRole === "full administrator" ||
         normalizedRole === "administrator"
       );
     });
@@ -433,6 +434,7 @@ function App() {
     signedInAccount?.accountType === "admin" ||
     accountRole === "admin" ||
     accountRole === "full admin" ||
+    accountRole === "full administrator" ||
     accountRole === "administrator";
 
   const isAdminAccount =

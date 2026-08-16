@@ -650,6 +650,7 @@ const hasEmployeeRole = (roleName) =>
       return (
         normalizedRole === "admin" ||
         normalizedRole === "full admin" ||
+        normalizedRole === "full administrator" ||
         normalizedRole === "administrator"
       );
     }

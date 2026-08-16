@@ -107,7 +107,7 @@ function isFullAdminAccount(account) {
     account?.isFullAdmin === true ||
     account?.permissions?.all === true ||
     roles.some((role) =>
-      ["admin", "full admin", "administrator", "super admin"].includes(role)
+      ["admin", "full admin", "full administrator", "administrator", "super admin"].includes(role)
     )
   );
 }

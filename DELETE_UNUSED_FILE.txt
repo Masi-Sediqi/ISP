@@ -1,0 +1,3 @@
+Optional cleanup: src/db/indexedDb.js is no longer referenced by the application.
+The full project ZIP already removes this file.
+If using only the changed-files ZIP, you may delete src/db/indexedDb.js manually.

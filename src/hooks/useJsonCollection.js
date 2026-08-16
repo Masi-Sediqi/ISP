@@ -1,23 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { notify } from "../utils/notify";
-import {
-  archiveLocalRemovedRecords,
-  getRecordIdentity,
-} from "../utils/recycleBin";
-import {
-  migrateLocalStorageCollection,
-  readIndexedCollection,
-  writeIndexedCollection,
-} from "../db/indexedDb";
+import { getRecordIdentity } from "../utils/recycleBin";
 import {
   currentActorSnapshot,
-  fetchMergedRemoteCollection,
-  flushSyncQueue,
-  queueCollectionChanges,
-  seedRemoteIfEmpty,
+  fetchSupabaseCollection,
+  saveCollectionChanges,
 } from "../sync/collectionSync";
-import { supabaseConfigured } from "../services/supabaseRest";
+import { pushRemoteChanges, supabaseConfigured } from "../services/supabaseRest";
 
 const DISABLED_COLLECTIONS = new Set();
 const ACTIVITY_COLLECTION = "employeeActivities";
@@ -26,7 +16,7 @@ const ACTIVITY_IGNORED_COLLECTIONS = new Set([
   "employeeReports",
   "recycleBin",
 ]);
-const REMOTE_REFRESH_MS = 8000;
+const REMOTE_REFRESH_MS = 5000;
 
 const normalize = (value) => String(value || "").trim().toLowerCase();
 
@@ -43,7 +33,9 @@ function isFullAdminAccount(account) {
     account?.isDefaultAdmin === true ||
     account?.isFullAdmin === true ||
     account?.permissions?.all === true ||
-    roles.some((role) => ["full admin", "administrator", "admin"].includes(role))
+    roles.some((role) =>
+      ["full admin", "full administrator", "administrator", "admin"].includes(role)
+    )
   );
 }
 
@@ -55,6 +47,51 @@ function actorName(account) {
     account?.email ||
     "Employee"
   );
+}
+
+
+function buildRecycleEntries(collectionName, previousItems, nextItems) {
+  if (collectionName === "recycleBin") return [];
+  const nextIds = new Set(nextItems.map(getRecordIdentity));
+  const removed = previousItems.filter((item) => !nextIds.has(getRecordIdentity(item)));
+  if (!removed.length) return [];
+
+  const actor = currentActorSnapshot();
+  const deletedAt = new Date().toISOString();
+  return removed.map((record, index) => ({
+    id: `recycle-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
+    sourceCollection: collectionName,
+    sourceCollectionLabel: collectionName,
+    recordType: collectionName,
+    sourceType: "supabase",
+    recycleStorage: "supabase",
+    recordId: getRecordIdentity(record),
+    recordLabel:
+      record?.customerName || record?.fullName || record?.projectName ||
+      record?.supplierName || record?.name || record?.title ||
+      record?.assetId || record?.id || collectionName,
+    record,
+    deletedAt,
+    deletedByAccountId: actor?.id || "",
+    deletedByEmployeeId: actor?.employeeId || "",
+    deletedByName: actorName(actor),
+    deletedByEmail: actor?.email || "",
+    deletedByRole: actor?.primaryRole || actor?.role || actor?.accountType || "",
+  }));
+}
+
+async function archiveRemovedRecordsToSupabase(collectionName, previousItems, nextItems) {
+  const entries = buildRecycleEntries(collectionName, previousItems, nextItems);
+  if (!entries.length) return;
+  const actor = currentActorSnapshot();
+  await pushRemoteChanges({
+    collection: "recycleBin",
+    upserts: entries,
+    deletes: [],
+    actorId: actor.id || actor.employeeId || "",
+    ownerId: actor.employeeId || actor.id || "",
+    identityFn: getRecordIdentity,
+  });
 }
 
 function detectCollectionChange(previousItems, nextItems) {
@@ -103,49 +140,51 @@ async function recordEmployeeActivity(collectionName, previousItems, nextItems) 
   if (ACTIVITY_IGNORED_COLLECTIONS.has(collectionName)) return;
 
   const actor = currentActorSnapshot();
-  if (!actor?.id || isFullAdminAccount(actor)) return;
+  if (!actor?.id || isFullAdminAccount(actor) || !supabaseConfigured || !navigator.onLine) return;
 
   const change = detectCollectionChange(previousItems, nextItems);
   if (!change.totalChanged) return;
 
+  const now = new Date().toISOString();
+  const record = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: "employee-action",
+    collection: collectionName,
+    action: change.action,
+    createdCount: change.createdCount,
+    updatedCount: change.updatedCount,
+    deletedCount: change.deletedCount,
+    createdIds: change.createdIds,
+    updatedIds: change.updatedIds,
+    deletedIds: change.deletedIds,
+    changedIds: change.changedIds,
+    primaryRecordId: change.changedIds?.[0] || "",
+    totalChanged: change.totalChanged,
+    actorId: actor.id,
+    actorEmployeeId: actor.employeeId || "",
+    actorName: actorName(actor),
+    actorEmail: actor.email || "",
+    actorRole: actor.primaryRole || actor.role || "Employee",
+    adminNotificationType: "employee-action",
+    adminNotificationAt: now,
+    adminNotificationSound: false,
+    createdAt: now,
+  };
+
   try {
-    const activities = await readIndexedCollection(ACTIVITY_COLLECTION);
-    const now = new Date().toISOString();
-    const record = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      type: "employee-action",
-      collection: collectionName,
-      action: change.action,
-      createdCount: change.createdCount,
-      updatedCount: change.updatedCount,
-      deletedCount: change.deletedCount,
-      createdIds: change.createdIds,
-      updatedIds: change.updatedIds,
-      deletedIds: change.deletedIds,
-      changedIds: change.changedIds,
-      primaryRecordId: change.changedIds?.[0] || "",
-      totalChanged: change.totalChanged,
-      actorId: actor.id,
-      actorEmployeeId: actor.employeeId || "",
-      actorName: actorName(actor),
-      actorEmail: actor.email || "",
-      actorRole: actor.primaryRole || actor.role || "Employee",
-      adminNotificationType: "employee-action",
-      adminNotificationAt: now,
-      adminNotificationSound: false,
-      createdAt: now,
-    };
-
-    const nextActivities = [...activities, record];
-    await writeIndexedCollection(ACTIVITY_COLLECTION, nextActivities);
-    await queueCollectionChanges(ACTIVITY_COLLECTION, activities, nextActivities);
-    flushSyncQueue();
-
+    await pushRemoteChanges({
+      collection: ACTIVITY_COLLECTION,
+      upserts: [record],
+      deletes: [],
+      actorId: actor.id || actor.employeeId || "",
+      ownerId: actor.employeeId || actor.id || "",
+      identityFn: getRecordIdentity,
+    });
     window.dispatchEvent(
       new CustomEvent("isp-employee-activity-updated", { detail: record })
     );
   } catch (error) {
-    console.warn("Unable to record employee activity:", error);
+    console.warn("Unable to record employee activity in Supabase:", error);
   }
 }
 
@@ -156,21 +195,16 @@ export function useJsonCollection(name, options = {}) {
   const itemsRef = useRef([]);
   const loadingRef = useRef(false);
 
-  const applyItems = useCallback(
-    async (nextItems) => {
-      const safe = Array.isArray(nextItems) ? nextItems : [];
-      itemsRef.current = safe;
-      setItemsState(safe);
-      await writeIndexedCollection(name, safe);
-      return safe;
-    },
-    [name]
-  );
+  const applyItems = useCallback((nextItems) => {
+    const safe = Array.isArray(nextItems) ? nextItems : [];
+    itemsRef.current = safe;
+    setItemsState(safe);
+    return safe;
+  }, []);
 
   const load = useCallback(async () => {
     if (disabled) {
-      itemsRef.current = [];
-      setItemsState([]);
+      applyItems([]);
       setLoaded(true);
       return [];
     }
@@ -179,36 +213,18 @@ export function useJsonCollection(name, options = {}) {
     loadingRef.current = true;
 
     try {
-      let localItems = await migrateLocalStorageCollection(
-        name,
-        `isp-local-collection:${name}`
-      );
-
-      itemsRef.current = localItems;
-      setItemsState(localItems);
-      setLoaded(true);
-
-      if (supabaseConfigured && navigator.onLine) {
-        try {
-          await flushSyncQueue();
-          await seedRemoteIfEmpty(name, localItems);
-          const merged = await fetchMergedRemoteCollection(name, localItems);
-          localItems = await applyItems(merged);
-        } catch (error) {
-          console.warn(`Unable to refresh ${name} from Supabase:`, error);
-        }
-      }
-
-      return localItems;
+      const remoteItems = await fetchSupabaseCollection(name);
+      applyItems(remoteItems);
+      return remoteItems;
     } catch (error) {
-      console.error(`Unable to load ${name} from IndexedDB:`, error);
-      setLoaded(true);
-      notify(`Unable to load local ${name} data.`, "error");
-      return [];
+      console.error(`Unable to load ${name} from Supabase:`, error);
+      if (!loaded) notify(error?.message || `Unable to load ${name} from Supabase.`, "error");
+      return itemsRef.current;
     } finally {
+      setLoaded(true);
       loadingRef.current = false;
     }
-  }, [applyItems, disabled, name]);
+  }, [applyItems, disabled, loaded, name]);
 
   useEffect(() => {
     load();
@@ -217,51 +233,28 @@ export function useJsonCollection(name, options = {}) {
   useEffect(() => {
     if (disabled) return undefined;
 
-    const handleIndexedChange = (event) => {
-      const nextItems = Array.isArray(event?.detail) ? event.detail : null;
-      if (nextItems) {
-        itemsRef.current = nextItems;
-        setItemsState(nextItems);
-      } else {
-        readIndexedCollection(name).then((stored) => {
-          itemsRef.current = stored;
-          setItemsState(stored);
-        });
-      }
+    const handleRemoteChange = (event) => {
+      if (Array.isArray(event?.detail)) applyItems(event.detail);
+      else load();
     };
+    const handleOnline = () => load();
 
-    const handleOnline = async () => {
-      await flushSyncQueue();
-      load();
-    };
-
-    window.addEventListener(`isp-indexed:${name}`, handleIndexedChange);
+    window.addEventListener(`isp-supabase:${name}`, handleRemoteChange);
     window.addEventListener("online", handleOnline);
-
     return () => {
-      window.removeEventListener(`isp-indexed:${name}`, handleIndexedChange);
+      window.removeEventListener(`isp-supabase:${name}`, handleRemoteChange);
       window.removeEventListener("online", handleOnline);
     };
-  }, [disabled, load, name]);
+  }, [applyItems, disabled, load, name]);
 
   useEffect(() => {
     if (disabled || !supabaseConfigured) return undefined;
-
-    const timer = window.setInterval(async () => {
+    const timer = window.setInterval(() => {
       if (!navigator.onLine || loadingRef.current) return;
-      try {
-        await flushSyncQueue();
-        const merged = await fetchMergedRemoteCollection(name, itemsRef.current);
-        if (JSON.stringify(merged) !== JSON.stringify(itemsRef.current)) {
-          await applyItems(merged);
-        }
-      } catch (error) {
-        console.warn(`Background sync failed for ${name}:`, error);
-      }
+      load();
     }, REMOTE_REFRESH_MS);
-
     return () => window.clearInterval(timer);
-  }, [applyItems, disabled, name]);
+  }, [disabled, load]);
 
   const setItems = useCallback(
     async (nextValue) => {
@@ -276,23 +269,21 @@ export function useJsonCollection(name, options = {}) {
         return false;
       }
 
+      // Optimistic UI only; persistence is Supabase-only.
+      applyItems(nextItems);
+
       try {
-        if (name !== "recycleBin") {
-          archiveLocalRemovedRecords(name, previousItems, nextItems, "indexeddb");
-        }
-
-        await applyItems(nextItems);
-        await queueCollectionChanges(name, previousItems, nextItems);
+        await archiveRemovedRecordsToSupabase(name, previousItems, nextItems);
+        await saveCollectionChanges(name, previousItems, nextItems);
+        window.dispatchEvent(
+          new CustomEvent(`isp-supabase:${name}`, { detail: nextItems })
+        );
         recordEmployeeActivity(name, previousItems, nextItems);
-
-        if (supabaseConfigured && navigator.onLine) {
-          flushSyncQueue();
-        }
-
         return true;
       } catch (error) {
-        console.error(`Unable to save ${name} to IndexedDB:`, error);
-        notify(`Unable to save ${name} locally.`, "error");
+        applyItems(previousItems);
+        console.error(`Unable to save ${name} to Supabase:`, error);
+        notify(error?.message || `Unable to save ${name} to Supabase.`, "error");
         return false;
       }
     },

@@ -99,6 +99,10 @@ function Accounts({ accounts, setAccounts, currentUser }) {
           email,
           password: form.password,
           role: "Full Administrator",
+          accountType: "admin",
+          isAdmin: true,
+          isFullAdmin: true,
+          permissions: { all: true },
           createdAt: todayDateValue(),
         },
       ]);

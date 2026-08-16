@@ -19,6 +19,7 @@ export function isAdminUser(user) {
     user.permissions?.all === true ||
     role === "admin" ||
     role === "full admin" ||
+    role === "full administrator" ||
     role === "administrator" ||
     accountType === "admin"
   );
