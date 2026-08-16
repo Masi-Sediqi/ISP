@@ -55,6 +55,15 @@ export function useChat(currentUser) {
     messagesRef.current = messages;
   }, [messages]);
 
+  useEffect(() => {
+    const safetyTimer = window.setTimeout(() => {
+      setMessagesLoading(false);
+      setPresenceLoading(false);
+    }, 7000);
+
+    return () => window.clearTimeout(safetyTimer);
+  }, [accountId]);
+
   const mergeMessages = useCallback((incoming) => {
     setMessages((current) => uniqueMessages([...current, ...(incoming || [])]));
   }, []);

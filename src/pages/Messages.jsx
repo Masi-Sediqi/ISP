@@ -156,8 +156,46 @@ function fileToAttachment(file) {
 
 export default function Messages({ currentUser }) {
   const location = useLocation();
-  const [accounts] = useJsonCollection("accounts");
-  const [employees] = useJsonCollection("employees");
+  const [accounts, , , accountsLoaded] = useJsonCollection("accounts");
+  const [employees, , , employeesLoaded] = useJsonCollection("employees");
+
+  const resolvedCurrentUser = useMemo(() => {
+    if (!currentUser) return currentUser;
+
+    const candidates = [
+      currentUser?.id,
+      currentUser?.accountId,
+      currentUser?.employeeId,
+      currentUser?.username,
+      currentUser?.email,
+    ]
+      .filter(Boolean)
+      .map((value) => normalize(value));
+
+    const matchedAccount = accounts.find((account) => {
+      const accountCandidates = [
+        account?.id,
+        account?.accountId,
+        account?.employeeId,
+        account?.username,
+        account?.email,
+      ]
+        .filter(Boolean)
+        .map((value) => normalize(value));
+
+      return accountCandidates.some((value) => candidates.includes(value));
+    });
+
+    return matchedAccount
+      ? {
+          ...matchedAccount,
+          ...currentUser,
+          id: matchedAccount.id || currentUser.id,
+          accountId: matchedAccount.id || currentUser.accountId || currentUser.id,
+        }
+      : currentUser;
+  }, [accounts, currentUser]);
+
   const {
     messages,
     onlineUsers,
@@ -170,7 +208,7 @@ export default function Messages({ currentUser }) {
     deleteMessage,
     toggleReaction,
     sendTyping,
-  } = useChat(currentUser);
+  } = useChat(resolvedCurrentUser);
 
   const [interfaceLanguage, setInterfaceLanguage] = useState(
     () => localStorage.getItem("isp-language") || "en"
@@ -207,7 +245,12 @@ export default function Messages({ currentUser }) {
     interfaceLanguage === "dr" ? dr : interfaceLanguage === "ps" ? ps : en;
 
   const currentAccountId = String(
-    currentUser?.id || currentUser?.accountId || currentUser?.employeeId || ""
+    resolvedCurrentUser?.id ||
+      resolvedCurrentUser?.accountId ||
+      resolvedCurrentUser?.employeeId ||
+      resolvedCurrentUser?.username ||
+      resolvedCurrentUser?.email ||
+      ""
   );
 
   const employeesById = useMemo(
@@ -255,12 +298,10 @@ export default function Messages({ currentUser }) {
       })
       .filter((account) => String(account.id) !== currentAccountId);
 
-    if (isFullAdminAccount(currentUser)) {
-      return enrichedAccounts;
-    }
-
-    return enrichedAccounts.filter(isFullAdminAccount);
-  }, [accounts, currentAccountId, currentUser, employeesById]);
+    // Every active account can participate in employee chat.
+    // Permissions for the rest of the application remain unchanged.
+    return enrichedAccounts;
+  }, [accounts, currentAccountId, employeesById]);
 
   const unreadByAccount = useMemo(() => {
     const result = {};
@@ -528,7 +569,17 @@ export default function Messages({ currentUser }) {
     ? typingUsers[String(selectedAccount.id)]
     : null;
 
-  const chatLoading = messagesLoading || presenceLoading;
+  const [loadingGraceExpired, setLoadingGraceExpired] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setLoadingGraceExpired(true), 7000);
+    return () => window.clearTimeout(timer);
+  }, [currentAccountId]);
+
+  const collectionsLoading = !accountsLoaded || !employeesLoaded;
+  const chatLoading =
+    !loadingGraceExpired &&
+    (collectionsLoading || messagesLoading || presenceLoading);
 
   if (chatLoading) {
     return (
