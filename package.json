@@ -59,7 +59,7 @@
   "dependencies": {
     "axios": "^1.17.0",
     "cors": "^2.8.6",
-    "es-toolkit": "^1.50.0",
+    "es-toolkit": "1.50.0",
     "express": "^5.2.1",
     "fs-extra": "^11.3.5",
     "html2canvas": "^1.4.1",
