@@ -1,152 +1,294 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { io } from "socket.io-client";
-import axios from "axios";
-import { API_ORIGIN, apiUrl } from "../utils/api";
+import {
+  fetchChatMessages,
+  fetchChatPresence,
+  saveChatMessage,
+  saveChatMessages,
+  saveChatPresence,
+} from "../services/chatStore";
+import { supabaseConfigured } from "../services/supabaseRest";
 
-const socket = io(API_ORIGIN, {
-  transports: ["websocket", "polling"],
-});
+const MESSAGE_POLL_MS = 1500;
+const PRESENCE_POLL_MS = 2000;
+const HEARTBEAT_MS = 8000;
+const ONLINE_WINDOW_MS = 22000;
+const TYPING_WINDOW_MS = 3500;
+
+function getAccountId(user) {
+  return String(
+    user?.id || user?.accountId || user?.employeeId || user?.username || ""
+  );
+}
+
+function uniqueMessages(items) {
+  const map = new Map();
+  (Array.isArray(items) ? items : []).forEach((item) => {
+    if (!item?.id) return;
+    map.set(String(item.id), item);
+  });
+  return [...map.values()].sort(
+    (first, second) =>
+      new Date(first.createdAt || 0) - new Date(second.createdAt || 0)
+  );
+}
 
 export function useChat(currentUser) {
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState({});
-  const typingTimersRef = useRef({});
-  const accountId = String(currentUser?.id || "");
-
-  const loadMessages = useCallback(async () => {
-    try {
-      const response = await axios.get(apiUrl("messages"));
-      setMessages(response.data || []);
-    } catch {
-      setMessages([]);
-    }
-  }, []);
+  const messagesRef = useRef([]);
+  const presenceRef = useRef(null);
+  const accountId = getAccountId(currentUser);
 
   useEffect(() => {
-    if (!accountId) return;
+    messagesRef.current = messages;
+  }, [messages]);
 
-    socket.emit("chat:join", {
-      accountId,
-    });
+  const mergeMessages = useCallback((incoming) => {
+    setMessages((current) => uniqueMessages([...current, ...(incoming || [])]));
+  }, []);
 
-    loadMessages();
+  const loadMessages = useCallback(async () => {
+    if (!supabaseConfigured || !accountId || !navigator.onLine) return;
 
-    const handleMessage = (message) => {
-      setMessages((current) => {
-        const existingIndex = current.findIndex(
-          (item) => String(item.id) === String(message.id)
-        );
+    try {
+      const remote = await fetchChatMessages();
+      const mine = (remote || []).filter((message) => {
+        const from = String(message?.fromAccountId || "");
+        const to = String(message?.toAccountId || "");
+        return from === accountId || to === accountId;
+      });
+      setMessages(uniqueMessages(mine));
+    } catch (error) {
+      console.warn("Chat message sync failed:", error);
+    }
+  }, [accountId]);
 
-        if (existingIndex >= 0) {
-          return current.map((item, index) =>
-            index === existingIndex ? message : item
-          );
+  const heartbeat = useCallback(
+    async (extra = {}) => {
+      if (!supabaseConfigured || !accountId || !navigator.onLine) return;
+
+      const next = {
+        id: accountId,
+        accountId,
+        senderName:
+          currentUser?.fullName ||
+          currentUser?.employeeName ||
+          currentUser?.username ||
+          currentUser?.email ||
+          "Employee",
+        lastSeen: new Date().toISOString(),
+        typingToAccountId: extra.typingToAccountId ?? presenceRef.current?.typingToAccountId ?? "",
+        typingAt: extra.typingAt ?? presenceRef.current?.typingAt ?? null,
+      };
+
+      presenceRef.current = next;
+
+      try {
+        await saveChatPresence(next, accountId);
+      } catch (error) {
+        console.warn("Chat presence heartbeat failed:", error);
+      }
+    },
+    [accountId, currentUser]
+  );
+
+  const loadPresence = useCallback(async () => {
+    if (!supabaseConfigured || !accountId || !navigator.onLine) return;
+
+    try {
+      const rows = await fetchChatPresence();
+      const now = Date.now();
+      const online = [];
+      const typing = {};
+
+      (rows || []).forEach((presence) => {
+        const id = String(presence?.accountId || presence?.id || "");
+        if (!id) return;
+
+        const lastSeen = new Date(presence?.lastSeen || 0).getTime();
+        if (Number.isFinite(lastSeen) && now - lastSeen <= ONLINE_WINDOW_MS) {
+          online.push(id);
         }
 
-        return [...current, message].sort(
-          (first, second) =>
-            new Date(first.createdAt || 0) -
-            new Date(second.createdAt || 0)
-        );
+        const typingAt = new Date(presence?.typingAt || 0).getTime();
+        if (
+          String(presence?.typingToAccountId || "") === accountId &&
+          id !== accountId &&
+          Number.isFinite(typingAt) &&
+          now - typingAt <= TYPING_WINDOW_MS
+        ) {
+          typing[id] = {
+            accountId: id,
+            senderName: presence?.senderName || "Employee",
+            typedAt: presence?.typingAt,
+          };
+        }
       });
+
+      setOnlineUsers([...new Set(online)]);
+      setTypingUsers(typing);
+    } catch (error) {
+      console.warn("Chat presence sync failed:", error);
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    if (!accountId) return undefined;
+
+    let stopped = false;
+    let messageTimer;
+    let presenceTimer;
+    let heartbeatTimer;
+
+    const pollMessages = async () => {
+      if (stopped) return;
+      await loadMessages();
+      if (!stopped) messageTimer = window.setTimeout(pollMessages, MESSAGE_POLL_MS);
     };
 
-    const handleOnlineUsers = (users) => {
-      setOnlineUsers(users || []);
+    const pollPresence = async () => {
+      if (stopped) return;
+      await loadPresence();
+      if (!stopped) presenceTimer = window.setTimeout(pollPresence, PRESENCE_POLL_MS);
     };
 
-    const handleMessagesSeen = ({ messageIds, seenAt }) => {
-      const ids = Array.isArray(messageIds)
-        ? messageIds.map(String)
-        : [];
+    const pulse = async () => {
+      if (stopped) return;
+      await heartbeat();
+      if (!stopped) heartbeatTimer = window.setTimeout(pulse, HEARTBEAT_MS);
+    };
+
+    pollMessages();
+    pollPresence();
+    pulse();
+
+    const onOnline = () => {
+      loadMessages();
+      loadPresence();
+      heartbeat();
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadMessages();
+        loadPresence();
+        heartbeat();
+      }
+    };
+
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stopped = true;
+      window.clearTimeout(messageTimer);
+      window.clearTimeout(presenceTimer);
+      window.clearTimeout(heartbeatTimer);
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [accountId, heartbeat, loadMessages, loadPresence]);
+
+  const sendMessage = useCallback(
+    async (data) => {
+      if (!accountId) {
+        return { success: false, error: "No active account was found." };
+      }
+      if (!supabaseConfigured) {
+        return {
+          success: false,
+          error: "Supabase is not configured for chat.",
+        };
+      }
+      if (!navigator.onLine) {
+        return {
+          success: false,
+          error: "Internet connection is required to send messages.",
+        };
+      }
+
+      const now = new Date().toISOString();
+      const message = {
+        ...data,
+        id:
+          globalThis.crypto?.randomUUID?.() ||
+          `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        fromAccountId: String(data?.fromAccountId || accountId),
+        toAccountId: String(data?.toAccountId || ""),
+        text: String(data?.text || ""),
+        attachments: Array.isArray(data?.attachments) ? data.attachments : [],
+        createdAt: now,
+        updatedAt: now,
+        delivered: true,
+        seen: false,
+        seenAt: null,
+      };
+
+      if (!message.toAccountId) {
+        return { success: false, error: "Receiver account is missing." };
+      }
+
+      try {
+        await saveChatMessage(message, accountId);
+        mergeMessages([message]);
+        return { success: true, message };
+      } catch (error) {
+        console.error("Unable to send chat message:", error);
+        return {
+          success: false,
+          error: error?.message || "Unable to send message.",
+        };
+      }
+    },
+    [accountId, mergeMessages]
+  );
+
+  const seenMessages = useCallback(
+    async (ids) => {
+      const idSet = new Set((Array.isArray(ids) ? ids : []).map(String));
+      if (!idSet.size || !accountId || !navigator.onLine) return;
+
+      const seenAt = new Date().toISOString();
+      const updates = messagesRef.current
+        .filter((message) => idSet.has(String(message?.id)))
+        .map((message) => ({
+          ...message,
+          seen: true,
+          delivered: true,
+          seenAt,
+          updatedAt: seenAt,
+        }));
+
+      if (!updates.length) return;
 
       setMessages((current) =>
         current.map((message) =>
-          ids.includes(String(message.id))
-            ? {
-                ...message,
-                seen: true,
-                delivered: true,
-                seenAt,
-              }
+          idSet.has(String(message?.id))
+            ? { ...message, seen: true, delivered: true, seenAt, updatedAt: seenAt }
             : message
         )
       );
-    };
 
-    const handleTyping = (event) => {
-      if (
-        String(event?.toAccountId || "") !== accountId ||
-        String(event?.fromAccountId || "") === accountId
-      ) {
-        return;
+      try {
+        await saveChatMessages(updates, accountId);
+      } catch (error) {
+        console.warn("Unable to mark messages as seen:", error);
       }
+    },
+    [accountId]
+  );
 
-      const fromAccountId = String(event.fromAccountId);
-
-      window.clearTimeout(typingTimersRef.current[fromAccountId]);
-
-      if (event.isTyping) {
-        setTypingUsers((current) => ({
-          ...current,
-          [fromAccountId]: {
-            accountId: fromAccountId,
-            senderName: event.senderName,
-            typedAt: event.typedAt,
-          },
-        }));
-
-        typingTimersRef.current[fromAccountId] = window.setTimeout(() => {
-          setTypingUsers((current) => {
-            const next = { ...current };
-            delete next[fromAccountId];
-            return next;
-          });
-        }, 3500);
-
-        return;
-      }
-
-      setTypingUsers((current) => {
-        const next = { ...current };
-        delete next[fromAccountId];
-        return next;
+  const sendTyping = useCallback(
+    (data) => {
+      if (!accountId) return;
+      heartbeat({
+        typingToAccountId: data?.isTyping ? String(data?.toAccountId || "") : "",
+        typingAt: data?.isTyping ? new Date().toISOString() : null,
       });
-    };
-
-    socket.on("chat:message", handleMessage);
-    socket.on("chat:online-users", handleOnlineUsers);
-    socket.on("chat:messages-seen", handleMessagesSeen);
-    socket.on("chat:typing", handleTyping);
-
-    return () => {
-      socket.off("chat:message", handleMessage);
-      socket.off("chat:online-users", handleOnlineUsers);
-      socket.off("chat:messages-seen", handleMessagesSeen);
-      socket.off("chat:typing", handleTyping);
-      Object.values(typingTimersRef.current).forEach((timerId) =>
-        window.clearTimeout(timerId)
-      );
-      typingTimersRef.current = {};
-    };
-  }, [accountId, loadMessages]);
-
-  const sendMessage = useCallback((data) => {
-    return new Promise((resolve) => {
-      socket.emit("chat:send", data, resolve);
-    });
-  }, []);
-
-  const seenMessages = useCallback((ids) => {
-    socket.emit("chat:seen", {
-      messageIds: ids,
-    });
-  }, []);
-
-  const sendTyping = useCallback((data) => {
-    socket.emit("chat:typing", data);
-  }, []);
+    },
+    [accountId, heartbeat]
+  );
 
   return {
     messages,
