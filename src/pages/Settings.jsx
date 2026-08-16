@@ -263,8 +263,13 @@ function Settings() {
   };
 
   const loadCollectionNames = async () => {
-    const response = await axios.get(apiUrl("collections"));
-    return Array.isArray(response.data) ? response.data : [];
+    try {
+      const response = await axios.get(apiUrl("collections"));
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.warn("Unable to load collection names:", error);
+      return [];
+    }
   };
 
   const exportData = async ({
@@ -381,10 +386,18 @@ function Settings() {
         ? parsed.collections
         : parsed;
       const collections = await loadCollectionNames();
-      const importable = collections.filter((name) => Array.isArray(data[name]));
+      const backupCollections = Object.keys(data).filter((name) =>
+        Array.isArray(data[name])
+      );
+      const importable = collections.length
+        ? collections.filter((name) => Array.isArray(data[name]))
+        : backupCollections;
 
       if (!importable.length) {
-        notify("This file does not contain valid app data.", "error");
+        notify(
+          "This backup file does not contain importable app tables.",
+          "error"
+        );
         return;
       }
 
