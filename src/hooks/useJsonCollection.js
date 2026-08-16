@@ -17,6 +17,20 @@ const ACTIVITY_IGNORED_COLLECTIONS = new Set([
   "recycleBin",
 ]);
 const REMOTE_REFRESH_MS = 5000;
+const sharedCollectionRequests = new Map();
+
+async function fetchCollectionShared(name) {
+  if (sharedCollectionRequests.has(name)) {
+    return sharedCollectionRequests.get(name);
+  }
+
+  const request = fetchSupabaseCollection(name).finally(() => {
+    sharedCollectionRequests.delete(name);
+  });
+
+  sharedCollectionRequests.set(name, request);
+  return request;
+}
 
 const normalize = (value) => String(value || "").trim().toLowerCase();
 
@@ -194,6 +208,7 @@ export function useJsonCollection(name, options = {}) {
   const [loaded, setLoaded] = useState(disabled);
   const itemsRef = useRef([]);
   const loadingRef = useRef(false);
+  const loadedRef = useRef(disabled);
 
   const applyItems = useCallback((nextItems) => {
     const safe = Array.isArray(nextItems) ? nextItems : [];
@@ -213,18 +228,21 @@ export function useJsonCollection(name, options = {}) {
     loadingRef.current = true;
 
     try {
-      const remoteItems = await fetchSupabaseCollection(name);
+      const remoteItems = await fetchCollectionShared(name);
       applyItems(remoteItems);
       return remoteItems;
     } catch (error) {
       console.error(`Unable to load ${name} from Supabase:`, error);
-      if (!loaded) notify(error?.message || `Unable to load ${name} from Supabase.`, "error");
+      if (!loadedRef.current) {
+        notify(error?.message || `Unable to load ${name} from Supabase.`, "error");
+      }
       return itemsRef.current;
     } finally {
+      loadedRef.current = true;
       setLoaded(true);
       loadingRef.current = false;
     }
-  }, [applyItems, disabled, loaded, name]);
+  }, [applyItems, disabled, name]);
 
   useEffect(() => {
     load();

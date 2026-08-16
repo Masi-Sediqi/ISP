@@ -150,10 +150,9 @@ function ProtectedModule({ currentUser, moduleKey, children }) {
 
 function App() {
   const location = useLocation();
-  const [settings, , loadSettings] = useJsonCollection("settings");
+  const [settings, , loadSettings, settingsLoaded] = useJsonCollection("settings");
   const [accounts, setAccounts, , accountsLoaded] = useJsonCollection("accounts");
-  const [employees] =
-    useJsonCollection("employees");
+  const [employees, , , employeesLoaded] = useJsonCollection("employees");
     const [
       customers,
       ,
@@ -991,8 +990,15 @@ const myAssignedCustomers = customers
 
   let appContent;
 
-  if (!accountsLoaded) {
-    appContent = <div className="page-loading">Preparing system...</div>;
+  const coreSystemReady = accountsLoaded && employeesLoaded && settingsLoaded;
+
+  if (!coreSystemReady) {
+    appContent = (
+      <div className="system-boot-screen" role="status" aria-live="polite">
+        <div className="system-boot-loader" aria-hidden="true" />
+        <p>Preparing your workspace...</p>
+      </div>
+    );
   } else if (!currentUser) {
     appContent = (
       <Suspense fallback={<div className="page-loading">Loading...</div>}>

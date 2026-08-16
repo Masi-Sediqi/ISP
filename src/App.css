@@ -4687,3 +4687,39 @@ body.dark-mode .profile-account-link:hover {
 body.dark-mode .account-request-badge {
   border-color: #1e293b;
 }
+
+
+.system-boot-screen {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #ffffff;
+  color: #475569;
+  font-weight: 700;
+}
+
+.system-boot-loader {
+  width: 50px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 8px solid;
+  border-color: #000 #0000;
+  animation: systemBootSpin 1s infinite;
+}
+
+@keyframes systemBootSpin {
+  to { transform: rotate(.5turn); }
+}
+
+body.dark-mode .system-boot-screen {
+  background: #0f172a;
+  color: #cbd5e1;
+}
+
+body.dark-mode .system-boot-loader {
+  border-color: #fff #fff0;
+}
