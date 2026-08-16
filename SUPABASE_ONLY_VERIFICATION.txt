@@ -1,0 +1,2 @@
+Verified source scan: zero matches for indexedDB, indexedDb, IDB*, useLocalCollection, db/indexedDb, syncQueue, openDB, or idb imports.
+All migrated business collections now use useJsonCollection, which reads/writes Supabase only.

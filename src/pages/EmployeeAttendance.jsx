@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
 import "./EmployeeAttendance.css";
@@ -92,7 +91,7 @@ export default function EmployeeAttendance() {
   const [employees] = useJsonCollection("employees");
   const [settings] = useJsonCollection("settings");
   const [attendances, setAttendances] =
-    useLocalCollection("employeeAttendances");
+    useJsonCollection("employeeAttendances");
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);

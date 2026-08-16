@@ -1,0 +1,4 @@
+Delete this obsolete file from the project if it still exists:
+src/hooks/useLocalCollection.js
+
+The full project ZIP already has this file removed.

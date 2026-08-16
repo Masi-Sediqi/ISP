@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { CalendarCheck, Users } from "lucide-react";
 
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
 import Employees from "./Employees";
 import EmployeeAttendance from "./EmployeeAttendance";
 import "./Employees.css";
@@ -25,7 +24,7 @@ const sections = [
 function EmployeesHub({ initialSection = "employees" }) {
   const [activeSection, setActiveSection] = useState(initialSection);
   const [employees] = useJsonCollection("employees");
-  const [attendances] = useLocalCollection("employeeAttendances");
+  const [attendances] = useJsonCollection("employeeAttendances");
 
   useEffect(() => {
     setActiveSection(initialSection);

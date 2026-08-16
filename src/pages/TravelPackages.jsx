@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, Eye, GraduationCap, Mail, Pencil, Phone, Plus, Search, Trash2, UserCheck, Users, X } from "lucide-react";
 import { notify } from "../utils/notify";
-import { useLocalCollection } from "../hooks/useLocalCollection";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import "./ConsultantCustomers.css";
 
@@ -644,12 +643,12 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
   ] = useJsonCollection("customers");
 
   const [localCustomers] =
-    useLocalCollection("employeeCustomers");
+    useJsonCollection("employeeCustomers");
 
   const [
     legacyCustomers,
     setLegacyCustomers,
-  ] = useLocalCollection(legacyCollectionName);
+  ] = useJsonCollection(legacyCollectionName);
 
   useEffect(() => {
     if (!customersLoaded) return;

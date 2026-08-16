@@ -10,7 +10,6 @@ import {
   X,
 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
 import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import { usePackageAvailabilityDate } from "../hooks/usePackageAvailabilityDate";
 import { createRecordId } from "../utils/ids";
@@ -714,10 +713,10 @@ export default function EmployeeDashboard({
   ] = useJsonCollection("customers");
 
   const [localCustomers] =
-    useLocalCollection("employeeCustomers");
+    useJsonCollection("employeeCustomers");
 
   const [legacyCustomers] =
-    useLocalCollection(`${mode}Customers`);
+    useJsonCollection(`${mode}Customers`);
 
   const [transactions] =
     useJsonCollection("transactions");

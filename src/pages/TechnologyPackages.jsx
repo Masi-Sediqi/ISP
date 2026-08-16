@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
 import "./TechnologyPackages.css";
@@ -80,7 +79,7 @@ export default function TechnologyPackages() {
   const [
     legacyLocalPackages,
     setLegacyLocalPackages,
-  ] = useLocalCollection("technologyPackages", {
+  ] = useJsonCollection("technologyPackages", {
     archiveDeletes: false,
   });
 

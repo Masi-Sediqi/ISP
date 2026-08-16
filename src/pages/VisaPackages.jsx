@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
 import { usePackageAvailabilityDate } from "../hooks/usePackageAvailabilityDate";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
@@ -570,7 +569,7 @@ export default function VisaPackages() {
   const [
     legacyLocalPackages,
     setLegacyLocalPackages,
-  ] = useLocalCollection("visaPackages", {
+  ] = useJsonCollection("visaPackages", {
     archiveDeletes: false,
   });
 

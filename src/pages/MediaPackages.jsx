@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { useLocalCollection } from "../hooks/useLocalCollection";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
 import "./MediaPackages.css";
@@ -505,7 +504,7 @@ export default function MediaPackages() {
   const [
     legacyLocalPackages,
     setLegacyLocalPackages,
-  ] = useLocalCollection("mediaPackages", {
+  ] = useJsonCollection("mediaPackages", {
     archiveDeletes: false,
   });
 
