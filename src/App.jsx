@@ -223,33 +223,33 @@ function App() {
 
   const sidebarTranslations = {
     en: {
-      dashboard: "Dashboard",
+      dashboard: "Operations Center",
       myAccount: "My Account",
-      messages: "Message",
-      customers: "Customers",
-      consultantCustomers: "Consultant Customers",
-      travelCustomers: "Travel Customers",
-      technologyCustomers: "Technology Customers",
-      mediaCustomers: "Media Customers",
+      messages: "Messages",
+      customers: "Clients",
+      consultantCustomers: "Consulting Clients",
+      travelCustomers: "Logistics Clients",
+      technologyCustomers: "Operations Clients",
+      mediaCustomers: "Support Clients",
       projects: "Projects",
-      projectSales: "Project Sales",
-      projectLicense: "Project License",
-      employees: "Employees & Attendance",
-      allEmployees: "All Employees",
-      employeeAttendance: "Employee Attendance",
-      packages: "Packages",
-      visaPackage: "Visa Package",
-      travelPackage: "Travel Package",
-      technologyPackage: "Technology Package",
-      mediaPackage: "Media Package",
-      reception: "Reception",
-      suppliers: "Suppliers",
-      assets: "Assets",
-      finances: "Finances",
-      reports: "Reports",
-      settings: "Settings",
-      aiAgent: "AI Agent",
-      recycleBin: "Recycle Bin",
+      projectSales: "Sales Projects",
+      projectLicense: "Licensing",
+      employees: "Crew & Attendance",
+      allEmployees: "All Crew",
+      employeeAttendance: "Attendance",
+      packages: "Fuel Packages",
+      visaPackage: "Dispatch Packages",
+      travelPackage: "Transit Plans",
+      technologyPackage: "Monitoring Packages",
+      mediaPackage: "Support Plans",
+      reception: "Dispatch Desk",
+      suppliers: "Fuel Suppliers",
+      assets: "Tank Inventory",
+      finances: "Logistics Finance",
+      reports: "Operations Reports",
+      settings: "Control Panel",
+      aiAgent: "Smart Ops",
+      recycleBin: "Archive",
       helpCenter: "Help Center",
       developer: "Developer",
       faq: "FAQ",
@@ -340,8 +340,8 @@ function App() {
   );
 
   const company = settings[0] || {};
-  const systemName = company.companyName || "Afghan Power";
-  const systemSubtitle = company.systemSubtitle || "Asset & Inventory Management";
+  const systemName = company.companyName || "TankFlow";
+  const systemSubtitle = company.systemSubtitle || "Oil Tank Operations & Logistics";
   const effectiveAccounts = accounts.some((account) => String(account.id) === "default-admin")
     ? accounts
     : [defaultAdminAccount, ...accounts];
@@ -1102,7 +1102,7 @@ const myAssignedCustomers = customers
           >
             <div className="sidebar-version-row">
               <span className="sidebar-version-label">
-                v0.0.1 • Afghan Power
+                v1.1.0 • TankFlow
               </span>
 
               <button
