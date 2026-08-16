@@ -8,7 +8,7 @@
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5173 --strictPort",
+    "dev": "vite --host 0.0.0.0 --port 5173",
     "desktop": "node scripts/dev.cjs",
     "server": "node transport-backend/server.js",
     "web": "vite --host 0.0.0.0 --port 5173 --strictPort",

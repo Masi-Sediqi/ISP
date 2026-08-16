@@ -1,6 +1,8 @@
 const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "");
 const TABLE = "app_records";
+const REQUEST_TIMEOUT_MS = 15000;
+const RETRY_DELAYS_MS = [600, 1400];
 
 export const supabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
@@ -13,13 +15,21 @@ function headers(extra = {}) {
   };
 }
 
-async function request(path, options = {}) {
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function shouldRetryStatus(status) {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function requestOnce(path, options = {}) {
   if (!supabaseConfigured) {
     throw new Error("Supabase is not configured.");
   }
 
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 10000);
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   let response;
   try {
@@ -39,12 +49,40 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(`Supabase request failed (${response.status}): ${detail || response.statusText}`);
+    const error = new Error(
+      `Supabase request failed (${response.status}): ${detail || response.statusText}`
+    );
+    error.status = response.status;
+    throw error;
   }
 
   if (response.status === 204) return null;
   const text = await response.text();
   return text ? JSON.parse(text) : null;
+}
+
+async function request(path, options = {}) {
+  let lastError;
+
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      return await requestOnce(path, options);
+    } catch (error) {
+      lastError = error;
+      const canRetry =
+        error?.name === "AbortError" ||
+        error?.message === "Supabase request timed out." ||
+        shouldRetryStatus(Number(error?.status || 0));
+
+      if (!canRetry || attempt >= RETRY_DELAYS_MS.length) {
+        throw error;
+      }
+
+      await wait(RETRY_DELAYS_MS[attempt]);
+    }
+  }
+
+  throw lastError;
 }
 
 export async function fetchRemoteCollection(collection) {
@@ -56,7 +94,11 @@ export async function fetchRemoteCollection(collection) {
   });
 
   const rows = await request(`${TABLE}?${query.toString()}`, { method: "GET" });
-  return Array.isArray(rows) ? rows.map((row) => row.record_data).filter(Boolean) : [];
+  return Array.isArray(rows)
+    ? rows
+        .map((row) => row?.record_data)
+        .filter((record) => record && typeof record === "object")
+    : [];
 }
 
 export async function pushRemoteChanges({ collection, upserts, deletes, actorId, ownerId, identityFn }) {
