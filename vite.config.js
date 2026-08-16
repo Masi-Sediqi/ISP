@@ -14,6 +14,9 @@ export default defineConfig({
       "es-toolkit/compat/sortBy": fileURLToPath(
         new URL("./src/shims/esToolkitSortBy.js", import.meta.url)
       ),
+      "es-toolkit/compat/throttle": fileURLToPath(
+        new URL("./src/shims/esToolkitThrottle.js", import.meta.url)
+      ),
     },
   },
 
