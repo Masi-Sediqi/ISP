@@ -1968,8 +1968,8 @@ useEffect(() => {
     },
     {
       key: "professional",
-      label: tx("Professional", "\u062d\u0631\u0641\u0647\u200c\u0627\u06cc", "\u0645\u0633\u0644\u06a9\u064a"),
-      color: "linear-gradient(135deg, #fef3c7 0%, #ffffff 48%, #e0f2fe 100%)",
+      label: tx("Soft Aurora", "\u0622\u0631\u0648\u0631\u0627\u06cc \u0645\u0644\u0627\u06cc\u0645", "\u0646\u0631\u0645\u0647 \u0622\u0631\u0648\u0631\u0627"),
+      color: "linear-gradient(125deg, #22d3ee 0%, #a78bfa 28%, #f472b6 55%, #facc15 78%, #34d399 100%)",
     },
     {
       key: "winter",

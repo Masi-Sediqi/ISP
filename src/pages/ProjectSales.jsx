@@ -1,1668 +1,782 @@
-import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { useMemo, useState } from "react";
 import {
-  BadgeDollarSign,
-  CalendarClock,
-  Copy,
-  CreditCard,
-  FileKey2,
-  FolderKanban,
-  Infinity as InfinityIcon,
-  KeyRound,
+  Calculator,
   Mail,
-  MessageCircle,
-  Pencil,
+  Minus,
   Plus,
-  ReceiptText,
   Printer,
-  Download,
+  ReceiptText,
   Search,
-  Send,
+  ShoppingCart,
   Trash2,
   UserRound,
   X,
 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
-import { calculateLicenseEndDate } from "../utils/licenseDuration";
-import { apiUrl } from "../utils/api";
-import { notify } from "../utils/notify";
 import { createId } from "../utils/createId";
+import { notify } from "../utils/notify";
 import "./ProjectSales.css";
-
-const emptySale = {
-  projectId: "",
-  projectName: "",
-  customerId: "",
-  customerName: "",
-  customerPhone: "",
-  customerEmail: "",
-  sourceEmployeeId: "",
-  sourceEmployeeName: "",
-  assignedEmployeeName: "",
-  price: "",
-  paid: "",
-  remaining: "",
-  currency: "AFN",
-  saleType: "license",
-  notes: "",
-  saleDate: new Date().toISOString().slice(0, 10),
-};
-
-const licenseTypes = [
-  { key: "one-day", label: "One Day" },
-  { key: "three-days", label: "Three Days" },
-  { key: "one-week", label: "One Week" },
-  { key: "one-month", label: "One Month" },
-  { key: "one-year", label: "One Year" },
-  { key: "custom", label: "Custom Date", days: null },
-  { key: "forever", label: "Forever", days: null },
-];
-
-const emptyLicenseForm = {
-  deviceId: "",
-  licenseType: "one-month",
-  startDate: new Date().toISOString().slice(0, 10),
-  endDate: "",
-  notes: "",
-};
 
 function money(value, currency = "AFN") {
   const amount = Number(value || 0);
   return `${amount.toLocaleString("en-US")} ${currency}`;
 }
 
-function customerLabel(customer) {
-  return customer.customerName || customer.passportFullName || customer.fullName || customer.name || customer.phone || "Unnamed Customer";
+function projectPrice(project) {
+  return Number(project?.budget || project?.price || project?.amount || 0);
 }
 
-function createEmptyLicenseForm() {
-  const base = { ...emptyLicenseForm };
-  base.endDate = calculateLicenseEndDate(base.startDate, base.licenseType);
-  return base;
+function lineTotal(item) {
+  return Math.max(
+    Number(item.price || 0) * Number(item.quantity || 0) - Number(item.discount || 0),
+    0
+  );
 }
 
-function normalizeDeviceId(deviceId) {
-  return String(deviceId || "").trim().toUpperCase();
+const emptyCustomer = {
+  customerId: "",
+  customerName: "",
+  customerPhone: "",
+  notes: "",
+};
+
+const emptyNewCustomer = {
+  customerName: "",
+  phone: "",
+  email: "",
+  address: "",
+  sourceEmployeeId: "",
+};
+
+function customerNameOf(customer) {
+  return (
+    customer?.customerName ||
+    customer?.fullName ||
+    customer?.name ||
+    customer?.passportFullName ||
+    customer?.phone ||
+    "Unnamed Customer"
+  );
 }
 
-function isEndBeforeStart(startDate, endDate) {
-  if (!startDate || !endDate) return false;
-  const start = new Date(`${startDate}T00:00:00.000Z`).getTime();
-  const end = new Date(`${endDate}T00:00:00.000Z`).getTime();
-  return Number.isFinite(start) && Number.isFinite(end) && end < start;
-}
-
-function toDateOnly(timestamp) {
-  if (!timestamp) return "";
-  const date = new Date(timestamp);
-  if (!Number.isFinite(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
+function normalize(value) {
+  return String(value || "").trim().toLowerCase();
 }
 
 function ProjectSales() {
   const [projects] = useJsonCollection("projects");
-  const [customers] = useJsonCollection("customers");
+  const [customers, setCustomers] = useJsonCollection("customers");
   const [employees] = useJsonCollection("employees");
-  const [employeeAdjustments, setEmployeeAdjustments] =
-    useEmployeeAdjustments();
   const [sales, setSales] = useJsonCollection("projectSales");
-  const [settings] = useJsonCollection("settings");
-  const [licenses, setLicenses] = useJsonCollection("projectLicenses");
-  const [transactions, setTransactions] =
-  useJsonCollection("transactions");
-  const [form, setForm] = useState(emptySale);
-  const [editId, setEditId] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [licenseSale, setLicenseSale] = useState(null);
-  const [licenseForm, setLicenseForm] = useState(createEmptyLicenseForm);
-  const [generatedLicense, setGeneratedLicense] = useState(null);
-  const [generating, setGenerating] = useState(false);
-  const [licenseGenerationError, setLicenseGenerationError] = useState("");
-  const [search, setSearch] = useState("");
-  const [receiptSale, setReceiptSale] = useState(null);
+  const [transactions, setTransactions] = useJsonCollection("transactions");
+  const [employeeAdjustments, setEmployeeAdjustments] = useEmployeeAdjustments();
+  const [query, setQuery] = useState("");
+  const [items, setItems] = useState([]);
+  const [customer, setCustomer] = useState(emptyCustomer);
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [newCustomer, setNewCustomer] = useState(emptyNewCustomer);
+  const [saving, setSaving] = useState(false);
 
-  const [deleteTarget, setDeleteTarget] =
-  useState(null);
-
-const [deletingSale, setDeletingSale] =
-  useState(false);
-
-  const customerOptions = useMemo(() => {
-    const rows = customers;
-    const seen = new Set();
-    return rows.filter((customer) => {
-      const key = String(customer.id || customer.customerId || customer.phone || customerLabel(customer));
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [customers]);
-
-  const selectedProject = projects.find((project) => String(project.id) === String(form.projectId));
-  const selectedCustomer = customerOptions.find((customer) => String(customer.id || customer.customerId) === String(form.customerId));
-
-  const filteredSales = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return sales;
-    return sales.filter((sale) =>
-      [sale.projectName, sale.customerName, sale.customerPhone, sale.saleType, sale.notes]
-        .some((value) => String(value || "").toLowerCase().includes(query))
-    );
-  }, [sales, search]);
-
-  const totalSales = sales.reduce((sum, sale) => sum + Number(sale.price || 0), 0);
-  const totalPaid = sales.reduce((sum, sale) => sum + Number(sale.paid || 0), 0);
-  const totalRemaining = sales.reduce((sum, sale) => sum + Number(sale.remaining || 0), 0);
-
-  const company = settings[0] || {};
-
-  function receiptNumber(sale) {
-    const source = String(
-      sale?.receiptNumber ||
-      sale?.id ||
-      Date.now()
-    )
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .toUpperCase();
-
-    return `REC-${source.slice(-10).padStart(6, "0")}`;
-  }
-
-  function formatReceiptDate(sale) {
-    const raw =
-      sale?.saleDate ||
-      sale?.createdAt ||
-      sale?.updatedAt;
-
-    if (!raw) return "-";
-
-    const date = new Date(raw);
-
-    if (!Number.isFinite(date.getTime())) {
-      return String(raw);
-    }
-
-    return new Intl.DateTimeFormat("en-GB", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  }
-
-  function printReceipt() {
-    window.print();
-  }
-  useEffect(() => {
-    document.body.classList.toggle(
-      "project-modal-open",
-      showForm || !!licenseSale || !!receiptSale
+  const filteredProjects = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    const rows = [...projects].sort((a, b) =>
+      String(a.projectName || "").localeCompare(String(b.projectName || ""))
     );
 
-    return () =>
-      document.body.classList.remove(
-        "project-modal-open"
+    if (!search) return rows.slice(0, 10);
+
+    return rows.filter((project) =>
+      [
+        project.projectName,
+        project.customerName,
+        project.customerPhone,
+        project.status,
+        project.priority,
+        project.notes,
+      ].some((value) => String(value || "").toLowerCase().includes(search))
+    );
+  }, [projects, query]);
+
+  const totals = useMemo(() => {
+    const subtotal = items.reduce(
+      (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+      0
+    );
+    const discount = items.reduce((sum, item) => sum + Number(item.discount || 0), 0);
+    const total = items.reduce((sum, item) => sum + lineTotal(item), 0);
+    const quantity = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+
+    return { subtotal, discount, total, quantity };
+  }, [items]);
+
+  const currency = items[0]?.currency || "AFN";
+  const selectedCustomer = customers.find(
+    (item) => String(item.id || item.customerId || "") === String(customer.customerId || "")
+  );
+  const sourceEmployee = findSourceEmployee(selectedCustomer);
+  const sourcePercentage = Number(
+    sourceEmployee?.salaryPercentage || sourceEmployee?.percentage || 0
+  );
+  const sourceShare =
+    sourceEmployee &&
+    normalize(sourceEmployee.salaryType) === "percentage" &&
+    sourcePercentage > 0 &&
+    sourcePercentage <= 100
+      ? Math.round(totals.total * sourcePercentage) / 100
+      : 0;
+
+  function findSourceEmployee(customerRecord) {
+    if (!customerRecord) return null;
+    const sourceEmployeeId = String(customerRecord.sourceEmployeeId || "");
+
+    if (sourceEmployeeId) {
+      const byId = employees.find(
+        (employee) => String(employee.id || employee.employeeId || "") === sourceEmployeeId
       );
-  }, [showForm, licenseSale, receiptSale]);
-
-  function updateField(event) {
-    const { name, value } = event.target;
-
-    if (name === "projectId") {
-      const project = projects.find((item) => String(item.id) === String(value));
-      setForm((current) => ({
-        ...current,
-        projectId: value,
-        projectName: project?.projectName || "",
-        currency: project?.currency || current.currency,
-        price: current.price || project?.budget || "",
-        remaining: String(Number(current.price || project?.budget || 0) - Number(current.paid || 0)),
-      }));
-      return;
+      if (byId) return byId;
     }
 
-    if (name === "customerId") {
-      const customer = customerOptions.find((item) => String(item.id || item.customerId) === String(value));
-      setForm((current) => ({
-        ...current,
-        customerId: value,
-        customerName: customerLabel(customer || {}),
-        customerPhone: customer?.phone || "",
-        customerEmail: customer?.email || "",
-        sourceEmployeeId: customer?.sourceEmployeeId || "",
-        sourceEmployeeName:
-          customer?.sourceEmployeeName ||
-          customer?.source ||
-          customer?.createdByName ||
-          "",
-        assignedEmployeeName: customer?.assignedEmployeeName || "",
-      }));
-      return;
-    }
-
-    setForm((current) => {
-      const next = { ...current, [name]: value };
-      if (name === "price" || name === "paid") {
-        next.remaining = String(Math.max(0, Number(next.price || 0) - Number(next.paid || 0)));
-      }
-      return next;
-    });
-  }
-
-  function resetForm() {
-    setForm(emptySale);
-    setEditId(null);
-    setShowForm(false);
-  }
-
-  function openCreateForm() {
-    setForm(emptySale);
-    setEditId(null);
-    setShowForm(true);
-  }
-
-  async function upsertProjectSaleIncome(sale) {
-  const paidAmount = Number(sale.paid || 0);
-
-  /*
-   * اگر هیچ مبلغی دریافت نشده باشد،
-   * عاید قبلی مربوط به این فروش حذف می‌شود.
-   */
-  if (paidAmount <= 0) {
-    return setTransactions(
-      transactions.filter(
-        (transaction) =>
-          !(
-            transaction.source ===
-              "project-sale" &&
-            String(
-              transaction.referenceId || ""
-            ) === String(sale.id)
-          )
-      )
-    );
-  }
-
-  const now = new Date().toISOString();
-
-  const incomeRecord = {
-    id: `project-sale-income-${sale.id}`,
-
-    type: "income",
-
-    title: `Project Sale - ${
-      sale.projectName || "Project"
-    }`,
-
-    category: "Project Sales",
-
-    amount: paidAmount,
-
-    currency: sale.currency || "AFN",
-
-    date:
-      sale.saleDate ||
-      new Date().toISOString().slice(0, 10),
-
-    description: [
-      sale.customerName
-        ? `Customer: ${sale.customerName}`
-        : "",
-
-      sale.customerPhone
-        ? `Phone: ${sale.customerPhone}`
-        : "",
-
-      `Project Price: ${Number(
-        sale.price || 0
-      ).toLocaleString("en-US")} ${
-        sale.currency || "AFN"
-      }`,
-
-      `Paid: ${paidAmount.toLocaleString(
-        "en-US"
-      )} ${sale.currency || "AFN"}`,
-
-      `Remaining: ${Number(
-        sale.remaining || 0
-      ).toLocaleString("en-US")} ${
-        sale.currency || "AFN"
-      }`,
-
-      sale.saleType
-        ? `Sale Type: ${sale.saleType}`
-        : "",
-
-      sale.notes || "",
-    ]
-      .filter(Boolean)
-      .join(" | "),
-
-    source: "project-sale",
-    referenceId: sale.id,
-
-    projectId: sale.projectId || "",
-    projectName: sale.projectName || "",
-
-    customerId: sale.customerId || "",
-    customerName: sale.customerName || "",
-
-    createdAt:
-      transactions.find(
-        (transaction) =>
-          transaction.source ===
-            "project-sale" &&
-          String(
-            transaction.referenceId || ""
-          ) === String(sale.id)
-      )?.createdAt || now,
-
-    updatedAt: now,
-  };
-
-  const nextTransactions = [
-    ...transactions.filter(
-      (transaction) =>
-        !(
-          transaction.source ===
-            "project-sale" &&
-          String(
-            transaction.referenceId || ""
-          ) === String(sale.id)
-        )
-    ),
-
-    incomeRecord,
-  ];
-
-  return setTransactions(nextTransactions);
-}
-
-function normalizeEmployeeName(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
-function findSourceEmployee(sale) {
-  const sourceEmployeeId = String(
-    sale.sourceEmployeeId || ""
-  );
-
-  if (sourceEmployeeId) {
-    const employeeById = employees.find(
-      (employee) =>
-        String(employee.id || employee.employeeId || "") ===
-        sourceEmployeeId
+    const sourceName = normalize(
+      customerRecord.sourceEmployeeName ||
+        customerRecord.source ||
+        customerRecord.createdByName
     );
 
-    if (employeeById) return employeeById;
-  }
+    if (!sourceName) return null;
 
-  const sourceEmployeeName = normalizeEmployeeName(
-    sale.sourceEmployeeName
-  );
-
-  if (!sourceEmployeeName) return null;
-
-  return (
-    employees.find(
-      (employee) =>
+    return (
+      employees.find((employee) =>
         [
           employee.fullName,
           employee.employeeName,
           employee.name,
           employee.email,
+          employee.username,
         ]
-          .map(normalizeEmployeeName)
-          .includes(sourceEmployeeName)
-    ) || null
-  );
-}
+          .map(normalize)
+          .includes(sourceName)
+      ) || null
+    );
+  }
 
-async function upsertSourceEmployeeCommission(sale) {
-  const referenceId = String(sale.id);
-  const paidAmount = Number(sale.paid || 0);
+  function selectProject(project) {
+    const id = String(project.id || project.projectId || project.projectName);
+    const existing = items.find((item) => String(item.projectId) === id);
 
-  const recordsWithoutCurrentCommission =
-    employeeAdjustments.filter(
-      (entry) =>
-        !(
-          entry.source === "project-sale-commission" &&
-          String(entry.referenceId || "") === referenceId
+    if (existing) {
+      setItems((current) =>
+        current.map((item) =>
+          String(item.projectId) === id
+            ? { ...item, quantity: Number(item.quantity || 0) + 1 }
+            : item
         )
-    );
+      );
+      return;
+    }
 
-  const employee = findSourceEmployee(sale);
-
-  /*
-   * معاش ثابت از فروش پروژه فیصدی نمی‌گیرد.
-   * اگر کارمند، فیصدی یا مبلغ پرداختی موجود نباشد،
-   * ریکارد قبلی این فروش نیز حذف می‌شود.
-   */
-  if (
-    !employee ||
-    String(employee.salaryType || "")
-      .trim()
-      .toLowerCase() !== "percentage" ||
-    paidAmount <= 0
-  ) {
-    return setEmployeeAdjustments(
-      recordsWithoutCurrentCommission
-    );
+    setItems((current) => [
+      ...current,
+      {
+        projectId: id,
+        projectName: project.projectName || "Project",
+        price: projectPrice(project),
+        discount: 0,
+        quantity: 1,
+        currency: project.currency || "AFN",
+      },
+    ]);
   }
 
-  const percentage = Number(
-    employee.salaryPercentage || 0
-  );
-
-  if (!(percentage > 0 && percentage <= 100)) {
-    return setEmployeeAdjustments(
-      recordsWithoutCurrentCommission
-    );
-  }
-
-  const commissionAmount =
-    Math.round(
-      paidAmount * percentage
-    ) / 100;
-
-  if (!(commissionAmount > 0)) {
-    return setEmployeeAdjustments(
-      recordsWithoutCurrentCommission
-    );
-  }
-
-  const now = new Date().toISOString();
-  const previousCommission = employeeAdjustments.find(
-    (entry) =>
-      entry.source === "project-sale-commission" &&
-      String(entry.referenceId || "") === referenceId
-  );
-
-  const commissionRecord = {
-    id:
-      previousCommission?.id ||
-      `project-sale-commission-${sale.id}`,
-
-    employeeId: employee.id,
-    employeeName:
-      employee.fullName ||
-      employee.employeeName ||
-      employee.name ||
-      sale.sourceEmployeeName ||
-      "Employee",
-    employeeEmail: employee.email || "",
-    employeeUsername: employee.username || "",
-
-    type: "credit",
-    amount: commissionAmount,
-    currency: sale.currency || "AFN",
-
-    source: "project-sale-commission",
-    referenceId: sale.id,
-
-    projectId: sale.projectId || "",
-    projectName: sale.projectName || "",
-
-    customerId: sale.customerId || "",
-    customerName: sale.customerName || "",
-
-    paidAmount,
-    salaryPercentage: percentage,
-
-    reason:
-      `${percentage}% commission from ` +
-      `${sale.projectName || "project"} payment by ` +
-      `${sale.customerName || "customer"}`,
-
-    createdAt:
-      previousCommission?.createdAt || now,
-    updatedAt: now,
-    ...(!previousCommission
-      ? {
-          employeeNotificationType:
-            "ledger-credit",
-          employeeNotificationAt: now,
-        }
-      : {}),
-  };
-
-  const saved = await setEmployeeAdjustments([
-    ...recordsWithoutCurrentCommission,
-    commissionRecord,
-  ]);
-
-  if (saved) {
-    window.dispatchEvent(
-      new CustomEvent("isp-employee-ledger-updated", {
-        detail: {
-          entryId: commissionRecord.id,
-          employeeId: commissionRecord.employeeId,
-          updatedAt: commissionRecord.updatedAt,
-        },
+  function updateItem(projectId, field, value) {
+    setItems((current) =>
+      current.map((item) => {
+        if (String(item.projectId) !== String(projectId)) return item;
+        const nextValue =
+          field === "quantity"
+            ? Math.max(1, Number(value || 1))
+            : Math.max(0, Number(value || 0));
+        return { ...item, [field]: nextValue };
       })
     );
   }
 
-  return saved;
-}
-
-async function saveSale(event) {
-  event.preventDefault();
-
-  if (!form.projectId || !form.customerId) {
-    notify(
-      "Please select project and customer.",
-      "error"
+  function removeItem(projectId) {
+    setItems((current) =>
+      current.filter((item) => String(item.projectId) !== String(projectId))
     );
-    return;
   }
 
-  const price = Number(form.price || 0);
-  const paid = Number(form.paid || 0);
-
-  if (price <= 0) {
-    notify(
-      "Project price must be greater than zero.",
-      "error"
-    );
-    return;
-  }
-
-  if (paid < 0) {
-    notify(
-      "Paid amount cannot be negative.",
-      "error"
-    );
-    return;
-  }
-
-  if (paid > price) {
-    notify(
-      "Paid amount cannot be greater than project price.",
-      "error"
-    );
-    return;
-  }
-
-  const now = new Date().toISOString();
-  const saleId =
-    editId || createId();
-
-  const oldSale = sales.find(
-    (sale) =>
-      String(sale.id) === String(editId)
-  );
-
-  const saleRecord = {
-    ...(oldSale || {}),
-
-    ...form,
-
-    id: saleId,
-
-    price: String(price),
-    paid: String(paid),
-
-    remaining: String(
-      Math.max(price - paid, 0)
-    ),
-
-    saleDate:
-      form.saleDate ||
-      new Date().toISOString().slice(0, 10),
-
-    createdAt:
-      oldSale?.createdAt || now,
-
-    updatedAt: now,
-  };
-
-  const nextSales = editId
-    ? sales.map((sale) =>
-        String(sale.id) === String(editId)
-          ? saleRecord
-          : sale
-      )
-    : [...sales, saleRecord];
-
-  const saleSaved =
-    await setSales(nextSales);
-
-  if (!saleSaved) return;
-
-  /*
-   * فیصدی Source Employee باید مستقل از بخش عواید ثبت شود.
-   * در نسخه قبلی اگر ثبت عاید ناکام می‌شد، تابع return می‌کرد
-   * و Credit کارمند اصلاً ساخته نمی‌شد.
-   */
-  const commissionSaved =
-    await upsertSourceEmployeeCommission(
-      saleRecord
-    );
-
-  /*
-   * مبلغ Paid را در بخش عواید ثبت می‌کند.
-   * خرابی بخش عواید نباید مانع ثبت فیصدی کارمند شود.
-   */
-  const incomeSaved =
-    await upsertProjectSaleIncome(
-      saleRecord
-    );
-
-  if (!commissionSaved && !incomeSaved) {
-    notify(
-      "Sale was saved, but neither the income nor the employee commission could be linked.",
-      "error"
-    );
-    return;
-  }
-
-  if (!commissionSaved) {
-    notify(
-      "Sale and income were saved, but the employee commission could not be updated.",
-      "error"
-    );
-    return;
-  }
-
-  if (!incomeSaved) {
-    notify(
-      "Sale and employee commission were saved, but the income record could not be linked. Make sure the transactions collection is enabled on the server.",
-      "warning"
-    );
-
-    resetForm();
-    return;
-  }
-
-  notify(
-    editId
-      ? "Project sale, income and employee commission updated successfully."
-      : "Project sale, income and employee commission registered successfully.",
-    "success"
-  );
-
-  resetForm();
-}
-
-async function deleteSale() {
-  if (!deleteTarget || deletingSale) return;
-
-  setDeletingSale(true);
-
-  const saleId = deleteTarget.id;
-  let saleWasDeleted = false;
-
-  try {
-    const nextSales = sales.filter(
-      (sale) =>
-        String(sale.id) !== String(saleId)
-    );
-
-    const saleDeleted =
-      await setSales(nextSales);
-
-    if (!saleDeleted) {
-      notify(
-        "Unable to delete the project sale.",
-        "error"
-      );
-      return;
-    }
-
-    saleWasDeleted = true;
-
-    /*
-     * خود فروش حذف شده است؛ مودال باید فوراً بسته شود.
-     * حذف ریکاردهای مرتبط در ادامه انجام می‌شود.
-     */
-    setDeleteTarget(null);
-
-    /*
-     * عاید مرتبط با فروش نیز حذف می‌شود.
-     */
-    const incomeDeleted =
-      await setTransactions(
-        transactions.filter(
-          (transaction) =>
-            !(
-              transaction.source ===
-                "project-sale" &&
-              String(
-                transaction.referenceId || ""
-              ) === String(saleId)
-            )
-        )
-      );
-
-    /*
-     * Credit فیصدی کارمند مرتبط با این فروش نیز حذف شود.
-     */
-    const commissionDeleted =
-      await setEmployeeAdjustments(
-        employeeAdjustments.filter(
-          (entry) =>
-            !(
-              entry.source ===
-                "project-sale-commission" &&
-              String(entry.referenceId || "") ===
-                String(saleId)
-            )
-        )
-      );
-
-    /*
-     * لایسنس‌های مرتبط با این فروش نیز حذف شوند.
-     */
-    const nextLicenses = licenses.filter(
-      (license) =>
-        String(license.saleId || "") !==
-        String(saleId)
-    );
-
-    const licensesDeleted =
-      await setLicenses(nextLicenses);
-
-    if (
-      !incomeDeleted ||
-      !commissionDeleted ||
-      !licensesDeleted
-    ) {
-      notify(
-        "The sale was deleted, but one or more linked records could not be removed.",
-        "warning"
-      );
-      return;
-    }
-
-    notify(
-      "Project sale and linked records deleted successfully.",
-      "success"
-    );
-  } finally {
-    /*
-     * حتی اگر حذف یکی از ریکاردهای مرتبط خطا بدهد،
-     * مودال حذف باز باقی نمی‌ماند.
-     */
-    if (saleWasDeleted) {
-      setDeleteTarget(null);
-    }
-
-    setDeletingSale(false);
-  }
-}
-
-  function editSale(sale) {
-    setEditId(sale.id);
-    setForm({ ...emptySale, ...sale });
-    setShowForm(true);
-  }
-
-  function openLicenseModal(sale) {
-    setLicenseSale(sale);
-    setLicenseForm(createEmptyLicenseForm());
-    setGeneratedLicense(null);
-    setLicenseGenerationError("");
-  }
-
-  function closeLicenseModal() {
-    setLicenseSale(null);
-    setGeneratedLicense(null);
-    setLicenseGenerationError("");
-    setLicenseForm(createEmptyLicenseForm());
-  }
-
-  function updateLicenseField(event) {
+  function updateCustomer(event) {
     const { name, value } = event.target;
-    setGeneratedLicense(null);
-    setLicenseGenerationError("");
-    setLicenseForm((current) => {
-      const next = { ...current, [name]: value };
-      const type = licenseTypes.find((item) => item.key === (name === "licenseType" ? value : next.licenseType));
-      if (name === "licenseType" && value === "forever") {
-        next.endDate = "";
-      } else if ((name === "licenseType" || name === "startDate") && type?.key !== "custom") {
-        next.endDate = calculateLicenseEndDate(name === "startDate" ? value : next.startDate, type?.key || next.licenseType, next.endDate);
-      }
-      return next;
-    });
-  }
 
-async function generateLicenseCode() {
-  if (!licenseSale || generating) return;
-
-  const deviceId = normalizeDeviceId(licenseForm.deviceId);
-
-  if (!deviceId) {
-    notify("Device ID is required.", "error");
-    return;
-  }
-
-  if (deviceId.startsWith("WEB-")) {
-    const message =
-      "Browser Device IDs cannot be used for production licenses. Copy the Device ID from the customer Electron application.";
-
-    setLicenseGenerationError(message);
-    notify(message, "error");
-    return;
-  }
-
-  if (
-    licenseForm.licenseType !== "forever" &&
-    !licenseForm.endDate
-  ) {
-    notify("License end date is required.", "error");
-    return;
-  }
-
-  if (
-    licenseForm.licenseType !== "forever" &&
-    isEndBeforeStart(
-      licenseForm.startDate,
-      licenseForm.endDate
-    )
-  ) {
-    notify(
-      "License end date cannot be before the start date.",
-      "error"
-    );
-    return;
-  }
-
-  const request = {
-    projectId: licenseSale.projectId,
-    projectName: licenseSale.projectName,
-    customerId: licenseSale.customerId,
-    customerName: licenseSale.customerName,
-    deviceId,
-    licenseType: licenseForm.licenseType,
-    startDate: licenseForm.startDate,
-    endDate: licenseForm.endDate,
-    status: "Active",
-    features: ["all"],
-  };
-
-  setGenerating(true);
-  setGeneratedLicense(null);
-  setLicenseGenerationError("");
-
-  try {
-    const response = await axios.post(
-      apiUrl("license/generate"),
-      request,
-      {
-        headers: {
-          "X-ISP-Session-Id":
-            localStorage.getItem("isp-system-session") || "",
-        },
-      }
-    );
-
-    const result = response.data;
-
-    if (!result?.success) {
-      throw new Error(
-        result?.error || "License generation failed."
+    if (name === "customerId") {
+      const record = customers.find(
+        (item) => String(item.id || item.customerId || "") === String(value)
       );
+      setCustomer({
+        customerId: value,
+        customerName: customerNameOf(record),
+        customerPhone: record?.phone || record?.customerPhone || "",
+        notes: customer.notes,
+      });
+      return;
     }
 
-    const generated = {
-      ...licenseForm,
-      ...request,
-      endDate:
-        toDateOnly(
-          result.certificate?.payload?.expiresAt
-        ) || licenseForm.endDate,
+    setCustomer((current) => ({ ...current, [name]: value }));
+  }
+
+  function updateNewCustomer(event) {
+    const { name, value } = event.target;
+    setNewCustomer((current) => ({ ...current, [name]: value }));
+  }
+
+  async function saveNewCustomer(event) {
+    event.preventDefault();
+
+    if (!newCustomer.customerName.trim()) {
+      notify("Customer name is required.", "error");
+      return;
+    }
+
+    const source = employees.find(
+      (employee) => String(employee.id || employee.employeeId || "") === String(newCustomer.sourceEmployeeId)
+    );
+    const record = {
+      id: createId(),
+      customerId: `CUST-${Date.now().toString().slice(-6)}`,
+      customerName: newCustomer.customerName.trim(),
+      phone: newCustomer.phone.trim(),
+      email: newCustomer.email.trim(),
+      address: newCustomer.address.trim(),
+      sourceEmployeeId: source?.id || source?.employeeId || "",
+      sourceEmployeeName:
+        source?.fullName || source?.employeeName || source?.name || "",
       status: "Active",
-      licenseId: result.certificate.payload.licenseId,
-      licenseKey: result.licenseCode,
-      certificate: result.certificate,
-      saleId: licenseSale.id,
+      registrationDate: new Date().toISOString().slice(0, 10),
+      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    setGeneratedLicense(generated);
-    notify(
-      "License code generated successfully.",
-      "success"
-    );
-  } catch (error) {
-    const message =
-      error?.response?.data?.error ||
-      error?.message ||
-      "License generation failed.";
+    const saved = await setCustomers([...customers, record]);
+    if (!saved) return;
 
-    setGeneratedLicense(null);
-    setLicenseGenerationError(message);
-    notify(message, "error");
-  } finally {
-    setGenerating(false);
-  }
-}
-
-async function saveLicense(event) {
-  event.preventDefault();
-
-  if (!licenseSale) return;
-
-  if (!generatedLicense?.licenseKey) {
-    notify(
-      "Please generate the license code first.",
-      "error"
-    );
-    return;
+    setCustomer({
+      customerId: record.id,
+      customerName: record.customerName,
+      customerPhone: record.phone,
+      notes: customer.notes,
+    });
+    setNewCustomer(emptyNewCustomer);
+    setShowCustomerForm(false);
+    notify("Customer registered successfully.", "success");
   }
 
-  const payload = {
-    ...generatedLicense,
-    notes: licenseForm.notes,
-    saleId: licenseSale.id,
-    projectId: licenseSale.projectId,
-    projectName: licenseSale.projectName,
-    customerId: licenseSale.customerId,
-    customerName: licenseSale.customerName,
-    updatedAt: new Date().toISOString(),
-  };
+  async function saveSale({ print = false } = {}) {
+    if (!items.length) {
+      notify("Please select at least one project.", "error");
+      return;
+    }
 
-  const saved = await setLicenses([
-    ...licenses,
-    {
-      ...payload,
-      id: createId(),
-      createdAt: new Date().toISOString(),
-    },
-  ]);
+    if (totals.total <= 0) {
+      notify("Sale total must be greater than zero.", "error");
+      return;
+    }
 
-  if (!saved) return;
+    if (!selectedCustomer) {
+      notify("Please select a customer.", "error");
+      return;
+    }
 
-  notify("Sale and license saved successfully.", "success");
-  closeLicenseModal();
-}
+    setSaving(true);
 
-  function copyLicense(licenseKey) {
-    navigator.clipboard?.writeText(licenseKey);
-    notify("License key copied.", "success");
-  }
-
-  function shareLicense(channel) {
-    if (!generatedLicense?.licenseKey) return;
-    const text = `Project: ${generatedLicense.projectName}\nCustomer: ${generatedLicense.customerName || "-"}\nDevice ID: ${generatedLicense.deviceId}\nLicense Code: ${generatedLicense.licenseKey}\nValid Until: ${generatedLicense.licenseType === "forever" ? "Forever" : generatedLicense.endDate || "-"}`;
-    navigator.clipboard?.writeText(generatedLicense.licenseKey);
-    notify("License key copied.", "success");
-    const encoded = encodeURIComponent(text);
-    const urls = {
-      whatsapp: `https://wa.me/?text=${encoded}`,
-      email: `mailto:?subject=${encodeURIComponent("Project License Code")}&body=${encoded}`,
-      telegram: `https://t.me/share/url?url=&text=${encoded}`,
+    const now = new Date().toISOString();
+    const saleId = createId();
+    const firstItem = items[0];
+    const saleRecord = {
+      id: saleId,
+      projectId: firstItem.projectId,
+      projectName:
+        items.length === 1 ? firstItem.projectName : `${firstItem.projectName} +${items.length - 1}`,
+      customerId: selectedCustomer.id || selectedCustomer.customerId || customer.customerId,
+      customerName: customerNameOf(selectedCustomer),
+      customerPhone: selectedCustomer.phone || selectedCustomer.customerPhone || "",
+      customerEmail: selectedCustomer.email || "",
+      sourceEmployeeId: selectedCustomer.sourceEmployeeId || sourceEmployee?.id || "",
+      sourceEmployeeName:
+        selectedCustomer.sourceEmployeeName ||
+        sourceEmployee?.fullName ||
+        sourceEmployee?.employeeName ||
+        sourceEmployee?.name ||
+        "",
+      price: String(totals.total),
+      paid: String(totals.total),
+      remaining: "0",
+      subtotal: totals.subtotal,
+      discount: totals.discount,
+      total: totals.total,
+      quantity: totals.quantity,
+      currency,
+      saleType: "forever",
+      notes: customer.notes,
+      items: items.map((item) => ({
+        ...item,
+        subtotal: Number(item.price || 0) * Number(item.quantity || 0),
+        total: lineTotal(item),
+      })),
+      saleDate: new Date().toISOString().slice(0, 10),
+      createdAt: now,
+      updatedAt: now,
     };
-    window.open(urls[channel], "_blank", "noopener,noreferrer");
+
+    const saved = await setSales([...sales, saleRecord]);
+
+    if (!saved) {
+      setSaving(false);
+      return;
+    }
+
+    await setTransactions([
+      ...transactions,
+      {
+        id: `project-sale-income-${saleId}`,
+        type: "income",
+        title: `Project Sale - ${saleRecord.projectName}`,
+        category: "Project Sales",
+        amount: totals.total,
+        currency,
+        date: saleRecord.saleDate,
+        description: [
+          saleRecord.customerName ? `Customer: ${saleRecord.customerName}` : "",
+          saleRecord.customerPhone ? `Phone: ${saleRecord.customerPhone}` : "",
+          `Projects: ${items.map((item) => item.projectName).join(", ")}`,
+        ]
+          .filter(Boolean)
+          .join(" | "),
+        source: "project-sale",
+        referenceId: saleId,
+        projectId: saleRecord.projectId,
+        projectName: saleRecord.projectName,
+        customerName: saleRecord.customerName,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    if (sourceShare > 0 && sourceEmployee) {
+      await setEmployeeAdjustments([
+        ...employeeAdjustments,
+        {
+          id: `project-sale-commission-${saleId}`,
+          employeeId: sourceEmployee.id,
+          employeeName:
+            sourceEmployee.fullName ||
+            sourceEmployee.employeeName ||
+            sourceEmployee.name ||
+            saleRecord.sourceEmployeeName,
+          employeeEmail: sourceEmployee.email || "",
+          employeeUsername: sourceEmployee.username || "",
+          type: "credit",
+          amount: sourceShare,
+          currency,
+          source: "project-sale-commission",
+          referenceId: saleId,
+          projectId: saleRecord.projectId,
+          projectName: saleRecord.projectName,
+          customerId: saleRecord.customerId,
+          customerName: saleRecord.customerName,
+          paidAmount: totals.total,
+          salaryPercentage: sourcePercentage,
+          reason: `${sourcePercentage}% commission from project sale`,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ]);
+    }
+
+    if (print) {
+      sessionStorage.setItem("projectSalePrintId", saleId);
+      window.dispatchEvent(
+        new CustomEvent("isp-project-section-change", {
+          detail: { section: "bills" },
+        })
+      );
+    }
+
+    setItems([]);
+    setCustomer(emptyCustomer);
+    setQuery("");
+    setSaving(false);
+    notify(print ? "Sale registered. Opening bill for print." : "Sale registered successfully.", "success");
   }
 
   return (
     <div className="project-sales-page">
-      <header className="project-sales-heading">
+      <header className="project-sales-heading compact">
         <div>
-          <span>Sales Workspace</span>
-          <h1>Project Sales</h1>
-          <p>Select a project and customer, then record price, payment, remaining balance, and sale type.</p>
+          <span>Project Sales</span>
+          <h1>Register Project Sale</h1>
+          <p>Search registered projects, select one or more, then enter price, discount and quantity.</p>
         </div>
-        <button type="button" onClick={openCreateForm}>
-          <Plus size={17} />
-          Register Sale
-        </button>
       </header>
 
-      <section className="project-sales-stats">
-        <div><ReceiptText /><span>Total Sales</span><strong>{sales.length}</strong><small>Registered project sales</small></div>
-        <div><BadgeDollarSign /><span>Sales Value</span><strong>{money(totalSales, "AFN")}</strong><small>Total project price</small></div>
-        <div><CreditCard /><span>Total Paid</span><strong>{money(totalPaid, "AFN")}</strong><small>Received payments</small></div>
-        <div><CalendarClock /><span>Remaining</span><strong>{money(totalRemaining, "AFN")}</strong><small>Outstanding amount</small></div>
-      </section>
-
-      {showForm && (
-        <div className="project-sale-modal-backdrop" role="presentation" onMouseDown={resetForm}>
-          <div className="project-sale-modal" role="dialog" aria-modal="true" aria-labelledby="project-sale-modal-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="project-sale-modal-header">
+      <section className="project-sale-grid">
+        <div className="project-sale-col-8">
+          <section className="project-sale-panel">
+            <div className="project-sale-panel-title">
               <div>
-                <span>Sale Information</span>
-                <h2 id="project-sale-modal-title">{editId ? "Edit Sale" : "Register Sale"}</h2>
+                <Search size={17} />
+                <h2>Search Projects</h2>
               </div>
-              <button type="button" onClick={resetForm} title="Close" aria-label="Close">
-                <X size={18} />
-              </button>
+              <small>{filteredProjects.length} found</small>
             </div>
 
-            <section className="project-sales-workspace in-modal">
-              <form className="project-sale-form" onSubmit={saveSale}>
-                <div className="project-sale-form-title">
-                  <span><FolderKanban size={17} />Sale Information</span>
-                  <strong>{editId ? "Edit Sale" : "Register Sale"}</strong>
-                </div>
+            <label className="project-sale-search">
+              <Search size={17} />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search registered projects..."
+              />
+            </label>
 
-                <div className="project-sale-grid">
-                  <label><span>Project</span><select name="projectId" value={form.projectId} onChange={updateField}><option value="">Choose project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.projectName}</option>)}</select></label>
-                  <label><span>Customer</span><select name="customerId" value={form.customerId} onChange={updateField}><option value="">Select customer</option>{customerOptions.map((customer) => <option key={customer.id || customer.customerId || customer.phone} value={customer.id || customer.customerId}>{customerLabel(customer)}</option>)}</select></label>
+            <div className="project-search-results">
+              {filteredProjects.map((project) => {
+                const id = String(project.id || project.projectId || project.projectName);
+                const selected = items.some((item) => String(item.projectId) === id);
 
-                  {selectedCustomer && (
-                    <div className="project-sale-customer-card project-sale-full">
-                      <div><UserRound size={20} /><span><small>Customer Name</small><strong>{form.customerName}</strong></span></div>
-                      <div><span><small>Phone Number</small><strong>{form.customerPhone || "-"}</strong></span></div>
-                      <div><span><small>Email</small><strong>{form.customerEmail || "-"}</strong></span></div>
-                      <div><span><small>Source Employee</small><strong>{form.sourceEmployeeName || "-"}</strong></span></div>
-                      <div><span><small>Assigned To</small><strong>{form.assignedEmployeeName || "-"}</strong></span></div>
+                return (
+                  <button
+                    type="button"
+                    key={id}
+                    className={`project-search-card ${selected ? "selected" : ""}`}
+                    onClick={() => selectProject(project)}
+                  >
+                    <div>
+                      <strong>{project.projectName || "Unnamed Project"}</strong>
+                      <small>{project.customerName || project.status || "Registered project"}</small>
                     </div>
-                  )}
+                    <span>{money(projectPrice(project), project.currency || "AFN")}</span>
+                  </button>
+                );
+              })}
 
-                  <label><span>Price</span><input type="number" min="0" name="price" value={form.price} onChange={updateField} /></label>
-                  <label><span>Paid</span><input type="number" min="0" name="paid" value={form.paid} onChange={updateField} /></label>
-                  <label><span>Remaining</span><input name="remaining" value={form.remaining} readOnly /></label>
-                  <label><span>Unit</span><select name="currency" value={form.currency} onChange={updateField}><option>AFN</option><option>USD</option><option>EUR</option></select></label>
+              {!filteredProjects.length && (
+                <div className="project-sale-empty">No registered project found.</div>
+              )}
+            </div>
+          </section>
 
-                  <div className="project-sale-type project-sale-full">
-                    <button type="button" className={form.saleType === "forever" ? "active" : ""} onClick={() => updateField({ target: { name: "saleType", value: "forever" } })}>
-                      <InfinityIcon size={17} /><span><strong>Permanent Sale</strong><small>Sold forever</small></span>
-                    </button>
-                    <button type="button" className={form.saleType === "license" ? "active" : ""} onClick={() => updateField({ target: { name: "saleType", value: "license" } })}>
-                      <KeyRound size={17} /><span><strong>License Sale</strong><small>Customer needs a license code</small></span>
-                    </button>
-                  </div>
-
-                  <label className="project-sale-full"><span>Notes</span><textarea name="notes" value={form.notes} onChange={updateField} rows="3" /></label>
-                </div>
-
-              <div className="project-sale-actions">
-  <button
-    type="button"
-    onClick={resetForm}
-  >
-    Cancel
-  </button>
-
-  <button type="submit">
-    <ReceiptText size={15} />
-
-    {editId ? "Save Changes" : "Register Sale"}
-  </button>
-</div>
-              </form>
-
-              <aside className="project-sale-preview">
-                <span>Selected Project</span>
-                <h2>{selectedProject?.projectName || "Choose project"}</h2>
-                <p>{selectedProject?.notes || selectedProject?.requirements || "Project details will appear here after selection."}</p>
-                <div>
-                  <small>Price</small>
-                  <strong>{money(form.price || selectedProject?.budget, form.currency)}</strong>
-                </div>
-                <div>
-                  <small>Sale Type</small>
-                  <strong>{form.saleType === "forever" ? "Permanent Sale" : "License Sale"}</strong>
-                </div>
-              </aside>
-            </section>
-          </div>
-        </div>
-      )}
-
-      {licenseSale && (
-        <div className="project-sale-modal-backdrop" role="presentation" onMouseDown={closeLicenseModal}>
-          <div className="project-license-modal" role="dialog" aria-modal="true" aria-labelledby="project-license-modal-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="project-sale-modal-header">
+          <section className="project-sale-panel">
+            <div className="project-sale-panel-title">
               <div>
-                <span>Device License</span>
-                <h2 id="project-license-modal-title">Generate License</h2>
+                <ShoppingCart size={17} />
+                <h2>Selected Projects</h2>
               </div>
-              <button type="button" onClick={closeLicenseModal} title="Close" aria-label="Close">
-                <X size={18} />
-              </button>
+              <small>Price, discount, quantity</small>
             </div>
 
-            <form className="project-license-form" onSubmit={saveLicense}>
-              <div className="project-license-summary">
-                <div><span>Project</span><strong>{licenseSale.projectName}</strong></div>
-                <div><span>Customer</span><strong>{licenseSale.customerName || "-"}</strong></div>
-                <div><span>Phone Number</span><strong>{licenseSale.customerPhone || "-"}</strong></div>
-                <div><span>Price</span><strong>{money(licenseSale.price, licenseSale.currency)}</strong></div>
-              </div>
-
-              <label className="project-license-field project-sale-full">
-                <span>Device ID</span>
-                <input name="deviceId" value={licenseForm.deviceId} onChange={updateLicenseField} placeholder="Example: PC-01-HDD-ABC123" />
-                <small>Paste the Device ID copied from the License page of the installed Customer Electron application.</small>
-              </label>
-
-              <label className="project-license-output project-sale-full">
-  <span>License Output</span>
-
-  <div className="project-license-output-control">
-    <input
-      value={generatedLicense?.licenseKey || ""}
-      readOnly
-      data-no-translate
-      placeholder={
-        generating
-          ? "Generating license code..."
-          : "Click Generate License to create code"
-      }
-    />
-
-    <button
-      type="button"
-      className="generate-license-button"
-      onClick={generateLicenseCode}
-      disabled={generating}
-    >
-      <KeyRound size={15} />
-
-      {generating
-        ? "Generating..."
-        : "Generate License"}
-    </button>
-
-    <button
-      type="button"
-      className="copy-license-button"
-      disabled={!generatedLicense?.licenseKey}
-      onClick={() =>
-        copyLicense(generatedLicense.licenseKey)
-      }
-      title="Copy license"
-      aria-label="Copy license"
-    >
-      <Copy size={15} />
-    </button>
-  </div>
-</label>
-
-              {licenseGenerationError && (
-                <div className="project-license-error project-sale-full">
-                  {licenseGenerationError}
-                </div>
-              )}
-
-              {generatedLicense?.licenseKey && (
-                <div className="project-license-share project-sale-full">
-                  <button type="button" onClick={() => shareLicense("whatsapp")}><MessageCircle size={15} />WhatsApp</button>
-                  <button type="button" onClick={() => shareLicense("email")}><Mail size={15} />Email</button>
-                  <button type="button" onClick={() => shareLicense("telegram")}><Send size={15} />Telegram</button>
-                </div>
-              )}
-
-              <div className="project-license-types project-sale-full">
-                {licenseTypes.map((type) => {
-                  const Icon = type.key === "forever" ? InfinityIcon : CalendarClock;
-                  return (
-                    <button
-                      type="button"
-                      key={type.key}
-                      className={licenseForm.licenseType === type.key ? "active" : ""}
-                      onClick={() => updateLicenseField({ target: { name: "licenseType", value: type.key } })}
-                    >
-                      <Icon size={16} />
-                      <span>{type.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="project-license-date-grid project-sale-full">
-                <label><span>Start Date</span><input type="date" name="startDate" value={licenseForm.startDate} onChange={updateLicenseField} /></label>
-                <label><span>End Date</span><input type="date" name="endDate" value={licenseForm.endDate} onChange={updateLicenseField} disabled={licenseForm.licenseType !== "custom"} /></label>
-              </div>
-
-              <label className="project-license-field project-sale-full">
-                <span>Notes</span>
-                <textarea name="notes" value={licenseForm.notes} onChange={updateLicenseField} rows="3" />
-              </label>
-
-              <div className="project-sale-actions">
-                <button type="button" onClick={closeLicenseModal}>Cancel</button>
-                <button type="submit" disabled={generating}>
-                  <Plus size={15} />
-                  {generating ? "Generating..." : "Generate License"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      <section className="project-sale-list">
-        <div className="project-sale-list-header">
-          <div><h2>Sales Records</h2><p>Project sales and licensing actions.</p></div>
-          <div><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search sales..." /></div>
-        </div>
-        <div className="project-sale-table-wrap">
-          <table>
-            <thead><tr><th>Project</th><th>Customer</th><th>Price</th><th>Paid</th><th>Remaining</th><th>Sale Type</th><th>Notes</th><th>Action</th></tr></thead>
-            <tbody>
-              {filteredSales.map((sale) => (
-                <tr key={sale.id}>
-                  <td><strong>{sale.projectName}</strong></td>
-                  <td><span>{sale.customerName}</span><small>{sale.customerPhone || "-"}</small></td>
-                  <td>{money(sale.price, sale.currency)}</td>
-                  <td>{money(sale.paid, sale.currency)}</td>
-                  <td>{money(sale.remaining, sale.currency)}</td>
-                  <td><span className={`project-sale-pill ${sale.saleType}`}>{sale.saleType === "forever" ? "Permanent Sale" : "License Sale"}</span></td>
-                  <td>{sale.notes || "-"}</td>
-                  <td>
-                    <div className="project-sale-row-actions">
-                      {sale.saleType === "license" && (
-                        <button type="button" onClick={() => openLicenseModal(sale)} title="Give License" aria-label="Give License">
-                          <FileKey2 size={14} />
-                        </button>
-                      )}
+            {items.length ? (
+              <div className="project-sale-items">
+                {items.map((item) => (
+                  <article className="project-sale-item" key={item.projectId}>
+                    <div className="project-sale-item-head">
+                      <div>
+                        <span>{item.quantity}</span>
+                        <strong>{item.projectName}</strong>
+                      </div>
                       <button
                         type="button"
-                        className="receipt"
-                        onClick={() => setReceiptSale(sale)}
-                        title="Receipt"
-                        aria-label="Receipt"
+                        onClick={() => removeItem(item.projectId)}
+                        title="Remove"
+                        aria-label="Remove"
                       >
-                        <ReceiptText size={14} />
+                        <Trash2 size={15} />
                       </button>
-
-                      <button type="button" onClick={() => editSale(sale)} title="Edit" aria-label="Edit"><Pencil size={14} /></button>
-                      <button
-  type="button"
-  className="danger"
-  onClick={() => setDeleteTarget(sale)}
-  title="Delete"
-  aria-label="Delete"
->
-  <Trash2 size={14} />
-</button>
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {!filteredSales.length && <tr><td colSpan="8" className="project-sale-empty">No project sales registered yet.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      {receiptSale && (
-        <div
-          className="project-receipt-backdrop"
-          role="presentation"
-          onMouseDown={() => setReceiptSale(null)}
-        >
-          <div
-            className="project-receipt-shell"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="project-receipt-title"
-            onMouseDown={(event) =>
-              event.stopPropagation()
-            }
-          >
-            <div className="project-receipt-toolbar">
-              <div>
-                <ReceiptText size={18} />
-                <strong>Project Sale Receipt</strong>
+
+                    <div className="project-sale-three-inputs">
+                      <label>
+                        <span>Price</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.price}
+                          onChange={(event) => updateItem(item.projectId, "price", event.target.value)}
+                        />
+                      </label>
+                      <label>
+                        <span>Discount</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.discount}
+                          onChange={(event) =>
+                            updateItem(item.projectId, "discount", event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>Quantity</span>
+                        <div className="project-sale-qty-control">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateItem(item.projectId, "quantity", Number(item.quantity || 1) - 1)
+                            }
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(event) =>
+                              updateItem(item.projectId, "quantity", event.target.value)
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateItem(item.projectId, "quantity", Number(item.quantity || 1) + 1)
+                            }
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="project-sale-line-total">
+                      <span>Line total</span>
+                      <strong>{money(lineTotal(item), item.currency || currency)}</strong>
+                    </div>
+                  </article>
+                ))}
               </div>
+            ) : (
+              <div className="project-sale-cart-empty">
+                <ShoppingCart size={30} />
+                <strong>No project selected</strong>
+                <p>Search and click a project to add it to the sale form.</p>
+              </div>
+            )}
+          </section>
+        </div>
 
+        <aside className="project-sale-col-4">
+          <section className="project-sale-panel sale-summary-panel">
+            <div className="project-sale-panel-title">
               <div>
-                <button
-                  type="button"
-                  onClick={printReceipt}
-                >
-                  <Printer size={15} />
-                  Print
-                </button>
-
-                <button
-                  type="button"
-                  onClick={printReceipt}
-                >
-                  <Download size={15} />
-                  Save PDF
-                </button>
-
-                <button
-                  type="button"
-                  className="close"
-                  onClick={() =>
-                    setReceiptSale(null)
-                  }
-                  aria-label="Close receipt"
-                >
-                  <X size={17} />
-                </button>
+                <Calculator size={17} />
+                <h2>Calculation</h2>
               </div>
             </div>
 
-            <article className="project-receipt-paper">
-              <header className="project-receipt-hero">
-                <div className="project-receipt-company">
-                  <div className="project-receipt-logo">
-                    {company.logo ? (
-                      <img
-                        src={company.logo}
-                        alt=""
-                      />
-                    ) : (
-                      <span>
-                        {String(
-                          company.companyName ||
-                            "ISP"
-                        )
-                          .trim()
-                          .slice(0, 1)
-                          .toUpperCase()}
-                      </span>
-                    )}
-                  </div>
+            <label className="project-sale-side-field">
+              <span>Customer</span>
+              <div className="project-sale-select-row">
+                <select
+                  name="customerId"
+                  value={customer.customerId}
+                  onChange={updateCustomer}
+                >
+                  <option value="">Select customer</option>
+                  {customers.map((item) => {
+                    const id = item.id || item.customerId;
+                    return (
+                      <option key={id || item.phone || customerNameOf(item)} value={id}>
+                        {customerNameOf(item)} {item.phone ? `- ${item.phone}` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomerForm(true)}
+                  title="Add customer"
+                  aria-label="Add customer"
+                >
+                  <Plus size={17} />
+                </button>
+              </div>
+            </label>
 
-                  <div>
-                    <h1>
-                      {company.companyName ||
-                        "ISP Smart"}
-                    </h1>
-
-                    <p>
-                      {company.systemSubtitle ||
-                        "Project Sales & Services"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="project-receipt-title">
-                  <span>OFFICIAL RECEIPT</span>
-                  <h2 id="project-receipt-title">
-                    Payment Receipt
-                  </h2>
-                  <strong>
-                    {receiptNumber(receiptSale)}
-                  </strong>
-                </div>
-              </header>
-
-              <section className="project-receipt-meta">
+            {selectedCustomer && (
+              <div className="project-sale-customer-summary">
                 <div>
-                  <span>Receipt Date</span>
-                  <strong>
-                    {formatReceiptDate(receiptSale)}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>Sale Type</span>
-                  <strong>
-                    {receiptSale.saleType ===
-                    "forever"
-                      ? "Permanent Sale"
-                      : "License Sale"}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>Currency</span>
-                  <strong>
-                    {receiptSale.currency || "AFN"}
-                  </strong>
-                </div>
-              </section>
-
-              <section className="project-receipt-parties">
-                <div>
-                  <span>BILLED TO</span>
-                  <h3>
-                    {receiptSale.customerName ||
-                      "Customer"}
-                  </h3>
-                  <p>
-                    Phone:{" "}
-                    {receiptSale.customerPhone ||
-                      "-"}
-                  </p>
-                  <p>
-                    Email:{" "}
-                    {receiptSale.customerEmail ||
-                      "-"}
-                  </p>
-                </div>
-
-                <div>
-                  <span>ISSUED BY</span>
-                  <h3>
-                    {company.companyName ||
-                      "ISP Smart"}
-                  </h3>
-                  <p>
-                    {company.address ||
-                      company.companyAddress ||
-                      "Company Address"}
-                  </p>
-                  <p>
-                    {company.phone ||
-                      company.companyPhone ||
-                      company.contactNumber ||
-                      "Company Contact"}
-                  </p>
-                </div>
-              </section>
-
-              <section className="project-receipt-record">
-                <div className="project-receipt-record-head">
-                  <span>PROJECT</span>
-                  <span>SALE TYPE</span>
-                  <span>AMOUNT</span>
-                </div>
-
-                <div className="project-receipt-record-row">
-                  <strong>
-                    {receiptSale.projectName || "-"}
-                  </strong>
-
+                  <UserRound size={18} />
                   <span>
-                    {receiptSale.saleType ===
-                    "forever"
-                      ? "Permanent Sale"
-                      : "License Sale"}
+                    <small>Full Name</small>
+                    <strong>{customerNameOf(selectedCustomer)}</strong>
                   </span>
-
-                  <strong>
-                    {money(
-                      receiptSale.price,
-                      receiptSale.currency
-                    )}
-                  </strong>
                 </div>
-              </section>
-
-              <section className="project-receipt-financials">
-                <div className="project-receipt-note">
-                  <span>NOTES</span>
-                  <p>
-                    {receiptSale.notes ||
-                      "No additional notes."}
-                  </p>
-                </div>
-
-                <div className="project-receipt-totals">
-                  <div>
-                    <span>Project Price</span>
-                    <strong>
-                      {money(
-                        receiptSale.price,
-                        receiptSale.currency
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Paid Amount</span>
-                    <strong>
-                      {money(
-                        receiptSale.paid,
-                        receiptSale.currency
-                      )}
-                    </strong>
-                  </div>
-
-                  <div className="remaining">
-                    <span>Remaining Balance</span>
-                    <strong>
-                      {money(
-                        receiptSale.remaining,
-                        receiptSale.currency
-                      )}
-                    </strong>
-                  </div>
-                </div>
-              </section>
-
-              <section className="project-receipt-signatures">
                 <div>
-                  <span>Customer Signature</span>
-                  <i></i>
+                  <Mail size={18} />
+                  <span>
+                    <small>Email</small>
+                    <strong>{selectedCustomer.email || "-"}</strong>
+                  </span>
                 </div>
-
-                <div className="stamp">
-                  <strong>COMPANY STAMP</strong>
-                </div>
-
                 <div>
-                  <span>Authorized Signature</span>
-                  <i></i>
+                  <ReceiptText size={18} />
+                  <span>
+                    <small>Source</small>
+                    <strong>
+                      {selectedCustomer.sourceEmployeeName ||
+                        sourceEmployee?.fullName ||
+                        sourceEmployee?.employeeName ||
+                        sourceEmployee?.name ||
+                        "-"}
+                    </strong>
+                  </span>
                 </div>
-              </section>
+                <div>
+                  <Calculator size={18} />
+                  <span>
+                    <small>Source Share</small>
+                    <strong>
+                      {sourceShare > 0
+                        ? `${money(sourceShare, currency)} (${sourcePercentage}%)`
+                        : "-"}
+                    </strong>
+                  </span>
+                </div>
+              </div>
+            )}
 
-              <footer className="project-receipt-footer">
-                <p>
-                  Thank you for your business.
-                  This receipt confirms the
-                  recorded payment for the project
-                  listed above.
-                </p>
+            <label className="project-sale-side-field">
+              <span>Phone</span>
+              <input
+                name="customerPhone"
+                value={customer.customerPhone}
+                onChange={updateCustomer}
+                readOnly
+                placeholder="Selected customer phone"
+              />
+            </label>
 
-                <strong>
-                  {receiptNumber(receiptSale)}
-                </strong>
-              </footer>
-            </article>
-          </div>
+            <label className="project-sale-side-field">
+              <span>Notes</span>
+              <textarea
+                name="notes"
+                rows="3"
+                value={customer.notes}
+                onChange={updateCustomer}
+              />
+            </label>
+
+            <div className="project-sale-calculation">
+              <div>
+                <span>Projects</span>
+                <strong>{items.length}</strong>
+              </div>
+              <div>
+                <span>Quantity</span>
+                <strong>{totals.quantity}</strong>
+              </div>
+              <div>
+                <span>Subtotal</span>
+                <strong>{money(totals.subtotal, currency)}</strong>
+              </div>
+              <div className="discount-row">
+                <span>Discount</span>
+                <strong>{money(totals.discount, currency)}</strong>
+              </div>
+              <div className="grand-total">
+                <span>Total</span>
+                <strong>{money(totals.total, currency)}</strong>
+              </div>
+            </div>
+
+            <div className="project-sale-final-actions">
+              <button
+                type="button"
+                className="sale-only-btn"
+                onClick={() => saveSale({ print: false })}
+                disabled={saving}
+              >
+                <ReceiptText size={16} />
+                Sale
+              </button>
+              <button
+                type="button"
+                className="sale-print-btn"
+                onClick={() => saveSale({ print: true })}
+                disabled={saving}
+              >
+                <Printer size={16} />
+                Sale & Print
+              </button>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      {showCustomerForm && (
+        <div className="project-sale-modal-backdrop" onMouseDown={() => setShowCustomerForm(false)}>
+          <form
+            className="project-sale-customer-modal"
+            onSubmit={saveNewCustomer}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="project-sale-modal-header">
+              <div>
+                <span>New Customer</span>
+                <h2>Register Customer</h2>
+              </div>
+              <button type="button" onClick={() => setShowCustomerForm(false)} aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            <label>
+              <span>Full Name</span>
+              <input name="customerName" value={newCustomer.customerName} onChange={updateNewCustomer} />
+            </label>
+            <label>
+              <span>Phone</span>
+              <input name="phone" value={newCustomer.phone} onChange={updateNewCustomer} />
+            </label>
+            <label>
+              <span>Email</span>
+              <input type="email" name="email" value={newCustomer.email} onChange={updateNewCustomer} />
+            </label>
+            <label>
+              <span>Source</span>
+              <select
+                name="sourceEmployeeId"
+                value={newCustomer.sourceEmployeeId}
+                onChange={updateNewCustomer}
+              >
+                <option value="">No source</option>
+                {employees.map((employee) => {
+                  const id = employee.id || employee.employeeId;
+                  return (
+                    <option key={id || employee.email} value={id}>
+                      {employee.fullName || employee.employeeName || employee.name || employee.email}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <label>
+              <span>Address</span>
+              <textarea name="address" rows="3" value={newCustomer.address} onChange={updateNewCustomer} />
+            </label>
+
+            <div className="project-sale-actions">
+              <button type="button" onClick={() => setShowCustomerForm(false)}>
+                Cancel
+              </button>
+              <button type="submit">
+                <Plus size={15} />
+                Save Customer
+              </button>
+            </div>
+          </form>
         </div>
       )}
-
-      {deleteTarget && (
-  <div
-    className="project-sale-delete-backdrop"
-    role="presentation"
-    onMouseDown={() => {
-      if (!deletingSale) {
-        setDeleteTarget(null);
-      }
-    }}
-  >
-    <div
-      className="project-sale-delete-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-sale-title"
-      onMouseDown={(event) =>
-        event.stopPropagation()
-      }
-    >
-      <div className="project-sale-delete-icon">
-        <Trash2 size={25} />
-      </div>
-
-      <span>Delete Project Sale</span>
-
-      <h2 id="delete-sale-title">
-        Delete this sale record?
-      </h2>
-
-      <p>
-        You are about to permanently delete the
-        sale of
-        <strong>
-          {deleteTarget.projectName ||
-            "this project"}
-        </strong>
-        for
-        <strong>
-          {deleteTarget.customerName ||
-            "this customer"}
-        </strong>
-        .
-      </p>
-
-      <div className="project-sale-delete-summary">
-        <div>
-          <span>Project</span>
-          <strong>
-            {deleteTarget.projectName || "-"}
-          </strong>
-        </div>
-
-        <div>
-          <span>Customer</span>
-          <strong>
-            {deleteTarget.customerName || "-"}
-          </strong>
-        </div>
-
-        <div>
-          <span>Price</span>
-          <strong>
-            {money(
-              deleteTarget.price,
-              deleteTarget.currency
-            )}
-          </strong>
-        </div>
-
-        <div>
-          <span>Paid</span>
-          <strong>
-            {money(
-              deleteTarget.paid,
-              deleteTarget.currency
-            )}
-          </strong>
-        </div>
-      </div>
-
-      <div className="project-sale-delete-warning">
-        The linked income record and generated
-        licenses will also be deleted. This action
-        cannot be undone.
-      </div>
-
-      <div className="project-sale-delete-actions">
-        <button
-          type="button"
-          disabled={deletingSale}
-          onClick={() =>
-            setDeleteTarget(null)
-          }
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          className="danger"
-          disabled={deletingSale}
-          onClick={deleteSale}
-        >
-          <Trash2 size={15} />
-
-          {deletingSale
-            ? "Deleting..."
-            : "Delete Sale"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
     </div>
   );
 }

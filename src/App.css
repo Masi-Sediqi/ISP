@@ -306,90 +306,68 @@ body.theme-professional,
 body.theme-professional #root,
 body.theme-professional .app {
   background:
-    linear-gradient(145deg, rgba(255, 247, 237, .88), rgba(239, 246, 255, .92)),
-    #f8fafc;
+    radial-gradient(circle at 16% 12%, rgba(34, 211, 238, .16), transparent 28%),
+    radial-gradient(circle at 86% 18%, rgba(167, 139, 250, .14), transparent 30%),
+    linear-gradient(135deg, #f8fbff 0%, #fbf7ff 48%, #f7fbf5 100%);
+  background-size: 140% 140%, 150% 150%, 220% 220%;
+  animation: auroraBodyShift 28s ease-in-out infinite;
 }
 
 body.theme-professional::before {
   content: "";
   position: fixed;
-  top: 18px;
-  right: 24px;
-  z-index: 999999;
-  width: 148px;
-  height: 148px;
+  inset: 0;
+  z-index: 0;
+  width: auto;
+  height: auto;
   pointer-events: none;
-  opacity: .36;
+  opacity: .22;
   background:
-    repeating-conic-gradient(
-      from 8deg,
-      rgba(251, 191, 36, .42) 0deg 8deg,
-      transparent 8deg 18deg
-    );
-  clip-path: circle(50% at 50% 50%);
-  animation: professionalSunTurn 32s linear infinite;
-}
-
-body.theme-professional::after {
-  content: "";
-  position: fixed;
-  top: 48px;
-  right: 54px;
-  z-index: 1000000;
-  width: 88px;
-  height: 88px;
-  border-radius: 999px;
-  pointer-events: none;
-  opacity: .72;
-  background:
-    radial-gradient(circle at 34% 32%, #fff7cc 0 19%, #fbbf24 20% 56%, #f97316 57% 100%);
-  box-shadow:
-    0 0 38px rgba(251, 191, 36, .34),
-    0 0 82px rgba(14, 165, 233, .14);
+    radial-gradient(circle at 22% 24%, rgba(255, 255, 255, .62), transparent 11%),
+    radial-gradient(circle at 78% 32%, rgba(255, 255, 255, .46), transparent 13%);
+  animation: auroraWhiteFade 12s ease-in-out infinite alternate;
 }
 
 body.theme-professional .main,
 body.theme-professional .sidebar,
 body.theme-professional .topbar {
-  border-color: #d8e6f3;
+  position: relative;
+  z-index: 1;
+  border-color: rgba(226, 232, 240, .82);
+}
+
+body.theme-professional .sidebar,
+body.theme-professional .topbar {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .88), rgba(244, 247, 255, .78));
+  backdrop-filter: blur(14px);
 }
 
 body.theme-professional .menu a:hover,
 body.theme-professional .menu .active,
 body.theme-professional .sidebar-customer-trigger:hover,
 body.theme-professional .sidebar-customer-menu.open > .sidebar-customer-trigger {
-  background: #eef6ff;
-  color: #075985;
+  background: linear-gradient(120deg, rgba(34, 211, 238, .18), rgba(244, 114, 182, .18), rgba(250, 204, 21, .16));
+  color: #111827;
 }
 
 body.theme-professional .header-control-btn,
 body.theme-professional .header-account-link {
-  border-color: #bfdbfe;
-}
-
-body.theme-professional .dashboard-stats-expanded .dashboard-stat-button,
-body.theme-professional .dashboard-trend-card,
-body.theme-professional [class*="-card"],
-body.theme-professional [class*="-panel"] {
-  border-color: #dbeafe;
-}
-
-body.theme-professional .dashboard-stats-expanded .dashboard-stat-button::after,
-body.theme-professional .dashboard-trend-accent {
-  background: #0284c7 !important;
+  border-color: rgba(255, 255, 255, .72);
+  background: rgba(255, 255, 255, .72);
 }
 
 body.theme-professional .dashboard-trends-heading span,
 body.theme-professional .dashboard-trends-heading h2 {
-  color: #075985;
+  color: #334155;
 }
 
 body.theme-professional .dashboard-trend-card svg path {
-  stroke: #0284c7 !important;
+  stroke: #64748b !important;
 }
 
 body.theme-professional .dashboard-trend-card svg rect {
-  fill: #f59e0b !important;
+  fill: #94a3b8 !important;
 }
 
 body.theme-winter,
@@ -466,9 +444,55 @@ body.theme-winter .dashboard-trend-card svg rect {
   fill: #93c5fd !important;
 }
 
-@keyframes professionalSunTurn {
-  to {
-    transform: rotate(360deg);
+@keyframes auroraBodyShift {
+  0%, 100% {
+    background-position: 0% 30%, 100% 18%, 50% 100%, 0% 50%;
+  }
+  50% {
+    background-position: 100% 70%, 15% 85%, 80% 10%, 100% 50%;
+  }
+}
+
+@keyframes auroraGradientMix {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes auroraWhiteFade {
+  0% {
+    opacity: .18;
+    filter: blur(0);
+  }
+  100% {
+    opacity: .58;
+    filter: blur(2px);
+  }
+}
+
+@keyframes auroraLightSweep {
+  0% {
+    background-position: -120% 50%;
+  }
+  55%, 100% {
+    background-position: 140% 50%;
+  }
+}
+
+@keyframes auroraButtonFade {
+  0% {
+    left: -55%;
+    opacity: 0;
+  }
+  35% {
+    opacity: .95;
+  }
+  100% {
+    left: 120%;
+    opacity: 0;
   }
 }
 
@@ -991,32 +1015,31 @@ body.theme-warm .sidebar-customer-menu.open > .sidebar-customer-trigger {
 
 .theme-picker-dropdown .theme-picker-option i.theme-preview-professional {
   background:
-    linear-gradient(135deg, #fff7ed 0%, #ffffff 48%, #e0f2fe 100%) !important;
+    linear-gradient(125deg, #22d3ee 0%, #a78bfa 26%, #f472b6 52%, #facc15 76%, #34d399 100%) !important;
+  background-size: 280% 280% !important;
+  animation: auroraGradientMix 4.8s ease infinite;
 }
 
 .theme-picker-dropdown .theme-picker-option i.theme-preview-professional::before {
-  inset: auto;
-  top: 9px;
-  right: 12px;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: radial-gradient(circle at 35% 30%, #fff7cc 0 20%, #fbbf24 21% 58%, #f97316 59% 100%);
-  box-shadow:
-    0 0 0 7px rgba(251, 191, 36, .15),
-    -32px 22px 0 -10px rgba(14, 165, 233, .24);
+  inset: 8px 10px;
+  border-radius: 9px;
+  background:
+    linear-gradient(110deg, rgba(255,255,255,.82), rgba(255,255,255,.26), rgba(255,255,255,.76));
+  box-shadow: none;
+  animation: auroraWhiteFade 2.8s ease-in-out infinite alternate;
 }
 
 .theme-picker-dropdown .theme-picker-option i.theme-preview-professional::after {
-  left: 11px;
+  left: -45%;
   right: auto;
-  bottom: 13px;
-  width: 48%;
-  height: 6px;
-  background: #0369a1;
-  box-shadow:
-    0 -13px 0 rgba(2, 132, 199, .22),
-    48px 0 0 rgba(245, 158, 11, .42);
+  bottom: auto;
+  top: -30%;
+  width: 38%;
+  height: 160%;
+  transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.8), transparent);
+  box-shadow: none;
+  animation: auroraButtonFade 2.6s ease-in-out infinite;
 }
 
 .theme-picker-dropdown .theme-picker-option i.theme-preview-winter {

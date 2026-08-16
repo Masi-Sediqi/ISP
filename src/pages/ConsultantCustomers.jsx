@@ -583,6 +583,7 @@ const emptyForm = {
   passportFullName: "",
   phone: "",
   email: "",
+  source: "",
   educationLevel: "",
   institutionName: "",
   sourceEmployeeId: "",
@@ -851,6 +852,8 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
         customer.phone,
         customer.city,
         customer.email,
+        customer.source,
+        customer.createdByName,
         customer.country,
         customer.scholarshipType,
         customer.businessType,
@@ -1229,7 +1232,9 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
             <thead>
               {isMedia ? (
                 <tr>
+                  <th>{tx("Employee Name", "نام کارمند", "د کارکوونکي نوم")}</th>
                   <th>{tx("Full Name", "نام کامل", "بشپړ نوم")}</th>
+                  <th>{tx("Source", "منبع", "سرچینه")}</th>
                   <th>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</th>
                   <th>{tx("Brand Name", "نام برند", "د برانډ نوم")}</th>
                   <th>{tx("Purpose", "هدف", "موخه")}</th>
@@ -1239,7 +1244,9 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                 </tr>
               ) : (
                 <tr>
+                  <th>{tx("Employee Name", "نام کارمند", "د کارکوونکي نوم")}</th>
                   <th>{tx("Customer", "مشتری", "پېرودونکی")}</th>
+                  <th>{tx("Source", "منبع", "سرچینه")}</th>
                   <th>{tx("Contact", "تماس", "اړیکه")}</th>
                   <th>{tx("Location", "موقعیت", "ځای")}</th>
                   <th>{tx("Country", "کشور", "هېواد")}</th>
@@ -1273,6 +1280,9 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                 if (isMedia) {
                   return (
                     <tr key={customer.id}>
+                      <td className="consultant-employee-name">
+                        {customer.createdByName || customer.createdByEmployeeName || customer.employeeName || "-"}
+                      </td>
                       <td>
                         <button
                           type="button"
@@ -1293,6 +1303,8 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           </span>
                         </button>
                       </td>
+
+                      <td>{customer.source || "-"}</td>
 
                       <td>{customer.phone || "-"}</td>
 
@@ -1358,6 +1370,9 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
                 return (
                   <tr key={customer.id}>
+                    <td className="consultant-employee-name">
+                      {customer.createdByName || customer.createdByEmployeeName || customer.employeeName || "-"}
+                    </td>
                     <td>
                       <button
                         type="button"
@@ -1378,6 +1393,8 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         </span>
                       </button>
                     </td>
+
+                    <td>{customer.source || "-"}</td>
 
                     <td>
                       <div className="consultant-contact">
@@ -1587,6 +1604,16 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 </label>
 
                     <label>
+                      <span>{tx("Source", "منبع", "سرچینه")}</span>
+                      <input
+                        name="source"
+                        value={form.source || ""}
+                        onChange={update}
+                        placeholder={tx("Who referred/requested this customer?", "این مشتری به درخواست یا معرفی چه کسی آمده؟", "دا پېرودونکی د چا په غوښتنه یا معرفۍ راغلی؟")}
+                      />
+                    </label>
+
+                    <label>
                       <span>{tx("Brand Name", "نام برند", "د برانډ نوم")}</span>
                       <input
                         name="brandName"
@@ -1655,6 +1682,16 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     placeholder={tx("Enter phone number", "شماره تماس را وارد کنید", "د تلیفون شمېره ولیکئ")}
   />
 </label>
+
+                    <label>
+                      <span>{tx("Source", "منبع", "سرچینه")}</span>
+                      <input
+                        name="source"
+                        value={form.source || ""}
+                        onChange={update}
+                        placeholder={tx("Who referred/requested this customer?", "این مشتری به درخواست یا معرفی چه کسی آمده؟", "دا پېرودونکی د چا په غوښتنه یا معرفۍ راغلی؟")}
+                      />
+                    </label>
 
                     <label>
                       <span>{tx("City / Province", "شهر / ولایت", "ښار / ولایت")}</span>
@@ -2016,6 +2053,8 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
             <div className="consultant-detail-grid">
               {[
+                [tx("Employee Name", "نام کارمند", "د کارکوونکي نوم"), viewCustomer.createdByName || viewCustomer.createdByEmployeeName || viewCustomer.employeeName],
+                [tx("Source", "منبع", "سرچینه"), viewCustomer.source],
                 [tx("Phone Number", "شماره تماس", "د تلیفون شمېره"), viewCustomer.phone],
                 [tx("Brand Name", "نام برند", "د برانډ نوم"), viewCustomer.brandName],
                 [

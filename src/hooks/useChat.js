@@ -32,10 +32,21 @@ function uniqueMessages(items) {
   );
 }
 
+function normalizeReactions(reactions) {
+  return (Array.isArray(reactions) ? reactions : [])
+    .map((entry) => ({
+      emoji: String(entry?.emoji || ""),
+      userIds: [...new Set((Array.isArray(entry?.userIds) ? entry.userIds : []).map(String))],
+    }))
+    .filter((entry) => entry.emoji && entry.userIds.length);
+}
+
 export function useChat(currentUser) {
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState({});
+  const [messagesLoading, setMessagesLoading] = useState(true);
+  const [presenceLoading, setPresenceLoading] = useState(true);
   const messagesRef = useRef([]);
   const presenceRef = useRef(null);
   const accountId = getAccountId(currentUser);
@@ -49,7 +60,10 @@ export function useChat(currentUser) {
   }, []);
 
   const loadMessages = useCallback(async () => {
-    if (!supabaseConfigured || !accountId || !navigator.onLine) return;
+    if (!supabaseConfigured || !accountId || !navigator.onLine) {
+      setMessagesLoading(false);
+      return;
+    }
 
     try {
       const remote = await fetchChatMessages();
@@ -61,6 +75,8 @@ export function useChat(currentUser) {
       setMessages(uniqueMessages(mine));
     } catch (error) {
       console.warn("Chat message sync failed:", error);
+    } finally {
+      setMessagesLoading(false);
     }
   }, [accountId]);
 
@@ -94,7 +110,10 @@ export function useChat(currentUser) {
   );
 
   const loadPresence = useCallback(async () => {
-    if (!supabaseConfigured || !accountId || !navigator.onLine) return;
+    if (!supabaseConfigured || !accountId || !navigator.onLine) {
+      setPresenceLoading(false);
+      return;
+    }
 
     try {
       const rows = await fetchChatPresence();
@@ -130,11 +149,20 @@ export function useChat(currentUser) {
       setTypingUsers(typing);
     } catch (error) {
       console.warn("Chat presence sync failed:", error);
+    } finally {
+      setPresenceLoading(false);
     }
   }, [accountId]);
 
   useEffect(() => {
-    if (!accountId) return undefined;
+    setMessagesLoading(true);
+    setPresenceLoading(true);
+
+    if (!accountId) {
+      setMessagesLoading(false);
+      setPresenceLoading(false);
+      return undefined;
+    }
 
     let stopped = false;
     let messageTimer;
@@ -223,6 +251,9 @@ export function useChat(currentUser) {
         delivered: true,
         seen: false,
         seenAt: null,
+        reactions: [],
+        editedAt: null,
+        deletedAt: null,
       };
 
       if (!message.toAccountId) {
@@ -279,6 +310,149 @@ export function useChat(currentUser) {
     [accountId]
   );
 
+  const editMessage = useCallback(
+    async (messageId, nextText) => {
+      const id = String(messageId || "");
+      const original = messagesRef.current.find(
+        (message) => String(message?.id || "") === id
+      );
+
+      if (!original || String(original.fromAccountId || "") !== accountId) {
+        return { success: false, error: "You can only edit your own messages." };
+      }
+      if (original.deletedAt) {
+        return { success: false, error: "Deleted messages cannot be edited." };
+      }
+
+      const cleanText = String(nextText || "").trim();
+      if (!cleanText && !(Array.isArray(original.attachments) && original.attachments.length)) {
+        return { success: false, error: "Message cannot be empty." };
+      }
+
+      const now = new Date().toISOString();
+      const updated = {
+        ...original,
+        text: cleanText,
+        editedAt: now,
+        updatedAt: now,
+      };
+
+      setMessages((current) =>
+        current.map((message) => (String(message?.id) === id ? updated : message))
+      );
+
+      try {
+        await saveChatMessage(updated, accountId);
+        return { success: true, message: updated };
+      } catch (error) {
+        setMessages((current) =>
+          current.map((message) =>
+            String(message?.id) === id ? original : message
+          )
+        );
+        return { success: false, error: error?.message || "Unable to edit message." };
+      }
+    },
+    [accountId]
+  );
+
+  const deleteMessage = useCallback(
+    async (messageId) => {
+      const id = String(messageId || "");
+      const original = messagesRef.current.find(
+        (message) => String(message?.id || "") === id
+      );
+
+      if (!original || String(original.fromAccountId || "") !== accountId) {
+        return { success: false, error: "You can only delete your own messages." };
+      }
+
+      const now = new Date().toISOString();
+      const updated = {
+        ...original,
+        text: "",
+        attachments: [],
+        reactions: [],
+        deletedAt: now,
+        deletedBy: accountId,
+        editedAt: null,
+        updatedAt: now,
+      };
+
+      setMessages((current) =>
+        current.map((message) => (String(message?.id) === id ? updated : message))
+      );
+
+      try {
+        await saveChatMessage(updated, accountId);
+        return { success: true, message: updated };
+      } catch (error) {
+        setMessages((current) =>
+          current.map((message) =>
+            String(message?.id) === id ? original : message
+          )
+        );
+        return { success: false, error: error?.message || "Unable to delete message." };
+      }
+    },
+    [accountId]
+  );
+
+  const toggleReaction = useCallback(
+    async (messageId, emoji) => {
+      const id = String(messageId || "");
+      const chosenEmoji = String(emoji || "");
+      const original = messagesRef.current.find(
+        (message) => String(message?.id || "") === id
+      );
+
+      if (!original || !chosenEmoji || original.deletedAt) {
+        return { success: false, error: "Reaction is not available for this message." };
+      }
+
+      const currentReactions = normalizeReactions(original.reactions);
+      const alreadySelected = currentReactions.some(
+        (entry) => entry.emoji === chosenEmoji && entry.userIds.includes(accountId)
+      );
+
+      let nextReactions = currentReactions
+        .map((entry) => ({
+          ...entry,
+          userIds: entry.userIds.filter((userId) => userId !== accountId),
+        }))
+        .filter((entry) => entry.userIds.length);
+
+      if (!alreadySelected) {
+        const existing = nextReactions.find((entry) => entry.emoji === chosenEmoji);
+        if (existing) {
+          existing.userIds = [...existing.userIds, accountId];
+        } else {
+          nextReactions.push({ emoji: chosenEmoji, userIds: [accountId] });
+        }
+      }
+
+      const now = new Date().toISOString();
+      const updated = { ...original, reactions: nextReactions, updatedAt: now };
+
+      setMessages((current) =>
+        current.map((message) => (String(message?.id) === id ? updated : message))
+      );
+
+      try {
+        await saveChatMessage(updated, accountId);
+        return { success: true, message: updated };
+      } catch (error) {
+        setMessages((current) =>
+          current.map((message) =>
+            String(message?.id) === id ? original : message
+          )
+        );
+        return { success: false, error: error?.message || "Unable to update reaction." };
+      }
+    },
+    [accountId]
+  );
+
   const sendTyping = useCallback(
     (data) => {
       if (!accountId) return;
@@ -294,8 +468,13 @@ export function useChat(currentUser) {
     messages,
     onlineUsers,
     typingUsers,
+    messagesLoading,
+    presenceLoading,
     sendMessage,
     seenMessages,
+    editMessage,
+    deleteMessage,
+    toggleReaction,
     sendTyping,
   };
 }

@@ -1,93 +1,30 @@
 import { useEffect, useState } from "react";
-import { FileKey2, FolderKanban, ReceiptText } from "lucide-react";
-
+import { FolderKanban, ReceiptText, ScrollText } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import Projects from "./Projects";
 import ProjectSales from "./ProjectSales";
-import ProjectLicense from "./ProjectLicense";
+import ProjectSalesBills from "./ProjectSalesBills";
 import "./Projects.css";
-
 const sections = [
-  {
-    key: "projects",
-    title: "Projects",
-    description: "Project forms and records",
-    icon: FolderKanban,
-  },
-  {
-    key: "sales",
-    title: "Project Sales",
-    description: "Sold projects and payments",
-    icon: ReceiptText,
-  },
-  {
-    key: "license",
-    title: "Project License",
-    description: "Project licenses and device keys",
-    icon: FileKey2,
-  },
+  { key: "projects", title: "Projects", description: "Project forms and records", icon: FolderKanban },
+  { key: "sales", title: "Project Sales", description: "Create a new project sale", icon: ReceiptText },
+  { key: "bills", title: "Sales / Bills", description: "All project sales and printable bills", icon: ScrollText },
 ];
-
 function ProjectsHub({ initialSection = "projects" }) {
-  const [activeSection, setActiveSection] = useState(initialSection);
-  const [projects] = useJsonCollection("projects");
-  const [sales] = useJsonCollection("projectSales");
-  const [licenses] = useJsonCollection("projectLicenses");
-
+  const safeInitial = initialSection === "license" ? "projects" : initialSection;
+  const [activeSection, setActiveSection] = useState(safeInitial); const [projects] = useJsonCollection("projects"); const [sales] = useJsonCollection("projectSales");
+  useEffect(() => setActiveSection(initialSection === "license" ? "projects" : initialSection), [initialSection]);
   useEffect(() => {
-    setActiveSection(initialSection);
-  }, [initialSection]);
+    function handleSectionChange(event) {
+      if (event.detail?.section) {
+        setActiveSection(event.detail.section);
+      }
+    }
 
-  const counts = {
-    projects: projects.length,
-    sales: sales.length,
-    license: licenses.length,
-  };
-
-  return (
-    <div className="projects-hub-page">
-      <div className="projects-hub-heading">
-        <div>
-          <h1>Projects</h1>
-          <p>Manage projects, sales, and licenses from one page.</p>
-        </div>
-      </div>
-
-      <div className="project-section-cards" aria-label="Project sections">
-        {sections.map((section) => {
-          const Icon = section.icon;
-          const isActive = activeSection === section.key;
-
-          return (
-            <button
-              key={section.key}
-              type="button"
-              className={`project-section-card ${isActive ? "active" : ""}`}
-              onClick={() => setActiveSection(section.key)}
-              aria-pressed={isActive}
-            >
-              <span className="project-section-icon">
-                <Icon size={19} />
-              </span>
-
-              <span className="project-section-copy">
-                <strong>{section.title}</strong>
-                <small>{section.description}</small>
-              </span>
-
-              <b>{counts[section.key] || 0}</b>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="project-section-panel">
-        {activeSection === "projects" && <Projects />}
-        {activeSection === "sales" && <ProjectSales />}
-        {activeSection === "license" && <ProjectLicense />}
-      </div>
-    </div>
-  );
+    window.addEventListener("isp-project-section-change", handleSectionChange);
+    return () => window.removeEventListener("isp-project-section-change", handleSectionChange);
+  }, []);
+  const counts = { projects: projects.length, sales: 0, bills: sales.length };
+  return <div className="projects-hub-page"><div className="projects-hub-heading"><div><h1>Projects</h1><p>Manage projects, create sales and review printable bills from one page.</p></div></div><div className="project-section-cards" aria-label="Project sections">{sections.map((s)=>{const Icon=s.icon,isActive=activeSection===s.key; return <button key={s.key} type="button" className={`project-section-card ${isActive?"active":""}`} onClick={()=>setActiveSection(s.key)} aria-pressed={isActive}><span className="project-section-icon"><Icon size={19}/></span><span className="project-section-copy"><strong>{s.title}</strong><small>{s.description}</small></span><b>{counts[s.key]||0}</b></button>})}</div><div className="project-section-panel">{activeSection==="projects"&&<Projects/>}{activeSection==="sales"&&<ProjectSales/>}{activeSection==="bills"&&<ProjectSalesBills/>}</div></div>;
 }
-
 export default ProjectsHub;

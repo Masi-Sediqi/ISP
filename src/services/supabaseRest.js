@@ -84,3 +84,132 @@ export async function pushRemoteChanges({ collection, upserts, deletes, actorId,
     });
   }
 }
+
+
+const BACKUP_PAGE_SIZE = 1000;
+const RESTORE_CHUNK_SIZE = 200;
+
+function chunkRows(rows, size = RESTORE_CHUNK_SIZE) {
+  const chunks = [];
+  for (let index = 0; index < rows.length; index += size) {
+    chunks.push(rows.slice(index, index + size));
+  }
+  return chunks;
+}
+
+export async function fetchAllRemoteRows() {
+  const rows = [];
+  let offset = 0;
+
+  while (true) {
+    const query = new URLSearchParams({
+      select: "collection_name,record_id,record_data,actor_id,owner_id,updated_at,deleted_at",
+      order: "collection_name.asc,record_id.asc",
+      limit: String(BACKUP_PAGE_SIZE),
+      offset: String(offset),
+    });
+
+    const page = await request(`${TABLE}?${query.toString()}`, { method: "GET" });
+    const safePage = Array.isArray(page) ? page : [];
+    rows.push(...safePage);
+
+    if (safePage.length < BACKUP_PAGE_SIZE) break;
+    offset += BACKUP_PAGE_SIZE;
+  }
+
+  return rows;
+}
+
+async function upsertRawRows(rows) {
+  const validRows = (Array.isArray(rows) ? rows : []).filter(
+    (row) => row?.collection_name && row?.record_id
+  );
+
+  for (const chunk of chunkRows(validRows)) {
+    await request(`${TABLE}?on_conflict=collection_name,record_id`, {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify(chunk),
+    });
+  }
+}
+
+function remoteRowKey(row) {
+  return `${String(row?.collection_name || "")}\u0000${String(row?.record_id || "")}`;
+}
+
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+export async function restoreRemoteSnapshot(snapshotRows = []) {
+  if (!supabaseConfigured) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const backupRows = (Array.isArray(snapshotRows) ? snapshotRows : []).filter(
+    (row) => row?.collection_name && row?.record_id
+  );
+  const currentRows = await fetchAllRemoteRows();
+  const backupKeys = new Set(backupRows.map(remoteRowKey));
+  const now = new Date().toISOString();
+
+  const tombstonesForExtraRows = currentRows
+    .filter((row) => !backupKeys.has(remoteRowKey(row)) && !row.deleted_at)
+    .map((row) => ({
+      collection_name: String(row.collection_name),
+      record_id: String(row.record_id),
+      record_data: {},
+      actor_id: row.actor_id || null,
+      owner_id: row.owner_id || row.actor_id || null,
+      updated_at: now,
+      deleted_at: now,
+    }));
+
+  await upsertRawRows([...backupRows, ...tombstonesForExtraRows]);
+
+  const afterRows = await fetchAllRemoteRows();
+  const afterByKey = new Map(afterRows.map((row) => [remoteRowKey(row), row]));
+  const mismatches = [];
+
+  backupRows.forEach((expected) => {
+    const actual = afterByKey.get(remoteRowKey(expected));
+    if (!actual) {
+      mismatches.push(remoteRowKey(expected));
+      return;
+    }
+
+    if (
+      Boolean(expected.deleted_at) !== Boolean(actual.deleted_at) ||
+      stableJson(expected.record_data || {}) !== stableJson(actual.record_data || {})
+    ) {
+      mismatches.push(remoteRowKey(expected));
+    }
+  });
+
+  const backupActiveKeys = new Set(
+    backupRows.filter((row) => !row.deleted_at).map(remoteRowKey)
+  );
+  const unexpectedActiveRows = afterRows.filter(
+    (row) => !row.deleted_at && !backupActiveKeys.has(remoteRowKey(row))
+  );
+
+  if (mismatches.length || unexpectedActiveRows.length) {
+    throw new Error(
+      `Supabase restore verification failed (${mismatches.length} mismatched, ${unexpectedActiveRows.length} unexpected active rows).`
+    );
+  }
+
+  return {
+    restoredRows: backupRows.length,
+    archivedExtraRows: tombstonesForExtraRows.length,
+    verified: true,
+  };
+}

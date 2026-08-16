@@ -135,3 +135,65 @@ export async function pendingRecordIdentities(collection, identityFn) {
 
   return { upserts, deletes };
 }
+
+
+export async function exportIndexedDbSnapshot() {
+  const collections = await withStore(COLLECTION_STORE, "readonly", (store) =>
+    requestAsPromise(store.getAll())
+  );
+  const syncQueue = await withStore(QUEUE_STORE, "readonly", (store) =>
+    requestAsPromise(store.getAll())
+  );
+
+  return {
+    database: DB_NAME,
+    version: DB_VERSION,
+    collections: Array.isArray(collections) ? collections : [],
+    syncQueue: Array.isArray(syncQueue) ? syncQueue : [],
+  };
+}
+
+export async function importIndexedDbSnapshot(snapshot = {}) {
+  const collections = Array.isArray(snapshot?.collections) ? snapshot.collections : [];
+  const syncQueue = Array.isArray(snapshot?.syncQueue) ? snapshot.syncQueue : [];
+  const db = await openDatabase();
+  const tx = db.transaction([COLLECTION_STORE, QUEUE_STORE], "readwrite");
+  const collectionStore = tx.objectStore(COLLECTION_STORE);
+  const queueStore = tx.objectStore(QUEUE_STORE);
+
+  collectionStore.clear();
+  queueStore.clear();
+
+  collections.forEach((row) => {
+    if (!row || !row.name) return;
+    collectionStore.put({
+      name: String(row.name),
+      items: Array.isArray(row.items) ? row.items : [],
+      updatedAt: row.updatedAt || new Date().toISOString(),
+    });
+  });
+
+  syncQueue.forEach((row) => {
+    if (!row || !row.id || !row.collection) return;
+    queueStore.put(row);
+  });
+
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error("Unable to restore IndexedDB snapshot."));
+    tx.onabort = () => reject(tx.error || new Error("IndexedDB restore was aborted."));
+  });
+
+  collections.forEach((row) => {
+    window.dispatchEvent(
+      new CustomEvent(`isp-indexed:${row.name}`, {
+        detail: Array.isArray(row.items) ? row.items : [],
+      })
+    );
+  });
+
+  return {
+    collectionCount: collections.length,
+    pendingOperationCount: syncQueue.length,
+  };
+}

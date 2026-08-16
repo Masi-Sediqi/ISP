@@ -4,9 +4,13 @@ import {
   Download,
   FileText,
   Image as ImageIcon,
+  Check,
   Paperclip,
+  Pencil,
   Search,
   Send,
+  SmilePlus,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
@@ -17,6 +21,7 @@ import { notify } from "../utils/notify";
 import "./Messages.css";
 
 const MAX_ATTACHMENT_SIZE = 2 * 1024 * 1024;
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉"];
 const SYSTEM_ADMIN_AVATAR_URL =
   "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQq6WMcaaq479pTOpaETnxKw4r6QicRgBin2pOX5hJM_n96PwxR8ZA6Bng&s=10";
 
@@ -121,6 +126,15 @@ function formatTime(value) {
   });
 }
 
+function reactionSummary(reactions) {
+  return (Array.isArray(reactions) ? reactions : [])
+    .map((entry) => ({
+      emoji: String(entry?.emoji || ""),
+      userIds: [...new Set((Array.isArray(entry?.userIds) ? entry.userIds : []).map(String))],
+    }))
+    .filter((entry) => entry.emoji && entry.userIds.length);
+}
+
 function fileToAttachment(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -148,8 +162,13 @@ export default function Messages({ currentUser }) {
     messages,
     onlineUsers,
     typingUsers,
+    messagesLoading,
+    presenceLoading,
     sendMessage,
     seenMessages,
+    editMessage,
+    deleteMessage,
+    toggleReaction,
     sendTyping,
   } = useChat(currentUser);
 
@@ -161,6 +180,10 @@ export default function Messages({ currentUser }) {
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState([]);
   const [sending, setSending] = useState(false);
+  const [reactionPickerId, setReactionPickerId] = useState("");
+  const [editingMessageId, setEditingMessageId] = useState("");
+  const [editText, setEditText] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState("");
   const messagesEndRef = useRef(null);
   const typingStopRef = useRef(null);
 
@@ -371,6 +394,13 @@ export default function Messages({ currentUser }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversationMessages, typingUsers, selectedAccountId]);
 
+  useEffect(() => {
+    setReactionPickerId("");
+    setEditingMessageId("");
+    setEditText("");
+    setDeleteConfirmId("");
+  }, [selectedAccountId]);
+
   function emitTyping(isTyping) {
     if (!selectedAccount) return;
 
@@ -452,9 +482,63 @@ export default function Messages({ currentUser }) {
     }
   }
 
+  function startEdit(message) {
+    setReactionPickerId("");
+    setDeleteConfirmId("");
+    setEditingMessageId(String(message.id));
+    setEditText(String(message.text || ""));
+  }
+
+  async function saveEdit(message) {
+    const response = await editMessage(message.id, editText);
+    if (!response?.success) {
+      notify(response?.error || "Unable to edit message.", "error");
+      return;
+    }
+
+    setEditingMessageId("");
+    setEditText("");
+  }
+
+  async function confirmDelete(message) {
+    const response = await deleteMessage(message.id);
+    if (!response?.success) {
+      notify(response?.error || "Unable to delete message.", "error");
+      return;
+    }
+
+    setDeleteConfirmId("");
+    setReactionPickerId("");
+    if (String(editingMessageId) === String(message.id)) {
+      setEditingMessageId("");
+      setEditText("");
+    }
+  }
+
+  async function reactToMessage(message, emoji) {
+    const response = await toggleReaction(message.id, emoji);
+    if (!response?.success) {
+      notify(response?.error || "Unable to update reaction.", "error");
+      return;
+    }
+    setReactionPickerId("");
+  }
+
   const selectedTyping = selectedAccount
     ? typingUsers[String(selectedAccount.id)]
     : null;
+
+  const chatLoading = messagesLoading || presenceLoading;
+
+  if (chatLoading) {
+    return (
+      <div className="messages-page messages-page-loading" aria-busy="true" aria-label="Loading messages">
+        <div className="messages-loader-wrap">
+          <div className="loader" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="messages-page">
@@ -576,60 +660,220 @@ export default function Messages({ currentUser }) {
 
             <div className="messages-thread">
               {conversationMessages.map((message) => {
-                const mine =
-                  String(message.fromAccountId) === currentAccountId;
+                const mine = String(message.fromAccountId) === currentAccountId;
+                const deleted = Boolean(message.deletedAt);
+                const reactions = reactionSummary(message.reactions);
+                const isEditing = String(editingMessageId) === String(message.id);
+                const isDeleting = String(deleteConfirmId) === String(message.id);
+                const pickerOpen = String(reactionPickerId) === String(message.id);
 
                 return (
                   <article
                     key={message.id}
-                    className={mine ? "mine" : ""}
+                    className={`${mine ? "mine" : ""} ${deleted ? "deleted" : ""}`.trim()}
                   >
-                    <div className="messages-bubble">
-                      {message.text && <p>{message.text}</p>}
-
-                      {Array.isArray(message.attachments) &&
-                        message.attachments.length > 0 && (
-                          <div className="message-attachments">
-                            {message.attachments.map((attachment) => {
-                              const isImage = normalize(
-                                attachment.type
-                              ).startsWith("image/");
-
-                              return (
-                                <a
-                                  key={attachment.id || attachment.name}
-                                  href={attachment.dataUrl}
-                                  download={attachment.name}
-                                  className={isImage ? "image" : "file"}
-                                >
-                                  {isImage ? (
-                                    <>
-                                      <img
-                                        src={attachment.dataUrl}
-                                        alt={attachment.name}
-                                      />
-                                      <span>
-                                        <ImageIcon size={13} />
-                                        {attachment.name}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <FileText size={18} />
-                                      <span>{attachment.name}</span>
-                                      <Download size={14} />
-                                    </>
-                                  )}
-                                </a>
+                    <div className="message-shell">
+                      {!deleted && (
+                        <div className="message-actions" aria-label="Message actions">
+                          <button
+                            type="button"
+                            className={pickerOpen ? "active" : ""}
+                            onClick={() => {
+                              setDeleteConfirmId("");
+                              setReactionPickerId((current) =>
+                                String(current) === String(message.id) ? "" : String(message.id)
                               );
-                            })}
+                            }}
+                            title={tx("React", "واکنش", "غبرګون")}
+                          >
+                            <SmilePlus size={15} />
+                          </button>
+
+                          {mine && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => startEdit(message)}
+                                title={tx("Edit", "ویرایش", "سمون")}
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="danger"
+                                onClick={() => {
+                                  setReactionPickerId("");
+                                  setDeleteConfirmId((current) =>
+                                    String(current) === String(message.id) ? "" : String(message.id)
+                                  );
+                                }}
+                                title={tx("Delete", "حذف", "حذف")}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {pickerOpen && !deleted && (
+                        <div className="message-reaction-picker">
+                          {REACTION_EMOJIS.map((emoji) => {
+                            const selected = reactions.some(
+                              (entry) =>
+                                entry.emoji === emoji && entry.userIds.includes(currentAccountId)
+                            );
+                            return (
+                              <button
+                                key={emoji}
+                                type="button"
+                                className={selected ? "selected" : ""}
+                                onClick={() => reactToMessage(message, emoji)}
+                              >
+                                {emoji}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <div className="messages-bubble">
+                        {deleted ? (
+                          <p className="message-deleted-text">
+                            {tx("Message deleted", "پیام حذف شده", "پیغام حذف شوی")}
+                          </p>
+                        ) : isEditing ? (
+                          <div className="message-edit-box">
+                            <textarea
+                              value={editText}
+                              onChange={(event) => setEditText(event.target.value)}
+                              rows={2}
+                              autoFocus
+                              onKeyDown={(event) => {
+                                if (event.key === "Escape") {
+                                  setEditingMessageId("");
+                                  setEditText("");
+                                }
+                                if (event.key === "Enter" && !event.shiftKey) {
+                                  event.preventDefault();
+                                  saveEdit(message);
+                                }
+                              }}
+                            />
+                            <div>
+                              <button
+                                type="button"
+                                className="save"
+                                onClick={() => saveEdit(message)}
+                              >
+                                <Check size={14} />
+                                {tx("Save", "ذخیره", "ثبت")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingMessageId("");
+                                  setEditText("");
+                                }}
+                              >
+                                <X size={14} />
+                                {tx("Cancel", "لغو", "لغوه")}
+                              </button>
+                            </div>
                           </div>
+                        ) : (
+                          <>
+                            {message.text && <p>{message.text}</p>}
+
+                            {Array.isArray(message.attachments) &&
+                              message.attachments.length > 0 && (
+                                <div className="message-attachments">
+                                  {message.attachments.map((attachment) => {
+                                    const isImage = normalize(attachment.type).startsWith("image/");
+
+                                    return (
+                                      <a
+                                        key={attachment.id || attachment.name}
+                                        href={attachment.dataUrl}
+                                        download={attachment.name}
+                                        className={isImage ? "image" : "file"}
+                                      >
+                                        {isImage ? (
+                                          <>
+                                            <img src={attachment.dataUrl} alt={attachment.name} />
+                                            <span>
+                                              <ImageIcon size={13} />
+                                              {attachment.name}
+                                            </span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <FileText size={18} />
+                                            <span>{attachment.name}</span>
+                                            <Download size={14} />
+                                          </>
+                                        )}
+                                      </a>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                          </>
                         )}
 
-                      <small>
-                        {formatTime(message.createdAt)}
-                        {mine && message.seen && <CheckCheck size={13} />}
-                      </small>
+                        <small>
+                          {formatTime(message.createdAt)}
+                          {message.editedAt && !deleted && (
+                            <em>{tx("Edited", "ویرایش شده", "سم شوی")}</em>
+                          )}
+                          {mine && message.seen && <CheckCheck size={13} />}
+                        </small>
+
+                        {isDeleting && !deleted && (
+                          <div className="message-delete-confirm">
+                            <span>
+                              {tx(
+                                "Delete this message for everyone?",
+                                "این پیام برای همه حذف شود؟",
+                                "دا پیغام د ټولو لپاره حذف شي؟"
+                              )}
+                            </span>
+                            <div>
+                              <button type="button" onClick={() => setDeleteConfirmId("")}>
+                                {tx("Cancel", "لغو", "لغوه")}
+                              </button>
+                              <button
+                                type="button"
+                                className="danger"
+                                onClick={() => confirmDelete(message)}
+                              >
+                                <Trash2 size={13} />
+                                {tx("Delete", "حذف", "حذف")}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {!deleted && reactions.length > 0 && (
+                        <div className="message-reactions">
+                          {reactions.map((reaction) => {
+                            const mineReaction = reaction.userIds.includes(currentAccountId);
+                            return (
+                              <button
+                                key={reaction.emoji}
+                                type="button"
+                                className={mineReaction ? "mine-reaction" : ""}
+                                onClick={() => reactToMessage(message, reaction.emoji)}
+                                title={`${reaction.userIds.length}`}
+                              >
+                                <span>{reaction.emoji}</span>
+                                <b>{reaction.userIds.length}</b>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </article>
                 );

@@ -233,7 +233,6 @@ function App() {
       mediaCustomers: "Media Customers",
       projects: "Projects",
       projectSales: "Project Sales",
-      projectLicense: "Project License",
       employees: "Employees & Attendance",
       allEmployees: "All Employees",
       employeeAttendance: "Employee Attendance",
@@ -267,7 +266,6 @@ function App() {
       mediaCustomers: "مشتریان رسانه",
       projects: "پروژه‌ها",
       projectSales: "فروش پروژه",
-      projectLicense: "جواز پروژه",
       employees: "کارمندان و حاضری",
       allEmployees: "همه کارمندان",
       employeeAttendance: "حاضری کارمندان",
@@ -301,7 +299,6 @@ function App() {
       mediaCustomers: "د رسنیو پېرودونکي",
       projects: "پروژې",
       projectSales: "د پروژې پلور",
-      projectLicense: "د پروژې جواز",
       employees: "کارکوونکي او حاضري",
       allEmployees: "ټول کارکوونکي",
       employeeAttendance: "د کارکوونکو حاضري",
@@ -1253,12 +1250,12 @@ const myAssignedCustomers = customers
                 />
 
                 <Route
-                  path="/project-license"
-                  element={protect("dashboard", <ProjectsHub initialSection="license" />)}
-                />
-                <Route
                   path="/project-sales"
                   element={protect("dashboard", <ProjectsHub initialSection="sales" />)}
+                />
+                <Route
+                  path="/project-sales-bills"
+                  element={protect("dashboard", <ProjectsHub initialSection="bills" />)}
                 />
                 <Route
                   path="/recycle-bin"

@@ -4,6 +4,11 @@ import { Copy, Database, Download, Globe2, Image, Router, Save, Trash2, Upload, 
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { apiUrl } from "../utils/api";
 import { notify } from "../utils/notify";
+import {
+  createCompleteBackup,
+  restoreCompleteBackup,
+  summarizeBackup,
+} from "../services/backupService";
 import "./Settings.css";
 
 const defaultSystemName = "Afghan Power";
@@ -262,64 +267,26 @@ function Settings() {
     }
   };
 
-  const loadCollectionNames = async () => {
-    try {
-      const response = await axios.get(apiUrl("collections"));
-      return Array.isArray(response.data) ? response.data : [];
-    } catch (error) {
-      console.warn("Unable to load collection names:", error);
-      return [];
-    }
-  };
-
-  const exportData = async ({
-    automatic = false,
-  } = {}) => {
+  const exportData = async ({ automatic = false } = {}) => {
     try {
       setAppDataBusy(true);
 
       if (automatic) {
-        setBackupStatus("Creating automatic backup...");
+        setBackupStatus("Creating and verifying complete backup...");
       }
 
-      const collections = await loadCollectionNames();
-
-      const entries = await Promise.all(
-        collections.map(async (name) => {
-          const response = await axios.get(apiUrl(name));
-
-          return [
-            name,
-            Array.isArray(response.data)
-              ? response.data
-              : [],
-          ];
-        })
-      );
-
-      const exportedAt = new Date().toISOString();
-
-      const payload = {
-        app: "Afghan Power",
-        exportedAt,
-        backupType: automatic
-          ? "automatic"
-          : "manual",
-        collections: Object.fromEntries(entries),
-      };
-
-      const blob = new Blob(
-        [JSON.stringify(payload, null, 2)],
-        {
-          type: "application/json",
-        }
-      );
-
+      const payload = await createCompleteBackup({
+        backupType: automatic ? "automatic" : "manual",
+      });
+      const summary = summarizeBackup(payload);
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
 
       link.href = url;
-      link.download = `afghan-power-data-${new Date()
+      link.download = `afghan-power-complete-backup-${new Date()
         .toISOString()
         .replace(/[:.]/g, "-")
         .slice(0, 19)}.json`;
@@ -332,41 +299,25 @@ function Settings() {
       if (automatic) {
         const nextSettings = {
           ...backupSettings,
-          lastBackupAt: exportedAt,
+          lastBackupAt: payload.exportedAt,
         };
-
         setBackupSettings(nextSettings);
         saveBackupSettings(nextSettings);
-        setBackupStatus("Automatic backup completed.");
-
-        window.setTimeout(
-          () => setBackupStatus(""),
-          3000
+        setBackupStatus(
+          `Backup verified: ${summary.activeRows} active records, ${summary.embeddedAssets} embedded files/images.`
         );
+        window.setTimeout(() => setBackupStatus(""), 5000);
       }
 
       notify(
-        automatic
-          ? "Automatic backup created successfully."
-          : "App data exported successfully."
+        `Complete backup created: ${summary.activeRows} active central records, ${summary.localCollections} local collections, ${summary.embeddedAssets} embedded files/images.`
       );
 
       return true;
     } catch (error) {
-      console.error(
-        "Unable to export app data:",
-        error
-      );
-
+      console.error("Unable to export complete app data:", error);
       setBackupStatus("");
-
-      notify(
-        automatic
-          ? "Unable to create automatic backup."
-          : "Unable to export app data.",
-        "error"
-      );
-
+      notify(error?.message || "Unable to create complete backup.", "error");
       return false;
     } finally {
       setAppDataBusy(false);
@@ -382,41 +333,32 @@ function Settings() {
       setAppDataBusy(true);
       const text = await file.text();
       const parsed = JSON.parse(text);
-      const data = parsed.collections && typeof parsed.collections === "object"
-        ? parsed.collections
-        : parsed;
-      const collections = await loadCollectionNames();
-      const backupCollections = Object.keys(data).filter((name) =>
-        Array.isArray(data[name])
-      );
-      const importable = collections.length
-        ? collections.filter((name) => Array.isArray(data[name]))
-        : backupCollections;
-
-      if (!importable.length) {
-        notify(
-          "This backup file does not contain importable app tables.",
-          "error"
-        );
-        return;
-      }
 
       const ok = window.confirm(
-        `Import will replace ${importable.length} data table(s). Continue?`
+        "Restore will replace the active central Supabase data and this browser's IndexedDB/app settings with the selected backup. The current signed-in session will be kept. Continue?"
       );
       if (!ok) return;
 
-      await Promise.all(
-        importable.map((name) => axios.put(apiUrl(name), data[name]))
+      setBackupStatus("Restoring and verifying backup...");
+      const result = await restoreCompleteBackup(parsed);
+
+      setBackupStatus("Backup restored and verified successfully.");
+      notify(
+        `Backup restored successfully. ${result.restoredCentralRows} central rows and ${result.restoredLocalCollections} local collections restored.`
       );
-      notify("App data imported successfully. Refresh the app to see all changes.");
+
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 900);
     } catch (error) {
-      console.error("Unable to import app data:", error);
-      notify("Unable to import app data. Please select a valid JSON file.", "error");
+      console.error("Unable to restore app data:", error);
+      setBackupStatus("");
+      notify(error?.message || "Unable to restore app data. Please select a valid backup file.", "error");
     } finally {
       setAppDataBusy(false);
     }
   };
+
 
   const clearData = async () => {
     if (clearConfirm.trim().toUpperCase() !== "CLEAR") {
@@ -425,19 +367,27 @@ function Settings() {
     }
 
     const ok = window.confirm(
-      "This will clear all saved app data, including settings. This cannot be undone. Continue?"
+      "This will clear all active central Supabase records and all IndexedDB/app settings on this browser. This cannot be undone. Create a backup first. Continue?"
     );
     if (!ok) return;
 
     try {
       setAppDataBusy(true);
-      const collections = await loadCollectionNames();
-      await Promise.all(collections.map((name) => axios.put(apiUrl(name), [])));
+      await restoreCompleteBackup({
+        format: "afghan-power-complete-backup",
+        version: 2,
+        central: { rows: [] },
+        local: {
+          indexedDb: { collections: [], syncQueue: [] },
+          localStorage: {},
+        },
+      });
       setClearConfirm("");
-      notify("App data cleared successfully. Refresh the app to start clean.");
+      notify("App data cleared successfully. Reloading...");
+      window.setTimeout(() => window.location.reload(), 700);
     } catch (error) {
       console.error("Unable to clear app data:", error);
-      notify("Unable to clear app data.", "error");
+      notify(error?.message || "Unable to clear app data.", "error");
     } finally {
       setAppDataBusy(false);
     }
@@ -647,7 +597,7 @@ function Settings() {
           <section className="settings-panel">
             <div className="settings-section-title">
               <h3>App Data</h3>
-              <p>Export a backup, import a backup, or clear all saved app data.</p>
+              <p>Export or restore a complete backup of Supabase, IndexedDB, settings, images, and embedded files.</p>
             </div>
 
             <div className="settings-data-actions">
@@ -865,7 +815,7 @@ function Settings() {
                     </span>
                   ) : (
                     <span>
-                      Backups are downloaded as JSON
+                      Complete backups include central + local data and embedded images/files
                       files.
                     </span>
                   )}
