@@ -237,10 +237,7 @@ const baseForm = {
   selectedMediaPackageId: "",
 };
 
-const safeList = (value) =>
-  Array.isArray(value)
-    ? value.filter((item) => item && typeof item === "object")
-    : [];
+const normalize = (value) => String(value || "").trim().toLowerCase();
 
 const normalizeDepartment = (value) => {
   const text = String(value || "Consultant").toLowerCase();
@@ -711,61 +708,51 @@ export default function EmployeeDashboard({
     tx("Employee", "\u06a9\u0627\u0631\u0645\u0646\u062f", "\u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u06cc");
 
   const [
-    rawServerCustomers,
+    serverCustomers,
     setServerCustomers,
     ,
     customersLoaded,
   ] = useJsonCollection("customers");
 
-  const [rawLocalCustomers] =
+  const [localCustomers] =
     useJsonCollection("employeeCustomers");
 
-  const [rawLegacyCustomers] =
+  const [legacyCustomers] =
     useJsonCollection(`${mode}Customers`);
 
-  const [rawTransactions] =
+  const [transactions] =
     useJsonCollection("transactions");
 
-  const [rawAdjustments] =
+  const [adjustments] =
     useEmployeeAdjustments();
 
   const [
-    rawVisaPackages,
+    visaPackages,
     ,
     ,
     visaPackagesLoaded,
   ] = useJsonCollection("visaPackages");
 
   const [
-    rawTravelPackages,
+    travelPackages,
     ,
     ,
     travelPackagesLoaded,
   ] = useJsonCollection("travelPackages");
 
   const [
-    rawTechnologyPackages,
+    technologyPackages,
     ,
     ,
     technologyPackagesLoaded,
   ] = useJsonCollection("technologyPackages");
 
   const [
-    rawMediaPackages,
+    mediaPackages,
     ,
     ,
     mediaPackagesLoaded,
   ] = useJsonCollection("mediaPackages");
-
-  const serverCustomers = safeList(rawServerCustomers);
-  const localCustomers = safeList(rawLocalCustomers);
-  const legacyCustomers = safeList(rawLegacyCustomers);
-  const transactions = safeList(rawTransactions);
-  const adjustments = safeList(rawAdjustments);
-  const visaPackages = safeList(rawVisaPackages);
-  const travelPackages = safeList(rawTravelPackages);
-  const technologyPackages = safeList(rawTechnologyPackages);
-  const mediaPackages = safeList(rawMediaPackages);
 
   const [form, setForm] =
     useState(baseForm);
