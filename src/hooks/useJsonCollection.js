@@ -16,7 +16,7 @@ const ACTIVITY_IGNORED_COLLECTIONS = new Set([
   "employeeReports",
   "recycleBin",
 ]);
-const REMOTE_REFRESH_MS = 5000;
+const REMOTE_REFRESH_MS = 30000;
 const sharedCollectionRequests = new Map();
 
 async function fetchCollectionShared(name) {
@@ -267,11 +267,27 @@ export function useJsonCollection(name, options = {}) {
 
   useEffect(() => {
     if (disabled || !supabaseConfigured) return undefined;
-    const timer = window.setInterval(() => {
-      if (!navigator.onLine || loadingRef.current) return;
+    const refreshIfVisible = () => {
+      if (
+        document.visibilityState !== "visible" ||
+        !navigator.onLine ||
+        loadingRef.current
+      ) {
+        return;
+      }
       load();
-    }, REMOTE_REFRESH_MS);
-    return () => window.clearInterval(timer);
+    };
+
+    const timer = window.setInterval(refreshIfVisible, REMOTE_REFRESH_MS);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshIfVisible();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [disabled, load]);
 
   const setItems = useCallback(

@@ -1,8 +1,6 @@
 const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
 const SUPABASE_ANON_KEY = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "");
 const TABLE = "app_records";
-const REQUEST_TIMEOUT_MS = 15000;
-const RETRY_DELAYS_MS = [600, 1400];
 
 export const supabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
@@ -15,74 +13,59 @@ function headers(extra = {}) {
   };
 }
 
-function wait(ms) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function shouldRetryStatus(status) {
-  return status === 408 || status === 429 || status >= 500;
-}
-
-async function requestOnce(path, options = {}) {
+async function request(path, options = {}) {
   if (!supabaseConfigured) {
     throw new Error("Supabase is not configured.");
   }
 
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const method = String(options.method || "GET").toUpperCase();
+  const canRetry = method === "GET";
+  const maxAttempts = canRetry ? 3 : 1;
+  let lastError = null;
 
-  let response;
-  try {
-    response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-      ...options,
-      headers: headers(options.headers),
-      signal: options.signal || controller.signal,
-    });
-  } catch (error) {
-    if (error?.name === "AbortError") {
-      throw new Error("Supabase request timed out.");
-    }
-    throw error;
-  } finally {
-    window.clearTimeout(timeout);
-  }
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 20000);
 
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    const error = new Error(
-      `Supabase request failed (${response.status}): ${detail || response.statusText}`
-    );
-    error.status = response.status;
-    throw error;
-  }
-
-  if (response.status === 204) return null;
-  const text = await response.text();
-  return text ? JSON.parse(text) : null;
-}
-
-async function request(path, options = {}) {
-  let lastError;
-
-  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
     try {
-      return await requestOnce(path, options);
-    } catch (error) {
-      lastError = error;
-      const canRetry =
-        error?.name === "AbortError" ||
-        error?.message === "Supabase request timed out." ||
-        shouldRetryStatus(Number(error?.status || 0));
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        ...options,
+        headers: headers(options.headers),
+        signal: options.signal || controller.signal,
+        cache: method === "GET" ? "no-store" : options.cache,
+      });
 
-      if (!canRetry || attempt >= RETRY_DELAYS_MS.length) {
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        const error = new Error(
+          `Supabase request failed (${response.status}): ${detail || response.statusText}`
+        );
+        error.status = response.status;
         throw error;
       }
 
-      await wait(RETRY_DELAYS_MS[attempt]);
+      if (response.status === 204) return null;
+      const text = await response.text();
+      return text ? JSON.parse(text) : null;
+    } catch (error) {
+      lastError = error?.name === "AbortError"
+        ? new Error("Supabase request timed out.")
+        : error;
+
+      const retryableStatus = !lastError?.status || lastError.status >= 500 || lastError.status === 429;
+      if (!canRetry || attempt >= maxAttempts || !retryableStatus) {
+        throw lastError;
+      }
+
+      await new Promise((resolve) =>
+        window.setTimeout(resolve, 500 * attempt)
+      );
+    } finally {
+      window.clearTimeout(timeout);
     }
   }
 
-  throw lastError;
+  throw lastError || new Error("Supabase request failed.");
 }
 
 export async function fetchRemoteCollection(collection) {
@@ -94,11 +77,7 @@ export async function fetchRemoteCollection(collection) {
   });
 
   const rows = await request(`${TABLE}?${query.toString()}`, { method: "GET" });
-  return Array.isArray(rows)
-    ? rows
-        .map((row) => row?.record_data)
-        .filter((record) => record && typeof record === "object")
-    : [];
+  return Array.isArray(rows) ? rows.map((row) => row.record_data).filter(Boolean) : [];
 }
 
 export async function pushRemoteChanges({ collection, upserts, deletes, actorId, ownerId, identityFn }) {

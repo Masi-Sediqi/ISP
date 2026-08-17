@@ -45,52 +45,79 @@ import { canViewModule } from "./utils/permissions";
 import { notify, requestSystemNotificationPermission } from "./utils/notify";
 import ReportFinancial from "./pages/ReportFinancial";
 
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const MyAccount = lazy(() =>
+
+function lazyWithRetry(importer) {
+  return lazy(async () => {
+    try {
+      return await importer();
+    } catch (firstError) {
+      // Retry once for short network/CDN interruptions.
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      try {
+        return await importer();
+      } catch (secondError) {
+        const message = String(secondError?.message || firstError?.message || "");
+        const looksLikeChunkError = /dynamically imported module|failed to fetch|loading chunk|importing a module script/i.test(message);
+        const reloadKey = "isp-chunk-recovery-at";
+        const lastReload = Number(sessionStorage.getItem(reloadKey) || 0);
+
+        if (looksLikeChunkError && Date.now() - lastReload > 15000) {
+          sessionStorage.setItem(reloadKey, String(Date.now()));
+          window.location.reload();
+          return new Promise(() => {});
+        }
+        throw secondError;
+      }
+    }
+  });
+}
+
+const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
+const MyAccount = lazyWithRetry(() =>
   import("./pages/MyAccount")
 );
-const Suppliers = lazy(() => import("./pages/Suppliers"));
-const SupplierDetails = lazy(() => import("./pages/SupplierDetails"));
-const ConsultantCustomers = lazy(() => import("./pages/ConsultantCustomers"));
-const Accounts = lazy(() => import("./pages/Accounts"));
-const Finance = lazy(() => import("./pages/Finance"));
-const Reports = lazy(() => import("./pages/Reports"));
-const Settings = lazy(() => import("./pages/Settings"));
-const UserManagement = lazy(() => import("./pages/UserManagement"));
-const Agent = lazy(() => import("./pages/Agent"));
-const EmployeesHub = lazy(() => import("./pages/EmployeesHub"));
-const EmployeeDetails = lazy(() => import("./pages/EmployeeDetails"));
-const EmployeePerformance = lazy(() =>
+const Suppliers = lazyWithRetry(() => import("./pages/Suppliers"));
+const SupplierDetails = lazyWithRetry(() => import("./pages/SupplierDetails"));
+const ConsultantCustomers = lazyWithRetry(() => import("./pages/ConsultantCustomers"));
+const Accounts = lazyWithRetry(() => import("./pages/Accounts"));
+const Finance = lazyWithRetry(() => import("./pages/Finance"));
+const Reports = lazyWithRetry(() => import("./pages/Reports"));
+const Settings = lazyWithRetry(() => import("./pages/Settings"));
+const UserManagement = lazyWithRetry(() => import("./pages/UserManagement"));
+const Agent = lazyWithRetry(() => import("./pages/Agent"));
+const EmployeesHub = lazyWithRetry(() => import("./pages/EmployeesHub"));
+const EmployeeDetails = lazyWithRetry(() => import("./pages/EmployeeDetails"));
+const EmployeePerformance = lazyWithRetry(() =>
   import("./pages/EmployeePerformance")
 );
-const EmployeeDashboard = lazy(() => import("./pages/EmployeeDashboard"));
+const EmployeeDashboard = lazyWithRetry(() => import("./pages/EmployeeDashboard"));
 import ProjectReport from "./pages/ProjectReport";
 import EmployeeReport from "./pages/EmployeeReport";
 import SupplierReport from "./pages/SupplierReport";
 import ReceptionReport from "./pages/ReceptionReport";
-const OfficeAssets = lazy(() => import("./pages/OfficeAssets"));
-const OfficeAssetDetails = lazy(() => import("./pages/OfficeAssetDetails"));
+const OfficeAssets = lazyWithRetry(() => import("./pages/OfficeAssets"));
+const OfficeAssetDetails = lazyWithRetry(() => import("./pages/OfficeAssetDetails"));
 
-const ProjectsHub = lazy(() => import("./pages/ProjectsHub"));
-const Login = lazy(() => import("./pages/Login"));
-const HelpCenter = lazy(() => import("./pages/HelpCenter"));
-const Developer = lazy(() => import("./pages/Developer"));
+const ProjectsHub = lazyWithRetry(() => import("./pages/ProjectsHub"));
+const Login = lazyWithRetry(() => import("./pages/Login"));
+const HelpCenter = lazyWithRetry(() => import("./pages/HelpCenter"));
+const Developer = lazyWithRetry(() => import("./pages/Developer"));
 
 import CustomerReport from "./pages/CustomerReport";
-const TermsPrivacy = lazy(
+const TermsPrivacy = lazyWithRetry(
   () => import("./pages/TermsPrivacy")
 );
-const FAQ = lazy(() =>
+const FAQ = lazyWithRetry(() =>
   import("./pages/FAQ")
 );
-const Reception = lazy(() => import("./pages/Reception"));
-const CustomerFollowUp = lazy(() => import("./pages/CustomerFollowUp"));
-const Packages = lazy(() => import("./pages/Packages"));
-const RecycleBin = lazy(() => import("./pages/RecycleBin"));
-const Messages = lazy(() => import("./pages/Messages"));
+const Reception = lazyWithRetry(() => import("./pages/Reception"));
+const CustomerFollowUp = lazyWithRetry(() => import("./pages/CustomerFollowUp"));
+const Packages = lazyWithRetry(() => import("./pages/Packages"));
+const RecycleBin = lazyWithRetry(() => import("./pages/RecycleBin"));
+const Messages = lazyWithRetry(() => import("./pages/Messages"));
 
 
-const UserGuide = lazy(() => import("./pages/UserGuide"));
+const UserGuide = lazyWithRetry(() => import("./pages/UserGuide"));
 
 const defaultAdminAccount = {
   id: "default-admin",
@@ -150,7 +177,7 @@ function ProtectedModule({ currentUser, moduleKey, children }) {
 
 function App() {
   const location = useLocation();
-  const [settings, , loadSettings, settingsLoaded] = useJsonCollection("settings");
+  const [settings, , loadSettings] = useJsonCollection("settings");
   const [accounts, setAccounts, , accountsLoaded] = useJsonCollection("accounts");
   const [employees, , , employeesLoaded] = useJsonCollection("employees");
     const [
@@ -602,22 +629,18 @@ const myAssignedCustomers = customers
     (!isReceptionAccount || isCallCenterAccount);
 
   /*
-   * Refresh the customer collection while the app is open.
-   * This makes newly assigned requests appear without a
-   * manual browser refresh.
+   * Keep assignments fresh without hammering Supabase.
+   * The collection hook already performs a background refresh. Here we only
+   * refresh immediately when the app becomes visible again or when another
+   * part of the app announces an assignment change.
    */
   useEffect(() => {
-    if (!currentUser || !customersLoaded) {
-      return undefined;
-    }
+    if (!currentUser || !customersLoaded) return undefined;
 
     let refreshing = false;
-
     const refreshAssignments = async () => {
-      if (refreshing) return;
-
+      if (refreshing || !navigator.onLine) return;
       refreshing = true;
-
       try {
         await loadCustomers();
       } finally {
@@ -625,33 +648,27 @@ const myAssignedCustomers = customers
       }
     };
 
-    const intervalId = window.setInterval(
-      refreshAssignments,
-      1500
-    );
-
-    const reloadFromSystemEvent = () => {
-      refreshAssignments();
+    const handleImmediateRefresh = () => refreshAssignments();
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshAssignments();
     };
 
     window.addEventListener(
       "isp-customer-assignment-updated",
-      reloadFromSystemEvent
+      handleImmediateRefresh
     );
+    window.addEventListener("online", handleImmediateRefresh);
+    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
-      window.clearInterval(intervalId);
-
       window.removeEventListener(
         "isp-customer-assignment-updated",
-        reloadFromSystemEvent
+        handleImmediateRefresh
       );
+      window.removeEventListener("online", handleImmediateRefresh);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [
-    currentUser?.id,
-    customersLoaded,
-    loadCustomers,
-  ]);
+  }, [currentUser?.id, customersLoaded, loadCustomers]);
 
   /*
    * Notify the currently assigned account whenever a new
@@ -990,7 +1007,7 @@ const myAssignedCustomers = customers
 
   let appContent;
 
-  const coreSystemReady = accountsLoaded && employeesLoaded && settingsLoaded;
+  const coreSystemReady = accountsLoaded && (!sessionId || employeesLoaded);
 
   if (!coreSystemReady) {
     appContent = (
