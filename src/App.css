@@ -4723,3 +4723,37 @@ body.dark-mode .system-boot-screen {
 body.dark-mode .system-boot-loader {
   border-color: #fff #fff0;
 }
+
+.page-recovery-card {
+  width: min(520px, calc(100% - 32px));
+  margin: 48px auto;
+  padding: 28px;
+  border: 1px solid #eadfd7;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(32, 27, 17, 0.08);
+  text-align: center;
+}
+
+.page-recovery-icon {
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #bb251c;
+  color: #fff;
+  font-weight: 800;
+}
+
+.page-recovery-card h3 { margin: 0 0 8px; }
+.page-recovery-card p { margin: 0 0 18px; color: #746b61; }
+.page-recovery-card button {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 18px;
+  background: #171717;
+  color: #fff;
+  cursor: pointer;
+}

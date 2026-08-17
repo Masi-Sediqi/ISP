@@ -20,12 +20,12 @@ async function request(path, options = {}) {
 
   const method = String(options.method || "GET").toUpperCase();
   const canRetry = method === "GET";
-  const maxAttempts = canRetry ? 3 : 1;
+  const maxAttempts = canRetry ? 5 : 1;
   let lastError = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 20000);
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
 
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -57,8 +57,9 @@ async function request(path, options = {}) {
         throw lastError;
       }
 
+      const backoffMs = Math.min(5000, 500 * (2 ** (attempt - 1))) + Math.floor(Math.random() * 250);
       await new Promise((resolve) =>
-        window.setTimeout(resolve, 500 * attempt)
+        window.setTimeout(resolve, backoffMs)
       );
     } finally {
       window.clearTimeout(timeout);
@@ -69,15 +70,31 @@ async function request(path, options = {}) {
 }
 
 export async function fetchRemoteCollection(collection) {
-  const query = new URLSearchParams({
-    select: "record_id,record_data,actor_id,owner_id,updated_at,deleted_at",
-    collection_name: `eq.${collection}`,
-    deleted_at: "is.null",
-    order: "updated_at.asc",
-  });
+  // Read collections in pages instead of one potentially huge response.
+  // This matters because some records contain base64 images/files.
+  const pageSize = 250;
+  const records = [];
+  let offset = 0;
 
-  const rows = await request(`${TABLE}?${query.toString()}`, { method: "GET" });
-  return Array.isArray(rows) ? rows.map((row) => row.record_data).filter(Boolean) : [];
+  while (true) {
+    const query = new URLSearchParams({
+      select: "record_data",
+      collection_name: `eq.${collection}`,
+      deleted_at: "is.null",
+      order: "updated_at.asc",
+      limit: String(pageSize),
+      offset: String(offset),
+    });
+
+    const rows = await request(`${TABLE}?${query.toString()}`, { method: "GET" });
+    const safeRows = Array.isArray(rows) ? rows : [];
+    records.push(...safeRows.map((row) => row.record_data).filter(Boolean));
+
+    if (safeRows.length < pageSize) break;
+    offset += pageSize;
+  }
+
+  return records;
 }
 
 export async function pushRemoteChanges({ collection, upserts, deletes, actorId, ownerId, identityFn }) {

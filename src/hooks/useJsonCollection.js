@@ -206,6 +206,7 @@ export function useJsonCollection(name, options = {}) {
   const disabled = DISABLED_COLLECTIONS.has(name);
   const [items, setItemsState] = useState([]);
   const [loaded, setLoaded] = useState(disabled);
+  const [loadError, setLoadError] = useState(null);
   const itemsRef = useRef([]);
   const loadingRef = useRef(false);
   const loadedRef = useRef(disabled);
@@ -230,9 +231,11 @@ export function useJsonCollection(name, options = {}) {
     try {
       const remoteItems = await fetchCollectionShared(name);
       applyItems(remoteItems);
+      setLoadError(null);
       return remoteItems;
     } catch (error) {
-      console.error(`Unable to load ${name} from Supabase:`, error);
+      console.error(`[Supabase collection failed] ${name}:`, error);
+      setLoadError(error);
       if (!loadedRef.current) {
         notify(error?.message || `Unable to load ${name} from Supabase.`, "error");
       }
@@ -324,5 +327,5 @@ export function useJsonCollection(name, options = {}) {
     [applyItems, disabled, name]
   );
 
-  return [items, setItems, load, loaded];
+  return [items, setItems, load, loaded, loadError];
 }

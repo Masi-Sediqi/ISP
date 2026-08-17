@@ -1,4 +1,5 @@
 import {
+  Component,
   lazy,
   Suspense,
   useEffect,
@@ -44,6 +45,51 @@ import { useJsonCollection } from "./hooks/useJsonCollection";
 import { canViewModule } from "./utils/permissions";
 import { notify, requestSystemNotificationPermission } from "./utils/notify";
 import ReportFinancial from "./pages/ReportFinancial";
+
+
+class PageErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null, retryKey: 0 };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("[Page runtime error]", {
+      path: window.location.hash || window.location.pathname,
+      message: error?.message || String(error),
+      stack: error?.stack || "",
+      componentStack: info?.componentStack || "",
+    });
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+
+    return (
+      <div className="page-recovery-card" role="alert">
+        <div className="page-recovery-icon">!</div>
+        <h3>This page had a temporary loading problem.</h3>
+        <p>The rest of Afghan Power is still available. Retry this page.</p>
+        <button
+          type="button"
+          onClick={() => this.setState((state) => ({ error: null, retryKey: state.retryKey + 1 }))}
+        >
+          Retry page
+        </button>
+      </div>
+    );
+  }
+}
 
 
 function lazyWithRetry(importer) {
@@ -178,8 +224,8 @@ function ProtectedModule({ currentUser, moduleKey, children }) {
 function App() {
   const location = useLocation();
   const [settings, , loadSettings] = useJsonCollection("settings");
-  const [accounts, setAccounts, , accountsLoaded] = useJsonCollection("accounts");
-  const [employees, , , employeesLoaded] = useJsonCollection("employees");
+  const [accounts, setAccounts, loadAccounts, accountsLoaded, accountsLoadError] = useJsonCollection("accounts");
+  const [employees, , loadEmployees, employeesLoaded, employeesLoadError] = useJsonCollection("employees");
     const [
       customers,
       ,
@@ -361,6 +407,14 @@ function App() {
   const [sessionId, setSessionId] = useState(() =>
     localStorage.getItem("isp-system-session")
   );
+  const cachedSessionUser = (() => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem("isp-current-user") || "null");
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  })();
 
   const company = settings[0] || {};
   const systemName = company.companyName || "Afghan Power";
@@ -369,8 +423,13 @@ function App() {
     ? accounts
     : [defaultAdminAccount, ...accounts];
   const signedInAccount = effectiveAccounts.find(
-    (account) =>
-      String(account.id) === String(sessionId)
+    (account) => String(account.id) === String(sessionId)
+  ) || (
+    sessionId &&
+    cachedSessionUser &&
+    String(cachedSessionUser.id || "") === String(sessionId)
+      ? cachedSessionUser
+      : null
   );
 
   const linkedEmployee = employees.find(
@@ -512,7 +571,7 @@ function App() {
 
   useEffect(() => {
     if (!currentUser) {
-      localStorage.removeItem("isp-current-user");
+      if (!sessionId) localStorage.removeItem("isp-current-user");
       return;
     }
 
@@ -530,7 +589,7 @@ function App() {
         roles: Array.isArray(currentUser.roles) ? currentUser.roles : [],
       })
     );
-  }, [currentUser]);
+  }, [currentUser, sessionId]);
 
 
     const currentAccountIds = [
@@ -1005,9 +1064,26 @@ const myAssignedCustomers = customers
     </ProtectedModule>
   );
 
+  useEffect(() => {
+    if (!navigator.onLine) return undefined;
+    if (!accountsLoadError && !employeesLoadError) return undefined;
+
+    const timer = window.setTimeout(() => {
+      if (accountsLoadError) loadAccounts();
+      if (employeesLoadError) loadEmployees();
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [accountsLoadError, employeesLoadError, loadAccounts, loadEmployees]);
+
   let appContent;
 
-  const coreSystemReady = accountsLoaded && (!sessionId || employeesLoaded);
+  const hasSessionFallback = Boolean(
+    sessionId && cachedSessionUser && String(cachedSessionUser.id || "") === String(sessionId)
+  );
+  const coreSystemReady = accountsLoaded && (
+    !sessionId || employeesLoaded || hasSessionFallback
+  );
 
   if (!coreSystemReady) {
     appContent = (
@@ -1169,8 +1245,9 @@ const myAssignedCustomers = customers
           <GlobalTableEnhancer />
 
           <div className="page-content">
-            <Suspense fallback={<div className="page-loading">Loading...</div>}>
-              <Routes>
+            <PageErrorBoundary resetKey={location.pathname}>
+              <Suspense fallback={<div className="page-loading">Loading...</div>}>
+                <Routes>
                 <Route path="/" element={isEmployeeAccount ? <EmployeeDashboard currentUser={currentUser} /> : protect("dashboard", <Dashboard />)} />
                 <Route
                   path="/projects"
@@ -1393,8 +1470,9 @@ const myAssignedCustomers = customers
                     />
                   }
                 />
-              </Routes>
-            </Suspense>
+                </Routes>
+              </Suspense>
+            </PageErrorBoundary>
           </div>
         </main>
 
