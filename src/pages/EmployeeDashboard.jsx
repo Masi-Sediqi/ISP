@@ -237,6 +237,11 @@ const baseForm = {
   selectedMediaPackageId: "",
 };
 
+const safeList = (value) =>
+  Array.isArray(value)
+    ? value.filter((item) => item && typeof item === "object")
+    : [];
+
 const normalizeDepartment = (value) => {
   const text = String(value || "Consultant").toLowerCase();
 
@@ -706,51 +711,61 @@ export default function EmployeeDashboard({
     tx("Employee", "\u06a9\u0627\u0631\u0645\u0646\u062f", "\u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u06cc");
 
   const [
-    serverCustomers,
+    rawServerCustomers,
     setServerCustomers,
     ,
     customersLoaded,
   ] = useJsonCollection("customers");
 
-  const [localCustomers] =
+  const [rawLocalCustomers] =
     useJsonCollection("employeeCustomers");
 
-  const [legacyCustomers] =
+  const [rawLegacyCustomers] =
     useJsonCollection(`${mode}Customers`);
 
-  const [transactions] =
+  const [rawTransactions] =
     useJsonCollection("transactions");
 
-  const [adjustments] =
+  const [rawAdjustments] =
     useEmployeeAdjustments();
 
   const [
-    visaPackages,
+    rawVisaPackages,
     ,
     ,
     visaPackagesLoaded,
   ] = useJsonCollection("visaPackages");
 
   const [
-    travelPackages,
+    rawTravelPackages,
     ,
     ,
     travelPackagesLoaded,
   ] = useJsonCollection("travelPackages");
 
   const [
-    technologyPackages,
+    rawTechnologyPackages,
     ,
     ,
     technologyPackagesLoaded,
   ] = useJsonCollection("technologyPackages");
 
   const [
-    mediaPackages,
+    rawMediaPackages,
     ,
     ,
     mediaPackagesLoaded,
   ] = useJsonCollection("mediaPackages");
+
+  const serverCustomers = safeList(rawServerCustomers);
+  const localCustomers = safeList(rawLocalCustomers);
+  const legacyCustomers = safeList(rawLegacyCustomers);
+  const transactions = safeList(rawTransactions);
+  const adjustments = safeList(rawAdjustments);
+  const visaPackages = safeList(rawVisaPackages);
+  const travelPackages = safeList(rawTravelPackages);
+  const technologyPackages = safeList(rawTechnologyPackages);
+  const mediaPackages = safeList(rawMediaPackages);
 
   const [form, setForm] =
     useState(baseForm);

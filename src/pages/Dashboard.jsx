@@ -20,6 +20,10 @@ import "../App.css";
 
 const money = (value) => Number(value || 0).toLocaleString("en-US");
 const today = todayDateValue;
+const safeList = (value) =>
+  Array.isArray(value)
+    ? value.filter((item) => item && typeof item === "object")
+    : [];
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -157,15 +161,25 @@ function Dashboard() {
   const [dateFilterOpen, setDateFilterOpen] = useState(false);
   const [customDates, setCustomDates] = useState({ from: "", to: "" });
   const dateFilterRef = useRef(null);
-  const [assets] = useJsonCollection("assets");
-  const [purchases] = useJsonCollection("supplierPurchases");
-  const [customers] = useJsonCollection("customers");
-  const [suppliers] = useJsonCollection("suppliers");
-  const [transactions] = useJsonCollection("transactions");
-  const [deviceTransfers] = useJsonCollection("deviceTransfers");
-  const [securityDeposits] = useJsonCollection("securityDeposits");
-  const [assetMovements] = useJsonCollection("assetMovements");
-  const [disconnections] = useJsonCollection("disconnections");
+  const [rawAssets] = useJsonCollection("assets");
+  const [rawPurchases] = useJsonCollection("supplierPurchases");
+  const [rawCustomers] = useJsonCollection("customers");
+  const [rawSuppliers] = useJsonCollection("suppliers");
+  const [rawTransactions] = useJsonCollection("transactions");
+  const [rawDeviceTransfers] = useJsonCollection("deviceTransfers");
+  const [rawSecurityDeposits] = useJsonCollection("securityDeposits");
+  const [rawAssetMovements] = useJsonCollection("assetMovements");
+  const [rawDisconnections] = useJsonCollection("disconnections");
+
+  const assets = safeList(rawAssets);
+  const purchases = safeList(rawPurchases);
+  const customers = safeList(rawCustomers);
+  const suppliers = safeList(rawSuppliers);
+  const transactions = safeList(rawTransactions);
+  const deviceTransfers = safeList(rawDeviceTransfers);
+  const securityDeposits = safeList(rawSecurityDeposits);
+  const assetMovements = safeList(rawAssetMovements);
+  const disconnections = safeList(rawDisconnections);
 
   useEffect(() => {
     const closeFilter = (event) => {

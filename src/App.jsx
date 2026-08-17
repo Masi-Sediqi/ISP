@@ -75,11 +75,18 @@ class PageErrorBoundary extends Component {
   render() {
     if (!this.state.error) return this.props.children;
 
+    const errorMessage =
+      this.state.error?.message ||
+      String(this.state.error || "Unknown error");
+
     return (
       <div className="page-recovery-card" role="alert">
         <div className="page-recovery-icon">!</div>
         <h3>This page had a temporary loading problem.</h3>
         <p>The rest of Afghan Power is still available. Retry this page.</p>
+        <small className="page-recovery-detail">
+          {errorMessage}
+        </small>
         <button
           type="button"
           onClick={() => this.setState((state) => ({ error: null, retryKey: state.retryKey + 1 }))}

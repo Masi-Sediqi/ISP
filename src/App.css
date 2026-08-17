@@ -4749,6 +4749,13 @@ body.dark-mode .system-boot-loader {
 
 .page-recovery-card h3 { margin: 0 0 8px; }
 .page-recovery-card p { margin: 0 0 18px; color: #746b61; }
+.page-recovery-detail {
+  display: block;
+  margin: -6px 0 18px;
+  color: #9a3412;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
 .page-recovery-card button {
   border: 0;
   border-radius: 10px;
