@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Copy, Database, Download, Globe2, Image, Router, Save, Trash2, Upload, Wifi } from "lucide-react";
+import { Bell, Copy, Database, Download, Globe2, Image, Router, Save, Trash2, Upload, Wifi } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { apiUrl } from "../utils/api";
-import { notify } from "../utils/notify";
+import {
+  getNotificationSettings,
+  notify,
+  resetHiddenNotifications,
+  setNotificationsEnabled,
+} from "../utils/notify";
 import {
   createCompleteBackup,
   restoreCompleteBackup,
@@ -161,6 +166,9 @@ function Settings() {
     () => readBackupSettings()
   );
   const [backupStatus, setBackupStatus] = useState("");
+  const [notificationSettings, setNotificationSettings] = useState(() =>
+    getNotificationSettings()
+  );
 
 
   useEffect(() => {
@@ -198,6 +206,34 @@ function Settings() {
       active = false;
     };
   }, [current.networkIp]);
+
+
+  useEffect(() => {
+    const syncNotificationSettings = () => {
+      setNotificationSettings(getNotificationSettings());
+    };
+
+    window.addEventListener(
+      "app-notification-settings-changed",
+      syncNotificationSettings
+    );
+
+    return () => {
+      window.removeEventListener(
+        "app-notification-settings-changed",
+        syncNotificationSettings
+      );
+    };
+  }, []);
+
+  const toggleNotifications = () => {
+    setNotificationsEnabled(!notificationSettings.enabled);
+  };
+
+  const clearHiddenNotifications = () => {
+    resetHiddenNotifications();
+    notify("Hidden notification preferences were reset.", "success");
+  };
 
   const handleLogoChange = (event) => {
     const file = event.target.files?.[0];
@@ -517,6 +553,13 @@ function Settings() {
         >
           Network Access
         </button>
+        <button
+          type="button"
+          className={activeTab === "notifications" ? "active" : ""}
+          onClick={() => setActiveTab("notifications")}
+        >
+          Notifications
+        </button>
       </div>
 
       {activeTab === "identity" && (
@@ -587,6 +630,50 @@ function Settings() {
             </button>
           </div>
         </form>
+      )}
+
+      {activeTab === "notifications" && (
+        <div className="settings-data-card">
+          <section className="settings-panel">
+            <div className="settings-section-title">
+              <h3>Notifications</h3>
+              <p>Control in-app and system notifications. Alerts close automatically after at least 4 seconds and can also be closed manually.</p>
+            </div>
+
+            <div className="settings-notification-control">
+              <div>
+                <span className="settings-notification-icon"><Bell size={18} /></span>
+                <div>
+                  <strong>App Notifications</strong>
+                  <p>{notificationSettings.enabled ? "Notifications are enabled." : "Notifications are turned off."}</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className={`settings-backup-toggle ${notificationSettings.enabled ? "active" : ""}`}
+                onClick={toggleNotifications}
+              >
+                <i></i>
+                {notificationSettings.enabled ? "Turn Off Notification" : "Turn On Notification"}
+              </button>
+            </div>
+
+            <div className="settings-hidden-notifications">
+              <div>
+                <strong>Do not Show Notification</strong>
+                <p>{notificationSettings.hiddenMessages.length} notification type(s) are currently hidden.</p>
+              </div>
+              <button
+                type="button"
+                onClick={clearHiddenNotifications}
+                disabled={!notificationSettings.hiddenMessages.length}
+              >
+                Show Hidden Notifications Again
+              </button>
+            </div>
+          </section>
+        </div>
       )}
 
       {activeTab === "app-data" && (

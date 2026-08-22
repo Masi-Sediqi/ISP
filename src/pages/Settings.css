@@ -322,3 +322,94 @@ body.dark-mode .settings-backup-toggle.active {
     width: 100%;
   }
 }
+
+.settings-notification-control,
+.settings-hidden-notifications {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.settings-notification-control > div,
+.settings-hidden-notifications > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-notification-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.settings-notification-control strong,
+.settings-hidden-notifications strong {
+  display: block;
+  color: #0f172a;
+}
+
+.settings-notification-control p,
+.settings-hidden-notifications p {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.settings-hidden-notifications {
+  margin-top: 12px;
+}
+
+.settings-hidden-notifications button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-hidden-notifications button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+body.dark-mode .settings-notification-control,
+body.dark-mode .settings-hidden-notifications {
+  background: #111827;
+  border-color: #334155;
+}
+
+body.dark-mode .settings-notification-control strong,
+body.dark-mode .settings-hidden-notifications strong {
+  color: #f8fafc;
+}
+
+body.dark-mode .settings-notification-control p,
+body.dark-mode .settings-hidden-notifications p {
+  color: #94a3b8;
+}
+
+body.dark-mode .settings-hidden-notifications button {
+  background: #172033;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+@media (max-width: 720px) {
+  .settings-notification-control,
+  .settings-hidden-notifications {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

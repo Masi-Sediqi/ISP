@@ -4764,3 +4764,114 @@ body.dark-mode .system-boot-loader {
   color: #fff;
   cursor: pointer;
 }
+
+/* Notification UX: auto-dismiss, manual close, and notification preferences. */
+.app-toast {
+  align-items: flex-start;
+  position: relative;
+  min-height: 74px;
+  padding: 13px 42px 12px 15px;
+}
+
+.app-toast .app-toast-icon {
+  flex: 0 0 25px;
+}
+
+.app-toast-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.app-toast-body > p {
+  margin: 1px 0 10px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.app-toast-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.app-toast-actions button,
+.app-toast-close {
+  appearance: none;
+  border: 1px solid #d7dee8;
+  background: #f8fafc;
+  color: #334155;
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-toast-actions button {
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.app-toast-actions button:hover {
+  background: #eef2f7;
+}
+
+.app-toast-actions button.danger {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.app-toast-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.app-toast-close:hover {
+  background: #eef2f7;
+}
+
+body.dark-mode .app-toast-actions button,
+body.dark-mode .app-toast-close {
+  border-color: #475569;
+  background: #172033;
+  color: #e2e8f0;
+}
+
+body.dark-mode .app-toast-actions button:hover,
+body.dark-mode .app-toast-close:hover {
+  background: #253149;
+}
+
+body.dark-mode .app-toast-actions button.danger {
+  color: #fecaca;
+  border-color: #7f1d1d;
+  background: #321717;
+}
+
+@media (max-width: 640px) {
+  .toast-host {
+    top: 12px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+  }
+
+  .app-toast-actions {
+    align-items: stretch;
+  }
+
+  .app-toast-actions button {
+    flex: 1 1 auto;
+  }
+}
