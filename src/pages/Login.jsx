@@ -4,7 +4,45 @@ import { notify } from "../utils/notify";
 import { todayDateValue } from "../utils/afghanDate";
 import "./Auth.css";
 
-function Login({ accounts, setAccounts, onLogin, company }) {
+function findLinkedEmployee(account, employees = []) {
+  return employees.find((employee) => {
+    const employeeIds = [
+      employee.id,
+      employee.employeeId,
+    ]
+      .filter(Boolean)
+      .map((value) => String(value));
+
+    const accountEmployeeIds = [
+      account?.employeeId,
+      account?.linkedEmployeeId,
+    ]
+      .filter(Boolean)
+      .map((value) => String(value));
+
+    const employeeEmail = String(employee.email || "")
+      .trim()
+      .toLowerCase();
+    const accountEmail = String(account?.email || "")
+      .trim()
+      .toLowerCase();
+
+    const employeeName = String(employee.fullName || "")
+      .trim()
+      .toLowerCase();
+    const accountName = String(account?.fullName || account?.username || "")
+      .trim()
+      .toLowerCase();
+
+    return (
+      accountEmployeeIds.some((id) => employeeIds.includes(id)) ||
+      Boolean(employeeEmail && accountEmail && employeeEmail === accountEmail) ||
+      Boolean(employeeName && accountName && employeeName === accountName)
+    );
+  });
+}
+
+function Login({ accounts, setAccounts, onLogin, company, employees = [] }) {
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -56,6 +94,15 @@ function Login({ accounts, setAccounts, onLogin, company }) {
 
     if (String(account.status || "Active").trim().toLowerCase() !== "active") {
       return notify("This account is not active. Please contact the administrator.", "error");
+    }
+
+    const linkedEmployee = findLinkedEmployee(account, employees);
+
+    if (
+      linkedEmployee &&
+      String(linkedEmployee.status || "Active").trim().toLowerCase() !== "active"
+    ) {
+      return notify("Your status is inactive. Please contact the administrator.", "error");
     }
 
     onLogin(account);

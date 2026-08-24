@@ -619,6 +619,18 @@ function App() {
     : null;
 
   useEffect(() => {
+    if (
+      currentUser &&
+      linkedEmployee &&
+      String(linkedEmployee.status || "Active").trim().toLowerCase() !== "active"
+    ) {
+      notify("Your status is inactive. Please contact the administrator.", "error");
+      localStorage.removeItem("isp-system-session");
+      setSessionId(null);
+    }
+  }, [currentUser?.id, linkedEmployee?.status]);
+
+  useEffect(() => {
     if (sessionId) {
       axios.defaults.headers.common["x-isp-session-id"] = String(sessionId);
       return;
@@ -1156,6 +1168,7 @@ const myAssignedCustomers = customers
         <Login
           accounts={effectiveAccounts}
           setAccounts={setAccounts}
+          employees={employees}
           onLogin={login}
           company={company}
         />
