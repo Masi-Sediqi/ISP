@@ -440,9 +440,45 @@ function App() {
   );
 
   const linkedEmployee = employees.find(
-    (employee) =>
-      String(employee.id) ===
-      String(signedInAccount?.employeeId)
+    (employee) => {
+      const employeeIds = [
+        employee.id,
+        employee.employeeId,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value));
+
+      const accountEmployeeIds = [
+        signedInAccount?.employeeId,
+        signedInAccount?.linkedEmployeeId,
+      ]
+        .filter(Boolean)
+        .map((value) => String(value));
+
+      const employeeEmail = String(employee.email || "")
+        .trim()
+        .toLowerCase();
+      const accountEmail = String(signedInAccount?.email || "")
+        .trim()
+        .toLowerCase();
+
+      const employeeName = String(employee.fullName || "")
+        .trim()
+        .toLowerCase();
+      const accountName = String(
+        signedInAccount?.fullName ||
+          signedInAccount?.username ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        accountEmployeeIds.some((id) => employeeIds.includes(id)) ||
+        Boolean(employeeEmail && accountEmail && employeeEmail === accountEmail) ||
+        Boolean(employeeName && accountName && employeeName === accountName)
+      );
+    }
   );
 
   const linkedEmployeeRoles = Array.isArray(
@@ -477,13 +513,27 @@ function App() {
       .trim()
       .toLowerCase() === "employee";
 
+  const mergeUniqueValues = (...groups) => {
+    const seen = new Set();
+    const merged = [];
+
+    groups.flat().forEach((value) => {
+      const text = String(value || "").trim();
+      const key = text.toLowerCase();
+
+      if (!text || seen.has(key)) return;
+
+      seen.add(key);
+      merged.push(text);
+    });
+
+    return merged;
+  };
+
   const effectiveUserRoles =
-    signedInAccountRoles.length &&
-    !signedInAccountHasOnlyGenericEmployeeRole
-      ? signedInAccountRoles
-      : linkedEmployeeRoles.length
-        ? linkedEmployeeRoles
-        : signedInAccountRoles;
+    signedInAccountHasOnlyGenericEmployeeRole
+      ? mergeUniqueValues(linkedEmployeeRoles, signedInAccountRoles)
+      : mergeUniqueValues(signedInAccountRoles, linkedEmployeeRoles);
 
   const signedInAccountDepartments = Array.isArray(
     signedInAccount?.departments
@@ -494,9 +544,10 @@ function App() {
       : [];
 
   const effectiveUserDepartments =
-    linkedEmployeeDepartments.length
-      ? linkedEmployeeDepartments
-      : signedInAccountDepartments;
+    mergeUniqueValues(
+      signedInAccountDepartments,
+      linkedEmployeeDepartments
+    );
 
   const employeeHasAdminRole =
     linkedEmployeeRoles.some((role) => {
