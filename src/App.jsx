@@ -1143,7 +1143,7 @@ const myAssignedCustomers = customers
             <span>{sidebarText.messages}</span>
           </NavLink>
 
-          {canViewModule(currentUser, "dashboard") && (
+          {(canViewModule(currentUser, "dashboard") || isEmployeeAccount) && (
               <NavLink to="/">
                 <LayoutDashboard size={17} />
                 <span>{sidebarText.dashboard}</span>
@@ -1152,7 +1152,7 @@ const myAssignedCustomers = customers
 
             {!isAdminAccount &&
               isReceptionAccount &&
-              canViewModule(currentUser, "customers") && (
+              (canViewModule(currentUser, "customers") || isReceptionAccount) && (
                 <NavLink to="/reception">
                   <UserRoundCog size={17} />
                   <span>{sidebarText.reception}</span>
@@ -1287,10 +1287,16 @@ const myAssignedCustomers = customers
 />
                 <Route
                   path="/reception"
-                  element={protect(
-                    "customers",
-                    <Reception currentUser={currentUser} />
-                  )}
+                  element={
+                    isReceptionAccount ? (
+                      <Reception currentUser={currentUser} />
+                    ) : (
+                      protect(
+                        "customers",
+                        <Reception currentUser={currentUser} />
+                      )
+                    )
+                  }
                 />
                 <Route path="/employees" element={<EmployeesHub />} />
                 <Route

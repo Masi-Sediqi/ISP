@@ -1063,39 +1063,6 @@ export default function EmployeeDashboard({
     event.preventDefault();
 
     if (
-      mode === "travel" &&
-      !form.selectedTravelPackageId
-    ) {
-      notify(
-        "Please select a Travel Package.",
-        "error"
-      );
-      return;
-    }
-
-    if (
-      mode === "technology" &&
-      !form.selectedTechnologyPackageId
-    ) {
-      notify(
-        "Please select a Technology Package.",
-        "error"
-      );
-      return;
-    }
-
-    if (
-      mode === "media" &&
-      !form.selectedMediaPackageId
-    ) {
-      notify(
-        "Please select a Media Package.",
-        "error"
-      );
-      return;
-    }
-
-    if (
       !form.fullName.trim() ||
       !form.phone.trim()
     ) {
