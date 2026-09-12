@@ -322,7 +322,7 @@ function Settings() {
       const link = document.createElement("a");
 
       link.href = url;
-      link.download = `afghan-power-vps-backup-${new Date()
+      link.download = `afghan-power-supabase-backup-${new Date()
         .toISOString()
         .replace(/[:.]/g, "-")
         .slice(0, 19)}.json`;
@@ -346,7 +346,7 @@ function Settings() {
       }
 
       notify(
-        `server backup created: ${summary.activeRows} active central records and ${summary.embeddedAssets} embedded files/images.`
+        `Supabase backup created: ${summary.activeRows} active central records and ${summary.embeddedAssets} embedded files/images.`
       );
 
       return true;
@@ -371,7 +371,7 @@ function Settings() {
       const parsed = JSON.parse(text);
 
       const ok = window.confirm(
-        "Restore will replace the active central server data with the selected backup. The current signed-in session will be kept. Continue?"
+        "Restore will replace the active central Supabase data with the selected backup. The current signed-in session will be kept. Continue?"
       );
       if (!ok) return;
 
@@ -380,7 +380,7 @@ function Settings() {
 
       setBackupStatus("Backup restored and verified successfully.");
       notify(
-        `Backup restored successfully. ${result.restoredCentralRows} server rows restored.`
+        `Backup restored successfully. ${result.restoredCentralRows} Supabase rows restored.`
       );
 
       window.setTimeout(() => {
@@ -403,14 +403,14 @@ function Settings() {
     }
 
     const ok = window.confirm(
-      "This will clear all active central server records. This cannot be undone. Create a backup first. Continue?"
+      "This will clear all active central Supabase records. This cannot be undone. Create a backup first. Continue?"
     );
     if (!ok) return;
 
     try {
       setAppDataBusy(true);
       await restoreCompleteBackup({
-        format: "afghan-power-vps-backup",
+        format: "afghan-power-supabase-backup",
         version: 3,
         central: { rows: [] },
         localPreferences: {},
@@ -681,7 +681,7 @@ function Settings() {
           <section className="settings-panel">
             <div className="settings-section-title">
               <h3>App Data</h3>
-              <p>Export or restore a complete server backup including records, images, and embedded files.</p>
+              <p>Export or restore a complete Supabase backup including records, images, and embedded files.</p>
             </div>
 
             <div className="settings-data-actions">

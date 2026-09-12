@@ -758,7 +758,7 @@ const myAssignedCustomers = customers
     (!isReceptionAccount || isCallCenterAccount);
 
   /*
-   * Keep assignments fresh without hammering server.
+   * Keep assignments fresh without hammering Supabase.
    * The collection hook already performs a background refresh. Here we only
    * refresh immediately when the app becomes visible again or when another
    * part of the app announces an assignment change.

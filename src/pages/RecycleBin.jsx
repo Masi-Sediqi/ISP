@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArchiveRestore, Search, Trash2 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { fetchRemoteCollection, pushRemoteChanges } from "../services/serverApi";
+import { fetchRemoteCollection, pushRemoteChanges } from "../services/supabaseRest";
 import { currentActorSnapshot } from "../sync/collectionSync";
 import { getCollectionLabel, getRecordIdentity } from "../utils/recycleBin";
 import { notify } from "../utils/notify";
@@ -101,7 +101,7 @@ export default function RecycleBin() {
         return;
       }
 
-      window.dispatchEvent(new Event(`isp-server:${item.sourceCollection}`));
+      window.dispatchEvent(new Event(`isp-supabase:${item.sourceCollection}`));
       notify("Record restored successfully.", "success");
     } catch (error) {
       console.error("Unable to restore recycle record:", error);
@@ -135,7 +135,7 @@ export default function RecycleBin() {
         <div>
           <span>DATA RECOVERY</span>
           <h1>Recycle Bin</h1>
-          <p>Restore deleted server records or remove them permanently.</p>
+          <p>Restore deleted Supabase records or remove them permanently.</p>
         </div>
         <strong>{allItems.length} deleted record(s)</strong>
       </header>

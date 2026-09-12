@@ -1,29 +1,29 @@
 import {
   fetchRemoteCollection,
   pushRemoteChanges,
-  serverConfigured,
-} from "./serverApi";
+  supabaseConfigured,
+} from "./supabaseRest";
 
 const MESSAGE_COLLECTION = "chatMessages";
 const PRESENCE_COLLECTION = "chatPresence";
 
 const identity = (record) => String(record?.id || record?.accountId || "");
 
-function requireServer() {
-  if (!serverConfigured) {
+function requireSupabase() {
+  if (!supabaseConfigured) {
     throw new Error(
-      "Application server is not available."
+      "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY."
     );
   }
 }
 
 export async function fetchChatMessages() {
-  requireServer();
+  requireSupabase();
   return fetchRemoteCollection(MESSAGE_COLLECTION);
 }
 
 export async function saveChatMessage(message, actorId) {
-  requireServer();
+  requireSupabase();
   await pushRemoteChanges({
     collection: MESSAGE_COLLECTION,
     upserts: [message],
@@ -36,7 +36,7 @@ export async function saveChatMessage(message, actorId) {
 }
 
 export async function saveChatMessages(messages, actorId) {
-  requireServer();
+  requireSupabase();
   const valid = (Array.isArray(messages) ? messages : []).filter((item) =>
     identity(item)
   );
@@ -53,12 +53,12 @@ export async function saveChatMessages(messages, actorId) {
 }
 
 export async function fetchChatPresence() {
-  requireServer();
+  requireSupabase();
   return fetchRemoteCollection(PRESENCE_COLLECTION);
 }
 
 export async function saveChatPresence(presence, actorId) {
-  requireServer();
+  requireSupabase();
   await pushRemoteChanges({
     collection: PRESENCE_COLLECTION,
     upserts: [presence],

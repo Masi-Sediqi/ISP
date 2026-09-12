@@ -61,7 +61,7 @@ class AppErrorBoundary extends Component {
           <h1>Afghan Power could not open this page.</h1>
           <p>
             The system hit a loading error. Refresh once, and if it continues,
-            check the server connection and account data.
+            check the Supabase connection and account data.
           </p>
           <button type="button" onClick={() => window.location.reload()}>
             Refresh

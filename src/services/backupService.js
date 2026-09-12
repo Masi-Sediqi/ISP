@@ -2,10 +2,10 @@ import { getRecordIdentity } from "../utils/recycleBin";
 import {
   fetchAllRemoteRows,
   restoreRemoteSnapshot,
-  serverConfigured,
-} from "./serverApi";
+  supabaseConfigured,
+} from "./supabaseRest";
 
-export const BACKUP_FORMAT = "afghan-power-vps-backup";
+export const BACKUP_FORMAT = "afghan-power-supabase-backup";
 export const BACKUP_VERSION = 3;
 
 const SESSION_KEYS = new Set(["isp-system-session", "isp-current-user"]);
@@ -73,7 +73,7 @@ function buildManifest(remoteRows, localPreferences) {
   const assets = scanEmbeddedAssets(remoteRows.map((row) => row.record_data));
 
   return {
-    storageMode: "vps-postgresql",
+    storageMode: "supabase-only",
     centralRows: remoteRows.length,
     centralActiveRows: activeRows.length,
     centralDeletedRows: deletedRows.length,
@@ -87,8 +87,8 @@ function buildManifest(remoteRows, localPreferences) {
 }
 
 export async function createCompleteBackup({ backupType = "manual" } = {}) {
-  if (!serverConfigured) throw new Error("server is not configured.");
-  if (!navigator.onLine) throw new Error("Internet is required to create a server backup.");
+  if (!supabaseConfigured) throw new Error("Supabase is not configured.");
+  if (!navigator.onLine) throw new Error("Internet is required to create a Supabase backup.");
 
   const remoteRows = await fetchAllRemoteRows();
   const localPreferences = captureLocalPreferences();
@@ -102,7 +102,7 @@ export async function createCompleteBackup({ backupType = "manual" } = {}) {
     backupType,
     manifest: buildManifest(remoteRows, localPreferences),
     central: {
-      provider: "vps-postgresql",
+      provider: "supabase",
       table: "app_records",
       rows: remoteRows,
     },
@@ -138,8 +138,8 @@ function rowsFromOlderCompleteBackup(parsed) {
 async function restoreLegacyBackup(parsed) {
   const oldCompleteRows = rowsFromOlderCompleteBackup(parsed);
   if (oldCompleteRows) {
-    if (!serverConfigured || !navigator.onLine) {
-      throw new Error("Internet and server configuration are required to restore this backup.");
+    if (!supabaseConfigured || !navigator.onLine) {
+      throw new Error("Internet and Supabase configuration are required to restore this backup.");
     }
     const result = await restoreRemoteSnapshot(oldCompleteRows);
     return {
@@ -161,8 +161,8 @@ async function restoreLegacyBackup(parsed) {
   }
 
   const rows = legacyCollectionsToRows(validCollections);
-  if (!serverConfigured || !navigator.onLine) {
-    throw new Error("Internet and server configuration are required to restore backup data.");
+  if (!supabaseConfigured || !navigator.onLine) {
+    throw new Error("Internet and Supabase configuration are required to restore backup data.");
   }
   const result = await restoreRemoteSnapshot(rows);
   return {
@@ -178,8 +178,8 @@ export async function restoreCompleteBackup(parsed) {
     return restoreLegacyBackup(parsed);
   }
 
-  if (!serverConfigured || !navigator.onLine) {
-    throw new Error("Internet and server configuration are required to restore backup data.");
+  if (!supabaseConfigured || !navigator.onLine) {
+    throw new Error("Internet and Supabase configuration are required to restore backup data.");
   }
 
   const remoteRows = Array.isArray(parsed?.central?.rows) ? parsed.central.rows : [];
