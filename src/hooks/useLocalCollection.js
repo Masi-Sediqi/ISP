@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { notify } from "../utils/notify";
 import {
-  fetchSupabaseCollection,
+  fetchServerCollection,
   saveCollectionChanges,
 } from "../sync/collectionSync";
-import { supabaseConfigured } from "../services/supabaseRest";
+import { serverConfigured } from "../services/serverApi";
 
 const REMOTE_REFRESH_MS = 5000;
 
 // Kept under the old hook name so existing pages do not need to change.
-// It is no longer local: all business data is read/written only in Supabase.
+// It is no longer local: all business data is read/written only in server.
 export function useLocalCollection(name, options = {}) {
   const [items, setItemsState] = useState([]);
   const itemsRef = useRef([]);
@@ -26,11 +26,11 @@ export function useLocalCollection(name, options = {}) {
     if (loadingRef.current) return itemsRef.current;
     loadingRef.current = true;
     try {
-      const remote = await fetchSupabaseCollection(name);
+      const remote = await fetchServerCollection(name);
       applyItems(remote);
       return remote;
     } catch (error) {
-      console.warn(`Unable to load ${name} from Supabase:`, error);
+      console.warn(`Unable to load ${name} from server:`, error);
       return itemsRef.current;
     } finally {
       loadingRef.current = false;
@@ -46,16 +46,16 @@ export function useLocalCollection(name, options = {}) {
     };
     const handleOnline = () => load();
 
-    window.addEventListener(`isp-supabase:${name}`, handleRemoteChange);
+    window.addEventListener(`isp-server:${name}`, handleRemoteChange);
     window.addEventListener("online", handleOnline);
     return () => {
-      window.removeEventListener(`isp-supabase:${name}`, handleRemoteChange);
+      window.removeEventListener(`isp-server:${name}`, handleRemoteChange);
       window.removeEventListener("online", handleOnline);
     };
   }, [applyItems, load, name]);
 
   useEffect(() => {
-    if (!supabaseConfigured) return undefined;
+    if (!serverConfigured) return undefined;
     const timer = window.setInterval(() => {
       if (!navigator.onLine || loadingRef.current) return;
       load();
@@ -72,12 +72,12 @@ export function useLocalCollection(name, options = {}) {
       applyItems(next);
       try {
         await saveCollectionChanges(name, current, next);
-        window.dispatchEvent(new CustomEvent(`isp-supabase:${name}`, { detail: next }));
+        window.dispatchEvent(new CustomEvent(`isp-server:${name}`, { detail: next }));
         return true;
       } catch (error) {
         applyItems(current);
-        console.error(`Unable to save ${name} to Supabase:`, error);
-        notify(error?.message || `Unable to save ${name} to Supabase.`, "error");
+        console.error(`Unable to save ${name} to server:`, error);
+        notify(error?.message || `Unable to save ${name} to server.`, "error");
         return false;
       }
     },

@@ -4,10 +4,10 @@ import { notify } from "../utils/notify";
 import { getRecordIdentity } from "../utils/recycleBin";
 import {
   currentActorSnapshot,
-  fetchSupabaseCollection,
+  fetchServerCollection,
   saveCollectionChanges,
 } from "../sync/collectionSync";
-import { pushRemoteChanges, supabaseConfigured } from "../services/supabaseRest";
+import { pushRemoteChanges, serverConfigured } from "../services/serverApi";
 
 const DISABLED_COLLECTIONS = new Set();
 const ACTIVITY_COLLECTION = "employeeActivities";
@@ -24,7 +24,7 @@ async function fetchCollectionShared(name) {
     return sharedCollectionRequests.get(name);
   }
 
-  const request = fetchSupabaseCollection(name).finally(() => {
+  const request = fetchServerCollection(name).finally(() => {
     sharedCollectionRequests.delete(name);
   });
 
@@ -77,8 +77,8 @@ function buildRecycleEntries(collectionName, previousItems, nextItems) {
     sourceCollection: collectionName,
     sourceCollectionLabel: collectionName,
     recordType: collectionName,
-    sourceType: "supabase",
-    recycleStorage: "supabase",
+    sourceType: "server",
+    recycleStorage: "server",
     recordId: getRecordIdentity(record),
     recordLabel:
       record?.customerName || record?.fullName || record?.projectName ||
@@ -94,7 +94,7 @@ function buildRecycleEntries(collectionName, previousItems, nextItems) {
   }));
 }
 
-async function archiveRemovedRecordsToSupabase(collectionName, previousItems, nextItems) {
+async function archiveRemovedRecordsToServer(collectionName, previousItems, nextItems) {
   const entries = buildRecycleEntries(collectionName, previousItems, nextItems);
   if (!entries.length) return;
   const actor = currentActorSnapshot();
@@ -154,7 +154,7 @@ async function recordEmployeeActivity(collectionName, previousItems, nextItems) 
   if (ACTIVITY_IGNORED_COLLECTIONS.has(collectionName)) return;
 
   const actor = currentActorSnapshot();
-  if (!actor?.id || isFullAdminAccount(actor) || !supabaseConfigured || !navigator.onLine) return;
+  if (!actor?.id || isFullAdminAccount(actor) || !serverConfigured || !navigator.onLine) return;
 
   const change = detectCollectionChange(previousItems, nextItems);
   if (!change.totalChanged) return;
@@ -198,7 +198,7 @@ async function recordEmployeeActivity(collectionName, previousItems, nextItems) 
       new CustomEvent("isp-employee-activity-updated", { detail: record })
     );
   } catch (error) {
-    console.warn("Unable to record employee activity in Supabase:", error);
+    console.warn("Unable to record employee activity in server:", error);
   }
 }
 
@@ -234,10 +234,10 @@ export function useJsonCollection(name, options = {}) {
       setLoadError(null);
       return remoteItems;
     } catch (error) {
-      console.error(`[Supabase collection failed] ${name}:`, error);
+      console.error(`[server collection failed] ${name}:`, error);
       setLoadError(error);
       if (!loadedRef.current) {
-        notify(error?.message || `Unable to load ${name} from Supabase.`, "error");
+        notify(error?.message || `Unable to load ${name} from server.`, "error");
       }
       return itemsRef.current;
     } finally {
@@ -260,16 +260,16 @@ export function useJsonCollection(name, options = {}) {
     };
     const handleOnline = () => load();
 
-    window.addEventListener(`isp-supabase:${name}`, handleRemoteChange);
+    window.addEventListener(`isp-server:${name}`, handleRemoteChange);
     window.addEventListener("online", handleOnline);
     return () => {
-      window.removeEventListener(`isp-supabase:${name}`, handleRemoteChange);
+      window.removeEventListener(`isp-server:${name}`, handleRemoteChange);
       window.removeEventListener("online", handleOnline);
     };
   }, [applyItems, disabled, load, name]);
 
   useEffect(() => {
-    if (disabled || !supabaseConfigured) return undefined;
+    if (disabled || !serverConfigured) return undefined;
     const refreshIfVisible = () => {
       if (
         document.visibilityState !== "visible" ||
@@ -306,21 +306,21 @@ export function useJsonCollection(name, options = {}) {
         return false;
       }
 
-      // Optimistic UI only; persistence is Supabase-only.
+      // Optimistic UI only; persistence is server-only.
       applyItems(nextItems);
 
       try {
-        await archiveRemovedRecordsToSupabase(name, previousItems, nextItems);
+        await archiveRemovedRecordsToServer(name, previousItems, nextItems);
         await saveCollectionChanges(name, previousItems, nextItems);
         window.dispatchEvent(
-          new CustomEvent(`isp-supabase:${name}`, { detail: nextItems })
+          new CustomEvent(`isp-server:${name}`, { detail: nextItems })
         );
         recordEmployeeActivity(name, previousItems, nextItems);
         return true;
       } catch (error) {
         applyItems(previousItems);
-        console.error(`Unable to save ${name} to Supabase:`, error);
-        notify(error?.message || `Unable to save ${name} to Supabase.`, "error");
+        console.error(`Unable to save ${name} to server:`, error);
+        notify(error?.message || `Unable to save ${name} to server.`, "error");
         return false;
       }
     },

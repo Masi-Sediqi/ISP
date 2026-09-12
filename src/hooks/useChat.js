@@ -6,7 +6,7 @@ import {
   saveChatMessages,
   saveChatPresence,
 } from "../services/chatStore";
-import { supabaseConfigured } from "../services/supabaseRest";
+import { serverConfigured } from "../services/serverApi";
 
 const MESSAGE_POLL_MS = 1500;
 const PRESENCE_POLL_MS = 2000;
@@ -69,7 +69,7 @@ export function useChat(currentUser) {
   }, []);
 
   const loadMessages = useCallback(async () => {
-    if (!supabaseConfigured || !accountId || !navigator.onLine) {
+    if (!serverConfigured || !accountId || !navigator.onLine) {
       setMessagesLoading(false);
       return;
     }
@@ -91,7 +91,7 @@ export function useChat(currentUser) {
 
   const heartbeat = useCallback(
     async (extra = {}) => {
-      if (!supabaseConfigured || !accountId || !navigator.onLine) return;
+      if (!serverConfigured || !accountId || !navigator.onLine) return;
 
       const next = {
         id: accountId,
@@ -119,7 +119,7 @@ export function useChat(currentUser) {
   );
 
   const loadPresence = useCallback(async () => {
-    if (!supabaseConfigured || !accountId || !navigator.onLine) {
+    if (!serverConfigured || !accountId || !navigator.onLine) {
       setPresenceLoading(false);
       return;
     }
@@ -232,10 +232,10 @@ export function useChat(currentUser) {
       if (!accountId) {
         return { success: false, error: "No active account was found." };
       }
-      if (!supabaseConfigured) {
+      if (!serverConfigured) {
         return {
           success: false,
-          error: "Supabase is not configured for chat.",
+          error: "server is not configured for chat.",
         };
       }
       if (!navigator.onLine) {

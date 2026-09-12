@@ -1,8 +1,8 @@
 import {
   fetchRemoteCollection,
   pushRemoteChanges,
-  supabaseConfigured,
-} from "../services/supabaseRest";
+  serverConfigured,
+} from "../services/serverApi";
 import { getRecordIdentity } from "../utils/recycleBin";
 
 export function currentActorSnapshot() {
@@ -38,11 +38,11 @@ export function calculateChanges(previousItems = [], nextItems = []) {
 }
 
 export async function saveCollectionChanges(collection, previousItems, nextItems) {
-  if (!supabaseConfigured) {
-    throw new Error("Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+  if (!serverConfigured) {
+    throw new Error("Application server is not available.");
   }
   if (!navigator.onLine) {
-    throw new Error("Internet connection is required. Data is stored only in Supabase.");
+    throw new Error("Internet connection is required. Data is stored on the VPS server.");
   }
 
   const { upserts, deletes } = calculateChanges(previousItems, nextItems);
@@ -60,12 +60,12 @@ export async function saveCollectionChanges(collection, previousItems, nextItems
   return true;
 }
 
-export async function fetchSupabaseCollection(collection) {
-  if (!supabaseConfigured) {
-    throw new Error("Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+export async function fetchServerCollection(collection) {
+  if (!serverConfigured) {
+    throw new Error("Application server is not available.");
   }
   if (!navigator.onLine) {
-    throw new Error("Internet connection is required. Data is stored only in Supabase.");
+    throw new Error("Internet connection is required. Data is stored on the VPS server.");
   }
   return fetchRemoteCollection(collection);
 }
