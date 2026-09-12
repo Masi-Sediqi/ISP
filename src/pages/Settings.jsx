@@ -709,7 +709,7 @@ function Settings() {
                   <span>Automatic Backup</span>
                   <h4>Scheduled App Backup</h4>
                   <p>
-                    Create backup files automatically while ISP Smart is open.
+                    Create backup files automatically while Afghan Power is open.
                   </p>
                 </div>
 
@@ -972,7 +972,7 @@ function Settings() {
                 <Wifi size={22} />
                 <span>You are currently connected to this Wi-Fi / network</span>
                 <strong data-no-translate>{connectedNetworkName}</strong>
-                <p>Share the address below with other users connected to the same Wi-Fi so they can open ISP Smart.</p>
+                <p>Share the address below with other users connected to the same Wi-Fi so they can open Afghan Power.</p>
                 <div className="settings-share-address">
                   <b data-no-translate>{accessUrl || "No IP address"}</b>
                   {accessUrl && (

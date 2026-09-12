@@ -592,7 +592,7 @@ export default function EmployeeAttendance() {
 
     const company = settings[0] || {};
     const companyName =
-      company.companyName || company.name || "ISP Smart";
+      company.companyName || company.name || "Afghan Power";
     const companySubtitle =
       company.systemSubtitle || "Employee Attendance Report";
     const generatedAt = new Intl.DateTimeFormat("en-GB", {

@@ -48,7 +48,7 @@ function Login({ accounts, setAccounts, onLogin, company, employees = [] }) {
     password: "",
   });
 
-  const systemName = company.companyName || "ISP Smart";
+  const systemName = company.companyName || "Afghan Power";
   const systemSubtitle =
     company.systemSubtitle || "Asset & Inventory Management";
 

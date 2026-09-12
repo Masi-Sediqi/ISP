@@ -117,7 +117,7 @@ export default function SupplierReport({
   const systemName =
     company.companyName ||
     company.systemName ||
-    "ISP Smart";
+    "Afghan Power";
 
   const systemLogo =
     company.logo ||

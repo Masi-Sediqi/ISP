@@ -8,7 +8,7 @@ export const licenseTranslations = {
   en: {
     checking: "Checking license...",
     title: "License activation",
-    subtitle: "Activate this device to continue using ISP Smart.",
+    subtitle: "Activate this device to continue using Afghan Power.",
     expiredTitle: "License expired",
     expiredMessage: "This device license has expired. Enter a new license code to continue.",
     deviceId: "Device ID",
@@ -28,7 +28,7 @@ export const licenseTranslations = {
   dr: {
     checking: "Checking license...",
     title: "License activation",
-    subtitle: "Activate this device to continue using ISP Smart.",
+    subtitle: "Activate this device to continue using Afghan Power.",
     expiredTitle: "License expired",
     expiredMessage: "This device license has expired. Enter a new license code to continue.",
     deviceId: "Device ID",
@@ -48,7 +48,7 @@ export const licenseTranslations = {
   ps: {
     checking: "Checking license...",
     title: "License activation",
-    subtitle: "Activate this device to continue using ISP Smart.",
+    subtitle: "Activate this device to continue using Afghan Power.",
     expiredTitle: "License expired",
     expiredMessage: "This device license has expired. Enter a new license code to continue.",
     deviceId: "Device ID",

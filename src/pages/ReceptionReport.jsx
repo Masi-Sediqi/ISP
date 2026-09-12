@@ -100,7 +100,7 @@ export default function ReceptionReport({
   const systemName =
     company.companyName ||
     company.systemName ||
-    "ISP Smart";
+    "Afghan Power";
 
   const systemLogo =
     company.logo ||

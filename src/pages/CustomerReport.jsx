@@ -242,7 +242,7 @@ export default function CustomerReport({
   const systemName =
     company.companyName ||
     company.systemName ||
-    "ISP Smart";
+    "Afghan Power";
 
   const systemLogo =
     company.logo ||
