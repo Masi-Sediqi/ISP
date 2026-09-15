@@ -18,10 +18,17 @@ import { usePackageAvailabilityDate } from "../hooks/usePackageAvailabilityDate"
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
 import {
+  buildCategorySetting,
+  getEffectiveCategories,
+  normalizeCategoryName,
+  upsertCategorySetting,
+} from "../utils/packageCategorySettings";
+import {
   isPackageAvailable,
   isPackageManuallyAvailable,
   packageAvailabilityLabel,
 } from "../utils/packageAvailability";
+import { formatCurrencyAmount } from "../utils/currencyDisplay";
 import "./VisaPackages.css";
 
 const countries = [
@@ -497,10 +504,67 @@ const defaultCategories = [
 ];
 
 const defaultDocuments = [
-  "TOEFL",
+  "Passport",
+  "Photo",
+  "Tazkira",
+  "Transcript",
+  "Diploma / Certificate",
+  "Recommendation Letter",
+  "Motivation Letter",
+  "Bank Statement",
   "IELTS",
+  "TOEFL",
   "Duolingo",
 ];
+
+function DocumentSvgIcon({ name }) {
+  const key = normalize(name);
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+  };
+
+  if (key.includes("passport")) {
+    return (
+      <svg {...common}><rect x="5" y="3" width="14" height="18" rx="2"/><circle cx="12" cy="11" r="3"/><path d="M9 11h6M12 8c1 1.2 1 4.8 0 6M8 17h8"/></svg>
+    );
+  }
+  if (key.includes("photo")) {
+    return (
+      <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m5 17 4-4 3 3 2-2 5 3"/></svg>
+    );
+  }
+  if (key.includes("tazkira")) {
+    return (
+      <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2.2"/><path d="M5.5 16c.8-1.7 4.2-1.7 5 0M13 9h5M13 12h5M13 15h3"/></svg>
+    );
+  }
+  if (key.includes("bank")) {
+    return (
+      <svg {...common}><path d="m3 9 9-5 9 5M5 10v7M9 10v7M15 10v7M19 10v7M3 20h18"/></svg>
+    );
+  }
+  if (key.includes("diploma") || key.includes("certificate")) {
+    return (
+      <svg {...common}><rect x="4" y="4" width="16" height="12" rx="2"/><path d="M8 8h8M8 11h5M14 16l2 5 2-2 2 1-2-5"/></svg>
+    );
+  }
+  if (key.includes("ielts") || key.includes("toefl") || key.includes("duolingo")) {
+    return (
+      <svg {...common}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>
+    );
+  }
+  return (
+    <svg {...common}><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 12h6M9 16h6"/></svg>
+  );
+}
 
 const emptyForm = {
   packageName: "",
@@ -523,9 +587,7 @@ const normalize = (value) =>
   String(value || "").trim().toLowerCase();
 
 const money = (value, currency = "AFN") =>
-  `${Number(value || 0).toLocaleString("en-US")} ${
-    currency || "AFN"
-  }`;
+  formatCurrencyAmount(value, currency || "AFN");
 
 const totalsByCurrency = (items, fieldName) => {
   const totals = items.reduce((result, item) => {
@@ -566,15 +628,20 @@ export default function VisaPackages() {
     packagesLoaded,
   ] = useJsonCollection("visaPackages");
 
-  const [
-    legacyLocalPackages,
-    setLegacyLocalPackages,
-  ] = useJsonCollection("visaPackages", {
-    archiveDeletes: false,
-  });
+  const [categorySettings, setCategorySettings] = useJsonCollection(
+    "visaPackageCategorySettings",
+    { archiveDeletes: false }
+  );
 
-  const [categories, setCategories] =
-    useState(defaultCategories);
+  const categories = useMemo(() => {
+    const packageCategories = packages
+      .map((item) => String(item?.category || "").trim())
+      .filter(Boolean);
+    return getEffectiveCategories(
+      [...defaultCategories, ...packageCategories],
+      categorySettings
+    );
+  }, [categorySettings, packages]);
 
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -585,6 +652,8 @@ export default function VisaPackages() {
   const [newCategory, setNewCategory] = useState("");
   const [categoryCreatorOpen, setCategoryCreatorOpen] =
     useState(false);
+  const [pendingCategoryDelete, setPendingCategoryDelete] =
+    useState("");
   const [documentOptions, setDocumentOptions] =
     useState(defaultDocuments);
   const [newDocument, setNewDocument] = useState("");
@@ -652,42 +721,6 @@ export default function VisaPackages() {
     return labels[key] || value;
   };
 
-  useEffect(() => {
-    if (!packagesLoaded || !legacyLocalPackages.length) {
-      return;
-    }
-
-    const merged = [...packages];
-
-    legacyLocalPackages.forEach((localItem) => {
-      const exists = merged.some(
-        (serverItem) =>
-          String(serverItem.id) === String(localItem.id)
-      );
-
-      if (!exists) {
-        merged.push(localItem);
-      }
-    });
-
-    if (merged.length === packages.length) {
-      setLegacyLocalPackages([]);
-      return;
-    }
-
-    Promise.resolve(setPackages(merged)).then((saved) => {
-      if (saved !== false) {
-        setLegacyLocalPackages([]);
-      }
-    });
-  }, [
-    legacyLocalPackages,
-    packages,
-    packagesLoaded,
-    setLegacyLocalPackages,
-    setPackages,
-  ]);
-
   const filteredPackages = useMemo(() => {
     const query = normalize(search);
 
@@ -741,6 +774,7 @@ export default function VisaPackages() {
     setForm(emptyForm);
     setNewCategory("");
     setCategoryCreatorOpen(false);
+    setPendingCategoryDelete("");
     setNewDocument("");
     setDocumentCreatorOpen(false);
     setModalOpen(true);
@@ -775,15 +809,6 @@ export default function VisaPackages() {
       note: item.note || "",
     });
 
-    if (
-      item.category &&
-      !categories.includes(item.category)
-    ) {
-      setCategories((current) => [
-        ...current,
-        item.category,
-      ]);
-    }
 
     if (Array.isArray(item.documents)) {
       item.documents.forEach((documentName) => {
@@ -800,6 +825,7 @@ export default function VisaPackages() {
 
     setNewCategory("");
     setCategoryCreatorOpen(false);
+    setPendingCategoryDelete("");
     setModalOpen(true);
   };
 
@@ -809,6 +835,7 @@ export default function VisaPackages() {
     setForm(emptyForm);
     setNewCategory("");
     setCategoryCreatorOpen(false);
+    setPendingCategoryDelete("");
     setNewDocument("");
     setDocumentCreatorOpen(false);
   };
@@ -830,7 +857,22 @@ export default function VisaPackages() {
     }));
   };
 
-  const addCategory = () => {
+  const categoriesForForm = useMemo(() => {
+    const currentCategory = String(form.category || "").trim();
+    if (
+      !currentCategory ||
+      categories.some(
+        (category) =>
+          normalizeCategoryName(category) ===
+          normalizeCategoryName(currentCategory)
+      )
+    ) {
+      return categories;
+    }
+    return [...categories, currentCategory];
+  }, [categories, form.category]);
+
+  const addCategory = async () => {
     const value = newCategory.trim();
 
     if (!value) {
@@ -838,13 +880,12 @@ export default function VisaPackages() {
       return;
     }
 
-    const duplicate = categories.some(
-      (item) => normalize(item) === normalize(value)
+    const setting = buildCategorySetting(value, true);
+    const saved = await setCategorySettings((current) =>
+      upsertCategorySetting(current, setting)
     );
 
-    if (!duplicate) {
-      setCategories((current) => [...current, value]);
-    }
+    if (saved === false) return;
 
     setForm((current) => ({
       ...current,
@@ -853,7 +894,51 @@ export default function VisaPackages() {
 
     setNewCategory("");
     setCategoryCreatorOpen(false);
+    setPendingCategoryDelete("");
     notify(tx("Category added.", "کتگوری اضافه شد.", "کټګوري زیاته شوه."), "success");
+  };
+
+  const requestCategoryDelete = () => {
+    const selected = String(form.category || "").trim();
+    if (!selected) {
+      notify(
+        tx(
+          "Select a category to delete.",
+          "برای حذف، یک کتگوری را انتخاب کنید.",
+          "د حذف لپاره یوه کټګوري وټاکئ."
+        ),
+        "error"
+      );
+      return;
+    }
+    setPendingCategoryDelete(selected);
+    setCategoryCreatorOpen(false);
+  };
+
+  const confirmCategoryDelete = async () => {
+    const selected = String(pendingCategoryDelete || "").trim();
+    if (!selected) return;
+
+    const setting = buildCategorySetting(selected, false);
+    const saved = await setCategorySettings((current) =>
+      upsertCategorySetting(current, setting)
+    );
+
+    if (saved === false) return;
+
+    setForm((current) => ({
+      ...current,
+      category:
+        normalizeCategoryName(current.category) ===
+        normalizeCategoryName(selected)
+          ? ""
+          : current.category,
+    }));
+    setPendingCategoryDelete("");
+    notify(
+      tx("Category deleted.", "کتگوری حذف شد.", "کټګوري حذف شوه."),
+      "success"
+    );
   };
 
   const toggleDocument = (documentName) => {
@@ -1096,40 +1181,6 @@ export default function VisaPackages() {
           {tx("Add Visa Package", "افزودن پکیج ویزه", "د ویزې بسته زیاتول")}
         </button>
       </header>
-
-      <section className="visa-package-stats">
-        <article>
-          <PackagePlus size={18} />
-          <div>
-            <span>{tx("Total Packages", "مجموع پکیج‌ها", "ټولې بستې")}</span>
-            <strong>{stats.total}</strong>
-          </div>
-        </article>
-
-        <article>
-          <CircleDollarSign size={18} />
-          <div>
-            <span>{tx("Total Cost", "مجموع هزینه", "ټول لګښت")}</span>
-            <strong>{stats.totalCostLabel}</strong>
-          </div>
-        </article>
-
-        <article>
-          <Landmark size={18} />
-          <div>
-            <span>{tx("Total Selling", "مجموع فروش", "ټول پلور")}</span>
-            <strong>{stats.totalSalesLabel}</strong>
-          </div>
-        </article>
-
-        <article>
-          <FileText size={18} />
-          <div>
-            <span>{tx("Expected Profit", "سود مورد انتظار", "تمه شوې ګټه")}</span>
-            <strong>{stats.totalProfitLabel}</strong>
-          </div>
-        </article>
-      </section>
 
       <section className="visa-package-table-card">
         <header>
@@ -1422,7 +1473,7 @@ export default function VisaPackages() {
                     onChange={updateField}
                   >
                     <option value="">{tx("Select category", "کتگوری را انتخاب کنید", "کټګوري وټاکئ")}</option>
-                    {categories.map((category) => (
+                    {categoriesForForm.map((category) => (
                       <option key={category} value={category}>
                         {translatePackageValue(category)}
                       </option>
@@ -1432,13 +1483,51 @@ export default function VisaPackages() {
                   <button
                     type="button"
                     title={tx("Add category", "افزودن کتگوری", "کټګوري زیاتول")}
-                    onClick={() =>
-                      setCategoryCreatorOpen((current) => !current)
-                    }
+                    onClick={() => {
+                      setCategoryCreatorOpen((current) => !current);
+                      setPendingCategoryDelete("");
+                    }}
                   >
                     <Plus size={17} />
                   </button>
+
+                  <button
+                    type="button"
+                    className="visa-category-delete-button"
+                    title={tx("Delete category", "حذف کتگوری", "کټګوري حذف کول")}
+                    onClick={requestCategoryDelete}
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
+
+                {pendingCategoryDelete && (
+                  <div className="visa-category-delete-confirm">
+                    <span>
+                      {tx(
+                        `Delete ${pendingCategoryDelete}? Existing package records will keep this category.`,
+                        `کتگوری ${pendingCategoryDelete} حذف شود؟ ریکاردهای قبلی پکیج این کتگوری را حفظ می‌کنند.`,
+                        `${pendingCategoryDelete} کټګوري حذف شي؟ د پخوانیو بسته‌ګانو ریکارډونه به دا کټګوري وساتي.`
+                      )}
+                    </span>
+                    <div>
+                      <button
+                        type="button"
+                        className="visa-category-cancel-delete"
+                        onClick={() => setPendingCategoryDelete("")}
+                      >
+                        {tx("Cancel", "لغو", "لغوه")}
+                      </button>
+                      <button
+                        type="button"
+                        className="visa-category-confirm-delete"
+                        onClick={confirmCategoryDelete}
+                      >
+                        {tx("Delete", "حذف", "حذف")}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {categoryCreatorOpen && (
                   <div className="visa-new-category">
@@ -1610,6 +1699,10 @@ export default function VisaPackages() {
                         >
                           <span className="visa-document-check">
                             {checked ? "✓" : ""}
+                          </span>
+
+                          <span className="visa-document-icon">
+                            <DocumentSvgIcon name={documentName} />
                           </span>
 
                           <span className="visa-document-name">

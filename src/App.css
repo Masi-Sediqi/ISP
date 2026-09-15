@@ -688,6 +688,7 @@ body.theme-warm .sidebar-customer-menu.open > .sidebar-customer-trigger {
 }
 
 .page-content {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -4874,4 +4875,97 @@ body.dark-mode .app-toast-actions button.danger {
   .app-toast-actions button {
     flex: 1 1 auto;
   }
+}
+
+
+/* Global page transition loader */
+.page-loader-overlay {
+  width: 100%;
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+}
+
+.loader {
+  width: 50px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 8px solid;
+  border-color: #000 #0000;
+  animation: l1 1s infinite;
+}
+
+@keyframes l1 {
+  to { transform: rotate(.5turn); }
+}
+
+body.dark-mode .loader {
+  border-color: #fff #fff0;
+}
+
+
+/* Global VPS data + route transition loader */
+.global-data-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(1.5px);
+}
+
+.global-data-loader .page-loader-overlay {
+  min-height: 180px;
+}
+
+body.dark-mode .global-data-loader {
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.form-error-text {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  color: #dc2626 !important;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.has-error input,
+.has-error select,
+.has-error textarea,
+.has-error .employee-department-trigger,
+.has-error .consultant-country-trigger,
+.has-error .customer-search-input-wrap {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08) !important;
+}
+
+body.dark-mode .form-error-text {
+  color: #fca5a5 !important;
+}
+
+body.dark-mode .has-error input,
+body.dark-mode .has-error select,
+body.dark-mode .has-error textarea,
+body.dark-mode .has-error .employee-department-trigger,
+body.dark-mode .has-error .consultant-country-trigger,
+body.dark-mode .has-error .customer-search-input-wrap {
+  border-color: #f87171 !important;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.12) !important;
+}
+
+.dashboard-wallet-balance-value {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+
+.dashboard-wallet-balance-value > span {
+  white-space: nowrap;
 }

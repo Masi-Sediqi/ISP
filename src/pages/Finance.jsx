@@ -20,6 +20,9 @@ import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { notify } from "../utils/notify";
+import { clearFieldError, hasFormErrors, validateRequiredFields } from "../utils/formValidation";
+import { convertToBaseAfn, hasRequiredExchangeRate, normalizeExchangeRates, normalizeCurrency } from "../utils/exchangeRates";
+import { formatCurrencyAmount, formatCurrencyTotals, sumCurrencyAmounts } from "../utils/currencyDisplay";
 
 import {
   formatAfghanDate,
@@ -80,6 +83,8 @@ function Finance() {
   const [transactions, setTransactions] =
     useJsonCollection("transactions");
 
+  const [appSettings] = useJsonCollection("settings");
+
   const [employeeAdjustments] =
     useEmployeeAdjustments();
 
@@ -124,6 +129,7 @@ function Finance() {
 
   const [formData, setFormData] =
     useState(emptyFinanceForm);
+  const [formErrors, setFormErrors] = useState({});
 
   const [interfaceLanguage, setInterfaceLanguage] = useState(
     () => localStorage.getItem("isp-language") || "en"
@@ -231,6 +237,18 @@ function Finance() {
     [financeCategories]
   );
 
+  const exchangeRates = useMemo(
+    () => normalizeExchangeRates(appSettings[0]?.exchangeRates || {}),
+    [appSettings]
+  );
+
+  const convertTransactionToAfn = (transaction) =>
+    convertToBaseAfn(
+      transaction?.amount,
+      transaction?.currency || transaction?.unit || "AFN",
+      exchangeRates
+    );
+
   const allTransactions = useMemo(() => {
     const legacyTravelPayments = customerTravels
       .filter(
@@ -250,6 +268,7 @@ function Finance() {
         title: `Travel Payment ${record.travelName || ""
           }`,
         amount: Number(record.paidAmount || 0),
+        currency: record.currency || record.unit || "AFN",
         date: record.date,
         category: "Travel Income",
         description:
@@ -290,6 +309,7 @@ function Finance() {
                 ? `Paid to Customer ${payment.customerName || ""}`.trim()
                 : `Customer Payment ${payment.customerName || ""}`.trim()),
             amount: Number(payment.amount || 0),
+            currency: payment.currency || payment.unit || "AFN",
             date: payment.paymentDate || payment.date,
             category: isPaidToCustomer ? "Customer Refund" : "Customer Payment",
             description:
@@ -325,6 +345,7 @@ function Finance() {
             : ""
           }`,
         amount: Number(expense.amount || 0),
+        currency: expense.currency || expense.unit || "AFN",
         date: expense.date,
         category:
           expense.category ||
@@ -365,6 +386,7 @@ function Finance() {
             : ""
           }`,
         amount: Number(expense.amount || 0),
+        currency: expense.currency || expense.unit || "AFN",
         date: expense.date,
         category:
           expense.category ||
@@ -398,6 +420,7 @@ function Finance() {
           title: `Employee Payment ${payment.employeeName || ""
             }`,
           amount: Number(payment.amount || 0),
+          currency: payment.currency || payment.unit || "AFN",
           date: payment.date,
           category: "Salary",
           description:
@@ -429,6 +452,7 @@ function Finance() {
           type: "expense",
           title: `Supplier Payment ${payment.supplierName || ""}`.trim(),
           amount: Number(payment.amount || 0),
+          currency: payment.currency || payment.unit || "AFN",
           date: payment.paymentDate,
           category: "Supplier Payment",
           description: payment.notes,
@@ -462,6 +486,7 @@ function Finance() {
           type: "income",
           title: `Device Sale ${movement.deviceName || movement.assetId || ""}`.trim(),
           amount: Number(movement.paidAmount || 0),
+          currency: movement.currency || movement.unit || "AFN",
           date: movement.date,
           category: "Customer Payment",
           description: [
@@ -482,15 +507,19 @@ function Finance() {
     const legacyEmployeeAdjustments =
       employeeAdjustments
         .filter(
-          (adjustment) =>
-            !transactions.some(
+          (adjustment) => {
+            const adjustmentType = String(adjustment.type || "").toLowerCase();
+            if (adjustmentType === "salary") return false;
+
+            return !transactions.some(
               (transaction) =>
                 transaction.source ===
                   "employee-adjustment" &&
                 String(
                   transaction.referenceId
                 ) === String(adjustment.id)
-            )
+            );
+          }
         )
         .map((adjustment) => {
           const adjustmentType = String(
@@ -524,6 +553,7 @@ function Finance() {
             amount: Number(
               adjustment.amount || 0
             ),
+            currency: adjustment.currency || adjustment.unit || "AFN",
             date:
               adjustment.date ||
               String(
@@ -577,28 +607,24 @@ function Finance() {
   ]);
 
   const totalIncome = allTransactions
-    .filter(
-      (transaction) =>
-        transaction.type === "income"
-    )
-    .reduce(
-      (sum, transaction) =>
-        sum +
-        Number(transaction.amount || 0),
-      0
-    );
+    .filter((transaction) => transaction.type === "income")
+    .reduce((sum, transaction) => sum + convertTransactionToAfn(transaction), 0);
 
   const totalExpense = allTransactions
-    .filter(
-      (transaction) =>
-        transaction.type === "expense"
-    )
-    .reduce(
-      (sum, transaction) =>
-        sum +
-        Number(transaction.amount || 0),
-      0
-    );
+    .filter((transaction) => transaction.type === "expense")
+    .reduce((sum, transaction) => sum + convertTransactionToAfn(transaction), 0);
+
+  const missingExchangeCurrencies = useMemo(() => {
+    const missing = new Set();
+    allTransactions.forEach((transaction) => {
+      const currency = normalizeCurrency(transaction.currency || transaction.unit || "AFN");
+      if (!hasRequiredExchangeRate(currency, exchangeRates)) missing.add(currency);
+    });
+    return [...missing].filter((currency) => currency !== "AFN");
+  }, [allTransactions, exchangeRates]);
+
+  const incomeCurrencyTotals = sumCurrencyAmounts(allTransactions.filter((item) => item.type === "income"));
+  const expenseCurrencyTotals = sumCurrencyAmounts(allTransactions.filter((item) => item.type === "expense"));
 
   const netResult =
     totalIncome - totalExpense;
@@ -668,13 +694,9 @@ function Finance() {
         if (
           transaction.type === "income"
         ) {
-          current.income += Number(
-            transaction.amount || 0
-          );
+          current.income += convertTransactionToAfn(transaction);
         } else {
-          current.expense += Number(
-            transaction.amount || 0
-          );
+          current.expense += convertTransactionToAfn(transaction);
         }
 
         current.net =
@@ -691,7 +713,7 @@ function Finance() {
           String(second.date)
         )
     );
-  }, [allTransactions]);
+  }, [allTransactions, exchangeRates]);
 
   const maximumAmount = Math.max(
     totalIncome,
@@ -723,6 +745,7 @@ function Finance() {
     setEditingCategory(null);
     setCategoryEditTitle("");
     setEditingTransaction(null);
+    setFormErrors({});
   };
 
   const openAddModal = () => {
@@ -740,6 +763,7 @@ function Finance() {
     setNewCategory("");
     setEditingCategory(null);
     setCategoryEditTitle("");
+    setFormErrors({});
     setShowModal(true);
   };
 
@@ -783,6 +807,7 @@ function Finance() {
     setEditingCategory(null);
     setCategoryEditTitle("");
     setOpenActionId("");
+    setFormErrors({});
     setShowModal(true);
   };
 
@@ -964,40 +989,22 @@ function Finance() {
       formData.amount
     );
 
-    if (!formData.date) {
-      notify(
-        tx("Please select a date.", "لطفاً تاریخ را انتخاب کنید.", "مهرباني وکړئ نېټه وټاکئ."),
-        "error"
-      );
-      return;
-    }
+    const errors = validateRequiredFields(
+      formData,
+      [
+        "date",
+        "title",
+        "category",
+        {
+          field: "amount",
+          invalid: () => !Number.isFinite(amount) || amount <= 0,
+        },
+      ],
+      tx("This field is required.", "این فیلد ضروری است", "دا فیلډ اړین دی")
+    );
 
-    if (!formData.title.trim()) {
-      notify(
-        tx("Please enter a title.", "لطفاً عنوان را وارد کنید.", "مهرباني وکړئ سرلیک ولیکئ."),
-        "error"
-      );
-      return;
-    }
-
-    if (!formData.category) {
-      notify(
-        tx("Please select a category.", "لطفاً کتگوری را انتخاب کنید.", "مهرباني وکړئ کټګوري وټاکئ."),
-        "error"
-      );
-      return;
-    }
-
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
-      notify(
-        tx("Amount must be greater than zero.", "مبلغ باید بیشتر از صفر باشد.", "اندازه باید له صفر څخه زیاته وي."),
-        "error"
-      );
-      return;
-    }
+    setFormErrors(errors);
+    if (hasFormErrors(errors)) return;
 
     const updatedAt =
       new Date().toISOString();
@@ -1204,25 +1211,31 @@ function Finance() {
         </button>
       </div>
 
+      {missingExchangeCurrencies.length > 0 && (
+        <div className="finance-exchange-warning">
+          Exchange rate missing for {missingExchangeCurrencies.join(", ")}. Add the rate in Settings → Exchange Rates for accurate converted totals.
+        </div>
+      )}
+
       <div className="finance-stats">
         <div className="finance-stat-card income">
           <span>{tx("Total Income", "مجموع عواید", "ټول عاید")}</span>
 
           <strong>
-            {formatAmount(totalIncome)}
+            {formatCurrencyAmount(totalIncome, "AFN")}
           </strong>
 
-          <p>{tx("AFN received", "افغانی دریافت‌شده", "ترلاسه شوي افغانۍ")}</p>
+          <p>{formatCurrencyTotals(incomeCurrencyTotals)}</p>
         </div>
 
         <div className="finance-stat-card expense">
           <span>{tx("Total Expenses", "مجموع مصارف", "ټول لګښتونه")}</span>
 
           <strong>
-            {formatAmount(totalExpense)}
+            {formatCurrencyAmount(totalExpense, "AFN")}
           </strong>
 
-          <p>{tx("AFN spent", "افغانی مصرف‌شده", "لګول شوي افغانۍ")}</p>
+          <p>{formatCurrencyTotals(expenseCurrencyTotals)}</p>
         </div>
 
         <div
@@ -1238,9 +1251,7 @@ function Finance() {
           </span>
 
           <strong>
-            {formatAmount(
-              Math.abs(netResult)
-            )}
+            {formatCurrencyAmount(Math.abs(netResult), "AFN")}
           </strong>
 
           <p>
@@ -1540,10 +1551,7 @@ function Finance() {
                       </td>
 
                       <td>
-                        {formatAmount(
-                          transaction.amount
-                        )}{" "}
-                        AFN
+                        {formatCurrencyAmount(transaction.amount, transaction.currency || transaction.unit || "AFN")}
                       </td>
 
                       <td>
@@ -1724,7 +1732,7 @@ function Finance() {
               onSubmit={handleSubmit}
             >
               <div className="finance-form-grid">
-                <div className="finance-form-group">
+                <div className={`finance-form-group ${formErrors.date ? "has-error" : ""}`}>
                   <label>{tx("Date", "تاریخ", "نېټه")}</label>
 
                   <input
@@ -1732,7 +1740,8 @@ function Finance() {
                     value={
                       formData.date
                     }
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setFormErrors((current) => clearFieldError(current, "date"));
                       setFormData(
                         (previous) => ({
                           ...previous,
@@ -1740,10 +1749,10 @@ function Finance() {
                             event.target
                               .value,
                         })
-                      )
-                    }
-                    required
+                      );
+                    }}
                   />
+                  {formErrors.date && <span className="form-error-text">{formErrors.date}</span>}
                 </div>
 
                 <div className="finance-form-group">
@@ -1753,7 +1762,7 @@ function Finance() {
                     value={
                       formData.type
                     }
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setFormData(
                         (previous) => ({
                           ...previous,
@@ -1761,8 +1770,8 @@ function Finance() {
                             event.target
                               .value,
                         })
-                      )
-                    }
+                      );
+                    }}
                   >
                     <option value="income">
                       {tx("Income", "عواید", "عاید")}
@@ -1774,14 +1783,15 @@ function Finance() {
                   </select>
                 </div>
 
-                <div className="finance-form-group">
+                <div className={`finance-form-group ${formErrors.title ? "has-error" : ""}`}>
                   <label>{tx("Title", "عنوان", "سرلیک")}</label>
 
                   <input
                     value={
                       formData.title
                     }
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setFormErrors((current) => clearFieldError(current, "title"));
                       setFormData(
                         (previous) => ({
                           ...previous,
@@ -1789,14 +1799,14 @@ function Finance() {
                             event.target
                               .value,
                         })
-                      )
-                    }
+                      );
+                    }}
                     placeholder={tx("Enter record title", "عنوان رکورد را وارد کنید", "د ریکارډ سرلیک ولیکئ")}
-                    required
                   />
+                  {formErrors.title && <span className="form-error-text">{formErrors.title}</span>}
                 </div>
 
-                <div className="finance-form-group">
+                <div className={`finance-form-group ${formErrors.amount ? "has-error" : ""}`}>
                   <label>{tx("Amount", "مبلغ", "اندازه")}</label>
 
                   <input
@@ -1806,7 +1816,8 @@ function Finance() {
                     value={
                       formData.amount
                     }
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      setFormErrors((current) => clearFieldError(current, "amount"));
                       setFormData(
                         (previous) => ({
                           ...previous,
@@ -1814,14 +1825,14 @@ function Finance() {
                             event.target
                               .value,
                         })
-                      )
-                    }
+                      );
+                    }}
                     placeholder={tx("Enter amount", "مبلغ را وارد کنید", "اندازه ولیکئ")}
-                    required
                   />
+                  {formErrors.amount && <span className="form-error-text">{formErrors.amount}</span>}
                 </div>
 
-                <div className="finance-form-group finance-form-full">
+                <div className={`finance-form-group finance-form-full ${formErrors.category ? "has-error" : ""}`}>
                   <label>
                     {tx("Category", "کتگوری", "کټګوري")}
                   </label>
@@ -1831,9 +1842,8 @@ function Finance() {
                       value={
                         formData.category
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) => {
+                        setFormErrors((current) => clearFieldError(current, "category"));
                         setFormData(
                           (
                             previous
@@ -1844,8 +1854,8 @@ function Finance() {
                                 .target
                                 .value,
                           })
-                        )
-                      }
+                        );
+                      }}
                     >
                       {categoryOptions.map(
                         (category) => (
@@ -1885,6 +1895,7 @@ function Finance() {
                       {tx("Add", "افزودن", "زیاتول")}
                     </button>
                   </div>
+                  {formErrors.category && <span className="form-error-text">{formErrors.category}</span>}
 
                   {customCategoryItems.length > 0 && (
                     <div className="finance-category-manager">

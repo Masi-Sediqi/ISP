@@ -60,6 +60,7 @@ import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
 import { hasPermission } from "../utils/permissions";
 import { createId } from "../utils/createId";
+import { clearFieldError, hasFormErrors, validateRequiredFields } from "../utils/formValidation";
 
 function Suppliers({ currentUser }) {
   const navigate = useNavigate();
@@ -160,6 +161,7 @@ function Suppliers({ currentUser }) {
   const [supplierPayments, setSupplierPayments] =
     useJsonCollection("supplierPayments");
   const [formData, setFormData] = useState(emptyForm);
+  const [formErrors, setFormErrors] = useState({});
   const canCreateSupplier = hasPermission(currentUser, "suppliers", "create");
   const canEditSupplier = hasPermission(currentUser, "suppliers", "edit");
   const canDeleteSupplier = hasPermission(currentUser, "suppliers", "delete");
@@ -190,24 +192,11 @@ function Suppliers({ currentUser }) {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    setFormErrors((current) => clearFieldError(current, name));
     setFormData((previous) => ({
       ...previous,
       [name]: value,
     }));
-  };
-
-  const toggleSupplierType = (type) => {
-    setFormData((previous) => {
-      const currentTypes = previous.supplierTypes || [];
-      const exists = currentTypes.includes(type);
-
-      return {
-        ...previous,
-        supplierTypes: exists
-          ? currentTypes.filter((item) => item !== type)
-          : [...currentTypes, type],
-      };
-    });
   };
 
   const addCustomSupplierType = () => {
@@ -236,6 +225,7 @@ function Suppliers({ currentUser }) {
   const resetForm = () => {
     setFormData(emptyForm);
     setEditIndex(null);
+    setFormErrors({});
   };
 
   const openCreateModal = () => {
@@ -250,6 +240,14 @@ function Suppliers({ currentUser }) {
   const handleSubmit = async (event) => {
     
     event.preventDefault();
+    const errors = validateRequiredFields(
+      formData,
+      ["supplierName", "phone"],
+      tx("This field is required.", "این فیلد ضروری است", "دا فیلډ اړین دی")
+    );
+
+    setFormErrors(errors);
+    if (hasFormErrors(errors)) return;
     
     const cleanData = {
       ...formData,
@@ -570,18 +568,18 @@ const confirmDelete = () => {
 
             <form onSubmit={handleSubmit}>
             <div className="driver-form-grid">
-  <div className="form-group form-full">
+  <div className={`form-group form-full ${formErrors.supplierName ? "has-error" : ""}`}>
     <label>{tx("Name / Company", "نام / شرکت", "نوم / شرکت")}</label>
     <input
       name="supplierName"
       value={formData.supplierName}
       onChange={handleChange}
       placeholder={tx("Enter supplier or company name", "نام تأمین‌کننده یا شرکت را وارد کنید", "د عرضه کوونکي یا شرکت نوم ولیکئ")}
-      required
     />
+    {formErrors.supplierName && <span className="form-error-text">{formErrors.supplierName}</span>}
   </div>
 
-  <div className="form-group">
+  <div className={`form-group ${formErrors.phone ? "has-error" : ""}`}>
     <label>{tx("Contact Person", "شخص تماس", "د اړیکې شخص")}</label>
     <input
       name="contactPerson"
@@ -598,8 +596,8 @@ const confirmDelete = () => {
       value={formData.phone}
       onChange={handleChange}
       placeholder={tx("Example: 0799000000", "مثال: 0799000000", "بېلګه: 0799000000")}
-      required
     />
+    {formErrors.phone && <span className="form-error-text">{formErrors.phone}</span>}
   </div>
 
   <div className="form-group">

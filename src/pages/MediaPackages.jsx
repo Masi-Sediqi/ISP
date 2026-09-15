@@ -12,6 +12,7 @@ import {
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
+import { formatCurrencyAmount } from "../utils/currencyDisplay";
 import "./MediaPackages.css";
 
 const countries = [
@@ -467,9 +468,7 @@ const normalize = (value) =>
   String(value || "").trim().toLowerCase();
 
 const money = (value, currency = "AFN") =>
-  `${Number(value || 0).toLocaleString("en-US")} ${
-    currency || "AFN"
-  }`;
+  formatCurrencyAmount(value, currency || "AFN");
 
 const totalsByCurrency = (items, fieldName) => {
   const totals = items.reduce((result, item) => {
@@ -501,13 +500,6 @@ export default function MediaPackages() {
     packagesLoaded,
   ] = useJsonCollection("mediaPackages");
 
-  const [
-    legacyLocalPackages,
-    setLegacyLocalPackages,
-  ] = useJsonCollection("mediaPackages", {
-    archiveDeletes: false,
-  });
-
   const [categories, setCategories] = useState([]);
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -518,40 +510,6 @@ export default function MediaPackages() {
   const [newCategory, setNewCategory] = useState("");
   const [categoryCreatorOpen, setCategoryCreatorOpen] =
     useState(false);
-
-  useEffect(() => {
-    if (!packagesLoaded || !legacyLocalPackages.length) {
-      return;
-    }
-
-    const merged = [...packages];
-
-    legacyLocalPackages.forEach((localItem) => {
-      const exists = merged.some(
-        (serverItem) =>
-          String(serverItem.id) === String(localItem.id)
-      );
-
-      if (!exists) merged.push(localItem);
-    });
-
-    if (merged.length === packages.length) {
-      setLegacyLocalPackages([]);
-      return;
-    }
-
-    Promise.resolve(setPackages(merged)).then((saved) => {
-      if (saved !== false) {
-        setLegacyLocalPackages([]);
-      }
-    });
-  }, [
-    legacyLocalPackages,
-    packages,
-    packagesLoaded,
-    setLegacyLocalPackages,
-    setPackages,
-  ]);
 
   const filteredPackages = useMemo(() => {
     const query = normalize(search);
@@ -795,26 +753,6 @@ export default function MediaPackages() {
           Add Media Package
         </button>
       </header>
-
-      <section className="media-package-stats">
-        <article>
-          <span>Total Packages</span>
-          <strong>{summary.total}</strong>
-          <p>Registered media packages</p>
-        </article>
-
-        <article>
-          <span>Total Selling Value</span>
-          <strong>{summary.totalSellingLabel}</strong>
-          <p>Combined selling price</p>
-        </article>
-
-        <article>
-          <span>Average Price</span>
-          <strong>{summary.averagePriceLabel}</strong>
-          <p>Average package selling price</p>
-        </article>
-      </section>
 
       <section className="media-package-table-card">
         <header>

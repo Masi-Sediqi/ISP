@@ -29,6 +29,8 @@ import {
   Info,
   LayoutDashboard,
   Package,
+  ReceiptText,
+  ScrollText,
   Settings as SettingsIcon,
   ShieldCheck,
   Trash2,
@@ -46,6 +48,55 @@ import { canViewModule } from "./utils/permissions";
 import { notify, requestSystemNotificationPermission } from "./utils/notify";
 import ReportFinancial from "./pages/ReportFinancial";
 
+
+
+function PageLoader() {
+  return (
+    <div className="page-loader-overlay" role="status" aria-live="polite" aria-label="Loading page">
+      <div className="loader" aria-hidden="true" />
+    </div>
+  );
+}
+
+function GlobalDataLoader() {
+  const location = useLocation();
+  const routeKey = `${location.pathname}${location.search}${location.hash}`;
+  const lastRouteRef = useRef("");
+  const routeChanged = lastRouteRef.current !== routeKey;
+  const [routeLoading, setRouteLoading] = useState(true);
+  const [pendingLoads, setPendingLoads] = useState(0);
+  const loadingTokensRef = useRef(new Set());
+
+  useEffect(() => {
+    lastRouteRef.current = routeKey;
+    setRouteLoading(true);
+    const timer = window.setTimeout(() => setRouteLoading(false), 320);
+    return () => window.clearTimeout(timer);
+  }, [routeKey]);
+
+  useEffect(() => {
+    const handleDataLoading = (event) => {
+      const phase = event?.detail?.phase;
+      const token = String(event?.detail?.token || "");
+      if (!token) return;
+
+      if (phase === "start") loadingTokensRef.current.add(token);
+      if (phase === "end") loadingTokensRef.current.delete(token);
+      setPendingLoads(loadingTokensRef.current.size);
+    };
+
+    window.addEventListener("isp-data-loading", handleDataLoading);
+    return () => window.removeEventListener("isp-data-loading", handleDataLoading);
+  }, []);
+
+  if (!routeChanged && !routeLoading && pendingLoads === 0) return null;
+
+  return (
+    <div className="global-data-loader">
+      <PageLoader />
+    </div>
+  );
+}
 
 class PageErrorBoundary extends Component {
   constructor(props) {
@@ -126,12 +177,16 @@ function lazyWithRetry(importer) {
 }
 
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"));
+const DashboardMetricDetails = lazyWithRetry(() => import("./pages/DashboardMetricDetails"));
+const CashWallet = lazyWithRetry(() => import("./pages/CashWallet"));
+const StaffPayable = lazyWithRetry(() => import("./pages/StaffPayable"));
 const MyAccount = lazyWithRetry(() =>
   import("./pages/MyAccount")
 );
 const Suppliers = lazyWithRetry(() => import("./pages/Suppliers"));
 const SupplierDetails = lazyWithRetry(() => import("./pages/SupplierDetails"));
 const ConsultantCustomers = lazyWithRetry(() => import("./pages/ConsultantCustomers"));
+const CustomerDetails = lazyWithRetry(() => import("./pages/CustomerDetails"));
 const Accounts = lazyWithRetry(() => import("./pages/Accounts"));
 const Finance = lazyWithRetry(() => import("./pages/Finance"));
 const Reports = lazyWithRetry(() => import("./pages/Reports"));
@@ -152,6 +207,8 @@ const OfficeAssets = lazyWithRetry(() => import("./pages/OfficeAssets"));
 const OfficeAssetDetails = lazyWithRetry(() => import("./pages/OfficeAssetDetails"));
 
 const ProjectsHub = lazyWithRetry(() => import("./pages/ProjectsHub"));
+const ProjectSales = lazyWithRetry(() => import("./pages/ProjectSales"));
+const ProjectSalesBills = lazyWithRetry(() => import("./pages/ProjectSalesBills"));
 const Login = lazyWithRetry(() => import("./pages/Login"));
 const HelpCenter = lazyWithRetry(() => import("./pages/HelpCenter"));
 const Developer = lazyWithRetry(() => import("./pages/Developer"));
@@ -312,6 +369,7 @@ function App() {
       mediaCustomers: "Media Customers",
       projects: "Projects",
       projectSales: "Project Sales",
+      salesBills: "Sales / Bills",
       employees: "Employees & Attendance",
       allEmployees: "All Employees",
       employeeAttendance: "Employee Attendance",
@@ -345,6 +403,7 @@ function App() {
       mediaCustomers: "مشتریان رسانه",
       projects: "پروژه‌ها",
       projectSales: "فروش پروژه",
+      salesBills: "فروشات / بل‌ها",
       employees: "کارمندان و حاضری",
       allEmployees: "همه کارمندان",
       employeeAttendance: "حاضری کارمندان",
@@ -378,6 +437,7 @@ function App() {
       mediaCustomers: "د رسنیو پېرودونکي",
       projects: "پروژې",
       projectSales: "د پروژې پلور",
+      salesBills: "پلور / بلونه",
       employees: "کارکوونکي او حاضري",
       allEmployees: "ټول کارکوونکي",
       employeeAttendance: "د کارکوونکو حاضري",
@@ -758,7 +818,7 @@ const myAssignedCustomers = customers
     (!isReceptionAccount || isCallCenterAccount);
 
   /*
-   * Keep assignments fresh without hammering Supabase.
+   * Keep assignments fresh without hammering VPS server.
    * The collection hook already performs a background refresh. Here we only
    * refresh immediately when the app becomes visible again or when another
    * part of the app announces an assignment change.
@@ -1164,7 +1224,7 @@ const myAssignedCustomers = customers
     );
   } else if (!currentUser) {
     appContent = (
-      <Suspense fallback={<div className="page-loading">Loading...</div>}>
+      <Suspense fallback={<PageLoader />}>
         <Login
           accounts={effectiveAccounts}
           setAccounts={setAccounts}
@@ -1236,6 +1296,20 @@ const myAssignedCustomers = customers
               <NavLink to="/projects">
                 <FolderKanban size={17} />
                 <span>{sidebarText.projects}</span>
+              </NavLink>
+            )}
+
+            {!isEmployeeAccount && canViewModule(currentUser, "dashboard") && (
+              <NavLink to="/project-sales">
+                <ReceiptText size={17} />
+                <span>{sidebarText.projectSales}</span>
+              </NavLink>
+            )}
+
+            {!isEmployeeAccount && canViewModule(currentUser, "dashboard") && (
+              <NavLink to="/project-sales-bills">
+                <ScrollText size={17} />
+                <span>{sidebarText.salesBills}</span>
               </NavLink>
             )}
 
@@ -1316,10 +1390,12 @@ const myAssignedCustomers = customers
           <GlobalTableEnhancer />
 
           <div className="page-content">
+            <GlobalDataLoader />
             <PageErrorBoundary resetKey={location.pathname}>
-              <Suspense fallback={<div className="page-loading">Loading...</div>}>
+              <Suspense fallback={<PageLoader />}>
                 <Routes>
                 <Route path="/" element={isEmployeeAccount ? <EmployeeDashboard currentUser={currentUser} /> : protect("dashboard", <Dashboard />)} />
+                <Route path="/dashboard/details/:metric" element={protect("dashboard", <DashboardMetricDetails />)} />
                 <Route
                   path="/projects"
                   element={protect("dashboard", <ProjectsHub />)}
@@ -1430,11 +1506,11 @@ const myAssignedCustomers = customers
 
                 <Route
                   path="/project-sales"
-                  element={protect("dashboard", <ProjectsHub initialSection="sales" />)}
+                  element={protect("dashboard", <ProjectSales />)}
                 />
                 <Route
                   path="/project-sales-bills"
-                  element={protect("dashboard", <ProjectsHub initialSection="bills" />)}
+                  element={protect("dashboard", <ProjectSalesBills />)}
                 />
                 <Route
                   path="/recycle-bin"
@@ -1484,7 +1560,9 @@ const myAssignedCustomers = customers
                 <Route path="/customers/travel" element={protect("customers", <ConsultantCustomers mode="travel" currentUser={currentUser} />)} />
                 <Route path="/customers/technology" element={protect("customers", <ConsultantCustomers mode="technology" currentUser={currentUser} />)} />
                 <Route path="/customers/media" element={protect("customers", <ConsultantCustomers mode="media" currentUser={currentUser} />)} />
-                <Route path="/customers/:id" element={<Navigate to="/customers/consultants" replace />} />
+                <Route path="/customers/:id" element={protect("customers", <CustomerDetails currentUser={currentUser} />)} />
+                <Route path="/cash-wallet" element={protect("dashboard", <CashWallet />)} />
+                <Route path="/staff-payable" element={protect("dashboard", <StaffPayable />)} />
                 <Route path="/finance" element={protect("finance", <Finance />)} />
                 <Route path="/reports" element={protect("reports", <Reports />)} />
                 <Route path="/agent" element={protect("agent", <Agent />)} />

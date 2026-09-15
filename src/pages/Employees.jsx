@@ -4,6 +4,7 @@ import { notify } from "../utils/notify";
 import { createId } from "../utils/createId";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useNavigate } from "react-router-dom";
+import { clearFieldError, hasFormErrors, validateRequiredFields } from "../utils/formValidation";
 import "./Employees.css";
 
 const emptyEmployee = {
@@ -53,6 +54,7 @@ function Employees() {
   const [employees, setEmployees] = useJsonCollection("employees");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyEmployee);
+  const [formErrors, setFormErrors] = useState({});
   const [editId, setEditId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [search, setSearch] = useState("");
@@ -188,14 +190,21 @@ function Employees() {
   }, [employees, search]);
 
   const activeEmployees = employees.filter((employee) => employee.status === "Active").length;
+  const [nowTime] = useState(() => Date.now());
   const contractsEnding = employees.filter((employee) => {
     if (!employee.endDate) return false;
-    const remaining = new Date(employee.endDate).getTime() - Date.now();
+    const remaining = new Date(employee.endDate).getTime() - nowTime;
     return remaining >= 0 && remaining <= 30 * 24 * 60 * 60 * 1000;
   }).length;
 
   const updateField = (event) => {
     const { name, value } = event.target;
+    setFormErrors((current) => {
+      const next = clearFieldError(current, name);
+      return name === "salaryType"
+        ? clearFieldError(clearFieldError(next, "fixedSalary"), "salaryPercentage")
+        : next;
+    });
 
     setForm((current) => {
       if (name === "salaryType") {
@@ -225,40 +234,26 @@ function Employees() {
 
   const saveEmployee = async (event) => {
     event.preventDefault();
-    const hasValue = [
-      form.fullName, form.phone, form.email, form.image, form.nicNumber,
-      form.tazkiraFile, form.startDate, form.endDate, form.contractFile,
-      form.departments.join(" "), form.roles.join(" "), form.salaryType,
-      form.fixedSalary, form.salaryPercentage, form.status, form.notes,
-    ].some((value) => String(value || "").trim());
+    const requiredText = tx("This field is required.", "این فیلد ضروری است", "دا فیلډ اړین دی");
+    const errors = validateRequiredFields(
+      form,
+      [
+        "fullName",
+        "phone",
+        "startDate",
+        "endDate",
+        "departments",
+        "roles",
+        "status",
+        form.salaryType === "fixed"
+          ? { field: "fixedSalary", invalid: (value) => Number(value || 0) <= 0 }
+          : { field: "salaryPercentage", invalid: (value) => Number(value || 0) <= 0 || Number(value || 0) > 100 },
+      ],
+      requiredText
+    );
 
-    if (!hasValue) {
-      notify(tx("Please complete at least one field.", "لطفاً حداقل یک فیلد را خانه‌پری کنید.", "مهرباني وکړئ لږ تر لږه یو فیلډ ډک کړئ."), "error");
-      return;
-    }
-
-    if (form.salaryType === "fixed") {
-      const salary = Number(form.fixedSalary);
-
-      if (!form.fixedSalary || !Number.isFinite(salary) || salary <= 0) {
-        notify(tx("Please enter a valid fixed salary.", "لطفاً معاش ثابت معتبر وارد کنید.", "مهرباني وکړئ معتبر ثابت معاش ولیکئ."), "error");
-        return;
-      }
-    }
-
-    if (form.salaryType === "percentage") {
-      const percentage = Number(form.salaryPercentage);
-
-      if (
-        !form.salaryPercentage ||
-        !Number.isFinite(percentage) ||
-        percentage <= 0 ||
-        percentage > 100
-      ) {
-        notify(tx("Salary percentage must be between 1 and 100.", "فیصدی معاش باید بین ۱ تا ۱۰۰ باشد.", "د معاش سلنه باید د ۱ او ۱۰۰ ترمنځ وي."), "error");
-        return;
-      }
-    }
+    setFormErrors(errors);
+    if (hasFormErrors(errors)) return;
 
     const nextEmployees = editId
       ? employees.map((employee) => employee.id === editId
@@ -272,6 +267,7 @@ function Employees() {
     const saved = await saveEmployees(nextEmployees);
     if (!saved) return;
     setForm(emptyEmployee);
+    setFormErrors({});
     setShowForm(false);
     setEditId(null);
     notify(editId ? tx("Employee updated successfully.", "معلومات کارمند با موفقیت ویرایش شد.", "د کارکوونکي معلومات په بریالیتوب سره سم شول.") : tx("Employee registered successfully.", "کارمند با موفقیت ثبت شد.", "کارکوونکی په بریالیتوب سره ثبت شو."), "success");
@@ -289,10 +285,12 @@ function Employees() {
 
   const openCreate = () => {
     setForm(emptyEmployee);
+    setFormErrors({});
     setEditId(null);
     setDepartmentOpen(false);
     setRoleOpen(false);
     setShowForm(true);
+    setFormErrors({});
   };
 
   const openEdit = (employee) => {
@@ -308,17 +306,20 @@ function Employees() {
     setDepartmentOpen(false);
     setRoleOpen(false);
     setShowForm(true);
+    setFormErrors({});
   };
 
   const closeForm = () => {
     setShowForm(false);
     setEditId(null);
     setForm(emptyEmployee);
+    setFormErrors({});
     setDepartmentOpen(false);
     setRoleOpen(false);
   };
 
   const toggleDepartment = (department) => {
+    setFormErrors((current) => clearFieldError(current, "departments"));
     setForm((current) => ({
       ...current,
       departments: current.departments.includes(department)
@@ -341,10 +342,12 @@ function Employees() {
         ? current.departments
         : [...current.departments, department],
     }));
+    setFormErrors((current) => clearFieldError(current, "departments"));
     setNewDepartment("");
   };
 
   const toggleRole = (role) => {
+    setFormErrors((current) => clearFieldError(current, "roles"));
     setForm((current) => ({
       ...current,
       roles: current.roles.includes(role)
@@ -360,6 +363,7 @@ function Employees() {
     setRoles(nextRoles);
     localStorage.setItem("isp-employee-roles", JSON.stringify(nextRoles));
     setForm((current) => ({ ...current, roles: current.roles.includes(role) ? current.roles : [...current.roles, role] }));
+    setFormErrors((current) => clearFieldError(current, "roles"));
     setNewRole("");
   };
 
@@ -499,16 +503,16 @@ function Employees() {
             </div>
             <form onSubmit={saveEmployee}>
               <div className="employee-form-grid">
-                <label><span>{tx("Full Name", "نام کامل", "بشپړ نوم")}</span><input name="fullName" value={form.fullName} onChange={updateField} placeholder={tx("Enter full name", "نام کامل را وارد کنید", "بشپړ نوم ولیکئ")} /></label>
-                <label><span>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</span><input name="phone" value={form.phone} onChange={updateField} inputMode="numeric" onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, ""); }} placeholder={tx("Enter phone number", "شماره تماس را وارد کنید", "د تلیفون شمېره ولیکئ")} /></label>
+                <label className={formErrors.fullName ? "has-error" : ""}><span>{tx("Full Name", "نام کامل", "بشپړ نوم")}</span><input name="fullName" value={form.fullName} onChange={updateField} placeholder={tx("Enter full name", "نام کامل را وارد کنید", "بشپړ نوم ولیکئ")} />{formErrors.fullName && <span className="form-error-text">{formErrors.fullName}</span>}</label>
+                <label className={formErrors.phone ? "has-error" : ""}><span>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</span><input name="phone" value={form.phone} onChange={updateField} inputMode="numeric" onInput={(event) => { event.currentTarget.value = event.currentTarget.value.replace(/\D/g, ""); }} placeholder={tx("Enter phone number", "شماره تماس را وارد کنید", "د تلیفون شمېره ولیکئ")} />{formErrors.phone && <span className="form-error-text">{formErrors.phone}</span>}</label>
                 <label><span>{tx("Email", "ایمیل", "برېښنالیک")}</span><input type="email" name="email" value={form.email} onChange={updateField} placeholder={tx("Enter email", "ایمیل را وارد کنید", "برېښنالیک ولیکئ")} /></label>
                 <label><span>{tx("NIC Number", "شماره تذکره", "د تذکرې شمېره")}</span><input name="nicNumber" value={form.nicNumber} onChange={updateField} placeholder={tx("Enter NIC number", "شماره تذکره را وارد کنید", "د تذکرې شمېره ولیکئ")} /></label>
                 <div className="employee-upload-field"><span>{tx("Profile Image", "تصویر پروفایل", "د پروفایل انځور")}</span><input id="employee-image-upload" className="employee-file-input" type="file" accept="image/*" onChange={(event) => handleFile(event, "image")} /><label htmlFor="employee-image-upload" className={`employee-upload-card ${form.image ? "has-file" : ""}`}>{form.image ? <img src={form.image} alt={tx("Employee preview", "پیش‌نمایش کارمند", "د کارکوونکي مخکتنه")} /> : <ImagePlus size={24} />}<span><strong>{form.image ? tx("Image selected", "تصویر انتخاب شد", "انځور وټاکل شو") : tx("Upload profile image", "بارگذاری تصویر پروفایل", "د پروفایل انځور پورته کړئ")}</strong><small>PNG, JPG or WEBP</small></span></label></div>
                 <div className="employee-upload-field"><span>{tx("Tazkira File / Image", "فایل یا تصویر تذکره", "د تذکرې فایل یا انځور")}</span><input id="employee-tazkira-upload" className="employee-file-input" type="file" accept="image/*,.pdf" onChange={(event) => handleFile(event, "tazkiraFile")} /><label htmlFor="employee-tazkira-upload" className={`employee-upload-card ${form.tazkiraFile ? "has-file" : ""}`}><FileUp size={24} /><span><strong>{form.tazkiraFileName || tx("Upload Tazkira document", "بارگذاری سند تذکره", "د تذکرې سند پورته کړئ")}</strong><small>Image or PDF file</small></span></label></div>
-                <label><span>{tx("Contract Start Date", "تاریخ شروع قرارداد", "د قرارداد پیل")}</span><input type="date" name="startDate" value={form.startDate} onChange={updateField} /></label>
-                <label><span>{tx("Contract End Date", "تاریخ ختم قرارداد", "د قرارداد پای")}</span><input type="date" name="endDate" value={form.endDate} onChange={updateField} min={form.startDate} /></label>
+                <label className={formErrors.startDate ? "has-error" : ""}><span>{tx("Contract Start Date", "تاریخ شروع قرارداد", "د قرارداد پیل")}</span><input type="date" name="startDate" value={form.startDate} onChange={updateField} />{formErrors.startDate && <span className="form-error-text">{formErrors.startDate}</span>}</label>
+                <label className={formErrors.endDate ? "has-error" : ""}><span>{tx("Contract End Date", "تاریخ ختم قرارداد", "د قرارداد پای")}</span><input type="date" name="endDate" value={form.endDate} onChange={updateField} min={form.startDate} />{formErrors.endDate && <span className="form-error-text">{formErrors.endDate}</span>}</label>
                 <div className="employee-upload-field employee-contract-upload"><span>{tx("Contract File / Image", "فایل یا تصویر قرارداد", "د قرارداد فایل یا انځور")}</span><input id="employee-contract-upload" className="employee-file-input" type="file" accept="image/*,.pdf" onChange={(event) => handleFile(event, "contractFile")} /><label htmlFor="employee-contract-upload" className={`employee-upload-card ${form.contractFile ? "has-file" : ""}`}><FileBadge size={24} /><span><strong>{form.contractFileName || tx("Upload contract document", "بارگذاری سند قرارداد", "د قرارداد سند پورته کړئ")}</strong><small>Contract image or PDF</small></span></label></div>
-                <div className="employee-department-field" ref={departmentFieldRef}>
+                <div className={`employee-department-field ${formErrors.departments ? "has-error" : ""}`} ref={departmentFieldRef}>
                   <span>{tx("Department", "دیپارتمنت", "څانګه")}</span>
                   <button
                     type="button"
@@ -523,12 +527,13 @@ function Employees() {
                     <ChevronDown size={15} />
                   </button>
                   {form.departments.length > 0 && <div className="employee-department-chips">{form.departments.map((department) => <button type="button" key={department} onClick={() => toggleDepartment(department)}>{translateValue(department)}<X size={11} /></button>)}</div>}
+                  {formErrors.departments && <span className="form-error-text">{formErrors.departments}</span>}
                   {departmentOpen && <div className="employee-department-menu">
                     <div className="employee-department-options">{departments.map((department) => <button type="button" key={department} className={form.departments.includes(department) ? "active" : ""} onClick={() => toggleDepartment(department)}><span>{translateValue(department)}</span>{form.departments.includes(department) && <Check size={14} />}</button>)}</div>
                     <div className="employee-department-add"><input value={newDepartment} onChange={(event) => setNewDepartment(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addDepartment(); } }} placeholder={tx("New department...", "دیپارتمنت جدید...", "نوې څانګه...")} /><button type="button" onClick={addDepartment}><Plus size={14} /></button></div>
                   </div>}
                 </div>
-                <div className="employee-department-field employee-role-field" ref={roleFieldRef}>
+                <div className={`employee-department-field employee-role-field ${formErrors.roles ? "has-error" : ""}`} ref={roleFieldRef}>
                   <span>{tx("Role", "وظیفه", "دنده")}</span>
                   <button
                     type="button"
@@ -543,6 +548,7 @@ function Employees() {
                     <ChevronDown size={15} />
                   </button>
                   {form.roles.length > 0 && <div className="employee-department-chips employee-role-chips">{form.roles.map((role) => <button type="button" key={role} onClick={() => toggleRole(role)}>{translateValue(role)}<X size={11} /></button>)}</div>}
+                  {formErrors.roles && <span className="form-error-text">{formErrors.roles}</span>}
                   {roleOpen && <div className="employee-department-menu"><div className="employee-department-options">{roles.map((role) => <button type="button" key={role} className={form.roles.includes(role) ? "active" : ""} onClick={() => toggleRole(role)}><span>{translateValue(role)}</span>{form.roles.includes(role) && <Check size={14} />}</button>)}</div><div className="employee-department-add"><input value={newRole} onChange={(event) => setNewRole(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addRole(); } }} placeholder={tx("New role...", "وظیفه جدید...", "نوې دنده...")} /><button type="button" onClick={addRole}><Plus size={14} /></button></div></div>}
                 </div>
                 <label className="employee-salary-field">
@@ -559,7 +565,7 @@ function Employees() {
                 </label>
 
                 {form.salaryType === "fixed" ? (
-                  <label>
+                  <label className={formErrors.fixedSalary ? "has-error" : ""}>
                     <span>{tx("Fixed Salary Amount", "مقدار معاش ثابت", "د ثابت معاش اندازه")}</span>
                     <input
                       type="number"
@@ -570,9 +576,10 @@ function Employees() {
                       onChange={updateField}
                       placeholder={tx("Enter salary amount", "مقدار معاش را وارد کنید", "د معاش اندازه ولیکئ")}
                     />
+                    {formErrors.fixedSalary && <span className="form-error-text">{formErrors.fixedSalary}</span>}
                   </label>
                 ) : (
-                  <label>
+                  <label className={formErrors.salaryPercentage ? "has-error" : ""}>
                     <span>{tx("Salary Percentage", "فیصدی معاش", "د معاش سلنه")}</span>
                     <input
                       type="number"
@@ -584,10 +591,11 @@ function Employees() {
                       onChange={updateField}
                       placeholder={tx("Enter percentage", "فیصدی را وارد کنید", "سلنه ولیکئ")}
                     />
+                    {formErrors.salaryPercentage && <span className="form-error-text">{formErrors.salaryPercentage}</span>}
                   </label>
                 )}
 
-                <label><span>{tx("Status", "وضعیت", "حالت")}</span><select name="status" value={form.status} onChange={updateField}><option value="">{tx("Select status", "وضعیت را انتخاب کنید", "حالت وټاکئ")}</option><option value="Active">{tx("Active", "فعال", "فعال")}</option><option value="On Leave">{tx("On Leave", "در رخصتی", "په رخصتۍ")}</option><option value="Inactive">{tx("Inactive", "غیرفعال", "غیرفعال")}</option></select></label>
+                <label className={formErrors.status ? "has-error" : ""}><span>{tx("Status", "وضعیت", "حالت")}</span><select name="status" value={form.status} onChange={updateField}><option value="">{tx("Select status", "وضعیت را انتخاب کنید", "حالت وټاکئ")}</option><option value="Active">{tx("Active", "فعال", "فعال")}</option><option value="On Leave">{tx("On Leave", "در رخصتی", "په رخصتۍ")}</option><option value="Inactive">{tx("Inactive", "غیرفعال", "غیرفعال")}</option></select>{formErrors.status && <span className="form-error-text">{formErrors.status}</span>}</label>
                 <label className="employee-form-full"><span>{tx("Notes", "یادداشت", "یادښت")}</span><textarea name="notes" value={form.notes} onChange={updateField} rows="4" placeholder={tx("Write notes...", "یادداشت بنویسید...", "یادښت ولیکئ...")} /></label>
               </div>
               <div className="employee-modal-actions">

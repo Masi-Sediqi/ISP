@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import "./GlobalTableEnhancer.css";
+import { shouldStartSubmitBusy } from "../utils/submitBusyLogic";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
@@ -151,6 +152,19 @@ function enhanceAllTables() {
 
 const busyButtons = new Map();
 
+function formHasValidationErrors(form) {
+  if (!form) return false;
+  if (typeof form.checkValidity === "function" && !form.checkValidity()) return true;
+  return Boolean(form.querySelector?.(".form-error-text, .has-error, [aria-invalid=\"true\"]"));
+}
+
+function clearInvalidFormBusyStates() {
+  Array.from(busyButtons.keys()).forEach((button) => {
+    const form = button?.form || button?.closest?.("form");
+    if (formHasValidationErrors(form)) clearSubmitBusy(button);
+  });
+}
+
 function clearSubmitBusy(button) {
   const state = busyButtons.get(button);
   if (!state) return;
@@ -204,7 +218,10 @@ function GlobalTableEnhancer() {
     const run = () => window.requestAnimationFrame(enhanceAllTables);
     run();
 
-    const observer = new MutationObserver(() => run());
+    const observer = new MutationObserver(() => {
+      run();
+      clearInvalidFormBusyStates();
+    });
     observer.observe(document.body, {
       childList: true,
       subtree: true,
@@ -218,12 +235,25 @@ function GlobalTableEnhancer() {
     const handleSubmit = (event) => {
       const form = event.target;
       const submitter = event.submitter || form?.querySelector?.('button[type="submit"], input[type="submit"]');
-      window.setTimeout(() => {
-        // Validation messages are emitted synchronously; do not show a loader
-        // when the save operation never actually started.
-        if (Date.now() - lastNotificationAt < 150 || !form?.isConnected) return;
+
+      // Custom React validation errors are rendered after the submit handler.
+      // Wait until the next paint so those errors exist in the DOM before deciding
+      // whether the save button should enter its busy state.
+      window.requestAnimationFrame(() => {
+        const hasValidationErrors = formHasValidationErrors(form);
+        const shouldStart = shouldStartSubmitBusy({
+          hasValidationErrors,
+          formConnected: Boolean(form?.isConnected),
+          notificationAgeMs: Date.now() - lastNotificationAt,
+        });
+
+        if (!shouldStart) {
+          clearSubmitBusy(submitter);
+          return;
+        }
+
         startSubmitBusy(submitter);
-      }, 0);
+      });
     };
 
     document.addEventListener("pointerdown", closeDropdownsOutside, true);

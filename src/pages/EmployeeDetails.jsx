@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   ClipboardList,
+  CalendarClock,
   Eye,
   EyeOff,
   Gift,
@@ -24,7 +25,13 @@ import {
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import { createRecordId } from "../utils/ids";
+import { todayDateValue } from "../utils/afghanDate";
+import { availableCashWalletBalanceForCurrency } from "../utils/cashWallet";
+import { removeLinkedEmployeePaymentRecords } from "../utils/employeePaymentCleanup";
+import { calculatePayrollExpectedAmount, getPayrollPeriod, roundPayrollAmount } from "../utils/payroll";
+import { calculateEmployeeLedgerSummary, isCreditLedgerEntry } from "../utils/employeeLedgerLogic";
 import { notify } from "../utils/notify";
+import { formatCurrencyAmount, formatCurrencyTotals } from "../utils/currencyDisplay";
 import "./EmployeeDetails.css";
 
 const accountDefaults = {
@@ -35,9 +42,22 @@ const accountDefaults = {
 };
 
 const adjustmentDefaults = {
-  type: "credit",
+  type: "paid_to_employee",
+  currency: "AFN",
   amount: "",
   reason: "",
+  subtractFromCashWallet: false,
+};
+
+const createPayrollDefaults = () => {
+  const period = getPayrollPeriod("daily", todayDateValue());
+  return {
+    mode: "daily",
+    startDate: period.startDate,
+    endDate: period.endDate,
+    expectedAmount: 0,
+    description: "",
+  };
 };
 
 const slug = (value) =>
@@ -84,11 +104,26 @@ export default function EmployeeDetails({
   const [adjustments, setAdjustments] =
     useEmployeeAdjustments();
 
+  const [employeePayrolls, setEmployeePayrolls] =
+    useJsonCollection("employeePayrolls");
+
+  const [transactions, setTransactions] =
+    useJsonCollection("transactions");
+
+  const [cashWalletTransactions, setCashWalletTransactions] =
+    useJsonCollection("cashWalletTransactions");
+
   const [accountOpen, setAccountOpen] =
     useState(false);
 
   const [adjustmentOpen, setAdjustmentOpen] =
     useState(false);
+
+  const [payrollOpen, setPayrollOpen] =
+    useState(false);
+
+  const [payrollForm, setPayrollForm] =
+    useState(createPayrollDefaults);
   
   const [detailsOpen, setDetailsOpen] =
     useState(false);
@@ -184,7 +219,10 @@ export default function EmployeeDetails({
       debit: tx("Debit", "دیبت", "ډیبیټ"),
       bonus: tx("Bonus", "امتیاز", "امتیاز"),
       penalty: tx("Penalty", "جریمه", "جریمه"),
-      salary: tx("Payment", "\u067e\u0631\u062f\u0627\u062e\u062a", "\u062a\u0627\u062f\u06cc\u0647"),
+      salary: tx("Salary", "معاش", "معاش"),
+      paid: tx("Paid to Employee", "پرداخت به کارمند", "کارکوونکي ته تادیه"),
+      paid_to_employee: tx("Paid to Employee", "پرداخت به کارمند", "کارکوونکي ته تادیه"),
+      receive_from_employee: tx("Receive from Employee", "دریافت از کارمند", "له کارکوونکي څخه ترلاسه کول"),
       Pending: tx("Pending", "در انتظار", "په تمه"),
       Approved: tx("Approved", "تأییدشده", "تأیید شوی"),
       Rejected: tx("Rejected", "ردشده", "رد شوی"),
@@ -208,6 +246,8 @@ export default function EmployeeDetails({
     (item) =>
       String(item.employeeId) === String(id)
   );
+
+  const monthlySalary = Number(employee?.fixedSalary || 0);
 
   const employeeCustomers = useMemo(() => {
     const employeeId = String(employee?.id || "");
@@ -328,65 +368,42 @@ export default function EmployeeDetails({
   ]);
 
 
-  const totalBonus = employeeAdjustments
-    .filter((item) => item.type === "bonus")
-    .reduce(
-      (sum, item) =>
-        sum + Number(item.amount || 0),
-      0
-    );
+  const ledgerSummary = calculateEmployeeLedgerSummary({
+    payrolls: employeePayrolls.filter(
+      (item) => String(item.employeeId) === String(id)
+    ),
+    adjustments: employeeAdjustments,
+  });
 
-  const totalPenalty = employeeAdjustments
-    .filter((item) => item.type === "penalty")
-    .reduce(
-      (sum, item) =>
-        sum + Number(item.amount || 0),
-      0
-    );
+  const {
+    totalBonus,
+    totalPenalty,
+    totalPayments,
+    totalCredit,
+    totalDebit,
+    balance: ledgerBalance,
+  } = ledgerSummary;
 
-  const totalCreditOnly = employeeAdjustments
-    .filter((item) => item.type === "credit")
-    .reduce(
-      (sum, item) =>
-        sum + Number(item.amount || 0),
-      0
-    );
-
-  const totalDebitOnly = employeeAdjustments
-    .filter((item) => item.type === "debit")
-    .reduce(
-      (sum, item) =>
-        sum + Number(item.amount || 0),
-      0
-    );
-
-  const totalSalary = employeeAdjustments
-    .filter((item) => item.type === "salary")
-    .reduce(
-      (sum, item) =>
-        sum + Number(item.amount || 0),
-      0
-    );
-
-  const totalPayments = totalSalary;
-
-  const totalCredit =
-    totalCreditOnly +
-    totalBonus +
-    totalSalary;
-
-  const totalDebit =
-    totalDebitOnly +
-    totalPenalty;
-
-  const ledgerBalance =
-    totalCredit - totalDebit;
-
+  const ledgerCurrencySummaries = ["AFN", "USD", "EUR"].reduce((result, currency) => {
+    const sameCurrency = (item) => String(item?.currency || item?.unit || "AFN").toUpperCase() === currency;
+    result[currency] = calculateEmployeeLedgerSummary({
+      payrolls: employeePayrolls.filter((item) => String(item.employeeId) === String(id) && sameCurrency(item)),
+      adjustments: employeeAdjustments.filter(sameCurrency),
+    });
+    return result;
+  }, {});
+  const ledgerBalances = Object.fromEntries(["AFN", "USD", "EUR"].map((currency) => [currency, Number(ledgerCurrencySummaries[currency]?.balance || 0)]));
+  const ledgerBonusTotals = Object.fromEntries(["AFN", "USD", "EUR"].map((currency) => [currency, Number(ledgerCurrencySummaries[currency]?.totalBonus || 0)]));
+  const ledgerPenaltyTotals = Object.fromEntries(["AFN", "USD", "EUR"].map((currency) => [currency, Number(ledgerCurrencySummaries[currency]?.totalPenalty || 0)]));
+  const ledgerPaymentTotals = Object.fromEntries(["AFN", "USD", "EUR"].map((currency) => [currency, Number(ledgerCurrencySummaries[currency]?.totalPayments || 0)]));
+  const ledgerCreditTotals = Object.fromEntries(["AFN", "USD", "EUR"].map((currency) => [currency, Number(ledgerCurrencySummaries[currency]?.totalCredit || 0)]));
+  const ledgerDebitTotals = Object.fromEntries(["AFN", "USD", "EUR"].map((currency) => [currency, Number(ledgerCurrencySummaries[currency]?.totalDebit || 0)]));
   const netBalance = ledgerBalance;
 
   const anyModalOpen =
     accountOpen ||
     adjustmentOpen ||
+    payrollOpen ||
     detailsOpen ||
     Boolean(deleteAdjustmentTarget);
 
@@ -459,6 +476,10 @@ export default function EmployeeDetails({
       if (adjustmentOpen) {
         closeAdjustment();
       }
+
+      if (payrollOpen) {
+        closePayroll();
+      }
     };
 
     document.addEventListener(
@@ -471,7 +492,7 @@ export default function EmployeeDetails({
         "keydown",
         closeWithEscape
       );
-    }, [accountOpen, adjustmentOpen, detailsOpen]);
+    }, [accountOpen, adjustmentOpen, payrollOpen, detailsOpen]);
 
   const openAccount = () => {
     const suggestedEmail =
@@ -509,9 +530,13 @@ export default function EmployeeDetails({
     setAdjustmentForm(
       ledgerEntry
         ? {
-            type: ledgerEntry.type || "credit",
+            type: ledgerEntry.type === "paid"
+              ? "paid_to_employee"
+              : ledgerEntry.type || "paid_to_employee",
+            currency: ledgerEntry.currency || "AFN",
             amount: ledgerEntry.amount || "",
             reason: ledgerEntry.reason || "",
+            subtractFromCashWallet: Boolean(ledgerEntry.subtractFromCashWallet),
           }
         : adjustmentDefaults
     );
@@ -522,6 +547,230 @@ export default function EmployeeDetails({
     setAdjustmentOpen(false);
     setAdjustmentForm(adjustmentDefaults);
     setEditingAdjustmentId(null);
+  };
+
+  const openPayroll = () => {
+    const period = getPayrollPeriod("daily", todayDateValue());
+    const expectedAmount = roundPayrollAmount(
+      calculatePayrollExpectedAmount(
+        monthlySalary,
+        "daily",
+        period.startDate,
+        period.endDate
+      )
+    );
+
+    setPayrollForm({
+      mode: "daily",
+      startDate: period.startDate,
+      endDate: period.endDate,
+      expectedAmount,
+      description: "",
+    });
+    setPayrollOpen(true);
+  };
+
+  const closePayroll = () => {
+    setPayrollOpen(false);
+    setPayrollForm(createPayrollDefaults());
+  };
+
+  const updatePayrollField = (event) => {
+    const { name, value, checked, type } = event.target;
+
+    setPayrollForm((current) => {
+      if (name === "mode") {
+        const nextMode = value;
+        const period =
+          nextMode === "custom"
+            ? {
+                startDate: current.startDate || todayDateValue(),
+                endDate: current.endDate || current.startDate || todayDateValue(),
+              }
+            : getPayrollPeriod(
+                nextMode,
+                current.startDate || todayDateValue()
+              );
+        const expectedAmount = roundPayrollAmount(
+          calculatePayrollExpectedAmount(
+            monthlySalary,
+            nextMode,
+            period.startDate,
+            period.endDate
+          )
+        );
+
+        return {
+          ...current,
+          mode: nextMode,
+          ...period,
+          expectedAmount,
+        };
+      }
+
+      if (name === "startDate" || name === "endDate") {
+        if (name === "startDate" && current.mode !== "custom") {
+          const period = getPayrollPeriod(current.mode, value || todayDateValue());
+          const expectedAmount = roundPayrollAmount(
+            calculatePayrollExpectedAmount(
+              monthlySalary,
+              current.mode,
+              period.startDate,
+              period.endDate
+            )
+          );
+          return {
+            ...current,
+            ...period,
+            expectedAmount,
+          };
+        }
+
+        const next = { ...current, [name]: value };
+        if (current.mode === "custom") {
+          const expectedAmount = roundPayrollAmount(
+            calculatePayrollExpectedAmount(
+              monthlySalary,
+              current.mode,
+              next.startDate,
+              next.endDate
+            )
+          );
+          next.expectedAmount = expectedAmount;
+        }
+        return next;
+      }
+
+      return {
+        ...current,
+        [name]: type === "checkbox" ? checked : value,
+      };
+    });
+  };
+
+  const savePayroll = async (event) => {
+    event.preventDefault();
+
+    const startDate = payrollForm.startDate;
+    const endDate = payrollForm.endDate;
+    if (!startDate || !endDate || endDate < startDate) {
+      notify(
+        tx(
+          "Select a valid payroll start and end date.",
+          "تاریخ شروع و ختم معتبر معاش را انتخاب کنید.",
+          "د معاش معتبر پیل او پای نېټه وټاکئ."
+        ),
+        "error"
+      );
+      return;
+    }
+
+    const expectedAmount = roundPayrollAmount(
+      calculatePayrollExpectedAmount(
+        monthlySalary,
+        payrollForm.mode,
+        startDate,
+        endDate
+      )
+    );
+
+    if (!(expectedAmount > 0)) {
+      notify(
+        tx(
+          "Calculated payroll must be greater than zero.",
+          "معاش محاسبه‌شده باید بیشتر از صفر باشد.",
+          "محاسبه شوی معاش باید له صفر څخه زیات وي."
+        ),
+        "error"
+      );
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const payrollId = createRecordId();
+    const salaryEntryId = createRecordId();
+    const description = payrollForm.description.trim();
+
+    const payrollRecord = {
+      id: payrollId,
+      employeeId: employee.id,
+      employeeAccountId: employeeAccount?.id || "",
+      employeeName: employee.fullName,
+      mode: payrollForm.mode,
+      startDate,
+      endDate,
+      monthlySalary,
+      expectedAmount,
+      paymentAmount: 0,
+      remainingAmount: expectedAmount,
+      description,
+      adjustmentId: salaryEntryId,
+      status: "Unpaid",
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const salaryRecord = {
+      id: salaryEntryId,
+      employeeId: employee.id,
+      employeeAccountId: employeeAccount?.id || "",
+      employeeName: employee.fullName,
+      employeeEmail: employee?.email || employeeAccount?.email || "",
+      employeeUsername: employeeAccount?.username || "",
+      type: "salary",
+      amount: expectedAmount,
+      reason: description || `Payroll ${payrollForm.mode}: ${startDate} - ${endDate}`,
+      source: "employee-payroll-accrual",
+      referenceId: payrollId,
+      payrollId,
+      payrollMode: payrollForm.mode,
+      payrollStartDate: startDate,
+      payrollEndDate: endDate,
+      expectedAmount,
+      employeeNotificationType: "ledger-salary",
+      employeeNotificationAt: now,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const previousPayrolls = [...employeePayrolls];
+    const previousAdjustments = [...adjustments];
+
+    const payrollSaved = await setEmployeePayrolls([
+      ...previousPayrolls,
+      payrollRecord,
+    ]);
+    if (!payrollSaved) return;
+
+    const salarySaved = await setAdjustments([
+      ...previousAdjustments,
+      salaryRecord,
+    ]);
+    if (!salarySaved) {
+      await setEmployeePayrolls(previousPayrolls);
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("isp-employee-ledger-updated", {
+        detail: {
+          entryId: salaryEntryId,
+          employeeId: employee.id,
+          employeeAccountId: employeeAccount?.id || "",
+          updatedAt: now,
+        },
+      })
+    );
+
+    notify(
+      tx(
+        "Payroll saved and Salary added to the employee ledger.",
+        "معاش ذخیره شد و به عنوان Salary در حساب کارمند ثبت شد.",
+        "معاش خوندي شو او د Salary په توګه د کارکوونکي حساب ته اضافه شو."
+      ),
+      "success"
+    );
+    closePayroll();
   };
 
   const requestDeleteAdjustment = (entry) => {
@@ -542,11 +791,11 @@ export default function EmployeeDetails({
   };
 
   const updateAdjustmentField = (event) => {
-    const { name, value } = event.target;
+    const { name, value, checked, type } = event.target;
 
     setAdjustmentForm((current) => ({
       ...current,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -782,9 +1031,7 @@ const record = {
   const saveAdjustment = async (event) => {
     event.preventDefault();
 
-    const amount = Number(
-      adjustmentForm.amount
-    );
+    const amount = Number(adjustmentForm.amount);
 
     if (!(amount > 0)) {
       notify(
@@ -795,44 +1042,70 @@ const record = {
     }
 
     const now = new Date().toISOString();
-
     const previousRecord = editingAdjustmentId
-      ? adjustments.find(
-          (item) =>
-            String(item.id) ===
-            String(editingAdjustmentId)
-        )
+      ? adjustments.find((item) => String(item.id) === String(editingAdjustmentId))
       : null;
+
+    const nextType = adjustmentForm.type || "paid_to_employee";
+    const isPaidToEmployee = nextType === "paid_to_employee" || nextType === "paid";
+    const subtractFromCashWallet =
+      isPaidToEmployee && Boolean(adjustmentForm.subtractFromCashWallet);
+
+    const selectedCurrency = adjustmentForm.currency || "AFN";
+    const previousWalletTransaction = previousRecord?.walletTransactionId
+      ? cashWalletTransactions.find(
+          (item) => String(item.id) === String(previousRecord.walletTransactionId)
+        ) || null
+      : null;
+
+    const availableWalletBalance = availableCashWalletBalanceForCurrency(
+      cashWalletTransactions,
+      selectedCurrency,
+      previousWalletTransaction
+    );
+    if (subtractFromCashWallet && amount > availableWalletBalance) {
+      notify(
+        tx(
+          "Cash Wallet balance is not enough for this payment.",
+          "موجودی کیف پول نقدی برای این پرداخت کافی نیست.",
+          "د نغدي والټ موجودي د دې تادیې لپاره کافي نه ده."
+        ),
+        "error"
+      );
+      return;
+    }
+
+    const recordId = previousRecord?.id || createRecordId();
+    const transactionId = isPaidToEmployee
+      ? previousRecord?.transactionId || createRecordId()
+      : "";
+    const walletTransactionId = subtractFromCashWallet
+      ? previousRecord?.walletTransactionId || createRecordId()
+      : "";
 
     const record = {
       ...(previousRecord || {}),
-      id:
-        previousRecord?.id ||
-        createRecordId(),
+      id: recordId,
       employeeId: employee.id,
-      employeeAccountId:
-        employeeAccount?.id ||
-        previousRecord?.employeeAccountId ||
-        "",
+      employeeAccountId: employeeAccount?.id || previousRecord?.employeeAccountId || "",
       employeeName: employee.fullName,
-      employeeEmail:
-        employee?.email ||
-        employeeAccount?.email ||
-        previousRecord?.employeeEmail ||
-        "",
-      employeeUsername:
-        employeeAccount?.username ||
-        previousRecord?.employeeUsername ||
-        "",
+      employeeEmail: employee?.email || employeeAccount?.email || previousRecord?.employeeEmail || "",
+      employeeUsername: employeeAccount?.username || previousRecord?.employeeUsername || "",
       ...adjustmentForm,
+      type: nextType,
+      currency: selectedCurrency,
       amount,
-      createdAt:
-        previousRecord?.createdAt || now,
+      subtractFromCashWallet,
+      transactionId,
+      walletTransactionId,
+      source: isPaidToEmployee
+        ? "employee-paid"
+        : previousRecord?.source || "employee-adjustment",
+      createdAt: previousRecord?.createdAt || now,
       updatedAt: now,
       ...(!previousRecord
         ? {
-            employeeNotificationType:
-              `ledger-${adjustmentForm.type}`,
+            employeeNotificationType: `ledger-${nextType}`,
             employeeNotificationAt: now,
           }
         : {}),
@@ -840,20 +1113,86 @@ const record = {
 
     const nextAdjustments = previousRecord
       ? adjustments.map((item) =>
-          String(item.id) ===
-          String(previousRecord.id)
-            ? record
-            : item
+          String(item.id) === String(previousRecord.id) ? record : item
         )
-      : [
-          ...adjustments,
-          record,
-        ];
+      : [...adjustments, record];
 
-    const saved =
-      await setAdjustments(nextAdjustments);
+    const previousTransactions = [...transactions];
+    const previousWalletTransactions = [...cashWalletTransactions];
 
+    const nextTransactions = isPaidToEmployee
+      ? [
+          ...transactions.filter(
+            (item) => String(item.id) !== String(previousRecord?.transactionId || transactionId)
+          ),
+          {
+            id: transactionId,
+            type: "expense",
+            title: `Salary Paid - ${employee.fullName || "Employee"}`,
+            amount,
+            currency: selectedCurrency,
+            date: todayDateValue(),
+            category: "Salary",
+            description: adjustmentForm.reason || `Salary paid to ${employee.fullName || "employee"}`,
+            source: "employee-paid",
+            referenceId: recordId,
+            employeeId: employee.id,
+            employeeName: employee.fullName,
+            createdAt:
+              transactions.find((item) => String(item.id) === String(transactionId))?.createdAt || now,
+            updatedAt: now,
+          },
+        ]
+      : transactions.filter(
+          (item) => String(item.id) !== String(previousRecord?.transactionId || "")
+        );
+
+    let nextWalletTransactions = cashWalletTransactions.filter(
+      (item) => String(item.id) !== String(previousRecord?.walletTransactionId || "")
+    );
+
+    if (subtractFromCashWallet) {
+      nextWalletTransactions = [
+        ...nextWalletTransactions,
+        {
+          id: walletTransactionId,
+          type: "credit",
+          amount,
+          currency: selectedCurrency,
+          date: todayDateValue(),
+          description: adjustmentForm.reason || `Salary paid - ${employee.fullName || "Employee"}`,
+          source: "employee-paid",
+          referenceId: recordId,
+          employeeId: employee.id,
+          employeeName: employee.fullName,
+          createdAt:
+            cashWalletTransactions.find(
+              (item) => String(item.id) === String(walletTransactionId)
+            )?.createdAt || now,
+          updatedAt: now,
+        },
+      ];
+    }
+
+    const saved = await setAdjustments(nextAdjustments);
     if (!saved) return;
+
+    const transactionSaved = await setTransactions(nextTransactions);
+    if (!transactionSaved) {
+      await setAdjustments(adjustments);
+      return;
+    }
+
+    const walletChanged =
+      previousRecord?.walletTransactionId || subtractFromCashWallet;
+    if (walletChanged) {
+      const walletSaved = await setCashWalletTransactions(nextWalletTransactions);
+      if (!walletSaved) {
+        await setTransactions(previousTransactions);
+        await setAdjustments(adjustments);
+        return;
+      }
+    }
 
     window.dispatchEvent(
       new CustomEvent("isp-employee-ledger-updated", {
@@ -868,10 +1207,8 @@ const record = {
 
     notify(
       previousRecord
-        ? tx("Employee ledger entry updated.", "\u062b\u0628\u062a \u0645\u0627\u0644\u06cc \u06a9\u0627\u0631\u0645\u0646\u062f \u0648\u06cc\u0631\u0627\u06cc\u0634 \u0634\u062f.", "\u062f \u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a \u0645\u0627\u0644\u064a \u062b\u0628\u062a \u0633\u0645 \u0634\u0648.")
-        : adjustmentForm.type === "salary"
-          ? tx("Payment saved successfully.", "\u067e\u0631\u062f\u0627\u062e\u062a \u0628\u0627 \u0645\u0648\u0641\u0642\u06cc\u062a \u0630\u062e\u06cc\u0631\u0647 \u0634\u062f.", "\u062a\u0627\u062f\u064a\u0647 \u067e\u0647 \u0628\u0631\u064a\u0627\u0644\u064a\u062a\u0648\u0628 \u0633\u0631\u0647 \u062e\u0648\u0646\u062f\u064a \u0634\u0648\u0647.")
-          : tx("Employee ledger entry saved.", "ثبت مالی کارمند ذخیره شد.", "د کارکوونکي مالي ثبت خوندي شو."),
+        ? tx("Employee ledger record updated.", "ریکارد حساب کارمند ویرایش شد.", "د کارکوونکي د حساب ریکارډ سم شو.")
+        : tx("Employee ledger record saved successfully.", "ریکارد حساب کارمند با موفقیت ذخیره شد.", "د کارکوونکي د حساب ریکارډ په بریالیتوب سره خوندي شو."),
       "success"
     );
 
@@ -881,15 +1218,40 @@ const record = {
   const deleteAdjustment = async () => {
     if (!deleteAdjustmentTarget) return;
 
-    const saved = await setAdjustments(
-      adjustments.filter(
-        (item) =>
-          String(item.id) !==
-          String(deleteAdjustmentTarget.id)
-      )
-    );
+    const previousAdjustments = [...adjustments];
+    const previousTransactions = [...transactions];
+    const previousWalletTransactions = [...cashWalletTransactions];
 
+    const nextAdjustments = adjustments.filter(
+      (item) => String(item.id) !== String(deleteAdjustmentTarget.id)
+    );
+    const linkedCleanup = removeLinkedEmployeePaymentRecords({
+      ledgerEntry: deleteAdjustmentTarget,
+      transactions,
+      walletTransactions: cashWalletTransactions,
+    });
+
+    const saved = await setAdjustments(nextAdjustments);
     if (!saved) return;
+
+    if (deleteAdjustmentTarget.transactionId) {
+      const transactionSaved = await setTransactions(linkedCleanup.transactions);
+      if (!transactionSaved) {
+        await setAdjustments(previousAdjustments);
+        return;
+      }
+    }
+
+    if (deleteAdjustmentTarget.walletTransactionId) {
+      const walletSaved = await setCashWalletTransactions(linkedCleanup.walletTransactions);
+      if (!walletSaved) {
+        if (deleteAdjustmentTarget.transactionId) {
+          await setTransactions(previousTransactions);
+        }
+        await setAdjustments(previousAdjustments);
+        return;
+      }
+    }
 
     window.dispatchEvent(
       new CustomEvent("isp-employee-ledger-updated", {
@@ -1005,10 +1367,19 @@ const record = {
 
           <button
             type="button"
+            className="employee-payroll-button"
+            onClick={openPayroll}
+          >
+            <CalendarClock size={15} />
+            {tx("Payroll", "معاش", "معاش")}
+          </button>
+
+          <button
+            type="button"
             onClick={openAdjustment}
           >
             <Gift size={15} />
-            {tx("Add Ledger Entry", "افزودن ثبت مالی", "مالي ثبت زیاتول")}
+            {tx("Paid", "پرداخت", "تادیه")}
           </button>
 
           <button
@@ -1074,7 +1445,7 @@ const record = {
           <small>{tx("Net Balance", "بیلانس خالص", "خالص بیلانس")}</small>
 
           <strong>
-            {netBalance.toLocaleString("en-US")} AFN
+            {formatCurrencyTotals(ledgerBalances)}
           </strong>
 
           <em>
@@ -1262,21 +1633,21 @@ const record = {
             <div>
               <span>{tx("Total Bonuses", "\u0645\u062c\u0645\u0648\u0639 \u0627\u0645\u062a\u06cc\u0627\u0632\u0647\u0627", "\u062f \u0627\u0645\u062a\u06cc\u0627\u0632\u0648\u0646\u0648 \u0645\u062c\u0645\u0648\u0639\u0647")}</span>
               <strong>
-                {totalBonus.toLocaleString("en-US")} AFN
+                {formatCurrencyTotals(ledgerBonusTotals)}
               </strong>
             </div>
 
             <div>
               <span>{tx("Total Penalties", "\u0645\u062c\u0645\u0648\u0639 \u062c\u0631\u06cc\u0645\u0647\u200c\u0647\u0627", "\u062f \u062c\u0631\u06cc\u0645\u0648 \u0645\u062c\u0645\u0648\u0639\u0647")}</span>
               <strong className="debit">
-                {totalPenalty.toLocaleString("en-US")} AFN
+                {formatCurrencyTotals(ledgerPenaltyTotals)}
               </strong>
             </div>
 
             <div>
               <span>{tx("Total Payments", "\u0645\u062c\u0645\u0648\u0639 \u067e\u0631\u062f\u0627\u062e\u062a\u200c\u0647\u0627", "\u062f \u062a\u0627\u062f\u06cc\u0627\u062a\u0648 \u0645\u062c\u0645\u0648\u0639\u0647")}</span>
               <strong className="credit">
-                {totalPayments.toLocaleString("en-US")} AFN
+                {formatCurrencyTotals(ledgerPaymentTotals)}
               </strong>
             </div>
 
@@ -1289,7 +1660,7 @@ const record = {
                     : "credit"
                 }
               >
-                {ledgerBalance.toLocaleString("en-US")} AFN
+                {formatCurrencyTotals(ledgerBalances)}
               </strong>
             </div>
           </div>
@@ -1310,10 +1681,7 @@ const record = {
               <tbody>
                 {employeeAdjustments.map((entry) => {
                   const amount = Number(entry.amount || 0);
-                  const isCredit =
-                    entry.type === "credit" ||
-                    entry.type === "bonus" ||
-                    entry.type === "salary";
+                  const isCredit = isCreditLedgerEntry(entry);
 
                   return (
                     <tr
@@ -1349,13 +1717,13 @@ const record = {
 
                       <td className="employee-ledger-debit">
                         {!isCredit
-                          ? `${amount.toLocaleString("en-US")} AFN`
+                          ? formatCurrencyAmount(amount, entry.currency || entry.unit || "AFN")
                           : "-"}
                       </td>
 
                       <td className="employee-ledger-credit">
                         {isCredit
-                          ? `${amount.toLocaleString("en-US")} AFN`
+                          ? formatCurrencyAmount(amount, entry.currency || entry.unit || "AFN")
                           : "-"}
                       </td>
 
@@ -1756,6 +2124,112 @@ const record = {
         </div>
       )}
 
+      {payrollOpen && (
+        <div
+          className="employee-profile-modal"
+          role="presentation"
+          onMouseDown={closePayroll}
+        >
+          <form
+            className="employee-payroll-modal"
+            onSubmit={savePayroll}
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="employee-payroll-title"
+          >
+            <header>
+              <div>
+                <h2 id="employee-payroll-title">
+                  {tx("Payroll", "پرداخت معاش", "د معاش تادیه")}
+                </h2>
+                <p>
+                  {tx(
+                    `Create payroll for ${employee.fullName}.`,
+                    `پرداخت معاش برای ${employee.fullName} ثبت کنید.`,
+                    `${employee.fullName} لپاره د معاش تادیه ثبت کړئ.`
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="employee-profile-modal-close"
+                onClick={closePayroll}
+                aria-label={tx("Close payroll", "بستن معاش", "معاش تړل")}
+              >
+                <X size={19} />
+              </button>
+            </header>
+
+            <div className="employee-payroll-summary">
+              <div>
+                <span>{tx("Monthly Salary", "معاش ماهانه", "میاشتنی معاش")}</span>
+                <strong>{formatCurrencyAmount(monthlySalary, "AFN")}</strong>
+              </div>
+            </div>
+
+            <label>
+              <span>{tx("Payroll Type", "نوع معاش", "د معاش ډول")}</span>
+              <select name="mode" value={payrollForm.mode} onChange={updatePayrollField}>
+                <option value="daily">{tx("Daily", "روزانه", "ورځنی")}</option>
+                <option value="weekly">{tx("Weekly", "هفته‌وار", "اونیز")}</option>
+                <option value="monthly">{tx("Monthly", "ماهانه", "میاشتنی")}</option>
+                <option value="custom">{tx("Custom", "دلخواه", "ځانګړی")}</option>
+              </select>
+            </label>
+
+            <div className="employee-payroll-date-grid">
+              <label>
+                <span>{tx("Start Date", "تاریخ آغاز", "د پیل نېټه")}</span>
+                <input
+                  type="date"
+                  name="startDate"
+                  value={payrollForm.startDate}
+                  onChange={updatePayrollField}
+                />
+              </label>
+              <label>
+                <span>{tx("End Date", "تاریخ ختم", "د پای نېټه")}</span>
+                <input
+                  type="date"
+                  name="endDate"
+                  value={payrollForm.endDate}
+                  onChange={updatePayrollField}
+                  disabled={payrollForm.mode !== "custom"}
+                />
+              </label>
+            </div>
+
+            <div className="employee-payroll-amount-card">
+              <span>{tx("Calculated Payroll", "معاش محاسبه‌شده", "محاسبه شوی معاش")}</span>
+              <strong>{formatCurrencyAmount(payrollForm.expectedAmount || 0, "AFN")}</strong>
+              {monthlySalary <= 0 && (
+                <small>{tx("No fixed monthly salary is set. Set the employee monthly salary first.", "معاش ثابت ماهانه تعیین نشده؛ ابتدا معاش ماهانه کارمند را تعیین کنید.", "ثابت میاشتنی معاش نه دی ټاکل شوی؛ لومړی د کارکوونکي میاشتنی معاش وټاکئ.")}</small>
+              )}
+            </div>
+
+            <label>
+              <span>{tx("Description", "توضیحات", "تفصیل")}</span>
+              <textarea
+                rows="3"
+                name="description"
+                value={payrollForm.description}
+                onChange={updatePayrollField}
+              />
+            </label>
+
+            <footer>
+              <button type="button" onClick={closePayroll}>
+                {tx("Cancel", "لغو", "لغوه")}
+              </button>
+              <button type="submit" className="primary">
+                {tx("Save Payroll", "ذخیره معاش", "معاش خوندي کړئ")}
+              </button>
+            </footer>
+          </form>
+        </div>
+      )}
+
       {deleteAdjustmentTarget && (
         <div
           className="employee-profile-modal"
@@ -1863,15 +2337,17 @@ const record = {
               <div>
                 <h2 id="employee-adjustment-title">
                   {editingAdjustmentId
-                    ? tx("Edit Ledger Entry", "\u0648\u06cc\u0631\u0627\u06cc\u0634 \u062b\u0628\u062a \u0645\u0627\u0644\u06cc", "\u0645\u0627\u0644\u064a \u062b\u0628\u062a \u0633\u0645\u0648\u0644")
-                    : tx("Employee Ledger Entry", "ثبت مالی کارمند", "د کارکوونکي مالي ثبت")}
+                    ? adjustmentForm.type === "paid_to_employee" || adjustmentForm.type === "paid"
+                      ? tx("Edit Paid", "ویرایش پرداخت", "تادیه سمول")
+                      : tx("Edit Ledger Entry", "ویرایش ثبت مالی", "مالي ثبت سمول")
+                    : tx("Paid", "پرداخت", "تادیه")}
                 </h2>
 
                 <p>
                   {tx(
-                    "Add debit, credit, bonus, penalty, or payment for",
-                    "\u062f\u06cc\u0628\u062a\u060c \u06a9\u0631\u06cc\u062f\u062a\u060c \u0627\u0645\u062a\u06cc\u0627\u0632\u060c \u062c\u0631\u06cc\u0645\u0647 \u06cc\u0627 \u067e\u0631\u062f\u0627\u062e\u062a \u0631\u0627 \u0628\u0631\u0627\u06cc",
-                    "\u0689\u06cc\u0628\u06cc\u067c\u060c \u06a9\u0631\u06cc\u0689\u06cc\u067c\u060c \u0627\u0645\u062a\u06cc\u0627\u0632\u060c \u062c\u0631\u06cc\u0645\u0647 \u06cc\u0627 \u062a\u0627\u062f\u06cc\u0647 \u0632\u06cc\u0627\u062a\u0647 \u06a9\u0693\u0626 \u062f"
+                    "Record a payment for",
+                    "پرداخت کارمند را ثبت کنید برای",
+                    "د کارکوونکي تادیه ثبت کړئ د"
                   )}{" "}
                   {employee.fullName}.
                 </p>
@@ -1899,12 +2375,12 @@ const record = {
                   updateAdjustmentField
                 }
               >
-                <option value="credit">
-                  {tx("Credit", "کریدت", "کریډیټ")}
+                <option value="paid_to_employee">
+                  {tx("Paid to Employee", "پرداخت به کارمند", "کارکوونکي ته تادیه")}
                 </option>
 
-                <option value="debit">
-                  {tx("Debit", "دیبت", "ډیبیټ")}
+                <option value="receive_from_employee">
+                  {tx("Receive from Employee", "دریافت از کارمند", "له کارکوونکي څخه ترلاسه کول")}
                 </option>
 
                 <option value="bonus">
@@ -1914,15 +2390,29 @@ const record = {
                 <option value="penalty">
                   {tx("Penalty", "جریمه", "جریمه")}
                 </option>
-
-                <option value="salary">
-                  {tx("Payment", "\u067e\u0631\u062f\u0627\u062e\u062a", "\u062a\u0627\u062f\u06cc\u0647")}
-                </option>
               </select>
             </label>
 
             <label>
-              <span>{tx("Amount (AFN)", "مبلغ (AFN)", "اندازه (AFN)")}</span>
+              <span>{tx("Currency", "واحد پول", "د پیسو واحد")}</span>
+
+              <select
+                name="currency"
+                value={adjustmentForm.currency || "AFN"}
+                onChange={updateAdjustmentField}
+              >
+                <option value="AFN">AFN - افغانی</option>
+                <option value="USD">USD - Dollar</option>
+                <option value="EUR">EUR - Euro</option>
+              </select>
+            </label>
+
+            <label>
+              <span>{tx(
+                `Amount (${adjustmentForm.currency || "AFN"})`,
+                `مبلغ (${adjustmentForm.currency || "AFN"})`,
+                `اندازه (${adjustmentForm.currency || "AFN"})`
+              )}</span>
 
               <input
                 type="number"
@@ -1936,6 +2426,21 @@ const record = {
                 }
               />
             </label>
+
+            {(adjustmentForm.type === "paid_to_employee" || adjustmentForm.type === "paid") && (
+              <label className="employee-payroll-wallet-option">
+                <input
+                  type="checkbox"
+                  name="subtractFromCashWallet"
+                  checked={Boolean(adjustmentForm.subtractFromCashWallet)}
+                  onChange={updateAdjustmentField}
+                />
+                <span>
+                  <strong>{tx("Subtract From Cash Wallet?", "از کیف پول نقدی کسر شود؟", "له نغدي والټ څخه کم شي؟")}</strong>
+                  <small>{tx("When enabled, this payment is also deducted from the Cash Wallet.", "در صورت فعال بودن، این پرداخت از کیف پول نقدی نیز کسر می‌شود.", "که فعال وي، دا تادیه د نغدي والټ څخه هم کمیږي.")}</small>
+                </span>
+              </label>
+            )}
 
             <label>
               <span>{tx("Reason", "دلیل", "لامل")}</span>

@@ -1,29 +1,29 @@
 import {
   fetchRemoteCollection,
   pushRemoteChanges,
-  supabaseConfigured,
-} from "./supabaseRest";
+  serverConfigured,
+} from "./serverRest";
 
 const MESSAGE_COLLECTION = "chatMessages";
 const PRESENCE_COLLECTION = "chatPresence";
 
 const identity = (record) => String(record?.id || record?.accountId || "");
 
-function requireSupabase() {
-  if (!supabaseConfigured) {
+function requireServer() {
+  if (!serverConfigured) {
     throw new Error(
-      "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY."
+      "VPS server is not configured. Check the /api route and backend service."
     );
   }
 }
 
 export async function fetchChatMessages() {
-  requireSupabase();
+  requireServer();
   return fetchRemoteCollection(MESSAGE_COLLECTION);
 }
 
 export async function saveChatMessage(message, actorId) {
-  requireSupabase();
+  requireServer();
   await pushRemoteChanges({
     collection: MESSAGE_COLLECTION,
     upserts: [message],
@@ -36,7 +36,7 @@ export async function saveChatMessage(message, actorId) {
 }
 
 export async function saveChatMessages(messages, actorId) {
-  requireSupabase();
+  requireServer();
   const valid = (Array.isArray(messages) ? messages : []).filter((item) =>
     identity(item)
   );
@@ -53,12 +53,12 @@ export async function saveChatMessages(messages, actorId) {
 }
 
 export async function fetchChatPresence() {
-  requireSupabase();
+  requireServer();
   return fetchRemoteCollection(PRESENCE_COLLECTION);
 }
 
 export async function saveChatPresence(presence, actorId) {
-  requireSupabase();
+  requireServer();
   await pushRemoteChanges({
     collection: PRESENCE_COLLECTION,
     upserts: [presence],

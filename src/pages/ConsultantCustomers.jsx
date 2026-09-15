@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, Clapperboard, Cpu, Eye, Mail, Pencil, Phone, Plane, Plus, Search, Trash2, Users, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { AlertTriangle, BriefcaseBusiness, Check, ChevronDown, Clapperboard, Cpu, Eye, Mail, Pencil, Phone, Plane, Plus, Search, Trash2, X } from "lucide-react";
 import { notify } from "../utils/notify";
 import { useJsonCollection } from "../hooks/useJsonCollection";
+import { findDuplicateCustomer } from "../utils/customerIdentity";
+import { clearFieldError, hasFormErrors, validateRequiredFields } from "../utils/formValidation";
+import { stageLabel } from "../utils/customerStage";
 import "./ConsultantCustomers.css";
 
 const provinces = ["Badakhshan","Badghis","Baghlan","Balkh","Bamyan","Daykundi","Farah","Faryab","Ghazni","Ghor","Helmand","Herat","Jowzjan","Kabul","Kandahar","Kapisa","Khost","Kunar","Kunduz","Laghman","Logar","Nangarhar","Nimroz","Nuristan","Paktia","Paktika","Panjshir","Parwan","Samangan","Sar-e Pol","Takhar","Uruzgan","Wardak","Zabul"];
@@ -47,7 +51,7 @@ const countries = [
   "Congo, Democratic Republic of the",
   "Congo, Republic of the",
   "Costa Rica",
-  "Côte d\'Ivoire",
+  "Côte d'Ivoire",
   "Croatia",
   "Cuba",
   "Cyprus",
@@ -602,6 +606,7 @@ const emptyForm = {
   unit: "AFN",
   scholarshipType: "",
   country: "",
+  customerStage: "None",
   note: "",
 };
 
@@ -651,6 +656,7 @@ const departmentTypes = [
 
 
 function ConsultantCustomers({ mode = "consultant", currentUser }) {
+  const navigate = useNavigate();
   const [activeMode, setActiveMode] = useState(mode);
   const isTravel = activeMode === "travel";
   const isTechnology = activeMode === "technology";
@@ -698,12 +704,6 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
         ? ps
         : en;
 
-  useEffect(() => {
-    setActiveMode(mode);
-    setSearch("");
-    resetForm();
-  }, [mode]);
-
   const typeLabel = isTravel
     ? tx("Travel Customer", "مشتری سفر", "د سفر پېرودونکی")
     : isTechnology
@@ -737,6 +737,9 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
   const [localCustomers] =
     useJsonCollection("employeeCustomers");
+
+  const [customerVisits, setCustomerVisits] =
+    useJsonCollection("customerVisits");
 
   const [
     legacyCustomers,
@@ -791,6 +794,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
   );
 
   const [form, setForm] = useState(emptyForm);
+  const [formErrors, setFormErrors] = useState({});
   const [showForm, setShowForm] =
     useState(false);
   const [search, setSearch] = useState("");
@@ -839,6 +843,20 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     }
   }, [countryOpen]);
 
+  const duplicateCustomerMatch = useMemo(() => {
+    if (editId) return null;
+
+    const name = String(form.passportFullName || "").trim();
+    const phone = String(form.phone || "").trim();
+    if (!name || !phone) return null;
+
+    return findDuplicateCustomer(serverCustomers, {
+      fullName: name,
+      passportFullName: name,
+      phone,
+    });
+  }, [editId, form.passportFullName, form.phone, serverCustomers]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -874,6 +892,12 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
   const update = (event) => {
     const { name, value } = event.target;
+    setFormErrors((current) => {
+      const next = clearFieldError(current, name);
+      return name === "language" && value !== "Other"
+        ? clearFieldError(next, "otherLanguage")
+        : next;
+    });
 
     setForm((current) => ({
       ...current,
@@ -886,37 +910,36 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
   const resetForm = () => {
     setForm(emptyForm);
+    setFormErrors({});
     setEditId(null);
     setCountryOpen(false);
     setCountrySearch("");
     setShowForm(false);
   };
 
+  useEffect(() => {
+    setActiveMode(mode);
+    setSearch("");
+    resetForm();
+  }, [mode]);
+
   const save = async (event) => {
     event.preventDefault();
+    const errors = validateRequiredFields(
+      form,
+      [
+        "passportFullName",
+        "phone",
+        "source",
+        ...(isMedia ? ["brandName"] : ["city", "country", "price"]),
+        ...(!isTravel && !isTechnology && !isMedia ? ["scholarshipType"] : []),
+        { field: "otherLanguage", required: form.language === "Other" },
+      ],
+      "field required"
+    );
 
-    if (!form.passportFullName.trim()) {
-      notify(
-        isMedia
-          ? tx("Person name is required.", "نام شخص ضروری است.", "د شخص نوم اړین دی.")
-          : tx("Full name is required.", "نام کامل ضروری است.", "بشپړ نوم اړین دی."),
-        "error"
-      );
-      return;
-    }
-
-    if (isMedia && !String(form.brandName || "").trim()) {
-      notify(tx("Brand name is required.", "نام برند ضروری است.", "د برانډ نوم اړین دی."), "error");
-      return;
-    }
-
-    if (
-      form.language === "Other" &&
-      !String(form.otherLanguage || "").trim()
-    ) {
-      notify(tx("Please enter the language name.", "لطفاً نام زبان را وارد کنید.", "مهرباني وکړئ د ژبې نوم ولیکئ."), "error");
-      return;
-    }
+    setFormErrors(errors);
+    if (hasFormErrors(errors)) return;
 
     const afghanistan =
       getAfghanistanDateTime();
@@ -930,6 +953,69 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
             String(editId)
         )
       : null;
+
+    if (!editId) {
+      const duplicateCustomer = duplicateCustomerMatch;
+
+      if (duplicateCustomer) {
+        const visitId =
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `visit-${Date.now()}`;
+
+        const visitRecord = {
+          id: visitId,
+          customerId: duplicateCustomer.id || duplicateCustomer.customerId,
+          customerName:
+            duplicateCustomer.fullName ||
+            duplicateCustomer.passportFullName ||
+            duplicateCustomer.customerName ||
+            form.passportFullName.trim(),
+          customerPhone: duplicateCustomer.phone || form.phone || "",
+          customerType: duplicateCustomer.customerType || activeMode,
+          date: afghanistan.date,
+          time: afghanistan.time,
+          createdAt: now,
+          sourceEmployeeId: currentUser?.employeeId || currentUser?.id || "",
+          sourceEmployeeName:
+            currentUser?.fullName ||
+            currentUser?.username ||
+            currentUser?.email ||
+            "Call Center",
+          purpose: isMedia
+            ? String(form.mediaPurpose || "Video").trim()
+            : String(form.purpose || form.technologyPurpose || "").trim(),
+          note: String(form.note || "").trim(),
+          needFollowup: form.needFollowup || "No",
+          reason: "duplicate-registration",
+          snapshot: {
+            ...form,
+            fullName: form.passportFullName.trim(),
+            passportFullName: form.passportFullName.trim(),
+            customerType: activeMode,
+          },
+        };
+
+        const visitSaved = await setCustomerVisits([
+          ...customerVisits,
+          visitRecord,
+        ]);
+
+        if (!visitSaved) return;
+
+        notify(
+          tx(
+            "This customer is already registered. The new record was added to the customer's full information as a sub-record.",
+            "این مشتری قبلاً ثبت شده است. ریکارد جدید به معلومات کامل مشتری به‌عنوان ریکارد فرعی اضافه شد.",
+            "دا پېرودونکی مخکې ثبت شوی دی. نوی ریکارډ د پېرودونکي په بشپړو معلوماتو کې د فرعي ریکارډ په توګه اضافه شو."
+          ),
+          "info"
+        );
+        resetForm();
+        navigate(`/customers/${duplicateCustomer.id || duplicateCustomer.customerId}`);
+        return;
+      }
+    }
 
     const normalizedForm = {
       ...form,
@@ -945,6 +1031,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
         ? String(form.mediaPurpose || "Video").trim()
         : form.purpose,
       customerType: activeMode,
+      customerStage: stageLabel(form.customerStage),
       specializedCustomer: true,
       registeredFrom:
         form.registeredFrom ||
@@ -1099,6 +1186,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     });
 
     setEditId(customer.id);
+    setFormErrors({});
     setCountryOpen(false);
     setCountrySearch("");
     setShowForm(true);
@@ -1106,6 +1194,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
 
   const openCreate = () => {
     setForm(emptyForm);
+    setFormErrors({});
     setEditId(null);
     setCountryOpen(false);
     setCountrySearch("");
@@ -1236,6 +1325,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                   <th>{tx("Source", "منبع", "سرچینه")}</th>
                   <th>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</th>
                   <th>{tx("Brand Name", "نام برند", "د برانډ نوم")}</th>
+                  <th>{tx("Stage", "مرحله", "پړاو")}</th>
                   <th>{tx("Purpose", "هدف", "موخه")}</th>
                   <th>{tx("Note", "یادداشت", "یادښت")}</th>
                   <th>{tx("Registered", "تاریخ ثبت", "ثبت شوی")}</th>
@@ -1249,6 +1339,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                   <th>{tx("Contact", "تماس", "اړیکه")}</th>
                   <th>{tx("Location", "موقعیت", "ځای")}</th>
                   <th>{tx("Country", "کشور", "هېواد")}</th>
+                  <th>{tx("Stage", "مرحله", "پړاو")}</th>
 
                   {isTechnology && (
                     <th>{tx("Service", "خدمت", "خدمت")}</th>
@@ -1287,7 +1378,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           type="button"
                           className="consultant-name-preview"
                           onClick={() =>
-                            setViewCustomer(customer)
+                            navigate(`/customers/${customer.id || customer.customerId}`)
                           }
                         >
                           <span className="consultant-name-avatar">
@@ -1308,6 +1399,12 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                       <td>{customer.phone || "-"}</td>
 
                       <td>{customer.brandName || "-"}</td>
+
+                      <td>
+                        <span className="consultant-stage-badge">
+                          {stageLabel(customer.customerStage)}
+                        </span>
+                      </td>
 
                       <td>
                         {customer.mediaPurpose ||
@@ -1333,7 +1430,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                             className="view"
                             type="button"
                             onClick={() =>
-                              setViewCustomer(customer)
+                              navigate(`/customers/${customer.id || customer.customerId}`)
                             }
                             title={tx("View details", "نمایش جزئیات", "تفصیل وګورئ")}
                           >
@@ -1377,7 +1474,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         type="button"
                         className="consultant-name-preview"
                         onClick={() =>
-                          setViewCustomer(customer)
+                          navigate(`/customers/${customer.id || customer.customerId}`)
                         }
                       >
                         <span className="consultant-name-avatar">
@@ -1418,6 +1515,12 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           <span>{customer.country}</span>
                         </span>
                       ) : "-"}
+                    </td>
+
+                    <td>
+                      <span className="consultant-stage-badge">
+                        {stageLabel(customer.customerStage)}
+                      </span>
                     </td>
 
                     {isTechnology && (
@@ -1467,7 +1570,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           className="view"
                           type="button"
                           onClick={() =>
-                            setViewCustomer(customer)
+                            navigate(`/customers/${customer.id || customer.customerId}`)
                           }
                           title={tx("View details", "نمایش جزئیات", "تفصیل وګورئ")}
                         >
@@ -1504,7 +1607,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
               {!filtered.length && (
                 <tr>
                   <td
-                    colSpan={isMedia ? 7 : 10}
+                    colSpan={isMedia ? 10 : 13}
                     className="consultant-empty"
                   >
                     {tx(
@@ -1569,10 +1672,51 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
             </div>
 
             <form onSubmit={save}>
+              {duplicateCustomerMatch && (
+                <div className="consultant-duplicate-warning" role="alert" aria-live="polite">
+                  <span className="consultant-duplicate-warning-icon">
+                    <AlertTriangle size={20} />
+                  </span>
+                  <div className="consultant-duplicate-warning-copy">
+                    <strong>
+                      {tx(
+                        "Customer already registered",
+                        "این مشتری قبلاً ثبت شده است",
+                        "دا پېرودونکی مخکې ثبت شوی دی"
+                      )}
+                    </strong>
+                    <p>
+                      {tx(
+                        "The same full name and phone number already exist. Saving this form will add the record as a new visit under the existing customer.",
+                        "همین نام کامل و شماره تماس قبلاً ثبت شده است. با ذخیره این فورم، ریکارد به‌عنوان مراجعه جدید زیر معلومات همین مشتری ثبت می‌شود.",
+                        "همدا بشپړ نوم او د تلیفون شمېره مخکې ثبت شوې ده. د دې فورم په خوندي کولو سره، ریکارډ به د همدې پېرودونکي تر معلوماتو لاندې د نوې مراجعې په توګه ثبت شي."
+                      )}
+                    </p>
+                    <div className="consultant-duplicate-warning-meta">
+                      <span>
+                        <b>{tx("Customer", "مشتری", "پېرودونکی")}:</b>{" "}
+                        {duplicateCustomerMatch.fullName ||
+                          duplicateCustomerMatch.passportFullName ||
+                          duplicateCustomerMatch.customerName ||
+                          form.passportFullName}
+                      </span>
+                      <span>
+                        <b>{tx("Phone", "شماره تماس", "تلیفون")}:</b>{" "}
+                        {duplicateCustomerMatch.phone || form.phone}
+                      </span>
+                      <span>
+                        <b>{tx("First registered", "ثبت قبلی", "پخوانی ثبت")}:</b>{" "}
+                        {formatCustomerDateTime(duplicateCustomerMatch)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="consultant-form-grid">
                 {isMedia ? (
                   <>
-                    <label>
+                    <label className={formErrors.passportFullName ? "has-error" : ""}>
                       <span>{tx("Full Name", "نام کامل", "بشپړ نوم")}</span>
                       <input
                         name="passportFullName"
@@ -1580,9 +1724,10 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         onChange={update}
                         placeholder={tx("Enter full name", "نام کامل را وارد کنید", "بشپړ نوم ولیکئ")}
                       />
+                      {formErrors.passportFullName && <span className="form-error-text">{formErrors.passportFullName}</span>}
                     </label>
 
-<label>
+<label className={formErrors.phone ? "has-error" : ""}>
   <span>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</span>
   <input
     type="text"
@@ -1592,6 +1737,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     pattern="[0-9]*"
     onChange={(event) => {
       const value = event.target.value.replace(/\D/g, "");
+      setFormErrors((current) => clearFieldError(current, "phone"));
 
       setForm((current) => ({
         ...current,
@@ -1600,9 +1746,10 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     }}
     placeholder={tx("Enter phone number", "شماره تماس را وارد کنید", "د تلیفون شمېره ولیکئ")}
   />
+  {formErrors.phone && <span className="form-error-text">{formErrors.phone}</span>}
 </label>
 
-                    <label>
+                    <label className={formErrors.source ? "has-error" : ""}>
                       <span>{tx("Source", "منبع", "سرچینه")}</span>
                       <input
                         name="source"
@@ -1610,9 +1757,10 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         onChange={update}
                         placeholder={tx("Who referred/requested this customer?", "این مشتری به درخواست یا معرفی چه کسی آمده؟", "دا پېرودونکی د چا په غوښتنه یا معرفۍ راغلی؟")}
                       />
+                      {formErrors.source && <span className="form-error-text">{formErrors.source}</span>}
                     </label>
 
-                    <label>
+                    <label className={formErrors.brandName ? "has-error" : ""}>
                       <span>{tx("Brand Name", "نام برند", "د برانډ نوم")}</span>
                       <input
                         name="brandName"
@@ -1620,6 +1768,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         onChange={update}
                         placeholder={tx("Enter brand name", "نام برند را وارد کنید", "د برانډ نوم ولیکئ")}
                       />
+                      {formErrors.brandName && <span className="form-error-text">{formErrors.brandName}</span>}
                     </label>
 
                     <label>
@@ -1654,15 +1803,16 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                   </>
                 ) : (
                   <>
-                    <label>
+                    <label className={formErrors.passportFullName ? "has-error" : ""}>
                       <span>{tx("Full Name", "نام کامل", "بشپړ نوم")}</span>
                       <input
                         name="passportFullName"
                         value={form.passportFullName}
                         onChange={update}
                       />
+                      {formErrors.passportFullName && <span className="form-error-text">{formErrors.passportFullName}</span>}
                     </label>
-<label>
+<label className={formErrors.phone ? "has-error" : ""}>
   <span>{tx("Phone Number", "شماره تماس", "د تلیفون شمېره")}</span>
   <input
     type="text"
@@ -1672,6 +1822,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     pattern="[0-9]*"
     onChange={(event) => {
       const value = event.target.value.replace(/\D/g, "");
+      setFormErrors((current) => clearFieldError(current, "phone"));
 
       setForm((current) => ({
         ...current,
@@ -1680,9 +1831,10 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     }}
     placeholder={tx("Enter phone number", "شماره تماس را وارد کنید", "د تلیفون شمېره ولیکئ")}
   />
+  {formErrors.phone && <span className="form-error-text">{formErrors.phone}</span>}
 </label>
 
-                    <label>
+                    <label className={formErrors.source ? "has-error" : ""}>
                       <span>{tx("Source", "منبع", "سرچینه")}</span>
                       <input
                         name="source"
@@ -1690,9 +1842,10 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         onChange={update}
                         placeholder={tx("Who referred/requested this customer?", "این مشتری به درخواست یا معرفی چه کسی آمده؟", "دا پېرودونکی د چا په غوښتنه یا معرفۍ راغلی؟")}
                       />
+                      {formErrors.source && <span className="form-error-text">{formErrors.source}</span>}
                     </label>
 
-                    <label>
+                    <label className={formErrors.city ? "has-error" : ""}>
                       <span>{tx("City / Province", "شهر / ولایت", "ښار / ولایت")}</span>
                       <select
                         name="city"
@@ -1712,9 +1865,10 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           </option>
                         ))}
                       </select>
+                      {formErrors.city && <span className="form-error-text">{formErrors.city}</span>}
                     </label>
 
-                    <div className="consultant-country-picker" ref={countryPickerRef}>
+                    <div className={`consultant-country-picker ${formErrors.country ? "has-error" : ""}`} ref={countryPickerRef}>
                       <span>{tx("Country", "کشور", "هېواد")}</span>
                       <button
                         type="button"
@@ -1776,6 +1930,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                                 key={country}
                                 className={form.country === country ? "selected" : ""}
                                 onClick={() => {
+                                  setFormErrors((current) => clearFieldError(current, "country"));
                                   setForm((current) => ({ ...current, country }));
                                   setCountryOpen(false);
                                   setCountrySearch("");
@@ -1793,6 +1948,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           </div>
                         </div>
                       )}
+                      {formErrors.country && <span className="form-error-text">{formErrors.country}</span>}
                     </div>
 
                     <label>
@@ -1818,7 +1974,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                     </label>
 
                     {form.language === "Other" && (
-                      <label className="consultant-other-language-field">
+                      <label className={`consultant-other-language-field ${formErrors.otherLanguage ? "has-error" : ""}`}>
                         <span>{tx("Other Language", "زبان دیگر", "بله ژبه")}</span>
                         <input
                           name="otherLanguage"
@@ -1827,6 +1983,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                           placeholder={tx("Enter language name", "نام زبان را وارد کنید", "د ژبې نوم ولیکئ")}
                           autoFocus
                         />
+                        {formErrors.otherLanguage && <span className="form-error-text">{formErrors.otherLanguage}</span>}
                       </label>
                     )}
 
@@ -1862,7 +2019,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                       </select>
                     </label>
 
-                    <label>
+                    <label className={formErrors.price ? "has-error" : ""}>
                       <span>{tx("Price", "قیمت", "بیه")}</span>
                       <input
                         type="number"
@@ -1873,10 +2030,11 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                         onChange={update}
                         placeholder={tx("Enter price", "قیمت را وارد کنید", "بیه ولیکئ")}
                       />
+                      {formErrors.price && <span className="form-error-text">{formErrors.price}</span>}
                     </label>
 
                     {!isTravel && !isTechnology && (
-                      <label>
+                      <label className={formErrors.scholarshipType ? "has-error" : ""}>
                         <span>{tx("Scholarship Type", "نوع بورسیه", "د بورس ډول")}</span>
                         <select
                           name="scholarshipType"
@@ -1896,6 +2054,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
                             {tx("Private", "خصوصی", "خصوصي")}
                           </option>
                         </select>
+                        {formErrors.scholarshipType && <span className="form-error-text">{formErrors.scholarshipType}</span>}
                       </label>
                     )}
 

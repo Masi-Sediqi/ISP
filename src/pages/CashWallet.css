@@ -1,0 +1,53 @@
+.cash-wallet-page { display: grid; gap: 18px; }
+.cash-wallet-back { width: max-content; min-height: 38px; padding: 0 13px; border: 1px solid #e2e8f0; border-radius: 10px; display: inline-flex; align-items: center; gap: 7px; background: #fff; color: #334155; font-weight: 800; cursor: pointer; }
+.cash-wallet-page-heading { padding: 22px 24px; border: 1px solid #e5e7eb; border-radius: 18px; display: flex; align-items: center; justify-content: space-between; gap: 18px; background: #fff; }
+.cash-wallet-page-heading span, .cash-wallet-ledger-card header span { color: #5b5ff4; font-size: 11px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.cash-wallet-page-heading h1 { margin: 4px 0 5px; font-size: 28px; }
+.cash-wallet-page-heading p { margin: 0; color: #64748b; }
+.cash-wallet-page-icon { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; background: #eef2ff; color: #4f46e5; }
+.cash-wallet-balance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cash-wallet-balance-grid article { padding: 18px; border: 1px solid #e5e7eb; border-radius: 16px; display: grid; gap: 6px; background: #fff; }
+.cash-wallet-balance-grid article span, .cash-wallet-balance-grid article small { color: #64748b; font-size: 12px; }
+.cash-wallet-balance-grid article strong { font-size: 24px; color: #111827; }
+.cash-wallet-ledger-card { border: 1px solid #e5e7eb; border-radius: 18px; overflow: hidden; background: #fff; }
+.cash-wallet-ledger-card > header { padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #e5e7eb; }
+.cash-wallet-ledger-card h2 { margin: 4px 0 0; font-size: 18px; }
+.cash-wallet-search { min-width: 280px; padding: 0 12px; border: 1px solid #dfe3ea; border-radius: 10px; display: flex; align-items: center; gap: 8px; }
+.cash-wallet-search input { width: 100%; min-height: 40px; border: 0; outline: 0; background: transparent; color: inherit; }
+.cash-wallet-table-wrap { overflow: auto; }
+.cash-wallet-table-wrap table { width: 100%; border-collapse: collapse; min-width: 930px; }
+.cash-wallet-table-wrap th { padding: 12px 14px; background: #f8fafc; color: #64748b; font-size: 11px; text-align: left; }
+.cash-wallet-table-wrap td { padding: 13px 14px; border-top: 1px solid #eef2f7; font-size: 13px; color: #334155; }
+.cash-wallet-type-pill { width: max-content; padding: 5px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; }
+.cash-wallet-type-pill.deposit { background: #ecfdf5; color: #047857; }
+.cash-wallet-type-pill.credit { background: #fff1f2; color: #be123c; }
+.cash-in { color: #047857 !important; font-weight: 900; }
+.cash-out { color: #be123c !important; font-weight: 900; }
+.cash-wallet-empty { padding: 36px !important; text-align: center; color: #94a3b8 !important; }
+body.dark-mode .cash-wallet-page-heading, body.dark-mode .cash-wallet-balance-grid article, body.dark-mode .cash-wallet-ledger-card, body.dark-mode .cash-wallet-back { border-color: #334155; background: #0f172a; color: #e2e8f0; }
+body.dark-mode .cash-wallet-balance-grid article strong { color: #f8fafc; }
+body.dark-mode .cash-wallet-ledger-card > header, body.dark-mode .cash-wallet-table-wrap td { border-color: #243244; }
+body.dark-mode .cash-wallet-table-wrap th { background: #111827; }
+body.dark-mode .cash-wallet-table-wrap td { color: #cbd5e1; }
+body.dark-mode .cash-wallet-search { border-color: #334155; }
+@media (max-width: 820px) { .cash-wallet-balance-grid { grid-template-columns: 1fr; } .cash-wallet-ledger-card > header { align-items: stretch; flex-direction: column; } .cash-wallet-search { min-width: 0; } }
+.cash-wallet-delete-btn { width: 32px; height: 32px; border: 1px solid #fecdd3; border-radius: 9px; display: inline-grid; place-items: center; background: #fff1f2; color: #be123c; cursor: pointer; transition: .16s ease; }
+.cash-wallet-delete-btn:hover { background: #ffe4e6; border-color: #fda4af; transform: translateY(-1px); }
+.cash-wallet-confirm-overlay { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .58); backdrop-filter: blur(3px); }
+.cash-wallet-confirm-modal { width: min(430px, 100%); padding: 24px; border: 1px solid #e5e7eb; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(15, 23, 42, .22); text-align: center; }
+.cash-wallet-confirm-icon { width: 46px; height: 46px; margin: 0 auto 12px; border-radius: 14px; display: grid; place-items: center; background: #fff1f2; color: #be123c; }
+.cash-wallet-confirm-modal h3 { margin: 0 0 8px; color: #111827; font-size: 20px; }
+.cash-wallet-confirm-modal p { margin: 0; color: #64748b; line-height: 1.6; font-size: 13px; }
+.cash-wallet-confirm-summary { margin: 16px 0; padding: 12px 14px; border: 1px solid #e5e7eb; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #f8fafc; text-align: left; }
+.cash-wallet-confirm-summary span { color: #64748b; font-size: 12px; }
+.cash-wallet-confirm-summary strong { color: #111827; }
+.cash-wallet-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.cash-wallet-confirm-actions button { min-height: 38px; padding: 0 15px; border: 1px solid #dbe2ea; border-radius: 10px; background: #fff; color: #334155; font-weight: 800; cursor: pointer; }
+.cash-wallet-confirm-actions button.danger { border-color: #be123c; background: #be123c; color: #fff; }
+.cash-wallet-confirm-actions button:disabled { opacity: .6; cursor: wait; }
+body.dark-mode .cash-wallet-delete-btn { border-color: #7f1d1d; background: #3f1720; color: #fda4af; }
+body.dark-mode .cash-wallet-confirm-modal { border-color: #334155; background: #0f172a; }
+body.dark-mode .cash-wallet-confirm-modal h3, body.dark-mode .cash-wallet-confirm-summary strong { color: #f8fafc; }
+body.dark-mode .cash-wallet-confirm-summary { border-color: #334155; background: #111827; }
+body.dark-mode .cash-wallet-confirm-actions button { border-color: #334155; background: #111827; color: #e2e8f0; }
+body.dark-mode .cash-wallet-confirm-actions button.danger { border-color: #be123c; background: #be123c; color: #fff; }

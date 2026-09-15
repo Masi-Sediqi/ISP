@@ -8,7 +8,7 @@
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5173",
+    "dev": "node scripts/dev-web.cjs",
     "desktop": "node scripts/dev.cjs",
     "server": "node transport-backend/server.js",
     "web": "vite --host 0.0.0.0 --port 5173 --strictPort",
@@ -17,8 +17,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "start:lan": "node scripts/start-lan.cjs",
-    "postgres:prepare": "node transport-backend/scripts/prepare-postgres.js",
-    "postgres:migrate": "node transport-backend/scripts/migrate-json-to-postgres.js"
+    "verify:vps-clean": "node scripts/verify-vps-clean.cjs",
+    "dev:frontend": "vite --host 0.0.0.0 --port 5173"
   },
   "build": {
     "appId": "com.afghanpower.ispsmart",
@@ -70,6 +70,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.16.0",
+    "recharts": "^3.10.1",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
   },

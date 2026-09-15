@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import { formatCurrencyAmount } from "../utils/currencyDisplay";
 import "./ProjectLicense.css";
 
 const licenseTypes = [
@@ -51,7 +52,7 @@ function getRemainingText(license) {
 
 function money(value, currency = "AFN") {
   if (value === undefined || value === null || value === "") return "-";
-  return `${Number(value || 0).toLocaleString("en-US")} ${currency}`;
+  return formatCurrencyAmount(value, currency);
 }
 
 function ProjectLicense() {

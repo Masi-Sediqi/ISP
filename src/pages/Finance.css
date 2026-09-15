@@ -789,3 +789,5 @@ body.dark-mode .finance-delete-modal p {
     align-items: stretch;
   }
 }
+.finance-exchange-warning{margin:0 0 14px;padding:12px 14px;border:1px solid #f59e0b;border-radius:12px;background:#fffbeb;color:#92400e;font-size:12px;font-weight:700;}
+body.dark-mode .finance-exchange-warning{background:#451a03;border-color:#92400e;color:#fde68a;}

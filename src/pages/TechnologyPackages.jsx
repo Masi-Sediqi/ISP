@@ -11,6 +11,7 @@ import {
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
+import { formatCurrencyAmount } from "../utils/currencyDisplay";
 import "./TechnologyPackages.css";
 
 
@@ -32,6 +33,7 @@ const currencyOptions = [
 ];
 
 const emptyForm = {
+  projectId: "",
   packageName: "",
   currency: "AFN",
   sellingPrice: "",
@@ -42,9 +44,7 @@ const normalize = (value) =>
   String(value || "").trim().toLowerCase();
 
 const money = (value, currency = "AFN") =>
-  `${Number(value || 0).toLocaleString("en-US")} ${
-    currency || "AFN"
-  }`;
+  formatCurrencyAmount(value, currency || "AFN");
 
 const totalsByCurrency = (items, fieldName) => {
   const totals = items.reduce((result, item) => {
@@ -69,6 +69,7 @@ const totalsByCurrency = (items, fieldName) => {
 };
 
 export default function TechnologyPackages() {
+  const [projects] = useJsonCollection("projects");
   const [
     packages,
     setPackages,
@@ -76,53 +77,12 @@ export default function TechnologyPackages() {
     packagesLoaded,
   ] = useJsonCollection("technologyPackages");
 
-  const [
-    legacyLocalPackages,
-    setLegacyLocalPackages,
-  ] = useJsonCollection("technologyPackages", {
-    archiveDeletes: false,
-  });
-
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [detailsItem, setDetailsItem] = useState(null);
   const [deleteItem, setDeleteItem] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
-
-  useEffect(() => {
-    if (!packagesLoaded || !legacyLocalPackages.length) {
-      return;
-    }
-
-    const merged = [...packages];
-
-    legacyLocalPackages.forEach((localItem) => {
-      const exists = merged.some(
-        (serverItem) =>
-          String(serverItem.id) === String(localItem.id)
-      );
-
-      if (!exists) merged.push(localItem);
-    });
-
-    if (merged.length === packages.length) {
-      setLegacyLocalPackages([]);
-      return;
-    }
-
-    Promise.resolve(setPackages(merged)).then((saved) => {
-      if (saved !== false) {
-        setLegacyLocalPackages([]);
-      }
-    });
-  }, [
-    legacyLocalPackages,
-    packages,
-    packagesLoaded,
-    setLegacyLocalPackages,
-    setPackages,
-  ]);
 
   const filteredPackages = useMemo(() => {
     const query = normalize(search);
@@ -132,6 +92,7 @@ export default function TechnologyPackages() {
         if (!query) return true;
 
         return [
+          item.projectName,
           item.packageName,
           item.sellingPrice,
           item.currency,
@@ -164,6 +125,7 @@ export default function TechnologyPackages() {
   const openEdit = (item) => {
     setEditingId(item.id);
     setForm({
+      projectId: item.projectId || "",
       packageName: item.packageName || "",
       currency: item.currency || "AFN",
       sellingPrice: String(item.sellingPrice ?? ""),
@@ -192,6 +154,12 @@ export default function TechnologyPackages() {
 
     const packageName = form.packageName.trim();
     const sellingPrice = Number(form.sellingPrice);
+    const selectedProject = projects.find((project) => String(project.id) === String(form.projectId));
+
+    if (!form.projectId || !selectedProject) {
+      notify("Project is required.", "error");
+      return;
+    }
 
     if (!packageName) {
       notify("Package name is required.", "error");
@@ -211,6 +179,8 @@ export default function TechnologyPackages() {
 
     const record = {
       id: editingId || createRecordId(),
+      projectId: selectedProject.id,
+      projectName: selectedProject.projectName || "Project",
       packageName,
       currency: form.currency || "AFN",
       sellingPrice,
@@ -292,26 +262,6 @@ export default function TechnologyPackages() {
         </button>
       </header>
 
-      <section className="technology-package-stats">
-        <article>
-          <span>Total Packages</span>
-          <strong>{summary.total}</strong>
-          <p>Registered technology packages</p>
-        </article>
-
-        <article>
-          <span>Total Selling Value</span>
-          <strong>{summary.totalSellingLabel}</strong>
-          <p>Combined selling price</p>
-        </article>
-
-        <article>
-          <span>Average Price</span>
-          <strong>{money(summary.averagePrice)}</strong>
-          <p>Average package selling price</p>
-        </article>
-      </section>
-
       <section className="technology-package-table-card">
         <header>
           <div>
@@ -336,6 +286,7 @@ export default function TechnologyPackages() {
           <table>
             <thead>
               <tr>
+                <th>Project</th>
                 <th>Package Name</th>
                 <th>Unit</th>
                 <th>Selling Price</th>
@@ -347,6 +298,9 @@ export default function TechnologyPackages() {
             <tbody>
               {filteredPackages.map((item) => (
                 <tr key={item.id}>
+                  <td>
+                    <strong>{item.projectName || "-"}</strong>
+                  </td>
                   <td>
                     <strong>{item.packageName}</strong>
                   </td>
@@ -401,7 +355,7 @@ export default function TechnologyPackages() {
               {!filteredPackages.length && (
                 <tr>
                   <td
-                    colSpan="5"
+                    colSpan="6"
                     className="technology-package-empty"
                   >
                     No technology packages found.
@@ -448,13 +402,30 @@ export default function TechnologyPackages() {
 
             <div className="technology-package-form">
               <label>
+                <span>Project *</span>
+                <select
+                  name="projectId"
+                  value={form.projectId}
+                  onChange={updateField}
+                  required
+                  autoFocus
+                >
+                  <option value="">Select project</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.projectName || "Unnamed Project"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 <span>Package Name</span>
                 <input
                   name="packageName"
                   value={form.packageName}
                   onChange={updateField}
                   placeholder="Enter package name"
-                  autoFocus
                 />
               </label>
 

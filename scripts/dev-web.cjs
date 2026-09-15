@@ -43,7 +43,7 @@ async function validateExistingBackend() {
 
     return Boolean(
       health &&
-        ["json", "postgres"].includes(health.storage) &&
+        health.ok === true &&
         travels.ok &&
         assets.ok
     );

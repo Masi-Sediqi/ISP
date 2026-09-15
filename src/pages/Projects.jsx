@@ -18,6 +18,9 @@ import {
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
 import { createId } from "../utils/createId";
+import { clearFieldError, hasFormErrors, validateRequiredFields } from "../utils/formValidation";
+import CustomerSearchSelect from "../components/CustomerSearchSelect";
+import { formatCurrencyAmount } from "../utils/currencyDisplay";
 import "./Projects.css";
 
 const emptyProject = {
@@ -63,7 +66,7 @@ const emptyCustomer = {
 function money(value, currency) {
   const amount = Number(value || 0);
   if (!amount) return "-";
-  return `${amount.toLocaleString("en-US")} ${currency || "AFN"}`;
+  return formatCurrencyAmount(amount, currency || "AFN");
 }
 
 function daysLeft(date) {
@@ -75,7 +78,9 @@ function Projects() {
   const [projects, setProjects] = useJsonCollection("projects");
   const [customers, setCustomers] = useJsonCollection("customers");
   const [form, setForm] = useState(emptyProject);
+  const [formErrors, setFormErrors] = useState({});
   const [customerForm, setCustomerForm] = useState(emptyCustomer);
+  const [customerFormErrors, setCustomerFormErrors] = useState({});
   const [editId, setEditId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -112,6 +117,7 @@ function Projects() {
 
   function updateField(event) {
     const { name, value } = event.target;
+    setFormErrors((current) => clearFieldError(current, name));
 
     if (name === "customerId") {
       const customer = customers.find((item) => String(item.id) === String(value));
@@ -149,6 +155,7 @@ function Projects() {
       setShowCustomerForm(false);
       setCustomerForm(emptyCustomer);
     }
+    setFormErrors((current) => clearFieldError(current, "customerId"));
   }
 
   function openCreate() {
@@ -156,6 +163,8 @@ function Projects() {
     setCustomerForm(emptyCustomer);
     setShowCustomerForm(false);
     setEditId(null);
+    setFormErrors({});
+    setCustomerFormErrors({});
     setShowForm(true);
   }
 
@@ -164,6 +173,8 @@ function Projects() {
     setCustomerForm(emptyCustomer);
     setShowCustomerForm(false);
     setEditId(project.id);
+    setFormErrors({});
+    setCustomerFormErrors({});
     setShowForm(true);
   }
 
@@ -173,16 +184,20 @@ function Projects() {
     setEditId(null);
     setForm(emptyProject);
     setCustomerForm(emptyCustomer);
+    setFormErrors({});
+    setCustomerFormErrors({});
   }
 
   function updateCustomerField(event) {
     const { name, value } = event.target;
+    setCustomerFormErrors((current) => clearFieldError(current, name));
     setCustomerForm((current) => ({ ...current, [name]: value }));
   }
 
   async function saveInlineCustomer() {
-    if (!customerForm.customerName.trim()) {
-      notify("Customer name is required.", "error");
+    const errors = validateRequiredFields(customerForm, ["customerName"]);
+    setCustomerFormErrors(errors);
+    if (hasFormErrors(errors)) {
       return;
     }
 
@@ -206,6 +221,7 @@ function Projects() {
       customerPhone: newCustomer.phone,
     }));
     setCustomerForm(emptyCustomer);
+    setCustomerFormErrors({});
     setShowCustomerForm(false);
     notify("Customer registered successfully.", "success");
   }
@@ -213,15 +229,12 @@ function Projects() {
   async function saveProject(event) {
     event.preventDefault();
 
-    if (!form.projectName.trim()) {
-      notify("Project name is required.", "error");
-      return;
-    }
-
-    if (!isExistingProduct && !form.customerId) {
-      notify("Please select a customer.", "error");
-      return;
-    }
+    const errors = validateRequiredFields(
+      form,
+      ["projectName", { field: "customerId", required: !isExistingProduct }]
+    );
+    setFormErrors(errors);
+    if (hasFormErrors(errors)) return;
 
     const payload = {
       ...form,
@@ -573,7 +586,7 @@ function Projects() {
                     </button>
                   ))}
                 </div>
-                <label><span>Project Name</span><input name="projectName" value={form.projectName} onChange={updateField} required /></label>
+                <label className={formErrors.projectName ? "has-error" : ""}><span>Project Name</span><input name="projectName" value={form.projectName} onChange={updateField} />{formErrors.projectName && <span className="form-error-text">{formErrors.projectName}</span>}</label>
 
                 {isExistingProduct ? (
                   <>
@@ -585,17 +598,30 @@ function Projects() {
                   </>
                 ) : (
                   <>
-                    <div className="project-customer-field">
+                    <div className={`project-customer-field ${formErrors.customerId ? "has-error" : ""}`}>
                       <span>Customer</span>
                       <div className="project-customer-control">
-                        <select name="customerId" value={form.customerId} onChange={updateField}>
-                          <option value="">Select customer</option>
-                          {customers.map((customer) => (
-                            <option key={customer.id} value={customer.id}>
-                              {customer.customerName || customer.fullName || customer.phone}
-                            </option>
-                          ))}
-                        </select>
+                        <CustomerSearchSelect
+                          customers={customers}
+                          value={form.customerId}
+                          placeholder="Search customer by name, phone or ID..."
+                          onChange={(id, customer) =>
+                            {
+                            setFormErrors((current) => clearFieldError(current, "customerId"));
+                            setForm((current) => ({
+                              ...current,
+                              customerId: id,
+                              customerName:
+                                customer?.customerName ||
+                                customer?.fullName ||
+                                customer?.passportFullName ||
+                                customer?.personName ||
+                                "",
+                              customerPhone: customer?.phone || customer?.customerPhone || "",
+                            }));
+                            }
+                          }
+                        />
                         <button
   type="button"
   onClick={() => {
@@ -608,6 +634,7 @@ function Projects() {
   <Plus size={17} />
 </button>
                       </div>
+                      {formErrors.customerId && <span className="form-error-text">{formErrors.customerId}</span>}
                     </div>
                     <label><span>Start Date</span><input type="date" name="startDate" value={form.startDate} onChange={updateField} /></label>
                     <label><span>Due Date</span><input type="date" name="dueDate" value={form.dueDate} onChange={updateField} min={form.startDate} /></label>
@@ -661,7 +688,7 @@ function Projects() {
 
       <div className="customer-modal-body">
         <div className="customer-modal-grid">
-          <label>
+          <label className={customerFormErrors.customerName ? "has-error" : ""}>
             <span>Customer Name</span>
             <input
               name="customerName"
@@ -670,6 +697,7 @@ function Projects() {
               placeholder="Enter customer name"
               autoFocus
             />
+            {customerFormErrors.customerName && <span className="form-error-text">{customerFormErrors.customerName}</span>}
           </label>
 
           <label>

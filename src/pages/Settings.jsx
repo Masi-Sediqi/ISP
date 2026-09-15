@@ -160,6 +160,8 @@ function Settings() {
   const [routerName, setRouterName] = useState("");
   const [networkIp, setNetworkIp] = useState("");
   const [networkInfo, setNetworkInfo] = useState(null);
+  const [usdToAfn, setUsdToAfn] = useState("");
+  const [eurToAfn, setEurToAfn] = useState("");
   const [appDataBusy, setAppDataBusy] = useState(false);
   const [clearConfirm, setClearConfirm] = useState("");
   const [backupSettings, setBackupSettings] = useState(
@@ -177,12 +179,16 @@ function Settings() {
     setLogo(current.logo || "");
     setRouterName(current.routerName || "");
     setNetworkIp(current.networkIp || "");
+    setUsdToAfn(current.exchangeRates?.usdToAfn ? String(current.exchangeRates.usdToAfn) : "");
+    setEurToAfn(current.exchangeRates?.eurToAfn ? String(current.exchangeRates.eurToAfn) : "");
   }, [
     current.companyName,
     current.systemSubtitle,
     current.logo,
     current.routerName,
     current.networkIp,
+    current.exchangeRates?.usdToAfn,
+    current.exchangeRates?.eurToAfn,
   ]);
 
   useEffect(() => {
@@ -274,6 +280,33 @@ function Settings() {
     notify("System settings saved successfully.");
   };
 
+  const saveExchangeRates = async (event) => {
+    event.preventDefault();
+
+    const usd = Number(usdToAfn || 0);
+    const eur = Number(eurToAfn || 0);
+
+    if (!(usd > 0) || !(eur > 0)) {
+      notify("Enter valid exchange rates greater than zero for USD and EUR.", "error");
+      return;
+    }
+
+    const nextSettings = [{
+      ...current,
+      exchangeRates: {
+        usdToAfn: usd,
+        eurToAfn: eur,
+      },
+      updatedAt: new Date().toISOString(),
+    }];
+
+    const saved = await setSettings(nextSettings);
+    if (!saved) return;
+
+    window.dispatchEvent(new Event("exchange-rates-updated"));
+    notify("Exchange rates saved successfully.");
+  };
+
   const publicIp =
     networkIp.trim() ||
     networkInfo?.ipAddress ||
@@ -322,7 +355,7 @@ function Settings() {
       const link = document.createElement("a");
 
       link.href = url;
-      link.download = `afghan-power-supabase-backup-${new Date()
+      link.download = `afghan-power-vps-backup-${new Date()
         .toISOString()
         .replace(/[:.]/g, "-")
         .slice(0, 19)}.json`;
@@ -346,7 +379,7 @@ function Settings() {
       }
 
       notify(
-        `Supabase backup created: ${summary.activeRows} active central records and ${summary.embeddedAssets} embedded files/images.`
+        `VPS server backup created: ${summary.activeRows} active central records and ${summary.embeddedAssets} embedded files/images.`
       );
 
       return true;
@@ -371,7 +404,7 @@ function Settings() {
       const parsed = JSON.parse(text);
 
       const ok = window.confirm(
-        "Restore will replace the active central Supabase data with the selected backup. The current signed-in session will be kept. Continue?"
+        "Restore will replace the active central VPS server data with the selected backup. The current signed-in session will be kept. Continue?"
       );
       if (!ok) return;
 
@@ -380,7 +413,7 @@ function Settings() {
 
       setBackupStatus("Backup restored and verified successfully.");
       notify(
-        `Backup restored successfully. ${result.restoredCentralRows} Supabase rows restored.`
+        `Backup restored successfully. ${result.restoredCentralRows} VPS server rows restored.`
       );
 
       window.setTimeout(() => {
@@ -403,14 +436,14 @@ function Settings() {
     }
 
     const ok = window.confirm(
-      "This will clear all active central Supabase records. This cannot be undone. Create a backup first. Continue?"
+      "This will clear all active central VPS server records. This cannot be undone. Create a backup first. Continue?"
     );
     if (!ok) return;
 
     try {
       setAppDataBusy(true);
       await restoreCompleteBackup({
-        format: "afghan-power-supabase-backup",
+        format: "afghan-power-vps-backup",
         version: 3,
         central: { rows: [] },
         localPreferences: {},
@@ -555,6 +588,13 @@ function Settings() {
         </button>
         <button
           type="button"
+          className={activeTab === "exchange-rates" ? "active" : ""}
+          onClick={() => setActiveTab("exchange-rates")}
+        >
+          Exchange Rates
+        </button>
+        <button
+          type="button"
           className={activeTab === "notifications" ? "active" : ""}
           onClick={() => setActiveTab("notifications")}
         >
@@ -632,6 +672,56 @@ function Settings() {
         </form>
       )}
 
+      {activeTab === "exchange-rates" && (
+        <form className="settings-data-card settings-exchange-card" onSubmit={saveExchangeRates}>
+          <section className="settings-panel">
+            <div className="settings-section-title">
+              <h3>Exchange Rates / نرخ اسعار</h3>
+              <p>These rates are used to convert USD and EUR amounts to AFN for Finance totals, charts, income, expenses, and net profit.</p>
+            </div>
+
+            <div className="settings-exchange-grid">
+              <label>
+                1 USD = AFN
+                <input
+                  type="number"
+                  min="0.0001"
+                  step="0.0001"
+                  value={usdToAfn}
+                  onChange={(event) => setUsdToAfn(event.target.value)}
+                  placeholder="Example: 70"
+                  required
+                />
+              </label>
+
+              <label>
+                1 EUR = AFN
+                <input
+                  type="number"
+                  min="0.0001"
+                  step="0.0001"
+                  value={eurToAfn}
+                  onChange={(event) => setEurToAfn(event.target.value)}
+                  placeholder="Example: 80"
+                  required
+                />
+              </label>
+            </div>
+
+            <div className="settings-exchange-preview">
+              <div><span>USD</span><strong>$1 = {usdToAfn || "-"} AFN</strong></div>
+              <div><span>EUR</span><strong>€1 = {eurToAfn || "-"} AFN</strong></div>
+              <div><span>Base Currency</span><strong>AFN</strong></div>
+            </div>
+
+            <button type="submit" className="settings-save">
+              <Save size={16} />
+              Save Exchange Rates
+            </button>
+          </section>
+        </form>
+      )}
+
       {activeTab === "notifications" && (
         <div className="settings-data-card">
           <section className="settings-panel">
@@ -681,7 +771,7 @@ function Settings() {
           <section className="settings-panel">
             <div className="settings-section-title">
               <h3>App Data</h3>
-              <p>Export or restore a complete Supabase backup including records, images, and embedded files.</p>
+              <p>Export or restore a complete VPS server backup including records, images, and embedded files.</p>
             </div>
 
             <div className="settings-data-actions">

@@ -23,8 +23,10 @@ import {
   User,
   Users,
   Wrench,
+  Wallet,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import CashWalletModal from "./CashWalletModal";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import { useChat } from "../hooks/useChat";
@@ -46,6 +48,30 @@ const includesQuery = (value, query) => {
 
 const itemId = (item) => String(item?.id || item?.assetId || item?.customerId || item?.supplierName || "");
 
+const genericRecordText = (record) => {
+  if (!record || typeof record !== "object") return "";
+  const values = [];
+  const visit = (value, depth = 0) => {
+    if (depth > 2 || value == null) return;
+    if (["string", "number", "boolean"].includes(typeof value)) {
+      values.push(String(value));
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.slice(0, 20).forEach((item) => visit(item, depth + 1));
+      return;
+    }
+    if (typeof value === "object") {
+      Object.entries(value).slice(0, 60).forEach(([key, item]) => {
+        if (/password|secret|token|key/i.test(key)) return;
+        visit(item, depth + 1);
+      });
+    }
+  };
+  visit(record);
+  return values.join(" ");
+};
+
 const formatLocationName = (record) =>
   record?.location ||
   record?.currentLocation ||
@@ -61,6 +87,7 @@ const withRecordHash = (path, type, id) =>
 function HeaderActions({ currentUser, onLogout, compact = false }) {
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState(null);
+  const [cashWalletOpen, setCashWalletOpen] = useState(false);
 
   const [
     dismissedNotificationKeys,
@@ -204,6 +231,17 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
   const [assets] = useJsonCollection("assets");
   const [towerAssets] = useJsonCollection("towerAssets");
   const [securityDeposits] = useJsonCollection("securityDeposits");
+  const [projects] = useJsonCollection("projects");
+  const [projectSales] = useJsonCollection("projectSales");
+  const [employees] = useJsonCollection("employees");
+  const [transactions] = useJsonCollection("transactions");
+  const [cashWalletTransactions] = useJsonCollection("cashWalletTransactions");
+  const [supplierPayments] = useJsonCollection("supplierPayments");
+  const [employeePayrolls] = useJsonCollection("employeePayrolls");
+  const [visaPackages] = useJsonCollection("visaPackages");
+  const [travelPackages] = useJsonCollection("travelPackages");
+  const [technologyPackages] = useJsonCollection("technologyPackages");
+  const [mediaPackages] = useJsonCollection("mediaPackages");
   const [customerPackages] = useJsonCollection("customerPackages");
   const [
     employeeAdjustments,
@@ -1276,7 +1314,7 @@ useEffect(() => {
       {
         system: true,
         title: "New Customer Registered",
-        path: "/customers/consultants",
+        path: event.customer.id ? `/customers/${event.customer.id}` : "/customers",
       }
     );
   });
@@ -1681,7 +1719,7 @@ useEffect(() => {
         return {
           title: "New Customer Registered",
           description: `${event.creator} registered ${customerName} from ${event.section}`,
-          path: "/customers/consultants",
+          path: event.customer.id ? `/customers/${event.customer.id}` : "/customers",
           happenedAt:
             event.customer.adminNotificationAt ||
             event.customer.createdAt,
@@ -2214,6 +2252,11 @@ useEffect(() => {
 </button>
           </div>
         )}
+        <CashWalletModal
+          open={cashWalletOpen}
+          onClose={() => setCashWalletOpen(false)}
+          currentUser={currentUser}
+        />
       </div>
     );
   }
@@ -2495,6 +2538,21 @@ useEffect(() => {
         <div className="header-menu">
           <button
             className="icon-btn"
+            type="button"
+            onClick={() => {
+              setOpenMenu(null);
+              setCashWalletOpen(true);
+            }}
+            aria-label="Cash Wallet"
+            title="Cash Wallet"
+          >
+            <Wallet size={21} strokeWidth={1.9} />
+          </button>
+        </div>
+
+        <div className="header-menu">
+          <button
+            className="icon-btn"
             onClick={() => setOpenMenu(openMenu === "alerts" ? null : "alerts")}
             aria-label="Alerts"
           >
@@ -2679,6 +2737,11 @@ useEffect(() => {
   </div>
 )}
         </div>
+        <CashWalletModal
+          open={cashWalletOpen}
+          onClose={() => setCashWalletOpen(false)}
+          currentUser={currentUser}
+        />
       </div>
   );
 }
@@ -2733,6 +2796,17 @@ function Header({ currentUser, onLogout }) {
   const [deviceTransfers] = useJsonCollection("deviceTransfers");
   const [assetMovements] = useJsonCollection("assetMovements");
   const [securityDeposits] = useJsonCollection("securityDeposits");
+  const [projects] = useJsonCollection("projects");
+  const [projectSales] = useJsonCollection("projectSales");
+  const [employees] = useJsonCollection("employees");
+  const [transactions] = useJsonCollection("transactions");
+  const [cashWalletTransactions] = useJsonCollection("cashWalletTransactions");
+  const [supplierPayments] = useJsonCollection("supplierPayments");
+  const [employeePayrolls] = useJsonCollection("employeePayrolls");
+  const [visaPackages] = useJsonCollection("visaPackages");
+  const [travelPackages] = useJsonCollection("travelPackages");
+  const [technologyPackages] = useJsonCollection("technologyPackages");
+  const [mediaPackages] = useJsonCollection("mediaPackages");
 
   useEffect(() => {
     const handleOutside = (event) => {
@@ -2835,7 +2909,7 @@ function Header({ currentUser, onLogout }) {
         key: `customer-${itemId(customer)}`,
         title: `${customer.customerId || "-"} - ${customer.customerName || "Customer"}`,
         subtitle: customer.phone || customer.address || "Customer record",
-        path: "/customers/consultants",
+        path: customer.id ? `/customers/${customer.id}` : "/customers",
         details: [
           `Status: ${customer.status || "-"}`,
           `Current Devices: ${deviceTransfers.filter((transfer) => String(transfer.destinationRecordId || "") === String(customer.id) && transfer.destinationType === "Customer").length}`,
@@ -2874,14 +2948,152 @@ function Header({ currentUser, onLogout }) {
         ],
       }));
 
-    const allResults = [...assetResults, ...customerResults, ...towerResults, ...supplierResults];
+    const projectResults = projects
+      .filter((project) => includesQuery(genericRecordText(project), keyword))
+      .map((project) => ({
+        type: "Project",
+        key: `project-${itemId(project)}`,
+        title: project.projectName || project.name || "Project",
+        subtitle: project.status || project.description || "Project record",
+        path: "/projects",
+        details: [
+          `Status: ${project.status || "-"}`,
+          `Price: ${money(project.price || project.amount)} ${project.currency || project.unit || "AFN"}`,
+          `Customer: ${project.customerName || "-"}`,
+        ],
+      }));
+
+    const employeeResults = employees
+      .filter((employee) => includesQuery(genericRecordText(employee), keyword))
+      .map((employee) => ({
+        type: "Employee",
+        key: `employee-${itemId(employee)}`,
+        title: employee.fullName || `${employee.firstName || ""} ${employee.lastName || ""}`.trim() || "Employee",
+        subtitle: employee.position || employee.department || employee.phone || "Employee record",
+        path: employee.id ? `/employees/${employee.id}` : "/employees",
+        details: [
+          `Status: ${employee.status || "-"}`,
+          `Department: ${employee.department || "-"}`,
+          `Phone: ${employee.phone || "-"}`,
+        ],
+      }));
+
+    const projectSaleResults = projectSales
+      .filter((sale) => includesQuery(genericRecordText(sale), keyword))
+      .map((sale) => ({
+        type: "Project Sale",
+        key: `project-sale-${itemId(sale)}`,
+        title: sale.projectName || sale.projects?.map?.((item) => item.projectName || item.name).filter(Boolean).join(", ") || "Project Sale",
+        subtitle: sale.customerName || sale.phone || "Sale record",
+        path: "/project-sales-bills",
+        details: [
+          `Total: ${money(sale.total || sale.totalAmount)} ${sale.currency || sale.unit || "AFN"}`,
+          `Paid: ${money(sale.paid || sale.paidAmount)} ${sale.currency || sale.unit || "AFN"}`,
+          `Remaining: ${money(sale.remaining || sale.remainingAmount)} ${sale.currency || sale.unit || "AFN"}`,
+        ],
+      }));
+
+    const financeResults = transactions
+      .filter((record) => includesQuery(genericRecordText(record), keyword))
+      .map((record) => ({
+        type: normalize(record.type) === "expense" ? "Expense" : "Income",
+        key: `finance-${itemId(record)}`,
+        title: record.title || record.category || record.type || "Finance record",
+        subtitle: record.description || record.source || "Financial transaction",
+        path: "/finance",
+        details: [
+          `Amount: ${money(record.amount)} ${record.currency || record.unit || "AFN"}`,
+          `Category: ${record.category || "-"}`,
+          `Date: ${record.date || record.createdAt || "-"}`,
+        ],
+      }));
+
+    const walletResults = cashWalletTransactions
+      .filter((record) => includesQuery(genericRecordText(record), keyword))
+      .map((record) => ({
+        type: "Cash Wallet",
+        key: `wallet-${itemId(record)}`,
+        title: `${record.type || "Wallet"} ${money(record.amount)} ${record.currency || "AFN"}`,
+        subtitle: record.description || record.source || "Cash wallet transaction",
+        path: "/cash-wallet",
+        details: [
+          `Source: ${record.source || "-"}`,
+          `Reference: ${record.reference || record.referenceName || "-"}`,
+          `Date: ${record.date || record.createdAt || "-"}`,
+        ],
+      }));
+
+    const paymentResults = supplierPayments
+      .filter((record) => includesQuery(genericRecordText(record), keyword))
+      .map((record) => ({
+        type: "Supplier Payment",
+        key: `supplier-payment-${itemId(record)}`,
+        title: record.supplierName || "Supplier Payment",
+        subtitle: record.description || record.direction || "Supplier payment",
+        path: "/suppliers",
+        details: [
+          `Amount: ${money(record.amount)} ${record.currency || "AFN"}`,
+          `Direction: ${record.direction || "-"}`,
+          `Date: ${record.paymentDate || record.date || record.createdAt || "-"}`,
+        ],
+      }));
+
+    const payrollResults = employeePayrolls
+      .filter((record) => includesQuery(genericRecordText(record), keyword))
+      .map((record) => ({
+        type: "Payroll",
+        key: `payroll-${itemId(record)}`,
+        title: record.employeeName || "Employee Payroll",
+        subtitle: record.payrollType || record.description || "Payroll record",
+        path: record.employeeId ? `/employees/${record.employeeId}` : "/employees",
+        details: [
+          `Amount: ${money(record.amount || record.calculatedAmount || record.expectedAmount)} ${record.currency || "AFN"}`,
+          `From: ${record.startDate || "-"}`,
+          `To: ${record.endDate || "-"}`,
+        ],
+      }));
+
+    const packageResults = [
+      ...visaPackages.map((item) => ({ ...item, __packageType: "Visa" })),
+      ...travelPackages.map((item) => ({ ...item, __packageType: "Travel" })),
+      ...technologyPackages.map((item) => ({ ...item, __packageType: "Technology" })),
+      ...mediaPackages.map((item) => ({ ...item, __packageType: "Media" })),
+    ]
+      .filter((record) => includesQuery(genericRecordText(record), keyword))
+      .map((record) => ({
+        type: `${record.__packageType} Package`,
+        key: `package-${record.__packageType}-${itemId(record)}`,
+        title: record.packageName || record.name || `${record.__packageType} Package`,
+        subtitle: record.projectName || record.country || record.note || "Package record",
+        path: "/packages",
+        details: [
+          `Price: ${money(record.sellingPrice || record.price)} ${record.unit || record.currency || "AFN"}`,
+          `Status: ${record.availability || record.status || "-"}`,
+          `Project: ${record.projectName || "-"}`,
+        ],
+      }));
+
+    const allResults = [
+      ...assetResults,
+      ...customerResults,
+      ...projectResults,
+      ...projectSaleResults,
+      ...employeeResults,
+      ...towerResults,
+      ...supplierResults,
+      ...paymentResults,
+      ...financeResults,
+      ...walletResults,
+      ...payrollResults,
+      ...packageResults,
+    ];
     const filteredResults =
       resultFilter === "All"
         ? allResults
         : allResults.filter((result) => result.type === resultFilter);
 
-    return filteredResults.slice(0, 12);
-  }, [assetMovements, assets, customers, deviceTransfers, query, resultFilter, securityDeposits, supplierPurchases, suppliers, towerAssets]);
+    return filteredResults.slice(0, 30);
+  }, [assetMovements, assets, cashWalletTransactions, customers, deviceTransfers, employeePayrolls, employees, mediaPackages, projectSales, projects, query, resultFilter, securityDeposits, supplierPayments, supplierPurchases, suppliers, technologyPackages, towerAssets, travelPackages, transactions, visaPackages]);
 
   const openResult = (path) => {
     setOpenSearch(false);
@@ -2896,17 +3108,17 @@ function Header({ currentUser, onLogout }) {
        <input
   placeholder={
     selectedLanguage === "dr"
-      ? "جستجوی نام مشتری، پروژه، پرداخت، تأمین‌کننده..."
+      ? "جستجوی مشتری، پروژه، کارمند، پرداخت، پکیج، تأمین‌کننده..."
       : selectedLanguage === "ps"
-        ? "د پېرودونکي نوم، پروژه، تادیه او عرضه کوونکی ولټوئ..."
-        : "Search Customer Name, Project, Payment, Supplier..."
+        ? "پېرودونکي، پروژې، کارکوونکي، تادیات، پکیجونه او عرضه کوونکي ولټوئ..."
+        : "Search customers, projects, employees, payments, packages, suppliers..."
   }
   aria-label={
     selectedLanguage === "dr"
-      ? "جستجوی مشتریان، پروژه‌ها، پرداخت‌ها و تأمین‌کنندگان"
+      ? "جستجوی تمام رکوردهای اصلی سیستم"
       : selectedLanguage === "ps"
         ? "پېرودونکي، پروژې، تادیات او عرضه کوونکي ولټوئ"
-        : "Search customers, projects, payments and suppliers"
+        : "Search all main system records"
   }
   value={query}
   onChange={(event) => {

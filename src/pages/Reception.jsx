@@ -2301,6 +2301,11 @@ const mediaCount =
       packageBankStatementAmount: Number(
         selectedVisaPackage?.bankStatementAmount || 0
       ),
+      packageDocumentationRequired:
+        selectedVisaPackage?.documentationRequired || "No",
+      packageDocuments: Array.isArray(selectedVisaPackage?.documents)
+        ? selectedVisaPackage.documents
+        : [],
 
       source: consultantForm.source.trim(),
       assignedEmployeeId:
@@ -2598,6 +2603,11 @@ const mediaCount =
       packageBankStatementAmount: Number(
         selectedTravelPackage?.bankStatementAmount || 0
       ),
+      packageDocumentationRequired:
+        selectedTravelPackage?.documentationRequired || "No",
+      packageDocuments: Array.isArray(selectedTravelPackage?.documents)
+        ? selectedTravelPackage.documents
+        : [],
 
       source: travelForm.source.trim(),
 

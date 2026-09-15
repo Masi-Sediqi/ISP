@@ -38,13 +38,10 @@ function main() {
     VITE_API_ROOT: "/api",
   };
 
-  console.log("\n[1/3] Building the React production bundle...");
+  console.log("\n[1/2] Building the React production bundle...");
   runStep("npm", ["run", "build"], env);
 
-  console.log("\n[2/3] Checking PostgreSQL and preparing the data store...");
-  runStep("node", ["transport-backend/scripts/prepare-postgres.js"], env);
-
-  console.log("\n[3/3] Starting ISP Smart LAN server...");
+  console.log("\n[2/2] Starting ISP Smart VPS/LAN server...");
   const addresses = localIpv4Addresses();
 
   console.log(`Local server: http://127.0.0.1:${API_PORT}`);

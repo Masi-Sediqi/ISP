@@ -850,3 +850,102 @@ body.dark-mode .consultant-other-language-field input {
 .consultant-page-rtl .consultant-modal-actions {
   flex-direction: row-reverse;
 }
+
+.consultant-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 9px;
+  border: 1px solid #dbe4ff;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+body.dark-mode .consultant-stage-badge {
+  border-color: #4338ca;
+  background: #312e81;
+  color: #e0e7ff;
+}
+
+
+/* Duplicate customer warning shown live inside the registration modal. */
+.consultant-duplicate-warning {
+  margin: 16px 22px 0;
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid #f59e0b;
+  border-radius: 14px;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.consultant-duplicate-warning-icon {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.consultant-duplicate-warning-copy {
+  min-width: 0;
+}
+
+.consultant-duplicate-warning-copy strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #92400e;
+  font-size: 13px;
+}
+
+.consultant-duplicate-warning-copy p {
+  margin: 0;
+  color: #a16207;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.consultant-duplicate-warning-meta {
+  margin-top: 9px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  color: #78350f;
+  font-size: 10px;
+}
+
+.consultant-duplicate-warning-meta b {
+  font-weight: 800;
+}
+
+body.dark-mode .consultant-duplicate-warning {
+  border-color: #92400e;
+  background: #422006;
+  color: #fde68a;
+}
+
+body.dark-mode .consultant-duplicate-warning-icon {
+  background: #78350f;
+  color: #fbbf24;
+}
+
+body.dark-mode .consultant-duplicate-warning-copy strong,
+body.dark-mode .consultant-duplicate-warning-copy p,
+body.dark-mode .consultant-duplicate-warning-meta {
+  color: #fde68a;
+}
+
+@media (max-width: 720px) {
+  .consultant-duplicate-warning {
+    margin: 12px 16px 0;
+  }
+}

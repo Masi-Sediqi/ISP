@@ -25,6 +25,12 @@ import {
   import { useJsonCollection } from "../hooks/useJsonCollection";
   import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
   import { notify } from "../utils/notify";
+  import { resolveFollowUpPackageRequirements } from "../utils/customerFollowUpPackage";
+  import {
+    buildCustomerStageOptions,
+    createCustomerStageHistoryRecord,
+    stageLabel,
+  } from "../utils/customerStage";
   import "./CustomerFollowUp.css";
   
   const defaultEnglishTests = [
@@ -590,6 +596,10 @@ import {
         followUp.brandName ||
         customer?.brandName ||
         "",
+      currentStage:
+        followUp.currentStage ||
+        customer?.customerStage ||
+        "None",
       decisionStatus:
         followUp.decisionStatus ||
         customer?.followUpDecisionStatus ||
@@ -655,6 +665,18 @@ import {
     const [projects] =
       useJsonCollection("projects");
 
+    const [visaPackages] =
+      useJsonCollection("visaPackages");
+
+    const [travelPackages] =
+      useJsonCollection("travelPackages");
+
+    const [stageHistory, setStageHistory] =
+      useJsonCollection("customerStageHistory");
+
+    const [stageConfigs] =
+      useJsonCollection("customerStageConfig");
+
     const [
       transactions,
       setTransactions,
@@ -674,6 +696,41 @@ import {
       [customers, id]
     );
   
+    const packageRequirements = useMemo(
+      () =>
+        resolveFollowUpPackageRequirements({
+          customer,
+          visaPackages,
+          travelPackages,
+        }),
+      [customer, visaPackages, travelPackages]
+    );
+
+    const requiredDocuments = packageRequirements.requiredDocuments;
+    const packageDocumentationRequired = packageRequirements.documentationRequired;
+    const packageBankStatementRequired = packageRequirements.bankStatementRequired;
+    const usesPackageRequirements = Boolean(
+      packageRequirements.packageItem ||
+      customer?.packageDocumentationRequired !== undefined ||
+      customer?.packageBankStatementRequired !== undefined
+    );
+    const availableStageOptions = useMemo(() => {
+      const config =
+        stageConfigs.find((item) => String(item?.id || "") === "global") ||
+        { id: "global", customStages: [], hiddenStages: [] };
+      return buildCustomerStageOptions(config);
+    }, [stageConfigs]);
+
+    const stageOptionsForFollowUp = useMemo(
+      () => [
+        ...new Set([
+          stageLabel(customer?.customerStage),
+          ...availableStageOptions,
+        ]),
+      ],
+      [customer?.customerStage, availableStageOptions]
+    );
+
     const savedEnglishTests = useMemo(
       () =>
         customers.flatMap((item) => {
@@ -708,6 +765,10 @@ import {
   
     const [englishTests, setEnglishTests] =
       useState(defaultEnglishTests);
+
+    const documentOptionsForFollowUp = usesPackageRequirements
+      ? requiredDocuments
+      : englishTests;
   
     const [countries, setCountries] =
       useState(defaultCountries);
@@ -884,13 +945,18 @@ import {
     }, [customer]);
   
     useEffect(() => {
+      if (usesPackageRequirements) {
+        setEnglishTests(requiredDocuments);
+        return;
+      }
+
       setEnglishTests([
         ...new Set([
           ...defaultEnglishTests,
           ...savedEnglishTests,
         ]),
       ]);
-    }, [savedEnglishTests]);
+    }, [savedEnglishTests, usesPackageRequirements, requiredDocuments]);
   
     useEffect(() => {
       setCountries([
@@ -900,6 +966,20 @@ import {
         ]),
       ]);
     }, [savedCountries]);
+
+    useEffect(() => {
+      if (!usesPackageRequirements) return;
+
+      setForm((current) => ({
+        ...current,
+        englishTests: Array.isArray(current.englishTests)
+          ? current.englishTests.filter((item) => requiredDocuments.includes(item))
+          : [],
+        ...(!packageBankStatementRequired
+          ? { bankStatementOwner: "", bankStatementAmount: "" }
+          : {}),
+      }));
+    }, [usesPackageRequirements, requiredDocuments, packageBankStatementRequired]);
   
     function updateField(event) {
       const { name, value } = event.target;
@@ -1385,13 +1465,17 @@ import {
   
       if (
         customer.customerType === "consultant" &&
+        (!usesPackageRequirements || packageDocumentationRequired) &&
+        documentOptionsForFollowUp.length > 0 &&
         (
           !Array.isArray(form.englishTests) ||
           !form.englishTests.length
         )
       ) {
         notify(
-          "Please select at least one English test document.",
+          usesPackageRequirements
+            ? "Please mark at least one required package document as available."
+            : "Please select at least one customer document.",
           "error"
         );
         return;
@@ -1401,6 +1485,7 @@ import {
         ["consultant", "travel"].includes(
           customer.customerType
         ) &&
+        (!usesPackageRequirements || packageBankStatementRequired) &&
         !form.bankStatementOwner
       ) {
         notify(
@@ -1414,6 +1499,7 @@ import {
         ["consultant", "travel"].includes(
           customer.customerType
         ) &&
+        (!usesPackageRequirements || packageBankStatementRequired) &&
         form.bankStatementOwner !== "None" &&
         !String(form.bankStatementAmount).trim()
       ) {
@@ -1594,6 +1680,41 @@ import {
   
         const latestCustomers =
           await loadCustomers();
+
+        const latestCustomer = latestCustomers.find(
+          (item) => String(item.id) === String(customer.id)
+        );
+        const previousStage = stageLabel(
+          latestCustomer?.customerStage || customer.customerStage
+        );
+        const nextStage = stageLabel(form.currentStage);
+        const stageChanged = previousStage !== nextStage;
+        let stageHistoryRecord = null;
+
+        if (stageChanged) {
+          stageHistoryRecord = createCustomerStageHistoryRecord({
+            customerId: customer.id,
+            customerName: getCustomerName(customer),
+            fromStage: previousStage,
+            toStage: nextStage,
+            note: "Changed from Application Follow-Up Form",
+            actor: currentUser,
+            now,
+          });
+
+          const historySaved = await setStageHistory([
+            stageHistoryRecord,
+            ...stageHistory,
+          ]);
+
+          if (!historySaved) {
+            notify(
+              "Unable to save the customer stage history.",
+              "error"
+            );
+            return;
+          }
+        }
   
         const nextCustomers = latestCustomers.map((item) => {
           if (String(item.id) !== String(customer.id)) {
@@ -1635,6 +1756,7 @@ import {
 
             return {
               ...item,
+              customerStage: nextStage,
               passportNumber: form.passportNumber.trim(),
               maritalStatus: form.maritalStatus,
               graduatedMajor: form.graduatedMajor.trim(),
@@ -1682,6 +1804,7 @@ import {
 
           return {
             ...item,
+            customerStage: nextStage,
             currencyUnit: form.currencyUnit || "AFN",
             unit: form.currencyUnit || "AFN",
             totalAmount,
@@ -1710,6 +1833,7 @@ import {
               guaranteeDocument: form.guaranteeDocument,
               projectId: form.projectId,
               projectName: form.projectName,
+              currentStage: nextStage,
               decisionStatus: form.decisionStatus,
               completedAt: now,
               completedByAccountId: currentUser?.id || "",
@@ -1731,6 +1855,9 @@ import {
           await setCustomers(nextCustomers);
   
         if (!saved) {
+          if (stageHistoryRecord) {
+            await setStageHistory(stageHistory);
+          }
           notify(
             "Unable to save the follow-up form.",
             "error"
@@ -1908,7 +2035,8 @@ import {
             className="customer-followup-role-section"
             disabled={isAdminAccount}
           >
-          {customer.customerType === "consultant" && (
+          {customer.customerType === "consultant" &&
+            (!usesPackageRequirements || packageDocumentationRequired) && (
           <section className="customer-followup-card">
             <header>
               <FileCheck2 size={20} />
@@ -1917,24 +2045,29 @@ import {
                 <h2>Document Information</h2>
   
                 <p>
-                  Select the available English test
-                  document.
+                  {usesPackageRequirements
+                    ? "Mark the required package documents that are available for this customer."
+                    : "Select the available customer documents."}
                 </p>
               </div>
             </header>
   
             <div className="customer-followup-field">
               <label htmlFor="englishTest">
-                English Test Documents
+                {usesPackageRequirements
+                  ? "Package Required Documents"
+                  : "Customer Documents"}
               </label>
   
               <small className="customer-followup-help">
-                You can select more than one document.
+                {usesPackageRequirements
+                  ? "Only documents configured in the selected Visa Package are shown here."
+                  : "You can select more than one document."}
               </small>
   
               <div className="customer-followup-document-picker">
                 <div className="customer-followup-document-options">
-                  {englishTests.map((test) => {
+                  {documentOptionsForFollowUp.map((test) => {
                     const selected =
                       form.englishTests.includes(
                         test
@@ -1963,22 +2096,30 @@ import {
                       </button>
                     );
                   })}
+
+                  {usesPackageRequirements && !documentOptionsForFollowUp.length && (
+                    <small className="customer-followup-help">
+                      No required documents were configured for this package.
+                    </small>
+                  )}
                 </div>
   
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowTestAdder(
-                      (open) => !open
-                    )
-                  }
-                  title="Add another document"
-                >
-                  <Plus size={17} />
-                </button>
+                {!usesPackageRequirements && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowTestAdder(
+                        (open) => !open
+                      )
+                    }
+                    title="Add another document"
+                  >
+                    <Plus size={17} />
+                  </button>
+                )}
               </div>
   
-              {showTestAdder && (
+              {!usesPackageRequirements && showTestAdder && (
                 <div className="customer-followup-inline-adder">
                   <input
                     value={newTest}
@@ -2091,7 +2232,8 @@ import {
 
           {["consultant", "travel"].includes(
             customer.customerType
-          ) && (
+          ) &&
+            (!usesPackageRequirements || packageBankStatementRequired) && (
             <section className="customer-followup-card">
               <header>
                 <Landmark size={20} />
@@ -2102,6 +2244,9 @@ import {
                   <p>
                     Choose the statement owner and enter
                     the available amount.
+                    {usesPackageRequirements && packageRequirements.bankStatementAmount > 0
+                      ? ` Package requirement: ${packageRequirements.bankStatementAmount.toLocaleString("en-US")} AFN.`
+                      : ""}
                   </p>
                 </div>
               </header>
@@ -2505,6 +2650,10 @@ import {
                   <option value="USD">
                     USD - Dollar
                   </option>
+
+                  <option value="EUR">
+                    EUR - Euro
+                  </option>
                 </select>
               </div>
 
@@ -2619,6 +2768,27 @@ import {
 
                 </>
               )}
+
+              <div className="customer-followup-field customer-followup-full">
+                <label htmlFor="currentStage">Current Stage</label>
+
+                <select
+                  id="currentStage"
+                  name="currentStage"
+                  value={form.currentStage}
+                  onChange={updateField}
+                >
+                  {stageOptionsForFollowUp.map((stage) => (
+                    <option key={stage} value={stage}>
+                      {stage}
+                    </option>
+                  ))}
+                </select>
+
+                <small className="customer-followup-help">
+                  Changing this value is saved to the customer Stage History.
+                </small>
+              </div>
 
               <div className="customer-followup-field customer-followup-full">
                 <label>Application Status</label>

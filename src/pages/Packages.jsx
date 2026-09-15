@@ -15,6 +15,7 @@ import { notify } from "../utils/notify";
 import VisaPackages from "./VisaPackages";
 import TechnologyPackages from "./TechnologyPackages";
 import MediaPackages from "./MediaPackages";
+import { formatCurrencyAmount } from "../utils/currencyDisplay";
 import "./Packages.css";
 
 const emptyTravelForm = {
@@ -76,7 +77,7 @@ const packageSections = [
 ];
 
 const money = (value, currency = "AFN") =>
-  `${Number(value || 0).toLocaleString("en-US")} ${currency || "AFN"}`;
+  formatCurrencyAmount(value, currency || "AFN");
 
 function TravelPackagesPanel() {
   const [travelPackages, setTravelPackages] = useJsonCollection("travelPackages");

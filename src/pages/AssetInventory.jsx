@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
+import { formatCurrencyAmount } from "../utils/currencyDisplay";
 import TablePagination from "../components/TablePagination";
 import { useTablePagination } from "../hooks/useTablePagination";
 import "./AssetInventory.css";
@@ -578,7 +579,7 @@ assetImage:
 
         <div className="asset-stat-card asset-wide-stat">
           <span>Total Stock Value</span>
-          <strong>{money(totalStockValue)} AFN</strong>
+          <strong>{formatCurrencyAmount(totalStockValue, "AFN")}</strong>
           <p>Quantity × unit price</p>
         </div>
       </div>
@@ -650,7 +651,7 @@ assetImage:
                     <td>{asset.macAddress || "-"}</td>
                     <td>{asset.serialNumber || "-"}</td>
                     <td>{asset.quantity ?? 0}</td>
-                    <td>{money(asset.unitPrice)} AFN</td>
+                    <td>{formatCurrencyAmount(asset.unitPrice, asset.currency || "AFN")}</td>
                     <td>
                   
   <div className="asset-action-cell">

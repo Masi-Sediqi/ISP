@@ -1,4 +1,5 @@
 import { Component } from "react";
+import { runtimeErrorMessage } from "../utils/runtimeErrors";
 
 import "./AppErrorBoundary.css";
 
@@ -11,10 +12,13 @@ class AppErrorBoundary extends Component {
   }
 
   static getDerivedStateFromError(error) {
+    // Only React render/lifecycle errors should replace the application UI.
     return { error };
   }
 
   componentDidMount() {
+    // Background browser/runtime errors must not blank the whole application.
+    // They are still logged so they can be diagnosed from DevTools.
     window.addEventListener("error", this.handleWindowError);
     window.addEventListener(
       "unhandledrejection",
@@ -31,18 +35,12 @@ class AppErrorBoundary extends Component {
   }
 
   handleWindowError = (event) => {
-    if (event?.error) {
-      this.setState({ error: event.error });
-    }
+    const error = event?.error || event?.message;
+    console.error("[Background window error]", error);
   };
 
   handleUnhandledRejection = (event) => {
-    this.setState({
-      error:
-        event?.reason instanceof Error
-          ? event.reason
-          : new Error(String(event?.reason || "Unexpected loading error")),
-    });
+    console.error("[Background promise rejection]", event?.reason);
   };
 
   componentDidCatch(error, info) {
@@ -54,15 +52,22 @@ class AppErrorBoundary extends Component {
       return this.props.children;
     }
 
+    const detail = runtimeErrorMessage(this.state.error);
+
     return (
       <div className="app-error-page">
         <div className="app-error-card">
           <div className="app-error-mark">!</div>
           <h1>Afghan Power could not open this page.</h1>
           <p>
-            The system hit a loading error. Refresh once, and if it continues,
-            check the Supabase connection and account data.
+            A page rendering error occurred. Refresh once. If it continues,
+            check the technical message below.
           </p>
+          {detail && (
+            <small className="app-error-detail">
+              {detail}
+            </small>
+          )}
           <button type="button" onClick={() => window.location.reload()}>
             Refresh
           </button>

@@ -1,0 +1,380 @@
+.staff-payable-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: calc(100vh - 92px);
+  padding: 26px;
+  color: #0f172a;
+}
+
+.staff-payable-back {
+  align-self: flex-start;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 9px 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #0f172a;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.staff-payable-back:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.staff-payable-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 290px);
+  align-items: stretch;
+  gap: 22px;
+  margin-top: 2px;
+}
+
+.staff-payable-heading > div:first-child {
+  min-width: 0;
+}
+
+.staff-payable-heading h1 {
+  margin: 6px 0 6px;
+  font-size: clamp(28px, 2.2vw, 34px);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.staff-payable-heading p {
+  max-width: 680px;
+  margin: 0;
+  color: #52647d;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.staff-payable-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.staff-payable-total-card {
+  border: 1px solid #dbe4f0;
+  background:
+    linear-gradient(135deg, rgba(99, 91, 255, 0.1), rgba(14, 165, 233, 0.06)),
+    #ffffff;
+  border-radius: 8px;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 13px;
+  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.06);
+}
+
+.staff-payable-total-card > svg {
+  width: 38px;
+  height: 38px;
+  padding: 9px;
+  color: #4f46e5;
+  background: #eef2ff;
+  border-radius: 8px;
+}
+
+.staff-payable-total-card div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.staff-payable-total-card span,
+.staff-payable-total-card small {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.staff-payable-total-card strong {
+  color: #0f172a;
+  font-size: 26px;
+  line-height: 1.12;
+}
+
+.staff-payable-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.staff-payable-search {
+  width: min(430px, 100%);
+  height: 42px;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 13px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.staff-payable-search:focus-within {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.staff-payable-search svg {
+  flex: 0 0 auto;
+  color: #64748b;
+}
+
+.staff-payable-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.staff-payable-table-card {
+  border: 1px solid #dfe7f1;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.04);
+}
+
+.staff-payable-table-title {
+  min-height: 52px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.staff-payable-table-title > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.staff-payable-table-title svg {
+  color: #334155;
+}
+
+.staff-payable-table-title strong {
+  font-size: 15px;
+}
+
+.staff-payable-table-title > span {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.staff-payable-table-wrap {
+  overflow: auto;
+}
+
+.staff-payable-table {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: collapse;
+}
+
+.staff-payable-table th {
+  padding: 13px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #52647d;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.staff-payable-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf2f7;
+  color: #0f172a;
+  font-size: 14px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.staff-payable-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.staff-payable-table tbody tr:hover td {
+  background: #fbfdff;
+}
+
+.staff-payable-employee {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+}
+
+.staff-payable-employee > span {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #4f46e5;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+}
+
+.staff-payable-employee div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.staff-payable-employee strong {
+  line-height: 1.2;
+}
+
+.staff-payable-employee small {
+  color: #64748b;
+}
+
+.staff-payable-balance {
+  color: #047857;
+}
+
+.staff-payable-open {
+  border: 1px solid #dbe2ea;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0f172a;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.staff-payable-open:hover {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.staff-payable-empty {
+  padding: 42px 16px !important;
+  color: #64748b !important;
+  text-align: center !important;
+}
+
+body.dark-mode .staff-payable-page {
+  color: #e5e7eb;
+}
+
+body.dark-mode .staff-payable-back,
+body.dark-mode .staff-payable-search,
+body.dark-mode .staff-payable-table-card,
+body.dark-mode .staff-payable-open {
+  border-color: #334155;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+body.dark-mode .staff-payable-heading p,
+body.dark-mode .staff-payable-total-card span,
+body.dark-mode .staff-payable-total-card small,
+body.dark-mode .staff-payable-table-title > span,
+body.dark-mode .staff-payable-employee small,
+body.dark-mode .staff-payable-empty {
+  color: #94a3b8 !important;
+}
+
+body.dark-mode .staff-payable-total-card {
+  border-color: #334155;
+  background:
+    linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(14, 165, 233, 0.08)),
+    #0f172a;
+}
+
+body.dark-mode .staff-payable-total-card strong,
+body.dark-mode .staff-payable-search input,
+body.dark-mode .staff-payable-table td {
+  color: #f8fafc;
+}
+
+body.dark-mode .staff-payable-table-title,
+body.dark-mode .staff-payable-table th,
+body.dark-mode .staff-payable-table td {
+  border-color: #253149;
+}
+
+body.dark-mode .staff-payable-table th {
+  background: #182235;
+  color: #cbd5e1;
+}
+
+body.dark-mode .staff-payable-table tbody tr:hover td {
+  background: #162033;
+}
+
+body.dark-mode .staff-payable-open:hover,
+body.dark-mode .staff-payable-back:hover {
+  border-color: #4f46e5;
+  background: #1e1b4b;
+}
+
+@media (max-width: 920px) {
+  .staff-payable-page {
+    padding: 18px;
+  }
+
+  .staff-payable-heading {
+    grid-template-columns: 1fr;
+  }
+
+  .staff-payable-total-card {
+    max-width: 420px;
+  }
+
+  .staff-payable-toolbar {
+    justify-content: stretch;
+  }
+
+  .staff-payable-search {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .staff-payable-page {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .staff-payable-heading h1 {
+    font-size: 27px;
+  }
+
+  .staff-payable-table-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

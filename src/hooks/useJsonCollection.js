@@ -3,11 +3,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { notify } from "../utils/notify";
 import { getRecordIdentity } from "../utils/recycleBin";
 import {
+  calculateChanges,
   currentActorSnapshot,
-  fetchSupabaseCollection,
+  fetchServerCollection,
   saveCollectionChanges,
 } from "../sync/collectionSync";
-import { pushRemoteChanges, supabaseConfigured } from "../services/supabaseRest";
+import { pushRemoteChanges, serverConfigured } from "../services/serverRest";
+import {
+  enqueueSyncOperation,
+  migrateLocalStorageCollection,
+  readIndexedCollection,
+  writeIndexedCollection,
+} from "../db/indexedDb";
 
 const DISABLED_COLLECTIONS = new Set();
 const ACTIVITY_COLLECTION = "employeeActivities";
@@ -18,13 +25,15 @@ const ACTIVITY_IGNORED_COLLECTIONS = new Set([
 ]);
 const REMOTE_REFRESH_MS = 30000;
 const sharedCollectionRequests = new Map();
+const localCollectionKey = (name) => `isp-local-collection:${name}`;
+const canUseRemote = () => serverConfigured && navigator.onLine;
 
 async function fetchCollectionShared(name) {
   if (sharedCollectionRequests.has(name)) {
     return sharedCollectionRequests.get(name);
   }
 
-  const request = fetchSupabaseCollection(name).finally(() => {
+  const request = fetchServerCollection(name).finally(() => {
     sharedCollectionRequests.delete(name);
   });
 
@@ -77,8 +86,8 @@ function buildRecycleEntries(collectionName, previousItems, nextItems) {
     sourceCollection: collectionName,
     sourceCollectionLabel: collectionName,
     recordType: collectionName,
-    sourceType: "supabase",
-    recycleStorage: "supabase",
+    sourceType: "server",
+    recycleStorage: "server",
     recordId: getRecordIdentity(record),
     recordLabel:
       record?.customerName || record?.fullName || record?.projectName ||
@@ -94,7 +103,7 @@ function buildRecycleEntries(collectionName, previousItems, nextItems) {
   }));
 }
 
-async function archiveRemovedRecordsToSupabase(collectionName, previousItems, nextItems) {
+async function archiveRemovedRecordsToServer(collectionName, previousItems, nextItems) {
   const entries = buildRecycleEntries(collectionName, previousItems, nextItems);
   if (!entries.length) return;
   const actor = currentActorSnapshot();
@@ -154,7 +163,7 @@ async function recordEmployeeActivity(collectionName, previousItems, nextItems) 
   if (ACTIVITY_IGNORED_COLLECTIONS.has(collectionName)) return;
 
   const actor = currentActorSnapshot();
-  if (!actor?.id || isFullAdminAccount(actor) || !supabaseConfigured || !navigator.onLine) return;
+  if (!actor?.id || isFullAdminAccount(actor) || !serverConfigured || !navigator.onLine) return;
 
   const change = detectCollectionChange(previousItems, nextItems);
   if (!change.totalChanged) return;
@@ -198,11 +207,11 @@ async function recordEmployeeActivity(collectionName, previousItems, nextItems) 
       new CustomEvent("isp-employee-activity-updated", { detail: record })
     );
   } catch (error) {
-    console.warn("Unable to record employee activity in Supabase:", error);
+    console.warn("Unable to record employee activity in VPS server:", error);
   }
 }
 
-export function useJsonCollection(name, options = {}) {
+export function useJsonCollection(name) {
   const disabled = DISABLED_COLLECTIONS.has(name);
   const [items, setItemsState] = useState([]);
   const [loaded, setLoaded] = useState(disabled);
@@ -218,6 +227,26 @@ export function useJsonCollection(name, options = {}) {
     return safe;
   }, []);
 
+  const loadLocalItems = useCallback(async () => {
+    try {
+      const localItems = await migrateLocalStorageCollection(
+        name,
+        localCollectionKey(name)
+      );
+      applyItems(localItems);
+      return localItems;
+    } catch (error) {
+      console.warn(`[Local collection failed] ${name}:`, error);
+      try {
+        const localItems = await readIndexedCollection(name);
+        applyItems(localItems);
+        return localItems;
+      } catch {
+        return itemsRef.current;
+      }
+    }
+  }, [applyItems, name]);
+
   const load = useCallback(async () => {
     if (disabled) {
       applyItems([]);
@@ -228,24 +257,55 @@ export function useJsonCollection(name, options = {}) {
     if (loadingRef.current) return itemsRef.current;
     loadingRef.current = true;
 
+    const isInitialLoad = !loadedRef.current;
+    const loadingToken = isInitialLoad
+      ? `${name}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
+      : null;
+
+    if (loadingToken && typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("isp-data-loading", {
+          detail: { phase: "start", token: loadingToken, collection: name },
+        })
+      );
+    }
+
     try {
+      if (!canUseRemote()) {
+        const localItems = await loadLocalItems();
+        setLoadError(null);
+        return localItems;
+      }
+
       const remoteItems = await fetchCollectionShared(name);
       applyItems(remoteItems);
+      writeIndexedCollection(name, remoteItems).catch((error) => {
+        console.warn(`[Local cache write failed] ${name}:`, error);
+      });
       setLoadError(null);
       return remoteItems;
     } catch (error) {
-      console.error(`[Supabase collection failed] ${name}:`, error);
+      console.error(`[VPS server collection failed] ${name}:`, error);
       setLoadError(error);
-      if (!loadedRef.current) {
-        notify(error?.message || `Unable to load ${name} from Supabase.`, "error");
+      const localItems = await loadLocalItems();
+      if (!loadedRef.current && !localItems.length) {
+        notify(error?.message || `Unable to load ${name} from VPS server.`, "error");
       }
-      return itemsRef.current;
+      return localItems;
     } finally {
       loadedRef.current = true;
       setLoaded(true);
       loadingRef.current = false;
+
+      if (loadingToken && typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("isp-data-loading", {
+            detail: { phase: "end", token: loadingToken, collection: name },
+          })
+        );
+      }
     }
-  }, [applyItems, disabled, name]);
+  }, [applyItems, disabled, loadLocalItems, name]);
 
   useEffect(() => {
     load();
@@ -260,16 +320,16 @@ export function useJsonCollection(name, options = {}) {
     };
     const handleOnline = () => load();
 
-    window.addEventListener(`isp-supabase:${name}`, handleRemoteChange);
+    window.addEventListener(`isp-server:${name}`, handleRemoteChange);
     window.addEventListener("online", handleOnline);
     return () => {
-      window.removeEventListener(`isp-supabase:${name}`, handleRemoteChange);
+      window.removeEventListener(`isp-server:${name}`, handleRemoteChange);
       window.removeEventListener("online", handleOnline);
     };
   }, [applyItems, disabled, load, name]);
 
   useEffect(() => {
-    if (disabled || !supabaseConfigured) return undefined;
+    if (disabled || !serverConfigured) return undefined;
     const refreshIfVisible = () => {
       if (
         document.visibilityState !== "visible" ||
@@ -306,22 +366,58 @@ export function useJsonCollection(name, options = {}) {
         return false;
       }
 
-      // Optimistic UI only; persistence is Supabase-only.
+      // Optimistic UI; local mode persists to IndexedDB, VPS mode syncs remotely.
       applyItems(nextItems);
 
+      if (!canUseRemote()) {
+        try {
+          await writeIndexedCollection(name, nextItems);
+          window.dispatchEvent(
+            new CustomEvent(`isp-server:${name}`, { detail: nextItems })
+          );
+          return true;
+        } catch (error) {
+          applyItems(previousItems);
+          console.error(`Unable to save ${name} locally:`, error);
+          notify(error?.message || `Unable to save ${name} locally.`, "error");
+          return false;
+        }
+      }
+
       try {
-        await archiveRemovedRecordsToSupabase(name, previousItems, nextItems);
+        await archiveRemovedRecordsToServer(name, previousItems, nextItems);
         await saveCollectionChanges(name, previousItems, nextItems);
+        writeIndexedCollection(name, nextItems).catch((error) => {
+          console.warn(`[Local cache write failed] ${name}:`, error);
+        });
         window.dispatchEvent(
-          new CustomEvent(`isp-supabase:${name}`, { detail: nextItems })
+          new CustomEvent(`isp-server:${name}`, { detail: nextItems })
         );
         recordEmployeeActivity(name, previousItems, nextItems);
         return true;
       } catch (error) {
-        applyItems(previousItems);
-        console.error(`Unable to save ${name} to Supabase:`, error);
-        notify(error?.message || `Unable to save ${name} to Supabase.`, "error");
-        return false;
+        try {
+          await writeIndexedCollection(name, nextItems);
+          const actor = currentActorSnapshot();
+          const changes = calculateChanges(previousItems, nextItems);
+          await enqueueSyncOperation({
+            collection: name,
+            upserts: changes.upserts,
+            deletes: changes.deletes,
+            actorId: actor.id || actor.employeeId || "",
+            ownerId: actor.employeeId || actor.id || "",
+          });
+          window.dispatchEvent(
+            new CustomEvent(`isp-server:${name}`, { detail: nextItems })
+          );
+          notify("Saved locally. It will sync when the VPS server is available.", "info");
+          return true;
+        } catch (localError) {
+          applyItems(previousItems);
+          console.error(`Unable to save ${name} to VPS server or local storage:`, error, localError);
+          notify(localError?.message || `Unable to save ${name}.`, "error");
+          return false;
+        }
       }
     },
     [applyItems, disabled, name]

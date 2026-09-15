@@ -18,6 +18,12 @@ import { useJsonCollection } from "../hooks/useJsonCollection";
 import { notify } from "../utils/notify";
 import { createId } from "../utils/createId";
 import { formatDateTime } from "../utils/afghanDate";
+import {
+  availableCashWalletBalanceForCurrency,
+  normalizeWalletCurrency,
+} from "../utils/cashWallet";
+import { formatCurrencyAmount, formatCurrencyTotals, sumCurrencyAmounts } from "../utils/currencyDisplay";
+import { calculateSupplierBalanceByCurrency } from "../utils/supplierPayable";
 import "./SupplierDetails.css";
 const emptyPurchaseForm = {
   purchaseDate: "",
@@ -35,6 +41,7 @@ const emptyPurchaseForm = {
 const emptyPaymentForm = {
   paymentDate: new Date().toISOString().slice(0, 10),
   direction: "we_pay_supplier",
+  currency: "AFN",
   amount: "",
   method: "Cash",
   notes: "",
@@ -128,7 +135,8 @@ function SupplierDetails() {
   const [assetMovements, setAssetMovements] = useJsonCollection("assetMovements");
   const [supplierPayments, setSupplierPayments] = useJsonCollection("supplierPayments");
   const [customCategories, setCustomCategories] = useJsonCollection("assetCategories");
-  const [, setTransactions] = useJsonCollection("transactions");
+  const [transactions, setTransactions] = useJsonCollection("transactions");
+  const [cashWalletTransactions, setCashWalletTransactions] = useJsonCollection("cashWalletTransactions");
 
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [purchaseForm, setPurchaseForm] = useState(emptyPurchaseForm);
@@ -360,6 +368,30 @@ const latestOpeningBalance = latestBalanceRecord
     openingSupplierOwesUs;
   const weOweSupplier = supplierBalance > 0 ? supplierBalance : 0;
   const supplierOwesUs = supplierBalance < 0 ? Math.abs(supplierBalance) : 0;
+  const supplierBalancesByCurrency = calculateSupplierBalanceByCurrency({
+    purchases,
+    payments: supplierPaymentRecords,
+  });
+  const supplierPayableByCurrency = Object.fromEntries(
+    Object.entries(supplierBalancesByCurrency).map(([currency, amount]) => [currency, amount > 0 ? amount : 0])
+  );
+  const supplierReceivableByCurrency = Object.fromEntries(
+    Object.entries(supplierBalancesByCurrency).map(([currency, amount]) => [currency, amount < 0 ? Math.abs(amount) : 0])
+  );
+  const purchaseValueByCurrency = sumCurrencyAmounts(
+    purchases,
+    (purchase) => purchase.totalPurchaseValue || 0,
+    (purchase) => purchase.currency || purchase.unit || "AFN"
+  );
+  const paidToSupplierByCurrency = sumCurrencyAmounts(
+    [
+      ...purchases.map((purchase) => ({ amount: purchase.paidAmount || 0, currency: purchase.currency || purchase.unit || "AFN" })),
+      ...payments.filter((payment) => payment.direction !== "supplier_pays_us"),
+    ],
+    (item) => item.amount || 0,
+    (item) => item.currency || item.unit || "AFN"
+  );
+
   const hasSupplierFinancialRecords =
     purchases.length > 0 || payments.length > 0 || balanceRecords.length > 0;
 
@@ -382,6 +414,7 @@ const latestOpeningBalance = latestBalanceRecord
         balance.balanceSide === "we_owe_supplier"
           ? "We Owe Supplier"
           : "Supplier Owes Us",
+      currency: balance.currency || balance.unit || "AFN",
       record: balance,
       recordType: "balance",
     })),
@@ -394,6 +427,7 @@ const latestOpeningBalance = latestBalanceRecord
       debit: Number(purchase.totalPurchaseValue || 0),
       credit: Number(purchase.paidAmount || 0),
       status: purchase.status || purchase.paymentStatus || "-",
+      currency: purchase.currency || purchase.unit || "AFN",
       record: purchase,
       recordType: "purchase",
     })),
@@ -410,6 +444,7 @@ const latestOpeningBalance = latestBalanceRecord
       debit: payment.direction === "supplier_pays_us" ? Number(payment.amount || 0) : 0,
       credit: payment.direction === "supplier_pays_us" ? 0 : Number(payment.amount || 0),
       status: payment.method || "Cash",
+      currency: payment.currency || payment.unit || "AFN",
       record: payment,
       recordType: "payment",
     })),
@@ -1234,6 +1269,7 @@ const upsertSupplierPaymentTransaction = async (
       : "Supplier Payment",
 
     amount: Number(payment.amount || 0),
+    currency: normalizeWalletCurrency(payment.currency),
 
     date: payment.paymentDate,
 
@@ -1349,24 +1385,53 @@ const saveSupplierPayment = async (event) => {
   event.preventDefault();
 
   const amount = Number(paymentForm.amount || 0);
+  const currency = normalizeWalletCurrency(paymentForm.currency);
+  const direction = paymentForm.direction || "we_pay_supplier";
+  const supplierPaysUs = direction === "supplier_pays_us";
 
   if (!Number.isFinite(amount) || amount <= 0) {
     notify("Payment amount must be greater than zero.", "error");
     return;
   }
 
+  const previousWalletTransaction = editPayment?.walletTransactionId
+    ? cashWalletTransactions.find(
+        (item) => String(item.id) === String(editPayment.walletTransactionId)
+      ) || null
+    : null;
+
+  if (!supplierPaysUs) {
+    const availableBalance = availableCashWalletBalanceForCurrency(
+      cashWalletTransactions,
+      currency,
+      previousWalletTransaction
+    );
+
+    if (amount > availableBalance) {
+      notify(`Cash Wallet ${currency} balance is not enough for this payment.`, "error");
+      return;
+    }
+  }
+
+  const paymentId = editPayment?.id || Date.now();
+  const walletTransactionId = editPayment?.walletTransactionId || createId();
+  const now = new Date().toISOString();
+
   const cleanPayment = {
-    id: editPayment?.id || Date.now(),
+    ...(editPayment || {}),
+    id: paymentId,
     supplierIndex,
     supplierRecordId: supplier?.id || "",
     supplierName,
     paymentDate: paymentForm.paymentDate,
-    direction: paymentForm.direction || "we_pay_supplier",
+    direction,
+    currency,
     amount,
     method: paymentForm.method,
     notes: paymentForm.notes.trim(),
-    createdAt: editPayment?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    walletTransactionId,
+    createdAt: editPayment?.createdAt || now,
+    updatedAt: now,
   };
 
   const nextPayments = editPayment
@@ -1375,14 +1440,50 @@ const saveSupplierPayment = async (event) => {
       )
     : [...supplierPayments, cleanPayment];
 
-  const saved = await setSupplierPayments(nextPayments);
+  const nextWalletTransactions = [
+    ...cashWalletTransactions.filter(
+      (item) => String(item.id) !== String(editPayment?.walletTransactionId || "")
+    ),
+    {
+      id: walletTransactionId,
+      type: supplierPaysUs ? "deposit" : "credit",
+      amount,
+      currency,
+      date: paymentForm.paymentDate,
+      description:
+        paymentForm.notes.trim() ||
+        (supplierPaysUs
+          ? `Payment received from supplier - ${supplierName || "Supplier"}`
+          : `Payment to supplier - ${supplierName || "Supplier"}`),
+      source: "supplier-payment",
+      referenceId: paymentId,
+      supplierRecordId: supplier?.id || "",
+      supplierName,
+      createdAt: previousWalletTransaction?.createdAt || now,
+      updatedAt: now,
+    },
+  ];
 
+  const previousPayments = [...supplierPayments];
+  const previousTransactions = [...transactions];
+  const previousWalletTransactions = [...cashWalletTransactions];
+
+  const saved = await setSupplierPayments(nextPayments);
   if (!saved) return;
 
   const transactionSaved = await upsertSupplierPaymentTransaction(cleanPayment);
-
   if (!transactionSaved) {
-    notify("Payment saved, but its Financial transaction could not be linked.", "error");
+    await setSupplierPayments(previousPayments);
+    notify("Payment could not be linked to Financial. Changes were rolled back.", "error");
+    return;
+  }
+
+  const walletSaved = await setCashWalletTransactions(nextWalletTransactions);
+  if (!walletSaved) {
+    await setSupplierPayments(previousPayments);
+    await setTransactions(previousTransactions);
+    await setCashWalletTransactions(previousWalletTransactions);
+    notify("Cash Wallet could not be updated. Changes were rolled back.", "error");
     return;
   }
 
@@ -1395,6 +1496,7 @@ const openEditPaymentModal = (payment) => {
   setPaymentForm({
     paymentDate: payment.paymentDate || "",
     direction: payment.direction || "we_pay_supplier",
+    currency: normalizeWalletCurrency(payment.currency),
     amount: String(payment.amount || ""),
     method: payment.method || "Cash",
     notes: payment.notes || "",
@@ -1416,6 +1518,10 @@ const openEditBalanceModal = (balance) => {
 const confirmDeletePayment = async () => {
   if (!deletePayment) return;
 
+  const previousPayments = [...supplierPayments];
+  const previousTransactions = [...transactions];
+  const previousWalletTransactions = [...cashWalletTransactions];
+
   const saved = await setSupplierPayments(
     supplierPayments.filter((payment) => payment.id !== deletePayment.id)
   );
@@ -1425,8 +1531,25 @@ const confirmDeletePayment = async () => {
   const expenseRemoved = await removeSupplierPaymentExpense(deletePayment.id);
 
   if (!expenseRemoved) {
-    notify("Payment deleted, but its expense could not be removed from Financial.", "error");
+    await setSupplierPayments(previousPayments);
+    notify("Payment could not be removed from Financial. Changes were rolled back.", "error");
     return;
+  }
+
+  if (deletePayment.walletTransactionId) {
+    const walletSaved = await setCashWalletTransactions(
+      cashWalletTransactions.filter(
+        (item) => String(item.id) !== String(deletePayment.walletTransactionId)
+      )
+    );
+
+    if (!walletSaved) {
+      await setSupplierPayments(previousPayments);
+      await setTransactions(previousTransactions);
+      await setCashWalletTransactions(previousWalletTransactions);
+      notify("Cash Wallet could not be restored. Changes were rolled back.", "error");
+      return;
+    }
   }
 
   notify("Payment deleted successfully.");
@@ -2100,7 +2223,7 @@ const confirmDeletePurchase = async () => {
     <span>We Owe Supplier</span>
 
     <strong>
-      {money(weOweSupplier)} AFN
+      {formatCurrencyTotals(supplierPayableByCurrency)}
     </strong>
 
     <p>Remaining payable balance</p>
@@ -2110,7 +2233,7 @@ const confirmDeletePurchase = async () => {
     <span>Supplier Owes Us</span>
 
     <strong>
-      {money(supplierOwesUs)} AFN
+      {formatCurrencyTotals(supplierReceivableByCurrency)}
     </strong>
 
     <p>Overpaid supplier balance</p>
@@ -2120,7 +2243,7 @@ const confirmDeletePurchase = async () => {
     <span>Total Paid</span>
 
     <strong>
-      {money(totalPaidToSupplier)} AFN
+      {formatCurrencyTotals(paidToSupplierByCurrency)}
     </strong>
 
     <p>Purchase paid + later payments</p>
@@ -2149,7 +2272,7 @@ const confirmDeletePurchase = async () => {
       <span>Purchase Value</span>
 
       <strong>
-        {money(totalPurchaseValue)} AFN
+        {formatCurrencyTotals(purchaseValueByCurrency)}
       </strong>
 
       <p>Total purchase amount</p>
@@ -2308,24 +2431,22 @@ const confirmDeletePurchase = async () => {
 
           <td>
             {purchase
-              ? `${money(purchase.unitPrice)} AFN`
+              ? formatCurrencyAmount(purchase.unitPrice, purchase.currency || purchase.unit || "AFN")
               : "-"}
           </td>
 
           <td>
             {purchase
-              ? `${money(
-                  purchase.totalPurchaseValue
-                )} AFN`
+              ? formatCurrencyAmount(purchase.totalPurchaseValue, purchase.currency || purchase.unit || "AFN")
               : row.debit
-                ? `${money(row.debit)} AFN`
+                ? formatCurrencyAmount(row.debit, row.currency || "AFN")
                 : "-"}
           </td>
 
           <td>
             {paidValue > 0 ? (
               <span className="supplier-amount-badge paid">
-                {money(paidValue)} AFN
+                {formatCurrencyAmount(paidValue, row.currency || purchase?.currency || "AFN")}
               </span>
             ) : (
               "-"
@@ -2341,10 +2462,10 @@ const confirmDeletePurchase = async () => {
                     : "cleared"
                 }`}
               >
-                {money(remainValue)} AFN
+                {formatCurrencyAmount(remainValue, row.currency || purchase?.currency || "AFN")}
               </span>
             ) : balance ? (
-              `${money(remainValue)} AFN`
+              formatCurrencyAmount(remainValue, row.currency || purchase?.currency || "AFN")
             ) : (
               "-"
             )}
@@ -2980,7 +3101,7 @@ const confirmDeletePurchase = async () => {
             <div className="supplier-purchase-modal-header">
               <div>
                 <h3>{editPayment ? "Edit Payment" : "Add Payment"}</h3>
-                <p>Current payable balance: {money(weOweSupplier)} AFN.</p>
+                <p>Current payable balance: {formatCurrencyTotals(supplierPayableByCurrency)}.</p>
               </div>
 
               <button type="button" onClick={closePaymentModal}>
@@ -3014,10 +3135,25 @@ const confirmDeletePurchase = async () => {
                 </div>
 
                 <div className="supplier-form-group">
-                  <label>Amount</label>
+                  <label>Currency</label>
+                  <select
+                    name="currency"
+                    value={paymentForm.currency}
+                    onChange={handlePaymentChange}
+                    required
+                  >
+                    <option value="AFN">AFN - Afghani</option>
+                    <option value="USD">USD - US Dollar</option>
+                    <option value="EUR">EUR - Euro</option>
+                  </select>
+                </div>
+
+                <div className="supplier-form-group">
+                  <label>Amount ({paymentForm.currency})</label>
                   <input
                     type="number"
-                    min="1"
+                    min="0.01"
+                    step="0.01"
                     name="amount"
                     value={paymentForm.amount}
                     onChange={handlePaymentChange}
