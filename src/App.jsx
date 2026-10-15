@@ -46,7 +46,6 @@ import brandLogo from "./assets/logo.PNG";
 import { useJsonCollection } from "./hooks/useJsonCollection";
 import { canViewModule } from "./utils/permissions";
 import { notify, requestSystemNotificationPermission } from "./utils/notify";
-import ReportFinancial from "./pages/ReportFinancial";
 
 
 
@@ -199,10 +198,11 @@ const EmployeePerformance = lazyWithRetry(() =>
   import("./pages/EmployeePerformance")
 );
 const EmployeeDashboard = lazyWithRetry(() => import("./pages/EmployeeDashboard"));
-import ProjectReport from "./pages/ProjectReport";
-import EmployeeReport from "./pages/EmployeeReport";
-import SupplierReport from "./pages/SupplierReport";
-import ReceptionReport from "./pages/ReceptionReport";
+const ProjectReport = lazyWithRetry(() => import("./pages/ProjectReport"));
+const EmployeeReport = lazyWithRetry(() => import("./pages/EmployeeReport"));
+const SupplierReport = lazyWithRetry(() => import("./pages/SupplierReport"));
+const ReceptionReport = lazyWithRetry(() => import("./pages/ReceptionReport"));
+const ReportFinancial = lazyWithRetry(() => import("./pages/ReportFinancial"));
 const OfficeAssets = lazyWithRetry(() => import("./pages/OfficeAssets"));
 const OfficeAssetDetails = lazyWithRetry(() => import("./pages/OfficeAssetDetails"));
 
@@ -213,7 +213,7 @@ const Login = lazyWithRetry(() => import("./pages/Login"));
 const HelpCenter = lazyWithRetry(() => import("./pages/HelpCenter"));
 const Developer = lazyWithRetry(() => import("./pages/Developer"));
 
-import CustomerReport from "./pages/CustomerReport";
+const CustomerReport = lazyWithRetry(() => import("./pages/CustomerReport"));
 const TermsPrivacy = lazyWithRetry(
   () => import("./pages/TermsPrivacy")
 );

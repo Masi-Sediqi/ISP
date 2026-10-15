@@ -211,6 +211,18 @@ async function recordEmployeeActivity(collectionName, previousItems, nextItems) 
   }
 }
 
+async function queueCollectionChanges(collectionName, previousItems, nextItems) {
+  const actor = currentActorSnapshot();
+  const changes = calculateChanges(previousItems, nextItems);
+  await enqueueSyncOperation({
+    collection: collectionName,
+    upserts: changes.upserts,
+    deletes: changes.deletes,
+    actorId: actor.id || actor.employeeId || "",
+    ownerId: actor.employeeId || actor.id || "",
+  });
+}
+
 export function useJsonCollection(name) {
   const disabled = DISABLED_COLLECTIONS.has(name);
   const [items, setItemsState] = useState([]);
@@ -366,59 +378,47 @@ export function useJsonCollection(name) {
         return false;
       }
 
-      // Optimistic UI; local mode persists to IndexedDB, VPS mode syncs remotely.
+      // Save locally first so forms can close quickly; server sync continues below.
       applyItems(nextItems);
 
-      if (!canUseRemote()) {
-        try {
-          await writeIndexedCollection(name, nextItems);
-          window.dispatchEvent(
-            new CustomEvent(`isp-server:${name}`, { detail: nextItems })
-          );
-          return true;
-        } catch (error) {
-          applyItems(previousItems);
-          console.error(`Unable to save ${name} locally:`, error);
-          notify(error?.message || `Unable to save ${name} locally.`, "error");
-          return false;
-        }
-      }
-
       try {
-        await archiveRemovedRecordsToServer(name, previousItems, nextItems);
-        await saveCollectionChanges(name, previousItems, nextItems);
-        writeIndexedCollection(name, nextItems).catch((error) => {
-          console.warn(`[Local cache write failed] ${name}:`, error);
-        });
+        await writeIndexedCollection(name, nextItems);
         window.dispatchEvent(
           new CustomEvent(`isp-server:${name}`, { detail: nextItems })
         );
-        recordEmployeeActivity(name, previousItems, nextItems);
-        return true;
       } catch (error) {
-        try {
-          await writeIndexedCollection(name, nextItems);
-          const actor = currentActorSnapshot();
-          const changes = calculateChanges(previousItems, nextItems);
-          await enqueueSyncOperation({
-            collection: name,
-            upserts: changes.upserts,
-            deletes: changes.deletes,
-            actorId: actor.id || actor.employeeId || "",
-            ownerId: actor.employeeId || actor.id || "",
-          });
-          window.dispatchEvent(
-            new CustomEvent(`isp-server:${name}`, { detail: nextItems })
-          );
-          notify("Saved locally. It will sync when the VPS server is available.", "info");
-          return true;
-        } catch (localError) {
-          applyItems(previousItems);
-          console.error(`Unable to save ${name} to VPS server or local storage:`, error, localError);
-          notify(localError?.message || `Unable to save ${name}.`, "error");
-          return false;
-        }
+        applyItems(previousItems);
+        console.error(`Unable to save ${name} locally:`, error);
+        notify(error?.message || `Unable to save ${name} locally.`, "error");
+        return false;
       }
+
+      if (!canUseRemote()) {
+        try {
+          await queueCollectionChanges(name, previousItems, nextItems);
+        } catch (error) {
+          console.warn(`[Sync queue failed] ${name}:`, error);
+        }
+        return true;
+      }
+
+      Promise.resolve()
+        .then(async () => {
+          await archiveRemovedRecordsToServer(name, previousItems, nextItems);
+          await saveCollectionChanges(name, previousItems, nextItems);
+          recordEmployeeActivity(name, previousItems, nextItems);
+        })
+        .catch(async (error) => {
+          console.warn(`[Background sync failed] ${name}:`, error);
+          try {
+            await queueCollectionChanges(name, previousItems, nextItems);
+            notify("Saved locally. It will sync when the VPS server is available.", "info");
+          } catch (queueError) {
+            console.error(`Unable to queue ${name} for sync:`, queueError);
+          }
+        });
+
+      return true;
     },
     [applyItems, disabled, name]
   );
