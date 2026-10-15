@@ -13,7 +13,6 @@ import {
   FileCheck2,
   LogOut,
   Languages,
-  MessageCircle,
   Moon,
   Palette,
   Search,
@@ -29,7 +28,6 @@ import { Link, useNavigate } from "react-router-dom";
 import CashWalletModal from "./CashWalletModal";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
-import { useChat } from "../hooks/useChat";
 import { todayDateValue } from "../utils/afghanDate";
 import { applyInterfaceLanguage } from "../utils/interfaceLanguage";
 import { notify } from "../utils/notify";
@@ -87,6 +85,7 @@ const withRecordHash = (path, type, id) =>
 function HeaderActions({ currentUser, onLogout, compact = false }) {
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState(null);
+  const alertsEnabled = openMenu === "alerts";
   const [cashWalletOpen, setCashWalletOpen] = useState(false);
 
   const [
@@ -100,8 +99,6 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
   const assignedRequestSoundRef = useRef(null);
   const adminCustomerAlertReadyRef = useRef(false);
   const employeeLedgerSoundRef = useRef(null);
-  const chatMessageAlertReadyRef = useRef(false);
-  const chatMessageSoundRef = useRef(null);
   const [selectedCurrency, setSelectedCurrency] = useState(
     () => {
       const savedCurrency =
@@ -228,50 +225,46 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
     );
   };
 
-  const [assets] = useJsonCollection("assets");
-  const [towerAssets] = useJsonCollection("towerAssets");
-  const [securityDeposits] = useJsonCollection("securityDeposits");
-  const [projects] = useJsonCollection("projects");
-  const [projectSales] = useJsonCollection("projectSales");
-  const [employees] = useJsonCollection("employees");
-  const [transactions] = useJsonCollection("transactions");
-  const [cashWalletTransactions] = useJsonCollection("cashWalletTransactions");
-  const [supplierPayments] = useJsonCollection("supplierPayments");
-  const [employeePayrolls] = useJsonCollection("employeePayrolls");
-  const [visaPackages] = useJsonCollection("visaPackages");
-  const [travelPackages] = useJsonCollection("travelPackages");
-  const [technologyPackages] = useJsonCollection("technologyPackages");
-  const [mediaPackages] = useJsonCollection("mediaPackages");
-  const [customerPackages] = useJsonCollection("customerPackages");
+  const alertCollection = { enabled: alertsEnabled, background: true, silentLoadErrors: true };
+  const [assets] = useJsonCollection("assets", alertCollection);
+  const [towerAssets] = useJsonCollection("towerAssets", alertCollection);
+  const [securityDeposits] = useJsonCollection("securityDeposits", alertCollection);
+  const [projects] = useJsonCollection("projects", alertCollection);
+  const [projectSales] = useJsonCollection("projectSales", alertCollection);
+  const [employees] = useJsonCollection("employees", alertCollection);
+  const [transactions] = useJsonCollection("transactions", alertCollection);
+  const [cashWalletTransactions] = useJsonCollection("cashWalletTransactions", alertCollection);
+  const [supplierPayments] = useJsonCollection("supplierPayments", alertCollection);
+  const [employeePayrolls] = useJsonCollection("employeePayrolls", alertCollection);
+  const [visaPackages] = useJsonCollection("visaPackages", alertCollection);
+  const [travelPackages] = useJsonCollection("travelPackages", alertCollection);
+  const [technologyPackages] = useJsonCollection("technologyPackages", alertCollection);
+  const [mediaPackages] = useJsonCollection("mediaPackages", alertCollection);
+  const [customerPackages] = useJsonCollection("customerPackages", alertCollection);
   const [
     employeeAdjustments,
     ,
     loadEmployeeAdjustments,
     adjustmentsLoaded,
-  ] = useEmployeeAdjustments({
-    silentLoadErrors: true,
-  });
+  ] = useEmployeeAdjustments(alertCollection);
   const [
     customers,
     ,
     loadCustomers,
     customersLoaded,
-  ] = useJsonCollection("customers");
+  ] = useJsonCollection("customers", alertCollection);
   const [
     employeeReports,
     ,
     loadEmployeeReports,
     reportsLoaded,
-  ] = useJsonCollection("employeeReports");
+  ] = useJsonCollection("employeeReports", alertCollection);
   const [
     employeeActivities,
     ,
     loadEmployeeActivities,
     activitiesLoaded,
-  ] = useJsonCollection("employeeActivities", {
-    silentLoadErrors: true,
-  });
-  const { messages: chatMessages } = useChat(currentUser);
+  ] = useJsonCollection("employeeActivities", alertCollection);
   const today = todayDateValue();
 
 const currentUserIds = [
@@ -498,19 +491,6 @@ const employeeActivityNotifications = isFullAdminAccount
           )
       )
   : [];
-
-const incomingChatMessages = chatMessages
-  .filter(
-    (message) =>
-      currentUserIds.includes(String(message.toAccountId || "")) &&
-      !currentUserIds.includes(String(message.fromAccountId || "")) &&
-      !message.seen
-  )
-  .sort(
-    (first, second) =>
-      new Date(second.createdAt || 0) -
-      new Date(first.createdAt || 0)
-  );
 
 const collectionLabel = (collection) => {
   const labels = {
@@ -819,11 +799,6 @@ useEffect(() => {
     }
   };
 
-  const intervalId = window.setInterval(
-    refreshCustomers,
-    1500
-  );
-
   const handleCustomerUpdate = () => {
     refreshCustomers();
   };
@@ -833,23 +808,12 @@ useEffect(() => {
     handleCustomerUpdate
   );
 
-  window.addEventListener(
-    "storage",
-    handleCustomerUpdate
-  );
-
   return () => {
-    window.clearInterval(intervalId);
-
     window.removeEventListener(
       "isp-customer-assignment-updated",
       handleCustomerUpdate
     );
 
-    window.removeEventListener(
-      "storage",
-      handleCustomerUpdate
-    );
   };
 }, [customersLoaded, loadCustomers]);
 
@@ -870,33 +834,17 @@ useEffect(() => {
     }
   };
 
-  const intervalId = window.setInterval(
-    refreshReports,
-    2000
-  );
-
   window.addEventListener(
     "isp-employee-report-updated",
     refreshReports
   );
 
-  window.addEventListener(
-    "storage",
-    refreshReports
-  );
-
   return () => {
-    window.clearInterval(intervalId);
-
     window.removeEventListener(
       "isp-employee-report-updated",
       refreshReports
     );
 
-    window.removeEventListener(
-      "storage",
-      refreshReports
-    );
   };
 }, [reportsLoaded, loadEmployeeReports]);
 
@@ -917,33 +865,17 @@ useEffect(() => {
     }
   };
 
-  const intervalId = window.setInterval(
-    refreshActivities,
-    1500
-  );
-
   window.addEventListener(
     "isp-employee-activity-updated",
     refreshActivities
   );
 
-  window.addEventListener(
-    "storage",
-    refreshActivities
-  );
-
   return () => {
-    window.clearInterval(intervalId);
-
     window.removeEventListener(
       "isp-employee-activity-updated",
       refreshActivities
     );
 
-    window.removeEventListener(
-      "storage",
-      refreshActivities
-    );
   };
 }, [activitiesLoaded, loadEmployeeActivities]);
 
@@ -964,33 +896,17 @@ useEffect(() => {
     }
   };
 
-  const intervalId = window.setInterval(
-    refreshAdjustments,
-    1500
-  );
-
   window.addEventListener(
     "isp-employee-ledger-updated",
     refreshAdjustments
   );
 
-  window.addEventListener(
-    "storage",
-    refreshAdjustments
-  );
-
   return () => {
-    window.clearInterval(intervalId);
-
     window.removeEventListener(
       "isp-employee-ledger-updated",
       refreshAdjustments
     );
 
-    window.removeEventListener(
-      "storage",
-      refreshAdjustments
-    );
   };
 }, [
   adjustmentsLoaded,
@@ -1566,113 +1482,6 @@ useEffect(() => {
   tx,
 ]);
 
-useEffect(() => {
-  if (compact || !currentUser) return;
-
-  const accountKey = String(
-    currentUser.id ||
-      currentUser.employeeId ||
-      currentUser.accountId ||
-      "employee"
-  );
-
-  const storageKey = `isp-seen-chat-message-alerts:${accountKey}`;
-
-  let seen = [];
-
-  try {
-    const parsed = JSON.parse(
-      localStorage.getItem(storageKey) || "[]"
-    );
-
-    seen = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    seen = [];
-  }
-
-  const seenSet = new Set(seen.map(String));
-  const incomingMessages = chatMessages.filter(
-    (message) =>
-      currentUserIds.includes(String(message.toAccountId || "")) &&
-      !currentUserIds.includes(String(message.fromAccountId || ""))
-  );
-
-  if (!chatMessageAlertReadyRef.current) {
-    incomingMessages.forEach((message) => {
-      if (message.id) seenSet.add(String(message.id));
-    });
-
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify([...seenSet].slice(-800))
-    );
-
-    chatMessageAlertReadyRef.current = true;
-    return;
-  }
-
-  const newMessages = incomingMessages.filter(
-    (message) => message.id && !seenSet.has(String(message.id))
-  );
-
-  if (!newMessages.length) return;
-
-  newMessages.forEach((message) => {
-    seenSet.add(String(message.id));
-
-    const alertText = tx(
-      `${message.senderName || "Employee"} sent you a message.`,
-      `${message.senderName || "\u06a9\u0627\u0631\u0645\u0646\u062f"} \u0628\u0631\u0627\u06cc \u0634\u0645\u0627 \u067e\u06cc\u0627\u0645 \u0641\u0631\u0633\u062a\u0627\u062f.`,
-      `${message.senderName || "\u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a"} \u062a\u0627\u0633\u0648 \u062a\u0647 \u067e\u06cc\u063a\u0627\u0645 \u0648\u0644\u06d0\u0696\u0647.`
-    );
-
-    notify(alertText, "info", {
-      system: true,
-      title: tx("New Message", "\u067e\u06cc\u0627\u0645 \u062c\u062f\u06cc\u062f", "\u0646\u0648\u06cc \u067e\u06cc\u063a\u0627\u0645"),
-      path: `/messages?chat=${encodeURIComponent(
-        String(message.fromAccountId || "")
-      )}`,
-    });
-  });
-
-  localStorage.setItem(
-    storageKey,
-    JSON.stringify([...seenSet].slice(-800))
-  );
-
-  try {
-    if (!chatMessageSoundRef.current) {
-      chatMessageSoundRef.current = new Audio(
-        "/sounds/soft-bells-495.mp3"
-      );
-
-      chatMessageSoundRef.current.preload = "auto";
-      chatMessageSoundRef.current.volume = 0.85;
-    }
-
-    chatMessageSoundRef.current.currentTime = 0;
-
-    const playResult = chatMessageSoundRef.current.play();
-
-    if (
-      playResult &&
-      typeof playResult.catch === "function"
-    ) {
-      playResult.catch(() => {
-        // The visual notification still appears if audio is blocked.
-      });
-    }
-  } catch {
-    // Keep message notifications working without sound.
-  }
-}, [
-  chatMessages,
-  compact,
-  currentUser,
-  currentUserIds,
-  tx,
-]);
-
   const damagedOrLostAssets = assets.filter((asset) =>
     ["Damaged", "Lost"].includes(asset.status)
   );
@@ -1831,22 +1640,6 @@ useEffect(() => {
             entry.createdAt,
         })
       ),
-    },
-    {
-      key: "chat-messages",
-      title: tx("Messages", "\u067e\u06cc\u0627\u0645\u200c\u0647\u0627", "\u067e\u06cc\u063a\u0627\u0645\u0648\u0646\u0647"),
-      count: incomingChatMessages.length,
-      icon: MessageCircle,
-      items: incomingChatMessages.map((message) => ({
-        title: tx("New Message", "\u067e\u06cc\u0627\u0645 \u062c\u062f\u06cc\u062f", "\u0646\u0648\u06cc \u067e\u06cc\u063a\u0627\u0645"),
-        description:
-          message.text ||
-          tx("Attachment received", "\u0641\u0627\u06cc\u0644 \u062f\u0631\u06cc\u0627\u0641\u062a \u0634\u062f", "\u0641\u0627\u06cc\u0644 \u062a\u0631\u0644\u0627\u0633\u0647 \u0634\u0648"),
-        path: `/messages?chat=${encodeURIComponent(
-          String(message.fromAccountId || "")
-        )}`,
-        happenedAt: message.createdAt,
-      })),
     },
     {
       key: "stock",
@@ -2750,6 +2543,7 @@ function Header({ currentUser, onLogout }) {
   const searchRef = useRef(null);
   const [query, setQuery] = useState("");
   const [openSearch, setOpenSearch] = useState(false);
+  const searchEnabled = openSearch && query.trim().length >= 2;
   const [resultFilter, setResultFilter] = useState("All");
 
   const [selectedLanguage, setSelectedLanguage] = useState(
@@ -2788,25 +2582,26 @@ function Header({ currentUser, onLogout }) {
       );
     };
   }, []);
-  const [assets] = useJsonCollection("assets");
-  const [suppliers] = useJsonCollection("suppliers");
-  const [supplierPurchases] = useJsonCollection("supplierPurchases");
-  const [customers] = useJsonCollection("customers");
-  const [towerAssets] = useJsonCollection("towerAssets");
-  const [deviceTransfers] = useJsonCollection("deviceTransfers");
-  const [assetMovements] = useJsonCollection("assetMovements");
-  const [securityDeposits] = useJsonCollection("securityDeposits");
-  const [projects] = useJsonCollection("projects");
-  const [projectSales] = useJsonCollection("projectSales");
-  const [employees] = useJsonCollection("employees");
-  const [transactions] = useJsonCollection("transactions");
-  const [cashWalletTransactions] = useJsonCollection("cashWalletTransactions");
-  const [supplierPayments] = useJsonCollection("supplierPayments");
-  const [employeePayrolls] = useJsonCollection("employeePayrolls");
-  const [visaPackages] = useJsonCollection("visaPackages");
-  const [travelPackages] = useJsonCollection("travelPackages");
-  const [technologyPackages] = useJsonCollection("technologyPackages");
-  const [mediaPackages] = useJsonCollection("mediaPackages");
+  const searchCollection = { enabled: searchEnabled, background: true, silentLoadErrors: true };
+  const [assets] = useJsonCollection("assets", searchCollection);
+  const [suppliers] = useJsonCollection("suppliers", searchCollection);
+  const [supplierPurchases] = useJsonCollection("supplierPurchases", searchCollection);
+  const [customers] = useJsonCollection("customers", searchCollection);
+  const [towerAssets] = useJsonCollection("towerAssets", searchCollection);
+  const [deviceTransfers] = useJsonCollection("deviceTransfers", searchCollection);
+  const [assetMovements] = useJsonCollection("assetMovements", searchCollection);
+  const [securityDeposits] = useJsonCollection("securityDeposits", searchCollection);
+  const [projects] = useJsonCollection("projects", searchCollection);
+  const [projectSales] = useJsonCollection("projectSales", searchCollection);
+  const [employees] = useJsonCollection("employees", searchCollection);
+  const [transactions] = useJsonCollection("transactions", searchCollection);
+  const [cashWalletTransactions] = useJsonCollection("cashWalletTransactions", searchCollection);
+  const [supplierPayments] = useJsonCollection("supplierPayments", searchCollection);
+  const [employeePayrolls] = useJsonCollection("employeePayrolls", searchCollection);
+  const [visaPackages] = useJsonCollection("visaPackages", searchCollection);
+  const [travelPackages] = useJsonCollection("travelPackages", searchCollection);
+  const [technologyPackages] = useJsonCollection("technologyPackages", searchCollection);
+  const [mediaPackages] = useJsonCollection("mediaPackages", searchCollection);
 
   useEffect(() => {
     const handleOutside = (event) => {

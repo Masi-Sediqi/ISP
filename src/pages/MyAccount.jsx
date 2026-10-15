@@ -597,19 +597,8 @@ export default function MyAccount({
       }
     };
 
-    const intervalId = window.setInterval(
-      refreshCustomers,
-      1000
-    );
-
     const refreshImmediately = () => {
       refreshCustomers();
-    };
-
-    const refreshWhenVisible = () => {
-      if (!document.hidden) {
-        refreshCustomers();
-      }
     };
 
     window.addEventListener(
@@ -617,43 +606,12 @@ export default function MyAccount({
       refreshImmediately
     );
 
-    window.addEventListener(
-      "focus",
-      refreshImmediately
-    );
-
-    window.addEventListener(
-      "storage",
-      refreshImmediately
-    );
-
-    document.addEventListener(
-      "visibilitychange",
-      refreshWhenVisible
-    );
-
     return () => {
-      window.clearInterval(intervalId);
-
       window.removeEventListener(
         "isp-customer-assignment-updated",
         refreshImmediately
       );
 
-      window.removeEventListener(
-        "focus",
-        refreshImmediately
-      );
-
-      window.removeEventListener(
-        "storage",
-        refreshImmediately
-      );
-
-      document.removeEventListener(
-        "visibilitychange",
-        refreshWhenVisible
-      );
     };
   }, [customersLoaded, loadCustomers]);
 
@@ -685,21 +643,12 @@ export default function MyAccount({
       refreshImmediately
     );
 
-    window.addEventListener(
-      "storage",
-      refreshImmediately
-    );
-
     return () => {
       window.removeEventListener(
         "isp-employee-report-updated",
         refreshImmediately
       );
 
-      window.removeEventListener(
-        "storage",
-        refreshImmediately
-      );
     };
   }, [
     reportsLoaded,
@@ -725,11 +674,6 @@ export default function MyAccount({
       }
     };
 
-    const intervalId = window.setInterval(
-      refreshLedger,
-      1500
-    );
-
     const refreshImmediately = () => {
       refreshLedger();
     };
@@ -739,23 +683,12 @@ export default function MyAccount({
       refreshImmediately
     );
 
-    window.addEventListener(
-      "storage",
-      refreshImmediately
-    );
-
     return () => {
-      window.clearInterval(intervalId);
-
       window.removeEventListener(
         "isp-employee-ledger-updated",
         refreshImmediately
       );
 
-      window.removeEventListener(
-        "storage",
-        refreshImmediately
-      );
     };
   }, [
     adjustmentsLoaded,

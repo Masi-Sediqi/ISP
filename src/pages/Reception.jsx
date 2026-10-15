@@ -1403,19 +1403,8 @@ const [assignEmployeeName, setAssignEmployeeName] =
       }
     };
 
-    const intervalId = window.setInterval(
-      refreshCustomers,
-      1000
-    );
-
     const handleImmediateRefresh = () => {
       refreshCustomers();
-    };
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        refreshCustomers();
-      }
     };
 
     window.addEventListener(
@@ -1423,43 +1412,12 @@ const [assignEmployeeName, setAssignEmployeeName] =
       handleImmediateRefresh
     );
 
-    window.addEventListener(
-      "focus",
-      handleImmediateRefresh
-    );
-
-    window.addEventListener(
-      "storage",
-      handleImmediateRefresh
-    );
-
-    document.addEventListener(
-      "visibilitychange",
-      handleVisibilityChange
-    );
-
     return () => {
-      window.clearInterval(intervalId);
-
       window.removeEventListener(
         "isp-customer-assignment-updated",
         handleImmediateRefresh
       );
 
-      window.removeEventListener(
-        "focus",
-        handleImmediateRefresh
-      );
-
-      window.removeEventListener(
-        "storage",
-        handleImmediateRefresh
-      );
-
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibilityChange
-      );
     };
   }, [customersLoaded, loadCustomers]);
 

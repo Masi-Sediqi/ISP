@@ -12,49 +12,37 @@ export const serverConfigured = Boolean(explicitApiRoot) || !isLocalBrowser;
 
 async function request(path, options = {}) {
   const method = String(options.method || "GET").toUpperCase();
-  const canRetry = method === "GET";
-  const maxAttempts = canRetry ? 4 : 1;
-  let lastError = null;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(apiUrl(path), {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+      signal: options.signal || controller.signal,
+      cache: method === "GET" ? "no-store" : options.cache,
+    });
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 15000);
-    try {
-      const response = await fetch(apiUrl(path), {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...(options.headers || {}),
-        },
-        signal: options.signal || controller.signal,
-        cache: method === "GET" ? "no-store" : options.cache,
-      });
-
-      if (!response.ok) {
-        const detail = await response.text().catch(() => "");
-        const error = new Error(
-          `Server request failed (${response.status}): ${detail || response.statusText}`
-        );
-        error.status = response.status;
-        throw error;
-      }
-
-      if (response.status === 204) return null;
-      const text = await response.text();
-      return text ? JSON.parse(text) : null;
-    } catch (error) {
-      lastError = error?.name === "AbortError"
-        ? new Error("VPS server request timed out.")
-        : error;
-      const retryable = !lastError?.status || lastError.status >= 500 || lastError.status === 429;
-      if (!canRetry || attempt >= maxAttempts || !retryable) throw lastError;
-      await new Promise((resolve) => window.setTimeout(resolve, 400 * (2 ** (attempt - 1))));
-    } finally {
-      window.clearTimeout(timeout);
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      const error = new Error(
+        `Server request failed (${response.status}): ${detail || response.statusText}`
+      );
+      error.status = response.status;
+      throw error;
     }
-  }
 
-  throw lastError || new Error("VPS server request failed.");
+    if (response.status === 204) return null;
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("VPS server request timed out.", { cause: error });
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 export async function fetchRemoteCollection(collection) {

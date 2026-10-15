@@ -7,12 +7,10 @@ import {
   useState,
 } from "react";
 import axios from "axios";
-import { MessageCircle } from "lucide-react";
 import {
   Routes,
   Route,
   NavLink,
-  Navigate,
   useLocation,
 } from "react-router-dom";
 
@@ -49,26 +47,66 @@ import { notify, requestSystemNotificationPermission } from "./utils/notify";
 
 
 
-function PageLoader() {
+function PageLoader({ progress: controlledProgress }) {
+  const [estimatedProgress, setEstimatedProgress] = useState(0);
+
+  useEffect(() => {
+    if (controlledProgress !== undefined) return undefined;
+    const timer = window.setInterval(() => {
+      setEstimatedProgress((current) => Math.min(94, current + Math.max(1, Math.ceil((94 - current) * 0.08))));
+    }, 180);
+    return () => window.clearInterval(timer);
+  }, [controlledProgress]);
+
+  const progress = controlledProgress ?? estimatedProgress;
+
   return (
-    <div className="page-loader-overlay" role="status" aria-live="polite" aria-label="Loading page">
-      <div className="loader" aria-hidden="true" />
+    <div className="page-loader-overlay" role="status" aria-label="Loading page">
+      <div className="page-progress">
+        <div className="page-progress-heading">
+          <span>Loading</span>
+          <strong>{progress}%</strong>
+        </div>
+        <div className="page-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label="Page loading progress">
+          <div className="page-progress-fill" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
     </div>
   );
+}
+
+function RoutePageFallback() {
+  useEffect(() => {
+    const token = `page:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    window.dispatchEvent(new CustomEvent("isp-data-loading", { detail: { phase: "start", token } }));
+    return () => window.dispatchEvent(new CustomEvent("isp-data-loading", { detail: { phase: "end", token } }));
+  }, []);
+
+  return <PageLoader />;
 }
 
 function GlobalDataLoader() {
   const location = useLocation();
   const routeKey = `${location.pathname}${location.search}${location.hash}`;
-  const lastRouteRef = useRef("");
-  const routeChanged = lastRouteRef.current !== routeKey;
+  const [activeRouteKey, setActiveRouteKey] = useState(routeKey);
+  const routeChanged = activeRouteKey !== routeKey;
   const [routeLoading, setRouteLoading] = useState(true);
   const [pendingLoads, setPendingLoads] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [showLoader, setShowLoader] = useState(true);
+  const completedLoadsRef = useRef(0);
+  const startedLoadsRef = useRef(0);
   const loadingTokensRef = useRef(new Set());
 
   useEffect(() => {
-    lastRouteRef.current = routeKey;
+    setActiveRouteKey(routeKey);
     setRouteLoading(true);
+    setShowLoader(true);
+    setProgress(0);
+    completedLoadsRef.current = 0;
+    startedLoadsRef.current = 0;
+    loadingTokensRef.current.clear();
+    setPendingLoads(0);
     const timer = window.setTimeout(() => setRouteLoading(false), 320);
     return () => window.clearTimeout(timer);
   }, [routeKey]);
@@ -79,8 +117,15 @@ function GlobalDataLoader() {
       const token = String(event?.detail?.token || "");
       if (!token) return;
 
-      if (phase === "start") loadingTokensRef.current.add(token);
-      if (phase === "end") loadingTokensRef.current.delete(token);
+      if (phase === "start" && !loadingTokensRef.current.has(token)) {
+        loadingTokensRef.current.add(token);
+        startedLoadsRef.current += 1;
+      }
+      if (phase === "end" && loadingTokensRef.current.delete(token)) {
+        completedLoadsRef.current += 1;
+        const completedShare = completedLoadsRef.current / (startedLoadsRef.current + 1);
+        setProgress((current) => Math.max(current, Math.min(94, Math.round(completedShare * 100))));
+      }
       setPendingLoads(loadingTokensRef.current.size);
     };
 
@@ -88,11 +133,26 @@ function GlobalDataLoader() {
     return () => window.removeEventListener("isp-data-loading", handleDataLoading);
   }, []);
 
-  if (!routeChanged && !routeLoading && pendingLoads === 0) return null;
+  const busy = routeChanged || routeLoading || pendingLoads > 0;
+
+  useEffect(() => {
+    if (!busy) {
+      setProgress(100);
+      const timer = window.setTimeout(() => setShowLoader(false), 220);
+      return () => window.clearTimeout(timer);
+    }
+
+    const timer = window.setInterval(() => {
+      setProgress((current) => Math.min(94, current + Math.max(1, Math.ceil((94 - current) * 0.06))));
+    }, 180);
+    return () => window.clearInterval(timer);
+  }, [busy]);
+
+  if (!showLoader && !busy) return null;
 
   return (
     <div className="global-data-loader">
-      <PageLoader />
+      <PageLoader progress={routeChanged ? 0 : progress} />
     </div>
   );
 }
@@ -224,7 +284,6 @@ const Reception = lazyWithRetry(() => import("./pages/Reception"));
 const CustomerFollowUp = lazyWithRetry(() => import("./pages/CustomerFollowUp"));
 const Packages = lazyWithRetry(() => import("./pages/Packages"));
 const RecycleBin = lazyWithRetry(() => import("./pages/RecycleBin"));
-const Messages = lazyWithRetry(() => import("./pages/Messages"));
 
 
 const UserGuide = lazyWithRetry(() => import("./pages/UserGuide"));
@@ -290,12 +349,7 @@ function App() {
   const [settings, , loadSettings] = useJsonCollection("settings");
   const [accounts, setAccounts, loadAccounts, accountsLoaded, accountsLoadError] = useJsonCollection("accounts");
   const [employees, , loadEmployees, employeesLoaded, employeesLoadError] = useJsonCollection("employees");
-    const [
-      customers,
-      ,
-      loadCustomers,
-      customersLoaded,
-    ] = useJsonCollection("customers");
+  const [customers, , , customersLoaded] = useJsonCollection("customers", { enabled: false });
   
   const [sidebarInfoOpen, setSidebarInfoOpen] = useState(false);
   const sidebarInfoRef = useRef(null);
@@ -361,7 +415,6 @@ function App() {
     en: {
       dashboard: "Dashboard",
       myAccount: "My Account",
-      messages: "Message",
       customers: "Customers",
       consultantCustomers: "Consultant Customers",
       travelCustomers: "Travel Customers",
@@ -395,7 +448,6 @@ function App() {
     dr: {
       dashboard: "داشبورد",
       myAccount: "حساب من",
-      messages: "پیام",
       customers: "مشتریان",
       consultantCustomers: "مشتریان مشاوره",
       travelCustomers: "مشتریان سفر",
@@ -429,7 +481,6 @@ function App() {
     ps: {
       dashboard: "ډشبورډ",
       myAccount: "زما حساب",
-      messages: "پیغام",
       customers: "پېرودونکي",
       consultantCustomers: "مشورتي پېرودونکي",
       travelCustomers: "د سفر پېرودونکي",
@@ -705,9 +756,7 @@ function App() {
       return;
     }
 
-    localStorage.setItem(
-      "isp-current-user",
-      JSON.stringify({
+    const sessionUser = JSON.stringify({
         id: currentUser.id || "",
         employeeId: currentUser.employeeId || "",
         fullName: currentUser.fullName || "",
@@ -717,8 +766,10 @@ function App() {
         primaryRole: currentUser.primaryRole || "",
         accountType: currentUser.accountType || "",
         roles: Array.isArray(currentUser.roles) ? currentUser.roles : [],
-      })
-    );
+      });
+    if (localStorage.getItem("isp-current-user") !== sessionUser) {
+      localStorage.setItem("isp-current-user", sessionUser);
+    }
   }, [currentUser, sessionId]);
 
 
@@ -816,48 +867,6 @@ const myAssignedCustomers = customers
     currentUser?.accountType === "employee" &&
     !isAdminAccount &&
     (!isReceptionAccount || isCallCenterAccount);
-
-  /*
-   * Keep assignments fresh without hammering VPS server.
-   * The collection hook already performs a background refresh. Here we only
-   * refresh immediately when the app becomes visible again or when another
-   * part of the app announces an assignment change.
-   */
-  useEffect(() => {
-    if (!currentUser || !customersLoaded) return undefined;
-
-    let refreshing = false;
-    const refreshAssignments = async () => {
-      if (refreshing || !navigator.onLine) return;
-      refreshing = true;
-      try {
-        await loadCustomers();
-      } finally {
-        refreshing = false;
-      }
-    };
-
-    const handleImmediateRefresh = () => refreshAssignments();
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") refreshAssignments();
-    };
-
-    window.addEventListener(
-      "isp-customer-assignment-updated",
-      handleImmediateRefresh
-    );
-    window.addEventListener("online", handleImmediateRefresh);
-    document.addEventListener("visibilitychange", handleVisibility);
-
-    return () => {
-      window.removeEventListener(
-        "isp-customer-assignment-updated",
-        handleImmediateRefresh
-      );
-      window.removeEventListener("online", handleImmediateRefresh);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, [currentUser?.id, customersLoaded, loadCustomers]);
 
   /*
    * Notify the currently assigned account whenever a new
@@ -1047,7 +1056,6 @@ const myAssignedCustomers = customers
       "/",
       "/reception",
       "/my-account",
-      "/messages",
     ];
 
     if (
@@ -1065,7 +1073,6 @@ const myAssignedCustomers = customers
     const employeeAllowedPaths = [
       "/",
       "/my-account",
-      "/messages",
       ...(isReceptionAccount ? ["/reception"] : []),
     ];
 
@@ -1218,8 +1225,7 @@ const myAssignedCustomers = customers
   if (!coreSystemReady) {
     appContent = (
       <div className="system-boot-screen" role="status" aria-live="polite">
-        <div className="system-boot-loader" aria-hidden="true" />
-        <p>Preparing your workspace...</p>
+        <PageLoader />
       </div>
     );
   } else if (!currentUser) {
@@ -1262,10 +1268,6 @@ const myAssignedCustomers = customers
 
 </>
 )}
-          <NavLink to="/messages">
-            <MessageCircle size={17} />
-            <span>{sidebarText.messages}</span>
-          </NavLink>
 
           {(canViewModule(currentUser, "dashboard") || isEmployeeAccount) && (
               <NavLink to="/">
@@ -1392,7 +1394,7 @@ const myAssignedCustomers = customers
           <div className="page-content">
             <GlobalDataLoader />
             <PageErrorBoundary resetKey={location.pathname}>
-              <Suspense fallback={<PageLoader />}>
+              <Suspense fallback={<RoutePageFallback />}>
                 <Routes>
                 <Route path="/" element={isEmployeeAccount ? <EmployeeDashboard currentUser={currentUser} /> : protect("dashboard", <Dashboard />)} />
                 <Route path="/dashboard/details/:metric" element={protect("dashboard", <DashboardMetricDetails />)} />
@@ -1479,16 +1481,6 @@ const myAssignedCustomers = customers
                     />
                   }
                 />
-
-                <Route
-                  path="/messages"
-                  element={
-                    <Messages
-                      currentUser={currentUser}
-                    />
-                  }
-                />
-
 
                 <Route
                   path="/customer-follow-up/:id"

@@ -8,7 +8,6 @@ import {
   EyeOff,
   Gift,
   KeyRound,
-  MessageCircle,
   Pencil,
   Trash2,
   TrendingUp,
@@ -1010,22 +1009,6 @@ const record = {
     );
 
     closeAccount();
-  };
-
-  const openEmployeeChat = () => {
-    if (!employeeAccount?.id) {
-      notify(
-        tx("First create a login account for this employee.", "ابتدا برای این کارمند حساب ورود ایجاد کنید.", "لومړی د دې کارکوونکي لپاره د ننوتلو حساب جوړ کړئ."),
-        "error"
-      );
-      return;
-    }
-
-    navigate(
-      `/team-chat?employee=${encodeURIComponent(
-        employeeAccount.id
-      )}`
-    );
   };
 
   const saveAdjustment = async (event) => {

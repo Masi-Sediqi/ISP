@@ -3,18 +3,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { notify } from "../utils/notify";
 import { getRecordIdentity } from "../utils/recycleBin";
 import {
-  calculateChanges,
   currentActorSnapshot,
   fetchServerCollection,
   saveCollectionChanges,
 } from "../sync/collectionSync";
 import { pushRemoteChanges, serverConfigured } from "../services/serverRest";
-import {
-  enqueueSyncOperation,
-  migrateLocalStorageCollection,
-  readIndexedCollection,
-  writeIndexedCollection,
-} from "../db/indexedDb";
 
 const DISABLED_COLLECTIONS = new Set();
 const ACTIVITY_COLLECTION = "employeeActivities";
@@ -23,9 +16,7 @@ const ACTIVITY_IGNORED_COLLECTIONS = new Set([
   "employeeReports",
   "recycleBin",
 ]);
-const REMOTE_REFRESH_MS = 30000;
 const sharedCollectionRequests = new Map();
-const localCollectionKey = (name) => `isp-local-collection:${name}`;
 const canUseRemote = () => serverConfigured && navigator.onLine;
 
 async function fetchCollectionShared(name) {
@@ -211,26 +202,16 @@ async function recordEmployeeActivity(collectionName, previousItems, nextItems) 
   }
 }
 
-async function queueCollectionChanges(collectionName, previousItems, nextItems) {
-  const actor = currentActorSnapshot();
-  const changes = calculateChanges(previousItems, nextItems);
-  await enqueueSyncOperation({
-    collection: collectionName,
-    upserts: changes.upserts,
-    deletes: changes.deletes,
-    actorId: actor.id || actor.employeeId || "",
-    ownerId: actor.employeeId || actor.id || "",
-  });
-}
-
-export function useJsonCollection(name) {
-  const disabled = DISABLED_COLLECTIONS.has(name);
+export function useJsonCollection(name, options = {}) {
+  const disabled = DISABLED_COLLECTIONS.has(name) || options.enabled === false;
+  const background = options.background === true;
+  const silentLoadErrors = options.silentLoadErrors === true;
   const [items, setItemsState] = useState([]);
-  const [loaded, setLoaded] = useState(disabled);
+  const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const itemsRef = useRef([]);
   const loadingRef = useRef(false);
-  const loadedRef = useRef(disabled);
+  const loadedRef = useRef(false);
 
   const applyItems = useCallback((nextItems) => {
     const safe = Array.isArray(nextItems) ? nextItems : [];
@@ -239,30 +220,12 @@ export function useJsonCollection(name) {
     return safe;
   }, []);
 
-  const loadLocalItems = useCallback(async () => {
-    try {
-      const localItems = await migrateLocalStorageCollection(
-        name,
-        localCollectionKey(name)
-      );
-      applyItems(localItems);
-      return localItems;
-    } catch (error) {
-      console.warn(`[Local collection failed] ${name}:`, error);
-      try {
-        const localItems = await readIndexedCollection(name);
-        applyItems(localItems);
-        return localItems;
-      } catch {
-        return itemsRef.current;
-      }
-    }
-  }, [applyItems, name]);
-
   const load = useCallback(async () => {
     if (disabled) {
       applyItems([]);
-      setLoaded(true);
+      loadedRef.current = false;
+      setLoaded(false);
+      setLoadError(null);
       return [];
     }
 
@@ -270,7 +233,7 @@ export function useJsonCollection(name) {
     loadingRef.current = true;
 
     const isInitialLoad = !loadedRef.current;
-    const loadingToken = isInitialLoad
+    const loadingToken = isInitialLoad && !background
       ? `${name}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
       : null;
 
@@ -283,27 +246,19 @@ export function useJsonCollection(name) {
     }
 
     try {
-      if (!canUseRemote()) {
-        const localItems = await loadLocalItems();
-        setLoadError(null);
-        return localItems;
-      }
+      if (!canUseRemote()) throw new Error("VPS server is unavailable. Check your connection.");
 
       const remoteItems = await fetchCollectionShared(name);
       applyItems(remoteItems);
-      writeIndexedCollection(name, remoteItems).catch((error) => {
-        console.warn(`[Local cache write failed] ${name}:`, error);
-      });
       setLoadError(null);
       return remoteItems;
     } catch (error) {
       console.error(`[VPS server collection failed] ${name}:`, error);
       setLoadError(error);
-      const localItems = await loadLocalItems();
-      if (!loadedRef.current && !localItems.length) {
+      if (!loadedRef.current && !silentLoadErrors) {
         notify(error?.message || `Unable to load ${name} from VPS server.`, "error");
       }
-      return localItems;
+      return itemsRef.current;
     } finally {
       loadedRef.current = true;
       setLoaded(true);
@@ -317,7 +272,7 @@ export function useJsonCollection(name) {
         );
       }
     }
-  }, [applyItems, disabled, loadLocalItems, name]);
+  }, [applyItems, background, disabled, name, silentLoadErrors]);
 
   useEffect(() => {
     load();
@@ -330,40 +285,11 @@ export function useJsonCollection(name) {
       if (Array.isArray(event?.detail)) applyItems(event.detail);
       else load();
     };
-    const handleOnline = () => load();
-
     window.addEventListener(`isp-server:${name}`, handleRemoteChange);
-    window.addEventListener("online", handleOnline);
     return () => {
       window.removeEventListener(`isp-server:${name}`, handleRemoteChange);
-      window.removeEventListener("online", handleOnline);
     };
   }, [applyItems, disabled, load, name]);
-
-  useEffect(() => {
-    if (disabled || !serverConfigured) return undefined;
-    const refreshIfVisible = () => {
-      if (
-        document.visibilityState !== "visible" ||
-        !navigator.onLine ||
-        loadingRef.current
-      ) {
-        return;
-      }
-      load();
-    };
-
-    const timer = window.setInterval(refreshIfVisible, REMOTE_REFRESH_MS);
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") refreshIfVisible();
-    };
-
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, [disabled, load]);
 
   const setItems = useCallback(
     async (nextValue) => {
@@ -378,47 +304,27 @@ export function useJsonCollection(name) {
         return false;
       }
 
-      // Save locally first so forms can close quickly; server sync continues below.
-      applyItems(nextItems);
-
-      try {
-        await writeIndexedCollection(name, nextItems);
-        window.dispatchEvent(
-          new CustomEvent(`isp-server:${name}`, { detail: nextItems })
-        );
-      } catch (error) {
-        applyItems(previousItems);
-        console.error(`Unable to save ${name} locally:`, error);
-        notify(error?.message || `Unable to save ${name} locally.`, "error");
+      if (!canUseRemote()) {
+        notify("VPS server is unavailable. Check your connection.", "error");
         return false;
       }
 
-      if (!canUseRemote()) {
-        try {
-          await queueCollectionChanges(name, previousItems, nextItems);
-        } catch (error) {
-          console.warn(`[Sync queue failed] ${name}:`, error);
-        }
+      try {
+        await archiveRemovedRecordsToServer(name, previousItems, nextItems);
+        await saveCollectionChanges(name, previousItems, nextItems);
+        applyItems(nextItems);
+        window.dispatchEvent(
+          new CustomEvent(`isp-server:${name}`, { detail: nextItems })
+        );
+        recordEmployeeActivity(name, previousItems, nextItems);
+        setLoadError(null);
         return true;
+      } catch (error) {
+        console.error(`[VPS server save failed] ${name}:`, error);
+        setLoadError(error);
+        notify(error?.message || `Unable to save ${name} to VPS server.`, "error");
+        return false;
       }
-
-      Promise.resolve()
-        .then(async () => {
-          await archiveRemovedRecordsToServer(name, previousItems, nextItems);
-          await saveCollectionChanges(name, previousItems, nextItems);
-          recordEmployeeActivity(name, previousItems, nextItems);
-        })
-        .catch(async (error) => {
-          console.warn(`[Background sync failed] ${name}:`, error);
-          try {
-            await queueCollectionChanges(name, previousItems, nextItems);
-            notify("Saved locally. It will sync when the VPS server is available.", "info");
-          } catch (queueError) {
-            console.error(`Unable to queue ${name} for sync:`, queueError);
-          }
-        });
-
-      return true;
     },
     [applyItems, disabled, name]
   );
