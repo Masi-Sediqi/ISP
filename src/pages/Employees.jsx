@@ -6,6 +6,7 @@ import { useJsonCollection } from "../hooks/useJsonCollection";
 import { useNavigate } from "react-router-dom";
 import { clearFieldError, hasFormErrors, validateRequiredFields } from "../utils/formValidation";
 import "./Employees.css";
+import { isCallCenter } from "../utils/callCenterPerformance";
 
 const emptyEmployee = {
   fullName: "",
@@ -23,6 +24,8 @@ const emptyEmployee = {
   roles: [],
   salaryType: "fixed",
   fixedSalary: "",
+  salaryCurrency: "AFN",
+  monthlyContractTarget: "",
   salaryPercentage: "",
   status: "",
   notes: "",
@@ -252,6 +255,9 @@ function Employees() {
       requiredText
     );
 
+    if (isCallCenter(form) && form.salaryType === "fixed" && form.monthlyContractTarget !== "" && (!Number.isSafeInteger(Number(form.monthlyContractTarget)) || Number(form.monthlyContractTarget) < 1)) {
+      errors.monthlyContractTarget = tx("Enter a positive whole number.", "یک عدد صحیح بزرگ‌تر از صفر وارد کنید.", "یو مثبت بشپړ عدد ولیکئ.");
+    }
     setFormErrors(errors);
     if (hasFormErrors(errors)) return;
 
@@ -596,6 +602,13 @@ function Employees() {
                 )}
 
                 <label className={formErrors.status ? "has-error" : ""}><span>{tx("Status", "وضعیت", "حالت")}</span><select name="status" value={form.status} onChange={updateField}><option value="">{tx("Select status", "وضعیت را انتخاب کنید", "حالت وټاکئ")}</option><option value="Active">{tx("Active", "فعال", "فعال")}</option><option value="On Leave">{tx("On Leave", "در رخصتی", "په رخصتۍ")}</option><option value="Inactive">{tx("Inactive", "غیرفعال", "غیرفعال")}</option></select>{formErrors.status && <span className="form-error-text">{formErrors.status}</span>}</label>
+                {form.salaryType === "fixed" && <label><span>{tx("Salary Currency", "واحد معاش", "د معاش اسعار")}</span><select name="salaryCurrency" value={form.salaryCurrency || "AFN"} onChange={updateField}><option value="AFN">AFN</option><option value="USD">USD</option></select></label>}
+                {isCallCenter(form) && form.salaryType === "fixed" && <label className={formErrors.monthlyContractTarget ? "has-error" : ""}>
+                  <span>{tx("Monthly Contract Target", "تارگیت ماهانه قرارداد", "د قراردادونو میاشتنی هدف")}</span>
+                  <input type="number" name="monthlyContractTarget" min="1" step="1" value={form.monthlyContractTarget ?? ""} onChange={updateField} />
+                  <small>{tx("Optional. Salary = monthly salary × contracted customers / target, capped at full salary. Each customer counts once, in their first contract month.", "اختیاری. معاش = معاش ماهانه × مشتریان قراردادشده ÷ تارگیت، تا سقف معاش کامل. هر مشتری فقط در ماه اولین قرارداد یک‌بار حساب می‌شود.", "اختیاري. معاش = میاشتنی معاش × قرارداد لرونکي پېرودونکي ÷ هدف، تر بشپړ معاش پورې. هر پېرودونکی د لومړي قرارداد په میاشت کې یو ځل شمېرل کېږي.")}</small>
+                  {formErrors.monthlyContractTarget && <span className="form-error-text">{formErrors.monthlyContractTarget}</span>}
+                </label>}
                 <label className="employee-form-full"><span>{tx("Notes", "یادداشت", "یادښت")}</span><textarea name="notes" value={form.notes} onChange={updateField} rows="4" placeholder={tx("Write notes...", "یادداشت بنویسید...", "یادښت ولیکئ...")} /></label>
               </div>
               <div className="employee-modal-actions">

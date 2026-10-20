@@ -28,6 +28,8 @@ import { todayDateValue } from "../utils/afghanDate";
 import { availableCashWalletBalanceForCurrency } from "../utils/cashWallet";
 import { removeLinkedEmployeePaymentRecords } from "../utils/employeePaymentCleanup";
 import { calculatePayrollExpectedAmount, getPayrollPeriod, roundPayrollAmount } from "../utils/payroll";
+import { getCallCenterEvents, hasContractTarget, targetSalaryForPeriod } from "../utils/callCenterPerformance";
+import CallCenterPerformance from "../components/CallCenterPerformance";
 import { calculateEmployeeLedgerSummary, isCreditLedgerEntry } from "../utils/employeeLedgerLogic";
 import { notify } from "../utils/notify";
 import { formatCurrencyAmount, formatCurrencyTotals } from "../utils/currencyDisplay";
@@ -94,8 +96,9 @@ export default function EmployeeDetails({
   const [employees, , , loaded] =
     useJsonCollection("employees");
 
-  const [customers] =
+  const [customers, , , targetCustomersLoaded] =
     useJsonCollection("customers");
+  const [targetProjects, , , targetProjectsLoaded] = useJsonCollection("projects");
 
   const [employeeReports] =
     useJsonCollection("employeeReports");
@@ -247,6 +250,11 @@ export default function EmployeeDetails({
   );
 
   const monthlySalary = Number(employee?.fixedSalary || 0);
+  const salaryCurrency = employee?.salaryCurrency || "AFN";
+  const targetEvents = getCallCenterEvents({ employee, accountId: employeeAccount?.id, customers, projects: targetProjects });
+  const calculateEmployeePayrollExpectedAmount = (salary, mode, startDate, endDate) => hasContractTarget(employee)
+    ? targetSalaryForPeriod(employee, targetEvents, startDate, endDate)
+    : calculatePayrollExpectedAmount(salary, mode, startDate, endDate);
 
   const employeeCustomers = useMemo(() => {
     const employeeId = String(employee?.id || "");
@@ -549,18 +557,19 @@ export default function EmployeeDetails({
   };
 
   const openPayroll = () => {
-    const period = getPayrollPeriod("daily", todayDateValue());
+    const initialMode = hasContractTarget(employee) ? "monthly" : "daily";
+    const period = getPayrollPeriod(initialMode, todayDateValue());
     const expectedAmount = roundPayrollAmount(
-      calculatePayrollExpectedAmount(
+      calculateEmployeePayrollExpectedAmount(
         monthlySalary,
-        "daily",
+        initialMode,
         period.startDate,
         period.endDate
       )
     );
 
     setPayrollForm({
-      mode: "daily",
+      mode: initialMode,
       startDate: period.startDate,
       endDate: period.endDate,
       expectedAmount,
@@ -591,7 +600,7 @@ export default function EmployeeDetails({
                 current.startDate || todayDateValue()
               );
         const expectedAmount = roundPayrollAmount(
-          calculatePayrollExpectedAmount(
+          calculateEmployeePayrollExpectedAmount(
             monthlySalary,
             nextMode,
             period.startDate,
@@ -611,7 +620,7 @@ export default function EmployeeDetails({
         if (name === "startDate" && current.mode !== "custom") {
           const period = getPayrollPeriod(current.mode, value || todayDateValue());
           const expectedAmount = roundPayrollAmount(
-            calculatePayrollExpectedAmount(
+            calculateEmployeePayrollExpectedAmount(
               monthlySalary,
               current.mode,
               period.startDate,
@@ -628,7 +637,7 @@ export default function EmployeeDetails({
         const next = { ...current, [name]: value };
         if (current.mode === "custom") {
           const expectedAmount = roundPayrollAmount(
-            calculatePayrollExpectedAmount(
+            calculateEmployeePayrollExpectedAmount(
               monthlySalary,
               current.mode,
               next.startDate,
@@ -650,6 +659,11 @@ export default function EmployeeDetails({
   const savePayroll = async (event) => {
     event.preventDefault();
 
+    if (hasContractTarget(employee) && (!targetProjectsLoaded || !targetCustomersLoaded)) {
+      notify(tx("Wait for customer and contract data to load.", "تا بارگذاری مشتریان و قراردادها صبر کنید.", "د پېرودونکو او قراردادونو بارېدو ته انتظار وکړئ."), "error");
+      return;
+    }
+
     const startDate = payrollForm.startDate;
     const endDate = payrollForm.endDate;
     if (!startDate || !endDate || endDate < startDate) {
@@ -664,8 +678,13 @@ export default function EmployeeDetails({
       return;
     }
 
+    if (hasContractTarget(employee) && employeePayrolls.some((record) => String(record.employeeId) === String(employee.id) && record.startDate <= endDate && record.endDate >= startDate)) {
+      notify(tx("A payroll already covers part of this period. Choose a period without overlap.", "برای بخشی از این دوره معاش قبلاً ثبت شده است؛ یک دوره بدون تداخل انتخاب کنید.", "د دې مودې د یوې برخې معاش ثبت شوی؛ بې تداخله موده وټاکئ."), "error");
+      return;
+    }
+
     const expectedAmount = roundPayrollAmount(
-      calculatePayrollExpectedAmount(
+      calculateEmployeePayrollExpectedAmount(
         monthlySalary,
         payrollForm.mode,
         startDate,
@@ -699,6 +718,12 @@ export default function EmployeeDetails({
       startDate,
       endDate,
       monthlySalary,
+      currency: salaryCurrency,
+      ...(hasContractTarget(employee) ? {
+        monthlyContractTarget: Number(employee.monthlyContractTarget),
+        targetCustomerIds: targetEvents.filter((event) => event.contractDate >= startDate && event.contractDate <= endDate).map((event) => event.customerId),
+        salaryCalculation: "monthly-contract-target",
+      } : {}),
       expectedAmount,
       paymentAmount: 0,
       remainingAmount: expectedAmount,
@@ -717,6 +742,7 @@ export default function EmployeeDetails({
       employeeEmail: employee?.email || employeeAccount?.email || "",
       employeeUsername: employeeAccount?.username || "",
       type: "salary",
+      currency: salaryCurrency,
       amount: expectedAmount,
       reason: description || `Payroll ${payrollForm.mode}: ${startDate} - ${endDate}`,
       source: "employee-payroll-accrual",
@@ -1383,6 +1409,7 @@ const record = {
         </div>
       </header>
 
+      <CallCenterPerformance employeeId={employee.id} accountId={employeeAccount?.id} language={interfaceLanguage} />
       <section
           className={`employee-profile-hero ${
             String(employee.status || "").toLowerCase() === "active"
@@ -2147,7 +2174,7 @@ const record = {
             <div className="employee-payroll-summary">
               <div>
                 <span>{tx("Monthly Salary", "معاش ماهانه", "میاشتنی معاش")}</span>
-                <strong>{formatCurrencyAmount(monthlySalary, "AFN")}</strong>
+                <strong>{formatCurrencyAmount(monthlySalary, salaryCurrency)}</strong>
               </div>
             </div>
 
@@ -2184,8 +2211,9 @@ const record = {
             </div>
 
             <div className="employee-payroll-amount-card">
+              {hasContractTarget(employee) && <small>{tx(`Monthly target: ${employee.monthlyContractTarget}. Salary is earned per contracted customer, capped at full monthly salary.`, `تارگیت ماهانه: ${employee.monthlyContractTarget}. معاش مطابق مشتریان قراردادشده تا سقف معاش ماهانه محاسبه می‌شود.`, `میاشتنی هدف: ${employee.monthlyContractTarget}. معاش د قرارداد لرونکو پېرودونکو پر بنسټ تر میاشتني معاش پورې حسابېږي.`)}</small>}
               <span>{tx("Calculated Payroll", "معاش محاسبه‌شده", "محاسبه شوی معاش")}</span>
-              <strong>{formatCurrencyAmount(payrollForm.expectedAmount || 0, "AFN")}</strong>
+              <strong>{formatCurrencyAmount(calculateEmployeePayrollExpectedAmount(monthlySalary, payrollForm.mode, payrollForm.startDate, payrollForm.endDate), salaryCurrency)}</strong>
               {monthlySalary <= 0 && (
                 <small>{tx("No fixed monthly salary is set. Set the employee monthly salary first.", "معاش ثابت ماهانه تعیین نشده؛ ابتدا معاش ماهانه کارمند را تعیین کنید.", "ثابت میاشتنی معاش نه دی ټاکل شوی؛ لومړی د کارکوونکي میاشتنی معاش وټاکئ.")}</small>
               )}

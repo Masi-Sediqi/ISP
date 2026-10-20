@@ -6,6 +6,7 @@ import { useJsonCollection } from "../hooks/useJsonCollection";
 import { findDuplicateCustomer } from "../utils/customerIdentity";
 import { clearFieldError, hasFormErrors, validateRequiredFields } from "../utils/formValidation";
 import { stageLabel } from "../utils/customerStage";
+import { exportCustomerList } from "../utils/customerListExport";
 import "./ConsultantCustomers.css";
 
 const provinces = ["Badakhshan","Badghis","Baghlan","Balkh","Bamyan","Daykundi","Farah","Faryab","Ghazni","Ghor","Helmand","Herat","Jowzjan","Kabul","Kandahar","Kapisa","Khost","Kunar","Kunduz","Laghman","Logar","Nangarhar","Nimroz","Nuristan","Paktia","Paktika","Panjshir","Parwan","Samangan","Sar-e Pol","Takhar","Uruzgan","Wardak","Zabul"];
@@ -658,6 +659,8 @@ const departmentTypes = [
 function ConsultantCustomers({ mode = "consultant", currentUser }) {
   const navigate = useNavigate();
   const [activeMode, setActiveMode] = useState(mode);
+  const [exporting, setExporting] = useState(false);
+  const customerTableRef = useRef(null);
   const isTravel = activeMode === "travel";
   const isTechnology = activeMode === "technology";
   const isMedia = activeMode === "media";
@@ -1236,6 +1239,21 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     }`;
   };
 
+  const handleExport = async (event) => {
+    const format = event.target.value;
+    event.target.value = "";
+    if (!format || exporting) return;
+    setExporting(true);
+    try {
+      await exportCustomerList({ table: customerTableRef.current, title: typeLabelPlural, format, rtl: interfaceLanguage !== "en" });
+    } catch (error) {
+      console.error("Customer export failed", error);
+      notify(tx("Could not export customers. Please try again.", "خروجی مشتریان انجام نشد. دوباره کوشش کنید.", "د پېرودونکو صادرول ناکام شول. بیا هڅه وکړئ."), "error");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className={`consultant-page ${interfaceLanguage !== "en" ? "consultant-page-rtl" : ""}`}>
       <div className="consultant-heading">
@@ -1251,6 +1269,14 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
           </p>
         </div>
 
+        <div className="consultant-heading-actions">
+          <select className="consultant-export-select" defaultValue="" onChange={handleExport} disabled={exporting || !filtered.length}
+            aria-label={tx("Export customer list", "خروجی لیست مشتریان", "د پېرودونکو لېست صادرول")}>
+            <option value="" disabled>{exporting ? tx("Preparing…", "در حال آماده‌سازی…", "چمتو کېږي…") : tx("Export / Print", "خروجی / چاپ", "صادرول / چاپ")}</option>
+            <option value="excel">Excel (.xlsx)</option>
+            <option value="pdf">PDF (A4)</option>
+            <option value="print">{tx("Print A4", "چاپ A4", "A4 چاپ")}</option>
+          </select>
         <button
           type="button"
           onClick={openCreate}
@@ -1258,6 +1284,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
           <Plus size={17} />
           {tx("Add", "افزودن", "زیاتول")} {typeLabel}
         </button>
+        </div>
       </div>
 
       <div className="consultant-department-cards" aria-label="Customer departments">
@@ -1316,7 +1343,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
         </div>
 
         <div className="consultant-table-wrap">
-          <table>
+          <table ref={customerTableRef}>
             <thead>
               {isMedia ? (
                 <tr>

@@ -16,6 +16,7 @@ import { createRecordId } from "../utils/ids";
 import { notify } from "../utils/notify";
 import { isPackageAvailable } from "../utils/packageAvailability";
 import "./EmployeeDashboard.css";
+import CallCenterPerformance from "../components/CallCenterPerformance";
 
 const provinces = ["Badakhshan", "Badghis", "Baghlan", "Balkh", "Bamyan", "Daykundi", "Farah", "Faryab", "Ghazni", "Ghor", "Helmand", "Herat", "Jowzjan", "Kabul", "Kandahar", "Kapisa", "Khost", "Kunar", "Kunduz", "Laghman", "Logar", "Nangarhar", "Nimroz", "Nuristan", "Paktia", "Paktika", "Panjshir", "Parwan", "Samangan", "Sar-e Pol", "Takhar", "Uruzgan", "Wardak", "Zabul"];
 const countries = [
@@ -1581,6 +1582,7 @@ export default function EmployeeDashboard({
         </div>
       </section>
 
+      <CallCenterPerformance employeeId={currentEmployeeId} accountId={currentUser.id} language={interfaceLanguage} />
       <section className="employee-dashboard-list">
         <div className="employee-dashboard-list-head">
           <div>
