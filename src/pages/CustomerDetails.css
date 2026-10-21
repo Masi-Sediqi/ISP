@@ -104,3 +104,31 @@ body.dark-mode .customer-portal-page .customer-profit-grid .profit-total{backgro
 body.dark-mode .customer-portal-page .customer-status-box{background:#0b1424!important;border:1px solid #33445e}
 body.dark-mode .customer-portal-page .customer-stage-menu button{background:transparent!important;color:#edf3ff!important}
 body.dark-mode .customer-portal-page .customer-stage-menu button:hover,body.dark-mode .customer-portal-page .customer-stage-menu button.active{background:#334361!important}
+.customer-ledger-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
+.customer-ledger-heading h3 { margin:0 0 6px; }
+.customer-ledger-heading p, .customer-ledger-explanation { color:#64748b; font-size:13px; }
+.customer-adjustment-button { display:inline-flex; align-items:center; gap:8px; padding:11px 18px; background:#4f46e5; color:white; border:0; border-radius:10px; cursor:pointer; font-weight:700; }
+.customer-ledger-totals { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; }
+.customer-ledger-summary { padding:20px; background:var(--card-bg,#fff); border:1px solid #dbe2ef; border-radius:14px; display:grid; gap:14px; }
+.customer-ledger-summary > span { display:flex; justify-content:space-between; gap:12px; font-size:14px; }
+.customer-ledger-summary .ledger-net { border-top:1px solid #dbe2ef; padding-top:14px; font-weight:700; }
+.customer-payment-ledger .ledger-credit { color:#2563eb !important; font-weight:700; }
+.customer-payment-ledger .ledger-debit { color:#dc2626 !important; font-weight:700; }
+.customer-adjustment-fields { border:0; padding:0; margin:0; display:grid; gap:12px; }
+.customer-payment-ledger td { vertical-align:top; }
+.customer-payment-ledger td:nth-child(3) { min-width:160px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.dark-mode .customer-ledger-summary { background:#182233; border-color:#344256; }
+.dark-mode .customer-payment-ledger .ledger-credit { color:#60a5fa !important; }
+.dark-mode .customer-payment-ledger .ledger-debit { color:#f87171 !important; }
+.customer-contract-code { display:block; color:#6366f1; margin:4px 0 10px; overflow-wrap:anywhere; }
+.customer-contract-actions { display:flex; flex-wrap:wrap; gap:8px; padding:4px 0; }
+.customer-contract-actions :is(button,a) { display:inline-flex; gap:6px; align-items:center; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#334155; text-decoration:none; cursor:pointer; font:inherit; font-size:12px; }
+.customer-contract-actions button:disabled { opacity:.5; cursor:wait; }
+.customer-contract-dialog { width:min(780px,94vw) !important; max-height:90vh; overflow-y:auto; }
+.customer-contract-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; padding:0; border:0; margin:18px 0; }
+.customer-contract-fields .contract-wide { grid-column:1 / -1; }
+.customer-contract-note { font-size:12px; line-height:1.7; color:#64748b; }
+.customer-contract-preview { width:min(1100px,96vw); height:92vh; background:#fff; padding:14px; border-radius:12px; display:flex; flex-direction:column; gap:12px; }
+.customer-contract-preview iframe { width:100%; flex:1; border:0; min-height:0; }
+body.dark-mode .customer-contract-preview, body.dark-mode .customer-contract-actions :is(button,a) { background:#182233; color:#e2e8f0; border-color:#475569; }
+@media(max-width:640px) { .customer-contract-fields { grid-template-columns:1fr; } }

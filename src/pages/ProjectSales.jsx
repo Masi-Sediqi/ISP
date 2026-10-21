@@ -18,8 +18,6 @@ import { useEmployeeAdjustments } from "../hooks/useEmployeeAdjustments";
 import { createId } from "../utils/createId";
 import CustomerSearchSelect from "../components/CustomerSearchSelect";
 import {
-  applyLicensePackage,
-  applySaleType,
   buildSaleItem,
   calculateSalePayment,
   saleToEditableForm,
@@ -27,6 +25,7 @@ import {
 import { notify } from "../utils/notify";
 import { clearFieldError, hasFormErrors, validateRequiredFields } from "../utils/formValidation";
 import { formatCurrencyAmount } from "../utils/currencyDisplay";
+import { PROJECT_SALE_PLANS, updateSalePlan, salePlanEndDate } from "../utils/projectSalePlans";
 import "./ProjectSales.css";
 
 function money(value, currency = "AFN") {
@@ -77,7 +76,6 @@ function normalize(value) {
 function ProjectSales() {
   const navigate = useNavigate();
   const [projects] = useJsonCollection("projects");
-  const [technologyPackages] = useJsonCollection("technologyPackages");
   const [customers, setCustomers] = useJsonCollection("customers");
   const [employees] = useJsonCollection("employees");
   const [sales, setSales] = useJsonCollection("projectSales");
@@ -232,28 +230,8 @@ function ProjectSales() {
     );
   }
 
-  function projectLicensePackages(projectId) {
-    return technologyPackages.filter(
-      (item) => String(item.projectId || "") === String(projectId || "")
-    );
-  }
-
-  function updateSaleType(projectId, saleType) {
-    setItems((current) =>
-      current.map((item) =>
-        String(item.projectId) === String(projectId) ? applySaleType(item, saleType) : item
-      )
-    );
-  }
-
-  function updateLicensePackage(projectId, packageId) {
-    const pkg = technologyPackages.find((item) => String(item.id) === String(packageId));
-    if (!pkg) return;
-    setItems((current) =>
-      current.map((item) =>
-        String(item.projectId) === String(projectId) ? applyLicensePackage(item, pkg) : item
-      )
-    );
+  function updatePlan(projectId, changes) {
+    setItems(current => current.map(item => String(item.projectId) === String(projectId) ? updateSalePlan(item, changes) : item));
   }
 
   function removeItem(projectId) {
@@ -345,8 +323,8 @@ function ProjectSales() {
       ]
     );
 
-    if (items.some((item) => item.saleType === "license" && !item.licensePackageId)) {
-      errors.items = "Select a license package for every project sold as a license.";
+    if (items.some(item => !item.startDate || !PROJECT_SALE_PLANS.some(([value]) => value === item.salePlan) || (item.salePlan !== 'lifetime' && !salePlanEndDate(item.startDate, item.salePlan)))) {
+      errors.items = "Choose a valid plan and start date for every selected project.";
     }
 
     setFormErrors(errors);
@@ -362,6 +340,14 @@ function ProjectSales() {
     const saleRecord = {
       ...previousSale,
       id: saleId,
+      contractId: previousSale?.contractId || `CTR-${saleId}`,
+      contractDetails: previousSale?.contractDetails || {
+        buyerName: customerNameOf(selectedCustomer),
+        phone: selectedCustomer.phone || selectedCustomer.customerPhone || '',
+        address: selectedCustomer.address || '',
+        buyerIdNumber: selectedCustomer.idNumber || selectedCustomer.tazkiraNumber || selectedCustomer.businessLicense || '',
+        contractDate: now.slice(0, 10),
+      },
       projectId: firstItem.projectId,
       projectName:
         items.length === 1 ? firstItem.projectName : `${firstItem.projectName} +${items.length - 1}`,
@@ -387,11 +373,16 @@ function ProjectSales() {
       quantity: totals.quantity,
       currency,
       saleType: items.length === 1 ? items[0].saleType || "lifetime" : "mixed",
+      projectCode: items.length === 1 ? firstItem.projectCode : '',
+      salePlan: items.length === 1 ? firstItem.salePlan : 'mixed',
+      startDate: items.length === 1 ? firstItem.startDate : '',
+      endDate: items.length === 1 ? salePlanEndDate(firstItem.startDate, firstItem.salePlan) : '',
       licensePackageId: items.length === 1 ? items[0].licensePackageId || "" : "",
       licensePackageName: items.length === 1 ? items[0].licensePackageName || "" : "",
       notes: customer.notes,
       items: items.map((item) => ({
         ...item,
+        endDate: salePlanEndDate(item.startDate, item.salePlan),
         subtotal: Number(item.price || 0) * Number(item.quantity || 0),
         total: lineTotal(item),
       })),
@@ -628,7 +619,7 @@ function ProjectSales() {
                     <div className="project-sale-item-head">
                       <div>
                         <span>{item.quantity}</span>
-                        <strong>{item.projectName}</strong>
+                        <strong>{item.projectName}</strong><code className="project-sale-code" title="Unique project code">{item.projectCode}</code>
                       </div>
                       <button
                         type="button"
@@ -641,38 +632,9 @@ function ProjectSales() {
                     </div>
 
                     <div className="project-sale-license-row">
-                      <label>
-                        <span>Sale Type</span>
-                        <select
-                          value={item.saleType || "lifetime"}
-                          onChange={(event) => updateSaleType(item.projectId, event.target.value)}
-                        >
-                          <option value="lifetime">Lifetime / Permanent</option>
-                          <option value="license">License</option>
-                        </select>
-                      </label>
-
-                      {item.saleType === "license" && (
-                        <label>
-                          <span>License Package</span>
-                          <select
-                            value={item.licensePackageId || ""}
-                            onChange={(event) => updateLicensePackage(item.projectId, event.target.value)}
-                          >
-                            <option value="">Select license package</option>
-                            {projectLicensePackages(item.projectId).map((pkg) => (
-                              <option key={pkg.id} value={pkg.id}>
-                                {pkg.packageName} — {money(pkg.sellingPrice, pkg.currency || "AFN")}
-                              </option>
-                            ))}
-                          </select>
-                          {!projectLicensePackages(item.projectId).length && (
-                            <small className="project-sale-license-empty">
-                              No Technology Package is linked to this project.
-                            </small>
-                          )}
-                        </label>
-                      )}
+                      <label><span>Plan</span><select value={item.salePlan || 'lifetime'} onChange={event => updatePlan(item.projectId, { salePlan: event.target.value })}>{PROJECT_SALE_PLANS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                      <label><span>Start Date</span><input type="date" required value={item.startDate || ''} onChange={event => updatePlan(item.projectId, { startDate: event.target.value })} /></label>
+                      <label><span>Expiry Date · Automatic</span><input type="text" readOnly value={item.salePlan === 'lifetime' ? 'Lifetime — No expiry' : item.endDate || 'Select start date'} aria-label="Automatic expiry date" /></label>
                     </div>
 
                     <div className="project-sale-three-inputs">

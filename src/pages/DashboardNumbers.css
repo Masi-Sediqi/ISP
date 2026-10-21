@@ -51,3 +51,5 @@ body.lang-rtl .dashboard-stats-expanded .dashboard-stat-button .dashboard-stat-v
     font-size: 19px;
   }
 }
+.dashboard-trend-card[role="link"] { cursor:pointer; }
+.dashboard-trend-card[role="link"]:focus-visible { outline:3px solid #6366f1; outline-offset:3px; }

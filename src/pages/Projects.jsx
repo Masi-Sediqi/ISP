@@ -278,6 +278,7 @@ function Projects() {
       <style>{`
         .project-list-redesign {
           display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 14px;
         }
 
@@ -289,7 +290,10 @@ function Projects() {
           border: 1px solid #e4e9f1 !important;
           border-radius: 18px !important;
           display: grid !important;
-          grid-template-columns: minmax(0, 1fr) 190px !important;
+          grid-template-columns: minmax(0, 1fr) !important;
+          grid-template-rows: 1fr auto;
+          min-width: 0;
+          gap: 0 !important;
           background: linear-gradient(135deg, #ffffff 0%, #fbfcff 65%, #f7f9ff 100%) !important;
           box-shadow: 0 10px 30px rgba(15, 23, 42, .055) !important;
           transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease !important;
@@ -322,6 +326,7 @@ function Projects() {
           font-size: 17px !important;
           font-weight: 900 !important;
           letter-spacing: -.02em;
+          overflow-wrap: anywhere;
         }
 
         .project-list-redesign .project-item-main > p {
@@ -365,7 +370,9 @@ function Projects() {
 
         .project-list-redesign .project-item-side {
           padding: 20px 17px !important;
-          border-left: 1px solid #edf0f5 !important;
+          border-left: 0 !important;
+          border-right: 0 !important;
+          border-top: 1px solid #edf0f5 !important;
           display: flex !important;
           flex-direction: column !important;
           align-items: flex-end !important;
@@ -453,10 +460,16 @@ function Projects() {
 
         body.dark-mode .project-list-redesign .project-item-side {
           border-left-color: #273449 !important;
+          border-top-color: #273449 !important;
           background: linear-gradient(180deg, #0f172a, #111827) !important;
         }
 
+        @media (min-width: 761px) and (max-width: 1199px) {
+          .project-list-redesign { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
         @media (max-width: 760px) {
+          .project-list-redesign { grid-template-columns: minmax(0, 1fr); }
           .project-list-redesign .project-item {
             grid-template-columns: 1fr !important;
           }

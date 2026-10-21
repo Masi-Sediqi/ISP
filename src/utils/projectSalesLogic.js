@@ -1,3 +1,5 @@
+import { localSaleDate, projectUniqueCode, salePlanEndDate } from './projectSalePlans.js';
+
 export function customerDisplayName(customer) {
   return (
     customer?.customerName ||
@@ -78,6 +80,10 @@ export function saleToEditableForm(sale) {
     items: items.map((item) => ({
       projectId: String(item.projectId || item.projectName || ""),
       projectName: item.projectName || "Project",
+      projectCode: item.projectCode || projectUniqueCode(item.projectId || item.projectName),
+      salePlan: item.salePlan || (item.saleType === 'license' ? 'one-month' : 'lifetime'),
+      startDate: item.startDate || sale?.saleDate || localSaleDate(),
+      endDate: item.endDate ?? salePlanEndDate(item.startDate || sale?.saleDate || localSaleDate(), item.salePlan || (item.saleType === 'license' ? 'one-month' : 'lifetime')),
       price: Number(item.price || 0),
       quantity: Math.max(1, Number(item.quantity || 1)),
       discount: Number(item.discount || 0),
@@ -105,6 +111,10 @@ export function buildSaleItem(project) {
   return {
     projectId: String(project?.id || project?.projectId || project?.projectName || ""),
     projectName: project?.projectName || "Project",
+    projectCode: project?.projectCode || projectUniqueCode(project?.id || project?.projectId || project?.projectName),
+    salePlan: 'lifetime',
+    startDate: localSaleDate(),
+    endDate: '',
     price,
     discount: 0,
     quantity: 1,

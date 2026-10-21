@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarDays, Check, ChevronDown } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Area,
   AreaChart,
@@ -15,18 +15,18 @@ import {
   YAxis,
 } from "recharts";
 import { useJsonCollection } from "../hooks/useJsonCollection";
-import { calculateCashWalletBalances, formatWalletAmount } from "../utils/cashWallet";
-import { calculateStaffPayables, calculateStaffPayablesByCurrency } from "../utils/staffPayable";
-import { calculateSupplierPayable, calculateSupplierPayableByCurrency } from "../utils/supplierPayable";
-import { formatCurrencyTotals, subtractCurrencyTotals, sumCurrencyAmounts } from "../utils/currencyDisplay";
+import { formatWalletAmount } from "../utils/cashWallet";
+import { formatCurrencyTotals } from "../utils/currencyDisplay";
 import { convertToBaseAfn, normalizeExchangeRates } from "../utils/exchangeRates";
 import {
   filterDashboardRecords,
   getDashboardDateRange,
+  getRecordDate,
   serializeDashboardFilter,
 } from "../utils/dashboardFilters";
 import "../App.css";
 import "./DashboardNumbers.css";
+import { dashboardMetricRows, dashboardMetricTotals } from "../utils/dashboardMetrics";
 
 const money = (value) => Number(value || 0).toLocaleString("en-US");
 const lower = (value) => String(value || "").trim().toLowerCase();
@@ -37,6 +37,7 @@ const safeList = (value) =>
 
 function Dashboard() {
   const navigate = useNavigate();
+  const [initialParams] = useSearchParams();
   const [interfaceLanguage, setInterfaceLanguage] = useState(
     () => localStorage.getItem("isp-language") || "en"
   );
@@ -182,20 +183,21 @@ function Dashboard() {
 
   const t =
     dashboardTranslations[interfaceLanguage] || dashboardTranslations.en;
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState(() => initialParams.get('filter') || 'all');
   const [dateFilterOpen, setDateFilterOpen] = useState(false);
-  const [customDates, setCustomDates] = useState({ from: "", to: "" });
+  const [customDates, setCustomDates] = useState(() => ({ from: initialParams.get('from') || '', to: initialParams.get('to') || '' }));
   const dateFilterRef = useRef(null);
-  const [rawCustomers] = useJsonCollection("customers");
-  const [rawTransactions] = useJsonCollection("transactions");
-  const [rawCashWalletTransactions] = useJsonCollection("cashWalletTransactions");
-  const [rawEmployees] = useJsonCollection("employees");
-  const [rawEmployeePayrolls] = useJsonCollection("employeePayrolls");
-  const [rawEmployeeAdjustments] = useJsonCollection("employeeAdjustments");
-  const [rawProjectSales] = useJsonCollection("projectSales");
-  const [rawSupplierPayments] = useJsonCollection("supplierPayments");
-  const [rawSupplierPurchases] = useJsonCollection("supplierPurchases");
-  const [rawSettings] = useJsonCollection("settings");
+  const [rawCustomers] = useJsonCollection("customers", { refreshInterval: 30000 });
+  const [rawTransactions] = useJsonCollection("transactions", { refreshInterval: 30000 });
+  const [rawCashWalletTransactions] = useJsonCollection("cashWalletTransactions", { refreshInterval: 30000 });
+  const [rawEmployees] = useJsonCollection("employees", { refreshInterval: 30000 });
+  const [rawEmployeePayrolls] = useJsonCollection("employeePayrolls", { refreshInterval: 30000 });
+  const [rawEmployeeAdjustments] = useJsonCollection("employeeAdjustments", { refreshInterval: 30000 });
+  const [rawProjectSales] = useJsonCollection("projectSales", { refreshInterval: 30000 });
+  const [rawSupplierPayments] = useJsonCollection("supplierPayments", { refreshInterval: 30000 });
+  const [rawSupplierPurchases] = useJsonCollection("supplierPurchases", { refreshInterval: 30000 });
+  const [rawSuppliers] = useJsonCollection("suppliers", { refreshInterval: 30000 });
+  const [rawSettings] = useJsonCollection("settings", { refreshInterval: 30000 });
 
   const customers = safeList(rawCustomers);
   const transactions = safeList(rawTransactions);
@@ -240,11 +242,19 @@ function Dashboard() {
   const filteredSupplierPayments = filterDashboardRecords(supplierPayments, activeRange);
   const filteredSupplierPurchases = filterDashboardRecords(supplierPurchases, activeRange);
 
-  const incomeRecords = filteredTransactions.filter((item) => item.type === "income");
-  const expenseRecords = filteredTransactions.filter((item) => item.type === "expense");
-  const incomeTotals = sumCurrencyAmounts(incomeRecords);
-  const expenseTotals = sumCurrencyAmounts(expenseRecords);
-  const profitTotals = subtractCurrencyTotals(incomeTotals, expenseTotals);
+  const metricData = {
+    customers: filteredCustomers, employees: filteredEmployees, allEmployees: employees,
+    transactions: filteredTransactions, projectSales: filteredProjectSales,
+    suppliers: safeList(rawSuppliers), supplierPurchases: filteredSupplierPurchases,
+    supplierPayments: filteredSupplierPayments, payrolls: filteredEmployeePayrolls,
+    adjustments: filteredEmployeeAdjustments, wallet: filteredCashWalletTransactions,
+  };
+  const metricRows = Object.fromEntries(['customers', 'active-employees', 'progressing-customers', 'customer-receivable', 'income', 'expenses', 'net-profit', 'supplier-payable', 'staff-payable', 'cash-wallet'].map(metric => [metric, dashboardMetricRows(metric, metricData)]));
+  const incomeRecords = filteredTransactions.filter((item) => lower(item.type) === "income");
+  const expenseRecords = filteredTransactions.filter((item) => lower(item.type) === "expense");
+  const incomeTotals = dashboardMetricTotals('income', metricRows.income);
+  const expenseTotals = dashboardMetricTotals('expenses', metricRows.expenses);
+  const profitTotals = dashboardMetricTotals('net-profit', metricRows['net-profit']);
   const exchangeRates = normalizeExchangeRates(safeList(rawSettings)[0]?.exchangeRates || {});
   const income = incomeRecords.reduce(
     (sum, item) => sum + convertToBaseAfn(item.amount, item.currency || item.unit || "AFN", exchangeRates),
@@ -255,45 +265,12 @@ function Dashboard() {
     0
   );
   const profit = income - expense;
-  const currentCashWallet = calculateCashWalletBalances(filteredCashWalletTransactions);
-  const staffPayable = calculateStaffPayables({
-    employees: filteredEmployees,
-    payrolls: filteredEmployeePayrolls,
-    adjustments: filteredEmployeeAdjustments,
-  });
-  const staffPayableByCurrency = calculateStaffPayablesByCurrency({
-    employees: filteredEmployees,
-    payrolls: filteredEmployeePayrolls,
-    adjustments: filteredEmployeeAdjustments,
-  });
-  const activeEmployees = filteredEmployees.filter(
-    (employee) => String(employee.status || "").toLowerCase() === "active"
-  ).length;
-  const customerReceivableTotals = sumCurrencyAmounts(
-    filteredProjectSales,
-    (sale) => sale.remaining || sale.remainingAmount || sale.balance || 0,
-    (sale) => sale.currency || sale.unit || "AFN"
-  );
-  const customerReceivable = filteredProjectSales.reduce(
-    (sum, sale) => sum + convertToBaseAfn(
-      sale.remaining || sale.remainingAmount || sale.balance || 0,
-      sale.currency || sale.unit || "AFN",
-      exchangeRates
-    ),
-    0
-  );
-  const progressingCustomers = filteredCustomers.filter((customer) => {
-    const stage = String(customer.customerStage || "").trim().toLowerCase();
-    return stage && stage !== "none" && !["approved", "completed", "rejected"].includes(stage);
-  }).length;
-  const supplierPayable = calculateSupplierPayable({
-    purchases: filteredSupplierPurchases,
-    payments: filteredSupplierPayments,
-  });
-  const supplierPayableTotals = calculateSupplierPayableByCurrency({
-    purchases: filteredSupplierPurchases,
-    payments: filteredSupplierPayments,
-  });
+  const currentCashWallet = dashboardMetricTotals('cash-wallet', metricRows['cash-wallet']);
+  const staffPayableByCurrency = { totals: dashboardMetricTotals('staff-payable', metricRows['staff-payable']) };
+  const activeEmployees = metricRows['active-employees'].length;
+  const customerReceivableTotals = dashboardMetricTotals('customer-receivable', metricRows['customer-receivable']);
+  const progressingCustomers = metricRows['progressing-customers'].length;
+  const supplierPayableTotals = dashboardMetricTotals('supplier-payable', metricRows['supplier-payable']);
 
   const monthKeys = Array.from({ length: 6 }, (_, index) => {
     const date = new Date();
@@ -301,79 +278,29 @@ function Dashboard() {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
   });
 
-  const customerMonth = (customer) =>
-    String(
-      customer.registrationDate ||
-        customer.createdAt ||
-        customer.date ||
-        ""
-    ).slice(0, 7);
-
-  const customerTrend = () =>
-    monthKeys.map(
-      (month) =>
-        filteredCustomers.filter(
-          (customer) => customerMonth(customer) === month
-        ).length
-    );
-
-  const transactionTrend = (type) =>
-    monthKeys.map((month) =>
-      filteredTransactions
-        .filter(
-          (item) =>
-            item.type === type &&
-            String(item.date || item.createdAt || "").startsWith(month)
-        )
-        .reduce((sum, item) => sum + convertToBaseAfn(item.amount, item.currency || item.unit || "AFN", exchangeRates), 0)
-    );
-
-  const incomeTrend = transactionTrend("income");
-  const expenseTrend = transactionTrend("expense");
-  const profitTrend = incomeTrend.map(
-    (amount, index) => amount - expenseTrend[index]
-  );
-  const recordMonth = (record) => String(
-    record?.date || record?.createdAt || record?.registrationDate || record?.paymentDate || record?.purchaseDate || ""
-  ).slice(0, 7);
-  const loanTrend = monthKeys.map((month) =>
-    filteredProjectSales
-      .filter((sale) => recordMonth(sale) === month)
-      .reduce((sum, sale) => sum + convertToBaseAfn(sale.remaining || sale.remainingAmount || sale.balance || 0, sale.currency || sale.unit || "AFN", exchangeRates), 0)
-  );
-  const employeeTrend = monthKeys.map((month) =>
-    filteredEmployees.filter((employee) => lower(employee.status) === "active" && recordMonth(employee) === month).length
-  );
-  const progressingTrend = monthKeys.map((month) =>
-    filteredCustomers.filter((customer) => {
-      const stage = lower(customer.customerStage);
-      return recordMonth(customer) === month && stage && stage !== "none" && !["approved", "completed", "rejected"].includes(stage);
-    }).length
-  );
-  const payableTrend = monthKeys.map((month) => {
-    const totals = calculateSupplierPayableByCurrency({
-      purchases: filteredSupplierPurchases.filter((item) => recordMonth(item) === month),
-      payments: filteredSupplierPayments.filter((item) => recordMonth(item) === month),
-    });
-    return convertToBaseAfn(totals.AFN, "AFN", exchangeRates)
-      + convertToBaseAfn(totals.USD, "USD", exchangeRates)
-      + convertToBaseAfn(totals.EUR, "EUR", exchangeRates);
+  const chartValues = metric => monthKeys.map(month => {
+    const monthlyData = Object.fromEntries(Object.entries(metricData).map(([key, records]) => [key,
+      ['suppliers', 'allEmployees'].includes(key) ? records : records.filter(record => {
+        const date = getRecordDate(record);
+        return date && `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` === month;
+      }),
+    ]));
+    const rows = dashboardMetricRows(metric, monthlyData);
+    if (['customers', 'active-employees', 'progressing-customers'].includes(metric)) return rows.length;
+    const totals = dashboardMetricTotals(metric, rows);
+    return Object.entries(totals).reduce((sum, [unit, amount]) => sum + convertToBaseAfn(amount, unit, exchangeRates), 0);
   });
 
   const dashboardTrendCharts = [
-    { title: t.totalIncome, color: "#22c55e", values: incomeTrend, currency: true, type: "bar" },
-    { title: t.totalExpenses, color: "#ef4444", values: expenseTrend, currency: true, type: "area" },
-    { title: t.netProfit, color: profit >= 0 ? "#f59e0b" : "#ef4444", values: profitTrend, currency: true, type: "line" },
-    { title: t.customerReceivable, color: "#6366f1", values: loanTrend, currency: true, type: "area" },
-    { title: t.activeEmployee, color: "#0ea5e9", values: employeeTrend, type: "bar" },
-    { title: t.progressingCustomers, color: "#8b5cf6", values: progressingTrend, type: "line" },
-    { title: t.supplierPayable, color: "#ec4899", values: payableTrend, currency: true, type: "bar" },
-    { title: t.totalCustomers, color: "#14b8a6", values: customerTrend(), type: "area" },
-  ].map((chart) => ({
-    ...chart,
-    isPreview: false,
-    data: monthKeys.map((month, index) => ({ month, value: chart.values[index] || 0 })),
-  }));
+    { metric: 'income', title: t.totalIncome, color: '#22c55e', currency: true, type: 'bar' },
+    { metric: 'expenses', title: t.totalExpenses, color: '#ef4444', currency: true, type: 'area' },
+    { metric: 'net-profit', title: t.netProfit, color: profit >= 0 ? '#f59e0b' : '#ef4444', currency: true, type: 'line' },
+    { metric: 'customer-receivable', title: t.customerReceivable, color: '#6366f1', currency: true, type: 'area' },
+    { metric: 'active-employees', title: t.activeEmployee, color: '#0ea5e9', type: 'bar' },
+    { metric: 'progressing-customers', title: t.progressingCustomers, color: '#8b5cf6', type: 'line' },
+    { metric: 'supplier-payable', title: t.supplierPayable, color: '#ec4899', currency: true, type: 'bar' },
+    { metric: 'customers', title: t.totalCustomers, color: '#14b8a6', type: 'area' },
+  ].map(chart => ({ ...chart, isPreview: false, data: chartValues(chart.metric).map((value, index) => ({ month: monthKeys[index], value })) }));
 
   return (
     <div className="dashboard-page">
@@ -402,9 +329,7 @@ function Dashboard() {
             key={label}
             onClick={() => {
               const filterQuery = serializeDashboardFilter(dateFilter, customDates);
-              if (metric === "cash-wallet") navigate(`/cash-wallet${filterQuery}`);
-              else if (metric === "staff-payable") navigate(`/staff-payable${filterQuery}`);
-              else navigate(`/dashboard/details/${metric}${filterQuery}`);
+              navigate(`/dashboard/details/${metric}${filterQuery}`);
             }}
           >
             <span>{label}</span>
@@ -467,7 +392,7 @@ function Dashboard() {
 
         <div className="dashboard-trends-grid">
           {dashboardTrendCharts.map((chart) => (
-            <article className="card dashboard-trend-card" key={chart.title}>
+            <article className="card dashboard-trend-card" key={chart.title} role="link" tabIndex={0} aria-label={`View ${chart.title} records`} onClick={() => navigate(`/dashboard/details/${chart.metric}${serializeDashboardFilter(dateFilter, customDates)}`)} onKeyDown={event => { if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) { event.preventDefault(); navigate(`/dashboard/details/${chart.metric}${serializeDashboardFilter(dateFilter, customDates)}`); } }}>
               <div className="card-title">
                 <div>
                   <span className="dashboard-trend-accent" style={{ background: chart.color }}></span>

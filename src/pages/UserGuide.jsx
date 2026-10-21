@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import guideLogo from "../assets/logo.PNG";
+const guideLogo = `${import.meta.env.BASE_URL}brand-logo.png`;
 import "./UserGuide.css";
 
 const guideSections = [

@@ -1,14 +1,7 @@
-import { apiUrl } from "../utils/api";
+import { API_ROOT, apiUrl } from "../utils/api";
 
-const explicitApiRoot =
-  window.ispDesktop?.apiRoot ||
-  import.meta.env.VITE_API_ROOT ||
-  "";
-const isLocalBrowser = ["localhost", "127.0.0.1", "::1"].includes(
-  window.location.hostname
-);
-
-export const serverConfigured = Boolean(explicitApiRoot) || !isLocalBrowser;
+// The local Vite proxy provides /api even without VITE_API_ROOT.
+export const serverConfigured = Boolean(API_ROOT);
 
 async function request(path, options = {}) {
   const method = String(options.method || "GET").toUpperCase();

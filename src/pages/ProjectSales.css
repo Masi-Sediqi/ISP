@@ -84,3 +84,15 @@ body.dark-mode .project-sale-calculation .grand-total{background:#fbbf24!importa
 body.dark-mode .project-sale-calculation .grand-total span{color:rgba(17,24,39,.72)!important}
 body.dark-mode .project-sale-empty,
 body.dark-mode .project-sale-cart-empty{color:#96a8c5!important}
+.project-sale-license-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding:16px 13px; border-bottom:1px solid #e2e8f0; background:#f8faff; }
+.project-sale-license-row label { display:grid; gap:7px; min-width:0; }
+.project-sale-license-row label > span { font-size:11px; font-weight:700; color:#64748b; }
+.project-sale-license-row input, .project-sale-license-row select { box-sizing:border-box; width:100%; min-height:42px; padding:9px 10px; border:1px solid #cbd5e1; border-radius:9px; background:#fff; color:#0f172a; font:inherit; font-size:12px; }
+.project-sale-license-row input[readonly] { background:#eef2ff; border-color:#c7d2fe; color:#4338ca; font-weight:700; }
+.project-sale-license-row :is(input,select):focus { outline:2px solid #818cf8; outline-offset:2px; }
+.project-sale-item-head > div { flex-wrap:wrap; min-width:0; }
+.project-sale-code { padding:5px 9px; border:1px solid #c7d2fe; border-radius:7px; background:#eef2ff; color:#4338ca; font-size:11px; overflow-wrap:anywhere; }
+body.dark-mode .project-sale-license-row { background:#111c2e; border-color:#334155; }
+body.dark-mode .project-sale-license-row :is(input,select) { background:#182438; border-color:#475569; color:#e2e8f0; }
+body.dark-mode .project-sale-code { background:#252451; color:#c7d2fe; border-color:#514e8b; }
+@media(max-width:720px) { .project-sale-license-row { grid-template-columns:1fr; } }

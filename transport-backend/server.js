@@ -40,6 +40,7 @@ const pool = new Pool(
         database: process.env.PGDATABASE || "afghanpower",
         user: process.env.PGUSER || "afghanpower",
         password: process.env.PGPASSWORD || "",
+        connectionTimeoutMillis: 5000,
       }
 );
 
@@ -307,6 +308,9 @@ initDb()
     app.listen(PORT, "0.0.0.0", () => console.log(`Afghan Power API listening on port ${PORT}`));
   })
   .catch((error) => {
+    if (error.code === "28P01") {
+      console.error("PostgreSQL rejected the configured password. Update PGUSER/PGPASSWORD in .env, then run npm run dev again.");
+    }
     console.error("Database init failed:", error);
     process.exit(1);
   });

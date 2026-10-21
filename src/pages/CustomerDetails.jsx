@@ -1,4 +1,5 @@
 import SmartPageLoader from "../components/SmartPageLoader";
+import CustomerContracts from "../components/CustomerContracts";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -36,7 +37,8 @@ import {
   stageAfterHistoryDeletion,
   stageLabel,
 } from "../utils/customerStage";
-import { formatCurrencyAmount } from "../utils/currencyDisplay";
+import { DISPLAY_CURRENCIES, formatCurrencyAmount } from "../utils/currencyDisplay";
+import { buildCustomerPaymentLedger } from "../utils/customerPaymentLedger";
 import "./CustomerDetails.css";
 
 const TABS = [
@@ -135,6 +137,9 @@ export default function CustomerDetails({ currentUser }) {
   const [stageNote, setStageNote] = useState("");
   const [stageSaving, setStageSaving] = useState(false);
   const [stageOptionSaving, setStageOptionSaving] = useState(false);
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false);
+  const [adjustmentSaving, setAdjustmentSaving] = useState(false);
+  const [adjustment, setAdjustment] = useState({ type: 'credit', amount: '', currency: 'AFN', date: '', description: '' });
 
   const [customers, setCustomers, , customersLoaded] = useJsonCollection("customers");
   const [visits, setVisits] = useJsonCollection("customerVisits");
@@ -211,6 +216,34 @@ export default function CustomerDetails({ currentUser }) {
   const displayedRemaining = Math.max(remainingFromSales - extraPayments, 0);
   const profit = linkedIncome - linkedExpense;
   const currency = linkedSales[0]?.currency || customer?.unit || customer?.currencyUnit || "AFN";
+  const ledger = useMemo(() => buildCustomerPaymentLedger(linkedSales, linkedLegacyPayments, currency), [linkedSales, linkedLegacyPayments, currency]);
+  const openAdjustment = () => {
+    const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kabul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    setAdjustment({ type: 'credit', amount: '', currency, date, description: '' });
+    setAdjustmentOpen(true);
+  };
+  const saveAdjustment = async (event) => {
+    event.preventDefault();
+    if (adjustmentSaving) return;
+    const amount = Number(adjustment.amount);
+    if (!Number.isFinite(amount) || amount <= 0 || !adjustment.date) {
+      notify('Enter a positive amount and a valid date.', 'error');
+      return;
+    }
+    setAdjustmentSaving(true);
+    try {
+      const record = { id: crypto.randomUUID(), customerId: customer.id || customer.customerId,
+        customerName: nameOf(customer), customerPhone: phoneOf(customer),
+        title: 'Adjustment', adjustmentType: adjustment.type,
+        direction: adjustment.type === 'debit' ? 'us-to-customer' : 'customer-to-us',
+        amount, currency: adjustment.currency, date: adjustment.date,
+        description: adjustment.description.trim(), createdAt: new Date().toISOString() };
+      const saved = await setCustomerPayments(previous => [...previous, record]);
+      if (!saved) return;
+      setAdjustmentOpen(false);
+      notify('Adjustment saved successfully.', 'success');
+    } finally { setAdjustmentSaving(false); }
+  };
 
   const activityRows = useMemo(() => {
     const rows = [
@@ -427,7 +460,7 @@ export default function CustomerDetails({ currentUser }) {
   const customerName = nameOf(customer) || "Unnamed Customer";
   const summaryCards = [
     ["Visits", linkedVisits.length + 1, CalendarDays],
-    ["Contracts", linkedProjects.length, FileText],
+    ["Contracts", linkedSales.length, FileText],
     ["Total Sales", money(totalSales, currency), ReceiptText],
     ["Paid", money(displayedPaid, currency), WalletCards],
     ["Remaining", money(displayedRemaining, currency), BadgeDollarSign],
@@ -531,16 +564,26 @@ export default function CustomerDetails({ currentUser }) {
         )}
 
         {activeTab === "contracts" && (
-          linkedProjects.length ? <div className="customer-data-table"><table><thead><tr><th>Project</th><th>Status</th><th>Start</th><th>Due</th><th>Price</th><th>Action</th></tr></thead><tbody>
-            {linkedProjects.map((project) => <tr key={project.id}><td><strong>{project.projectName || project.name || "Project"}</strong></td><td>{project.status || "-"}</td><td>{project.startDate || dateOf(project)}</td><td>{project.dueDate || "-"}</td><td>{money(numberOf(project.price, project.totalAmount), project.unit || project.currency || "AFN")}</td><td><button type="button" className="customer-record-delete" title="Delete contract" onClick={() => requestDeleteRecord("projects", project, "contract / project")}><Trash2 size={15} /></button></td></tr>)}
-          </tbody></table></div> : <EmptyState text="No contracts or projects are linked to this customer yet." />
+          <>
+            <CustomerContracts sales={linkedSales} customer={customer} setSales={setSales} />
+            {linkedProjects.length > 0 && <div className="customer-data-table"><h3>Linked Projects</h3><table><thead><tr><th>Project</th><th>Status</th><th>Start</th><th>Due</th><th>Price</th><th>Action</th></tr></thead><tbody>{linkedProjects.map(project => <tr key={project.id}><td>{project.projectName || project.name}</td><td>{project.status || '—'}</td><td>{project.startDate || '—'}</td><td>{project.dueDate || '—'}</td><td>{money(numberOf(project.price, project.totalAmount), project.unit || project.currency || 'AFN')}</td><td><button type="button" className="customer-record-delete" title="Delete project" onClick={() => requestDeleteRecord('projects', project, 'contract / project')}><Trash2 size={15} /></button></td></tr>)}</tbody></table></div>}
+          </>
         )}
 
         {activeTab === "payments" && (
-          linkedSales.length || linkedLegacyPayments.length ? <div className="customer-data-table"><table><thead><tr><th>Date</th><th>Reference</th><th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th><th>Action</th></tr></thead><tbody>
-            {linkedSales.map((sale) => <tr key={sale.id}><td>{sale.saleDate || dateOf(sale)}</td><td>{sale.projectName || "Project Sale"}</td><td>{money(numberOf(sale.total, sale.price), sale.currency)}</td><td>{money(numberOf(sale.paid), sale.currency)}</td><td>{money(numberOf(sale.remaining), sale.currency)}</td><td><span className={`customer-payment-status ${Number(sale.remaining || 0) > 0 ? "loan" : "paid"}`}>{sale.paymentStatus || (Number(sale.remaining || 0) > 0 ? "Loan" : "Paid")}</span></td><td><button type="button" className="customer-record-delete" title="Delete sale" onClick={() => requestDeleteRecord("projectSales", sale, "project sale / bill")}><Trash2 size={15} /></button></td></tr>)}
-            {linkedLegacyPayments.map((payment) => <tr key={`payment-${payment.id}`}><td>{dateOf(payment)}</td><td>{payment.title || "Customer Payment"}</td><td>-</td><td>{money(numberOf(payment.amount, payment.paidAmount), payment.currency || currency)}</td><td>-</td><td><span className="customer-payment-status paid">Payment</span></td><td><button type="button" className="customer-record-delete" title="Delete payment" onClick={() => requestDeleteRecord("customerPayments", payment, "customer payment")}><Trash2 size={15} /></button></td></tr>)}
-          </tbody></table></div> : <EmptyState text="No payments are recorded for this customer yet." />
+          <div className="customer-payment-ledger">
+            <div className="customer-ledger-heading"><div><h3>Payment Ledger</h3><p>Credit: received from customer · Debit: paid to customer</p></div><button type="button" className="customer-adjustment-button" onClick={openAdjustment}><Plus size={17} /> Adjustment</button></div>
+            <div className="customer-ledger-totals">
+              {Object.entries(Object.keys(ledger.totals).length ? ledger.totals : { [currency]: { credit: 0, debit: 0, net: 0 } }).map(([unit, total]) => <div className="customer-ledger-summary" key={unit}><strong>{unit}</strong><span>Received from customer <b className="ledger-credit">{money(total.credit, unit)}</b></span><span>Paid to customer <b className="ledger-debit">{money(total.debit, unit)}</b></span><span className="ledger-net">Net Balance <b className={total.net < 0 ? 'ledger-debit' : 'ledger-credit'}>{money(total.net, unit)}</b></span></div>)}
+            </div>
+            <p className="customer-ledger-explanation">Net Balance = received from customer − paid to customer, separately for each currency. Sale payments are included; this is not the unpaid invoice balance.</p>
+            {ledger.rows.length ? <div className="customer-data-table"><table><thead><tr><th>Date</th><th>Reference</th><th>Description</th><th>Currency</th><th>Credit · Received</th><th>Debit · Paid</th><th>Running Balance</th><th>Action</th></tr></thead><tbody>
+              {ledger.rows.map((row, index) => <tr key={`${row.source}-${row.record.id || index}`}><td>{row.date || '—'}</td><td>{row.title}</td><td>{row.description || '—'}</td><td>{row.currency}</td><td className="ledger-credit">{!row.outgoing ? money(row.amount, row.currency) : '—'}</td><td className="ledger-debit">{row.outgoing ? money(row.amount, row.currency) : '—'}</td><td className={row.balance < 0 ? 'ledger-debit' : 'ledger-credit'}>{money(row.balance, row.currency)}</td><td>{row.source === 'customerPayments' ? <button type="button" className="customer-record-delete" title="Delete payment" onClick={() => requestDeleteRecord(row.source, row.record, 'customer payment')}><Trash2 size={15} /></button> : <span>Sale payment</span>}</td></tr>)}
+            </tbody></table></div> : <EmptyState text="No payments or adjustments are recorded for this customer yet." />}
+            {linkedSales.length > 0 && <><h3>Sales / Bills</h3><div className="customer-data-table"><table><thead><tr><th>Date</th><th>Reference</th><th>Total</th><th>Paid</th><th>Remaining</th><th>Status</th><th>Action</th></tr></thead><tbody>
+              {linkedSales.map(sale => <tr key={sale.id}><td>{sale.saleDate || dateOf(sale)}</td><td>{sale.projectName || 'Project Sale'}</td><td>{money(numberOf(sale.total, sale.price), sale.currency)}</td><td className="ledger-credit">{money(numberOf(sale.paid), sale.currency)}</td><td>{money(numberOf(sale.remaining), sale.currency)}</td><td>{sale.paymentStatus || (Number(sale.remaining || 0) > 0 ? 'Loan' : 'Paid')}</td><td><button type="button" className="customer-record-delete" title="Delete sale" onClick={() => requestDeleteRecord('projectSales', sale, 'project sale / bill')}><Trash2 size={15} /></button></td></tr>)}
+            </tbody></table></div></>}
+          </div>
         )}
 
         {activeTab === "profit" && (
@@ -590,6 +633,22 @@ export default function CustomerDetails({ currentUser }) {
           </div> : <EmptyState text="No linked activity is available yet." />
         )}
       </section>
+
+      {adjustmentOpen && (
+        <div className="customer-stage-dialog-backdrop" onMouseDown={() => !adjustmentSaving && setAdjustmentOpen(false)}>
+          <form className="customer-stage-dialog" role="dialog" aria-modal="true" aria-labelledby="customer-adjustment-title" onMouseDown={event => event.stopPropagation()} onSubmit={saveAdjustment} onKeyDown={event => { if (event.key === 'Escape' && !adjustmentSaving) setAdjustmentOpen(false); }}>
+            <div className="customer-stage-dialog-head"><div><h3 id="customer-adjustment-title">Adjustment</h3><p>Record money received from or paid to this customer.</p></div><button type="button" aria-label="Close adjustment" disabled={adjustmentSaving} onClick={() => setAdjustmentOpen(false)}><X size={18} /></button></div>
+            <fieldset className="customer-adjustment-fields" disabled={adjustmentSaving}>
+              <label className="customer-stage-field"><span>Type</span><select autoFocus value={adjustment.type} onChange={e => setAdjustment({ ...adjustment, type: e.target.value })}><option value="credit">Credit — Received from customer</option><option value="debit">Debit — Paid to customer</option></select></label>
+              <label className="customer-stage-field"><span>Amount</span><input type="number" min="0.01" step="0.01" required value={adjustment.amount} onChange={e => setAdjustment({ ...adjustment, amount: e.target.value })} /></label>
+              <label className="customer-stage-field"><span>Currency</span><select required value={adjustment.currency} onChange={e => setAdjustment({ ...adjustment, currency: e.target.value })}>{[...new Set([...DISPLAY_CURRENCIES, currency])].map(unit => <option key={unit} value={unit}>{unit}</option>)}</select></label>
+              <label className="customer-stage-field"><span>Date</span><input type="date" required value={adjustment.date} onChange={e => setAdjustment({ ...adjustment, date: e.target.value })} /></label>
+              <label className="customer-stage-field"><span>Description</span><textarea rows={3} value={adjustment.description} onChange={e => setAdjustment({ ...adjustment, description: e.target.value })} /></label>
+            </fieldset>
+            <div className="customer-stage-dialog-actions"><button type="button" className="cancel" disabled={adjustmentSaving} onClick={() => setAdjustmentOpen(false)}>Cancel</button><button type="submit" className="save" disabled={adjustmentSaving}>{adjustmentSaving ? 'Saving...' : 'Save Adjustment'}</button></div>
+          </form>
+        </div>
+      )}
 
       {stageOpen && (
         <div className="customer-stage-dialog-backdrop" role="presentation" onMouseDown={() => !stageSaving && setStageOpen(false)}>
