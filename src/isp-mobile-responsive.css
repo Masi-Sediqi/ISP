@@ -1,0 +1,43 @@
+/* ISP mobile layout, applied after existing styles. Does not affect print layouts. */
+@media screen and (max-width: 950px) {
+  html,body,#root{width:100%;max-width:100%;height:100%;overflow:hidden}
+  body .retail-isp-app{width:100%;max-width:100%;height:100dvh;overflow:hidden;padding:0!important;gap:0!important}
+  body .retail-isp-app .main{width:100%;min-width:0;max-width:100%;height:100dvh;overflow:hidden}
+  body .retail-isp-app .page-content{width:100%;max-width:100%;min-width:0;min-height:0;height:calc(100dvh - 66px);overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 0 max(20px,env(safe-area-inset-bottom))!important}
+  .retail-isp-app .page-content::-webkit-scrollbar,.retail-isp-app .sidebar::-webkit-scrollbar{display:none!important}
+  body .retail-isp-app .sidebar{width:min(290px,85vw)!important;min-width:0!important;max-width:85vw!important;height:100dvh!important;max-height:100dvh!important;overflow-y:auto!important;overscroll-behavior:contain;z-index:1101!important}
+  body .retail-isp-app .isp-sidebar-scrim{z-index:1099!important;backdrop-filter:blur(3px)}
+  body .retail-isp-app .isp-mobile-menu{z-index:1080!important;top:14px!important;inset-inline-start:12px!important;left:12px;right:auto}
+  body .retail-isp-app[dir=rtl] .isp-mobile-menu{left:auto!important;right:12px!important}
+  body .retail-isp-app .topbar{height:auto;min-height:66px!important;padding:10px 12px 10px 58px!important;gap:8px!important;display:flex;align-items:center;flex-wrap:wrap;max-width:100%}
+  body .retail-isp-app[dir=rtl] .topbar{padding:10px 58px 10px 12px!important}
+  body .retail-isp-app .topbar :is(.top-actions,.header-actions){max-width:100%;min-width:0;flex-wrap:wrap;gap:5px}
+  body .retail-isp-app .topbar :is(.header-search,.global-search){min-width:0;max-width:100%;flex:1 1 140px}
+  body .retail-isp-app .page-content > *{max-width:100%;min-width:0}
+  body .retail-isp-app .page-content :is(.stats,.dashboard-stats-expanded,.customer-summary-grid,.employee-stats,.consultant-stats){grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+  body .retail-isp-app .page-content :is(.dashboard-trends-grid,.charts-grid,.project-sale-grid,.customer-overview-layout,.customer-profit-grid,.customer-analyze-grid,.settings-grid,.finance-charts-grid){grid-template-columns:minmax(0,1fr)!important}
+  body .retail-isp-app .page-content :is(.project-sale-col-4,.sticky-panel){position:static!important;top:auto!important}
+  body .retail-isp-app .page-content :is(.table-wrap,.table-responsive,.table-card,.customer-data-table,.project-bills-table-wrap,.employee-table-wrap,.consultant-table-wrap,.reception-table-wrap,.main-stock-table-wrap){max-width:100%;min-width:0;overflow-x:auto!important;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+  body .retail-isp-app .page-content table{max-width:none}
+  body .retail-isp-app .page-content :is(.page-heading,.page-header,.employee-heading,.consultant-heading,.reception-heading,.project-heading,.settings-header,.finance-header){max-width:100%;min-width:0;flex-wrap:wrap;gap:10px}
+  body .retail-isp-app .page-content :is(.modal-backdrop,.modal-overlay,.project-sale-modal-backdrop,.project-receipt-backdrop,.finance-modal-backdrop){padding:10px!important;align-items:center!important}
+  body .retail-isp-app .page-content :is([role=dialog],dialog,.modal,.employee-modal,.consultant-modal,.finance-modal,.reception-modal,.project-sale-customer-modal,.project-receipt-modal,.settings-modal,.customer-detail-modal){max-width:calc(100vw - 20px)!important;width:min(100%,680px)!important;max-height:calc(100dvh - 24px)!important;overflow-y:auto!important;overscroll-behavior:contain}
+  body .retail-isp-app :is(input,textarea,select,button){min-width:0}
+  body .retail-isp-app input,body .retail-isp-app select,body .retail-isp-app textarea{font-size:16px}
+  body .retail-isp-app .page-content :is(.customer-tabs,.tabs,.tab-bar,.settings-tabs){max-width:100%;overflow-x:auto!important;flex-wrap:nowrap;scrollbar-width:none}
+  body .retail-isp-app .page-content :is(.customer-tabs,.tabs,.tab-bar,.settings-tabs)::-webkit-scrollbar{display:none}
+}
+@media screen and (max-width:600px) {
+  body .retail-isp-app .page-content :is(.dashboard-page,.customer-portal-page,.project-sales-page,.finance-page,.reception-page,.settings-page,.projects-page,.reports-page,.employee-page,.consultant-page){padding:14px 12px 26px!important;min-width:0;max-width:100%}
+  body .retail-isp-app .page-content :is(.stats,.dashboard-stats-expanded,.customer-summary-grid,.employee-stats,.consultant-stats){gap:8px!important}
+  body .retail-isp-app .page-content :is(.stat,.dashboard-stat-button,.customer-summary-card){padding:12px!important;min-width:0;min-height:82px;height:auto;overflow:hidden}
+  body .retail-isp-app .page-content :is(.stat,.dashboard-stat-button,.customer-summary-card) :is(h2,strong){overflow-wrap:anywhere}
+  body .retail-isp-app .page-content :is(.customer-info-grid,.project-sale-three-inputs,.project-search-results,.project-sale-final-actions,.reception-form-grid,.employee-form-grid,.finance-form-grid,.settings-form-grid,.form-grid,.modal-form-grid){grid-template-columns:minmax(0,1fr)!important}
+  body .retail-isp-app .page-content :is(.customer-portal-hero,.customer-portal-hero>div,.customer-stage-box,.customer-status-box){min-width:0;max-width:100%}
+  body .retail-isp-app .page-content :is(.customer-info-card,.customer-note-card,.project-sale-panel,.settings-card){padding:14px!important}
+  body .retail-isp-app .page-content :is(.customer-summary-card,.customer-info-grid>div,.customer-activity-item){overflow-wrap:anywhere}
+  body .retail-isp-app .page-content :is(.modal-actions,.form-actions,.customer-detail-actions,.employee-modal-actions){flex-wrap:wrap;gap:8px}
+  body .retail-isp-app .page-content :is(.modal-actions,.form-actions) button{flex:1 1 120px}
+}
+@media screen and (max-width:380px){body .retail-isp-app .page-content :is(.stats,.dashboard-stats-expanded,.customer-summary-grid){grid-template-columns:minmax(0,1fr)!important}}
+@media print{body .retail-isp-app .page-content{height:auto!important;overflow:visible!important}}
