@@ -8,6 +8,9 @@ import {
 function ToastHost() {
   const [messages, setMessages] = useState([]);
   const timersRef = useRef(new Map());
+  const recentRef = useRef(new Map());
+  const MAX_VISIBLE = 3;
+  const DEDUP_MS = 12_000;
 
   const removeMessage = (id) => {
     const timer = timersRef.current.get(id);
@@ -23,7 +26,26 @@ function ToastHost() {
       const message = event.detail;
       if (!message?.id || !message?.message || !getNotificationSettings().enabled) return;
 
-      setMessages((current) => [...current, message]);
+      const now = Date.now();
+      const key = `${message.type || "info"}:${message.message}`;
+      if (now - (recentRef.current.get(key) || 0) < DEDUP_MS) return;
+      recentRef.current.set(key, now);
+      if (recentRef.current.size > 100) {
+        for (const [oldKey, last] of recentRef.current) {
+          if (now - last > DEDUP_MS) recentRef.current.delete(oldKey);
+        }
+      }
+
+      setMessages((current) => {
+        const next = [...current, message];
+        const removed = next.slice(0, Math.max(0, next.length - MAX_VISIBLE));
+        removed.forEach((item) => {
+          const oldTimer = timers.get(item.id);
+          if (oldTimer) window.clearTimeout(oldTimer);
+          timers.delete(item.id);
+        });
+        return next.slice(-MAX_VISIBLE);
+      });
       const timer = window.setTimeout(() => {
         setMessages((current) => current.filter((item) => item.id !== message.id));
         timers.delete(message.id);

@@ -30,7 +30,7 @@ if (collectionChannel) {
   };
 }
 if (import.meta.hot) import.meta.hot.dispose(() => collectionChannel?.close());
-const SNAPSHOT_TTL_MS = 120000;
+const SNAPSHOT_TTL_MS = 45000;
 // Keep recently viewed collections in memory across route transitions.
 // Writes and server events update or invalidate this cache immediately.
 const canUseRemote = () => serverConfigured && navigator.onLine;
@@ -148,7 +148,7 @@ function detectCollectionChange(previousItems, nextItems) {
   nextByKey.forEach((item, key) => {
     const previous = previousByKey.get(key);
     if (!previous) createdIds.push(key);
-    else if (JSON.stringify(previous) !== JSON.stringify(item)) updatedIds.push(key);
+    else if (previous !== item && JSON.stringify(previous) !== JSON.stringify(item)) updatedIds.push(key);
   });
 
   previousByKey.forEach((_, key) => {
@@ -319,6 +319,9 @@ export function useJsonCollection(name, options = {}) {
 
   useEffect(() => {
     const onProgress = (event) => {
+      // Disabled collections (such as unopened notification feeds) must not
+      // consume progressive results fetched by another page or the search box.
+      if (disabled) return;
       if (!loadedRef.current && Array.isArray(event.detail?.items)) {
         partialRef.current = Boolean(event.detail.hasMore);
         applyItems(event.detail.items);
@@ -326,7 +329,7 @@ export function useJsonCollection(name, options = {}) {
     };
     window.addEventListener(`isp-collection-progress:${name}`, onProgress);
     return () => window.removeEventListener(`isp-collection-progress:${name}`, onProgress);
-  }, [applyItems, name]);
+  }, [applyItems, disabled, name]);
 
   useEffect(() => {
     load();

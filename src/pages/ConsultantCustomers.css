@@ -957,3 +957,6 @@ body.dark-mode .consultant-duplicate-warning-meta {
 .consultant-export-select:disabled{opacity:.55;cursor:default}
 body.dark-mode .consultant-export-select{background:#1e293b;border-color:#475569;color:#f8fafc}
 @media(max-width:720px){.consultant-heading-actions{width:100%;gap:10px}.consultant-export-select{min-width:0;flex:1}}
+
+/* Avoid repainting the full customer table while the modal is being edited. */
+.consultant-modal-backdrop{backdrop-filter:none}
