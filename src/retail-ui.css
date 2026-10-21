@@ -77,9 +77,9 @@ body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:nth-child(
 body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:nth-child(5n + 3){--isp-stat-color:#22c55e}
 body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:nth-child(5n + 4){--isp-stat-color:#f59e0b}
 body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:nth-child(5n + 5){--isp-stat-color:#3b82f6}
-body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button>span{font-size:11px;color:#64748b!important}
-body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button h2{font-size:22px;line-height:1.25;margin:0;color:#0f172a!important}
-body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button p{font-size:10px;line-height:1.45;color:#64748b!important}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button>span{font-size:11px;color:#a6b7d1!important}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button h2{font-size:22px;line-height:1.25;margin:0;color:#fff!important}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button p{font-size:10px;line-height:1.45;color:#9fb0c9!important}
 body .retail-isp-app .dashboard-trends-section{border-top:0!important;padding-top:14px}
 body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button{background:#0e1729!important;border-color:#263858!important}
 body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:hover{border-color:var(--isp-stat-color)!important;transform:translateY(-2px)}
@@ -87,17 +87,9 @@ body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:
 @media(max-width:390px){body .retail-isp-app .dashboard-stats-expanded{grid-template-columns:1fr!important}}
 @media(prefers-reduced-motion:reduce){.isp-fast-loader-spinner{animation:none}}
 
-/* Theme-aware dashboard metric text and subtle Smart Office-style route progress. */
-body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button h2,
-body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button h2 * { color:#f8fafc!important; }
-body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button>span { color:#abc0dc!important; }
-body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button p { color:#93a9c8!important; }
-body:not(.dark-mode) .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button h2,
-body:not(.dark-mode) .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button h2 * { color:#101827!important; }
-body:not(.dark-mode) .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button>span { color:#52637a!important; }
-body:not(.dark-mode) .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button p { color:#5c6f87!important; }
-.isp-route-transition { position:absolute;inset:0 0 auto 0;height:3px;overflow:hidden;pointer-events:none;z-index:150; }
-.isp-route-transition-bar { height:100%;width:42%;background:linear-gradient(90deg,transparent,#fbbf24,#06b6d4);border-radius:999px;animation:isp-route-move .7s ease-in-out infinite alternate; }
-@keyframes isp-route-move {from{transform:translateX(-60%)}to{transform:translateX(240%)}}
-.retail-isp-app .page-content { position:relative; }
-@media(prefers-reduced-motion:reduce){.isp-route-transition-bar{animation:none;width:100%}}
+/* Progressive, non-blocking records loading indicator. */
+.isp-collection-loading{position:fixed;bottom:24px;right:24px;z-index:1300;display:flex;align-items:center;gap:10px;padding:11px 15px;border:1px solid #334155;border-radius:12px;background:#172235;color:#f8fafc;box-shadow:0 12px 32px rgba(0,0,0,.24);font-size:12px;font-weight:700;pointer-events:none}
+.isp-collection-loading-spinner{height:16px;width:16px;border:2px solid #64748b;border-top-color:#fbbf24;border-radius:50%;animation:isp-collection-spin .7s linear infinite}
+@keyframes isp-collection-spin{to{transform:rotate(360deg)}}
+body:not(.dark-mode) .isp-collection-loading{background:#fff;border-color:#d8dee8;color:#172033}
+@media(max-width:640px){.isp-collection-loading{bottom:14px;right:12px}}

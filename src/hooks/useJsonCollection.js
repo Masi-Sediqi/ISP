@@ -35,7 +35,11 @@ async function fetchCollectionShared(name) {
     return snapshot.items;
   }
 
-  const request = fetchServerCollection(name)
+  const request = fetchServerCollection(name, (items, hasMore) => {
+    window.dispatchEvent(new CustomEvent(`isp-collection-progress:${name}`, {
+      detail: { items, hasMore },
+    }));
+  })
     .then((items) => {
       collectionSnapshots.set(name, { items, timestamp: Date.now() });
       return items;
@@ -227,9 +231,11 @@ export function useJsonCollection(name, options = {}) {
   const [items, setItemsState] = useState(() => initialSnapshot?.items || []);
   const [loaded, setLoaded] = useState(() => Boolean(initialSnapshot));
   const [loadError, setLoadError] = useState(null);
+  const [progressiveLoading, setProgressiveLoading] = useState(false);
   const itemsRef = useRef(initialSnapshot?.items || []);
   const loadingRef = useRef(false);
   const loadedRef = useRef(Boolean(initialSnapshot));
+  const partialRef = useRef(false);
 
   const applyItems = useCallback((nextItems) => {
     const safe = Array.isArray(nextItems) ? nextItems : [];
@@ -249,6 +255,7 @@ export function useJsonCollection(name, options = {}) {
 
     if (loadingRef.current) return itemsRef.current;
     loadingRef.current = true;
+    setProgressiveLoading(true);
 
     const isInitialLoad = !loadedRef.current;
     const loadingToken = isInitialLoad && !background
@@ -267,12 +274,18 @@ export function useJsonCollection(name, options = {}) {
       if (!canUseRemote()) throw new Error("VPS server is unavailable. Check your connection.");
 
       const remoteItems = await fetchCollectionShared(name);
+      partialRef.current = false;
       applyItems(remoteItems);
       setLoadError(null);
       return remoteItems;
     } catch (error) {
       console.error(`[VPS server collection failed] ${name}:`, error);
       setLoadError(error);
+      if (partialRef.current) {
+        // Never retain incomplete data as an editable, complete collection.
+        partialRef.current = false;
+        applyItems([]);
+      }
       if (!loadedRef.current && !silentLoadErrors) {
         notify(error?.message || `Unable to load ${name} from VPS server.`, "error");
       }
@@ -281,6 +294,7 @@ export function useJsonCollection(name, options = {}) {
       loadedRef.current = true;
       setLoaded(true);
       loadingRef.current = false;
+      setProgressiveLoading(false);
 
       if (loadingToken && typeof window !== "undefined") {
         window.dispatchEvent(
@@ -291,6 +305,17 @@ export function useJsonCollection(name, options = {}) {
       }
     }
   }, [applyItems, background, disabled, name, silentLoadErrors]);
+
+  useEffect(() => {
+    const onProgress = (event) => {
+      if (!loadedRef.current && Array.isArray(event.detail?.items)) {
+        partialRef.current = Boolean(event.detail.hasMore);
+        applyItems(event.detail.items);
+      }
+    };
+    window.addEventListener(`isp-collection-progress:${name}`, onProgress);
+    return () => window.removeEventListener(`isp-collection-progress:${name}`, onProgress);
+  }, [applyItems, name]);
 
   useEffect(() => {
     load();
@@ -317,6 +342,10 @@ export function useJsonCollection(name, options = {}) {
   const setItems = useCallback(
     async (nextValue) => {
       if (disabled) return false;
+      if (!loadedRef.current || loadingRef.current || partialRef.current) {
+        notify("Please wait until all records finish loading before saving.", "warning");
+        return false;
+      }
 
       const previousItems = itemsRef.current;
       const nextItems =

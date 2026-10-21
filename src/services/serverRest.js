@@ -13,7 +13,7 @@ export const serverConfigured = Boolean(explicitApiRoot) || !isLocalBrowser;
 async function request(path, options = {}) {
   const method = String(options.method || "GET").toUpperCase();
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 15000);
+  const timeout = window.setTimeout(() => controller.abort(), method === "GET" ? 30000 : 30000);
   try {
     const response = await fetch(apiUrl(path), {
       ...options,
@@ -45,9 +45,33 @@ async function request(path, options = {}) {
   }
 }
 
-export async function fetchRemoteCollection(collection) {
-  const result = await request(`collections/${encodeURIComponent(collection)}`);
-  return Array.isArray(result) ? result : [];
+export async function fetchRemoteCollection(collection, onProgress) {
+  // Page progressively, while retaining compatibility with servers not yet upgraded.
+  const size = 250;
+  let offset = 0;
+  const all = [];
+  for (;;) {
+    const result = await request(
+      `collections/${encodeURIComponent(collection)}?limit=${size}&offset=${offset}`
+    );
+    if (Array.isArray(result)) { // Older backend: one full response.
+      onProgress?.(result, false);
+      return result;
+    }
+    if (!result || !Array.isArray(result.items)) {
+      throw new Error(`Invalid server response for ${collection}.`);
+    }
+    all.push(...result.items);
+    onProgress?.(all.slice(), Boolean(result.hasMore));
+    if (!result.hasMore) return all;
+    const nextOffset = Number(result.nextOffset);
+    if (!Number.isSafeInteger(nextOffset) || nextOffset <= offset) {
+      throw new Error(`Invalid pagination cursor for ${collection}.`);
+    }
+    offset = nextOffset;
+    // Yield so React can paint the records that arrived before the next page.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 export async function pushRemoteChanges({ collection, upserts = [], deletes = [], actorId, ownerId, identityFn }) {

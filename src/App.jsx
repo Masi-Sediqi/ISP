@@ -61,30 +61,28 @@ function RoutePageFallback() {
   return <PageLoader />;
 }
 
-// A non-blocking route transition indicator. It never waits on network requests:
-// mounted pages own their fetch states, and the shell stays interactive.
+// Do not cover an already mounted page while independent data requests finish.
+// Pages display their own loading/empty/error states.
 function GlobalDataLoader() {
-  const location = useLocation();
-  const routeKey = `${location.pathname}${location.search}`;
-  const [completedRoute, setCompletedRoute] = useState(routeKey);
-  const [showTransition, setShowTransition] = useState(false);
-
+  const [pending, setPending] = useState(0);
   useEffect(() => {
-    if (routeKey === completedRoute) return undefined;
-    setShowTransition(true);
-    const timer = window.setTimeout(() => {
-      setCompletedRoute(routeKey);
-      setShowTransition(false);
-    }, 220);
-    return () => window.clearTimeout(timer);
-  }, [routeKey, completedRoute]);
-
-  if (!showTransition && routeKey === completedRoute) return null;
-  return (
-    <div className="isp-route-transition" role="status" aria-label="Loading page" aria-live="off">
-      <div className="isp-route-transition-bar" />
+    const tokens = new Set();
+    const onLoading = (event) => {
+      const token = event.detail?.token;
+      if (!token) return;
+      if (event.detail.phase === "start") tokens.add(token);
+      if (event.detail.phase === "end") tokens.delete(token);
+      setPending(tokens.size);
+    };
+    window.addEventListener("isp-data-loading", onLoading);
+    return () => window.removeEventListener("isp-data-loading", onLoading);
+  }, []);
+  return pending > 0 ? (
+    <div className="isp-collection-loading" role="status" aria-live="polite">
+      <span className="isp-collection-loading-spinner" />
+      <span>Loading records...</span>
     </div>
-  );
+  ) : null;
 }
 
 class PageErrorBoundary extends Component {

@@ -145,8 +145,31 @@ app.get("/api/health", async (_req, res, next) => {
 });
 
 app.get("/api/collections/:collection", async (req, res, next) => {
-  try { res.json(await getCollection(safeCollection(req.params.collection))); }
-  catch (error) { next(error); }
+  try {
+    const collection = safeCollection(req.params.collection);
+    // No pagination parameters: keep legacy full-collection contract for older clients.
+    if (req.query.limit === undefined) {
+      return res.json(await getCollection(collection));
+    }
+    const limit = Number(req.query.limit);
+    const offset = Number(req.query.offset ?? 0);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 500 ||
+        !Number.isSafeInteger(offset) || offset < 0) {
+      return res.status(400).json({ error: "Invalid pagination parameters." });
+    }
+    const result = await pool.query(
+      `SELECT record_data FROM app_records
+       WHERE collection_name = $1 AND deleted_at IS NULL
+       ORDER BY updated_at ASC, record_id ASC
+       LIMIT $2 OFFSET $3`,
+      [collection, limit + 1, offset]
+    );
+    res.json({
+      items: result.rows.slice(0, limit).map((row) => row.record_data),
+      hasMore: result.rows.length > limit,
+      nextOffset: offset + Math.min(limit, result.rows.length),
+    });
+  } catch (error) { next(error); }
 });
 
 app.post("/api/collections/:collection/changes", async (req, res, next) => {
