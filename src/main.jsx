@@ -14,3 +14,5 @@ import "./isp-targeted-final.css";
 ReactDOM.createRoot(document.getElementById("root")).render(
   <StrictMode><AppErrorBoundary><HashRouter><App /></HashRouter></AppErrorBoundary></StrictMode>
 );
+
+import "./isp-dark-consistency.css";

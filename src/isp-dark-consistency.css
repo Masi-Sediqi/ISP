@@ -1,0 +1,57 @@
+/* ISP dark theme consistency: semantic surfaces and controls. Loaded after legacy CSS. */
+body.dark-mode {
+  --record-surface: #111c30;
+  --record-inset: #192840;
+  --record-border: #334761;
+  --record-text: #f1f5fd;
+  --record-muted: #afc0da;
+}
+/* Read-only value tiles and expanded record/profile sections. */
+body.dark-mode :is(.page-content,.customer-portal-page) :is(
+  .customer-portal-hero,.customer-summary-card,.customer-info-card,.customer-note-card,
+  .customer-data-table,.customer-activity-item,.customer-profit-grid > div,
+  .customer-analyze-grid > div,.customer-portal-empty,.customer-portal-not-found,
+  .reception-records,.reception-view-modal,.reception-delete-modal,.reception-assign-modal,
+  .reception-modal,.record-stat,.record-detail-card,.record-card,.record-form,
+  .reception-view-grid > div,.reception-stats > button
+){background:var(--record-surface)!important;color:var(--record-text)!important;border-color:var(--record-border)!important}
+body.dark-mode :is(.page-content,.customer-portal-page) :is(
+ .customer-info-grid > div,.customer-note-card p,.customer-stage-box,.customer-stage-menu,
+ .customer-summary-card > span,.customer-data-table th,.reception-view-grid > div,
+ .reception-customer-type,.reception-assigned-to,.reception-row-avatar,
+ .record-filters,.record-details-panel
+){background:var(--record-inset)!important;color:var(--record-text)!important;border-color:var(--record-border)!important}
+body.dark-mode .customer-portal-page :is(.customer-hero-copy h1,.customer-info-grid strong,.customer-note-card h3,.customer-info-card h3,.customer-summary-card strong,.customer-stage-box strong,.customer-profit-grid strong,.customer-analyze-grid strong,.customer-activity-item strong){color:var(--record-text)!important}
+body.dark-mode .customer-portal-page :is(.customer-hero-meta,.customer-info-grid span,.customer-note-card label,.customer-summary-card small,.customer-stage-box small,.customer-activity-item small,.customer-note-card p){color:var(--record-muted)!important}
+body.dark-mode .customer-portal-page .customer-portal-hero{background:linear-gradient(135deg,#131e32,#0d192c)!important}
+body.dark-mode .customer-portal-page .customer-status-box{background:#0d1729!important;color:#fff!important}
+body.dark-mode .customer-portal-page .customer-stage-menu button{color:var(--record-text)!important;background:transparent!important}
+body.dark-mode .customer-portal-page .customer-stage-menu button:is(:hover,.active){background:#293c5f!important;color:#fff!important}
+body.dark-mode .customer-portal-page .customer-data-table :is(td,th){border-color:var(--record-border)!important;color:var(--record-text)!important}
+body.dark-mode .customer-portal-page .customer-tabs{border-color:var(--record-border)}
+body.dark-mode .customer-portal-page .customer-tabs button{color:var(--record-muted)}
+body.dark-mode .customer-portal-page .customer-tabs button.active{color:#fbbf24;border-bottom-color:#fbbf24}
+body.dark-mode .customer-portal-page .customer-payment-status.paid{background:#0d392b!important;color:#a7f3d0!important}
+body.dark-mode .customer-portal-page .customer-payment-status.loan{background:#452b16!important;color:#fed7aa!important}
+/* Detail and action dialogs, including dialogs portaled outside page-content. */
+body.dark-mode :is(.customer-stage-dialog,.customer-delete-dialog,.reception-view-modal,.reception-delete-modal,.reception-assign-modal,
+ .record-modal,.record-detail-modal,.record-details-modal,.finance-modal,.employee-modal,.consultant-detail-modal,
+ .project-sale-customer-modal,.project-delete-dialog,.asset-modal,.office-asset-modal){
+ background:var(--record-surface)!important;border-color:var(--record-border)!important;color:var(--record-text)!important;
+ box-shadow:0 20px 70px rgba(0,0,0,.36)!important;
+}
+body.dark-mode :is(.customer-stage-dialog,.customer-delete-dialog,.reception-view-modal,.reception-delete-modal,.reception-assign-modal) :is(input,textarea,select){background:#0a1629!important;border-color:var(--record-border)!important;color:var(--record-text)!important}
+body.dark-mode :is(.customer-stage-dialog,.customer-delete-dialog,.reception-view-modal,.reception-delete-modal,.reception-assign-modal) :is(label,small,p){color:var(--record-muted)}
+body.dark-mode :is(.customer-stage-dialog,.customer-delete-dialog,.reception-view-modal,.reception-delete-modal,.reception-assign-modal) :is(h2,h3,strong){color:var(--record-text)}
+/* Neutral small action controls, without overriding success, primary or danger actions. */
+body.dark-mode :is(.customer-stage-dialog,.customer-delete-dialog,.reception-view-modal,.reception-delete-modal,.reception-assign-modal,
+ .customer-portal-page,.reception-page) :is(button[aria-label="Close"],button[title="Close"],button[aria-label="Cancel"],.cancel-btn,.close-btn){background:#1c2a42!important;border:1px solid #3c506d!important;color:var(--record-text)!important}
+body.dark-mode .customer-portal-page .customer-back-button{background:#17263e!important;border-color:var(--record-border)!important;color:var(--record-text)!important}
+body.dark-mode .customer-portal-page .customer-summary-card > span{color:#d8d3ff!important}
+/* Common record badges that were hard-coded to near-white backgrounds. */
+body.dark-mode .reception-page :is(.reception-customer-type,.reception-assigned-to,.reception-row-avatar){background:#243451!important;color:#dce8ff!important;border-color:#405579!important}
+body.dark-mode .reception-page .reception-records :is(th,td){border-color:var(--record-border)!important}
+/* Keep semantic buttons (red delete, yellow active, blue submit) intact. */
+body.dark-mode :is(.customer-portal-page,.reception-page) :is(button,input,textarea,select):focus-visible{outline:2px solid #fbbf24;outline-offset:2px}
+@media (max-width:700px){body.dark-mode .customer-portal-page :is(.customer-portal-hero,.customer-info-card,.customer-note-card){min-width:0}}
+@media print{body.dark-mode :is(.project-print-receipt,.project-contract-page,.print-document,.print-sheet){background:#fff!important;color:#111!important}}
