@@ -5,3 +5,87 @@
 .customer-stage-dialog-backdrop{position:fixed;inset:0;z-index:5100;background:rgba(15,23,42,.48);display:grid;place-items:center;padding:20px;backdrop-filter:blur(3px)}.customer-stage-dialog{width:min(500px,100%);background:#fff;border:1px solid #e5e7eb;border-radius:18px;box-shadow:0 26px 80px rgba(15,23,42,.26);padding:22px}.customer-stage-dialog-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}.customer-stage-dialog-head h3{margin:0;font-size:20px;color:#172033}.customer-stage-dialog-head p{margin:5px 0 0;color:#64748b;font-size:13px}.customer-stage-dialog-head>button{width:34px;height:34px;border:0;border-radius:10px;background:#f1f5f9;color:#334155;display:grid;place-items:center;cursor:pointer}.customer-stage-field{display:block;margin-top:13px}.customer-stage-field>span{display:block;margin-bottom:6px;font-size:12px;font-weight:800;color:#475569}.customer-stage-field small{font-weight:600;color:#94a3b8}.customer-stage-field select,.customer-stage-field input,.customer-stage-field textarea{width:100%;box-sizing:border-box;border:1px solid #dbe1ea;border-radius:10px;background:#fff;color:#172033;font:inherit;font-size:13px;padding:10px 12px;outline:none}.customer-stage-field select:focus,.customer-stage-field input:focus,.customer-stage-field textarea:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}.customer-stage-field textarea{resize:vertical;min-height:82px}.customer-stage-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.customer-stage-dialog-actions button{border-radius:10px;padding:10px 15px;font:inherit;font-weight:800;cursor:pointer}.customer-stage-dialog-actions .cancel{border:1px solid #dbe1e8;background:#fff;color:#334155}.customer-stage-dialog-actions .save{border:1px solid #111827;background:#111827;color:#fff}.customer-stage-dialog-actions button:disabled{opacity:.5;cursor:not-allowed}body.dark-mode .customer-stage-dialog{background:#1e293b;border-color:#334155}body.dark-mode .customer-stage-dialog-head h3,body.dark-mode .customer-stage-field>span{color:#f8fafc}body.dark-mode .customer-stage-dialog-head p{color:#94a3b8}body.dark-mode .customer-stage-dialog-head>button{background:#0f172a;color:#e2e8f0}body.dark-mode .customer-stage-field select,body.dark-mode .customer-stage-field input,body.dark-mode .customer-stage-field textarea{background:#0f172a;border-color:#475569;color:#f8fafc}body.dark-mode .customer-stage-dialog-actions .cancel{background:#0f172a;border-color:#475569;color:#e2e8f0}
 
 .customer-stage-manager{margin-top:15px;padding:14px;border:1px solid #e2e8f0;border-radius:13px;background:#f8fafc}.customer-stage-manager-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.customer-stage-manager-title strong{display:block;font-size:13px;color:#1e293b}.customer-stage-manager-title small{display:block;margin-top:3px;font-size:11px;color:#94a3b8}.customer-stage-add-row{display:grid;grid-template-columns:1fr auto;gap:8px}.customer-stage-add-row input{min-width:0;border:1px solid #dbe1ea;border-radius:10px;background:#fff;color:#172033;font:inherit;font-size:13px;padding:10px 12px;outline:none}.customer-stage-add-row input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}.customer-stage-add-row button{border:0;border-radius:10px;background:#111827;color:#fff;padding:0 13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}.customer-stage-add-row button:disabled{opacity:.5;cursor:not-allowed}.customer-stage-option-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:11px;max-height:178px;overflow:auto}.customer-stage-option-item{display:grid;grid-template-columns:1fr auto;align-items:center;border:1px solid #e2e8f0;border-radius:10px;background:#fff;overflow:hidden}.customer-stage-option-item.selected{border-color:#818cf8;background:#eef2ff}.customer-stage-option-item .stage-name{min-width:0;border:0;background:transparent;color:#334155;padding:9px 10px;text-align:left;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.customer-stage-option-item.selected .stage-name{color:#4338ca}.customer-stage-option-item .stage-delete{width:32px;height:32px;margin-right:3px;border:0;border-radius:8px;background:transparent;color:#ef4444;display:grid;place-items:center;cursor:pointer}.customer-stage-option-item .stage-delete:hover{background:#fef2f2}.customer-stage-option-item .stage-delete:disabled{opacity:.45;cursor:not-allowed}body.dark-mode .customer-stage-manager{background:#0f172a;border-color:#334155}body.dark-mode .customer-stage-manager-title strong{color:#f8fafc}body.dark-mode .customer-stage-add-row input{background:#111827;border-color:#475569;color:#f8fafc}body.dark-mode .customer-stage-option-item{background:#111827;border-color:#334155}body.dark-mode .customer-stage-option-item.selected{background:#312e81;border-color:#6366f1}body.dark-mode .customer-stage-option-item .stage-name{color:#e2e8f0}body.dark-mode .customer-stage-option-item.selected .stage-name{color:#fff}@media(max-width:600px){.customer-stage-option-list{grid-template-columns:1fr}.customer-stage-add-row{grid-template-columns:1fr}.customer-stage-add-row button{min-height:40px}}
+
+/* Unified customer profile palette: scoped to the dark theme, avoiding light
+   surface/text combinations inherited from the original light-only styles. */
+body.dark-mode .customer-portal-page {
+  --customer-surface: #121d30;
+  --customer-surface-soft: #19263c;
+  --customer-border: #33445d;
+  --customer-text: #eef3ff;
+  --customer-muted: #a6b5cf;
+  --customer-accent: #a5b4fc;
+  color: var(--customer-text);
+}
+body.dark-mode .customer-portal-page .customer-back-button,
+body.dark-mode .customer-portal-page .customer-portal-hero,
+body.dark-mode .customer-portal-page .customer-summary-card,
+body.dark-mode .customer-portal-page .customer-info-card,
+body.dark-mode .customer-portal-page .customer-note-card,
+body.dark-mode .customer-portal-page .customer-data-table,
+body.dark-mode .customer-portal-page .customer-profit-grid > div:not(.profit-total),
+body.dark-mode .customer-portal-page .customer-analyze-grid > div,
+body.dark-mode .customer-portal-page .customer-activity-item,
+body.dark-mode .customer-portal-page .customer-portal-empty,
+body.dark-mode .customer-portal-page .customer-portal-loading,
+body.dark-mode .customer-portal-page .customer-portal-not-found {
+  background: var(--customer-surface);
+  border-color: var(--customer-border);
+  color: var(--customer-text);
+  box-shadow: none;
+}
+body.dark-mode .customer-portal-page .customer-info-grid > div,
+body.dark-mode .customer-portal-page .customer-note-card p,
+body.dark-mode .customer-portal-page .customer-data-table th,
+body.dark-mode .customer-portal-page .customer-stage-box,
+body.dark-mode .customer-portal-page .customer-stage-menu,
+body.dark-mode .customer-portal-page .customer-summary-card > span {
+  background: var(--customer-surface-soft);
+  border-color: var(--customer-border);
+  color: var(--customer-text);
+}
+body.dark-mode .customer-portal-page .customer-hero-copy h1,
+body.dark-mode .customer-portal-page .customer-summary-card strong,
+body.dark-mode .customer-portal-page .customer-info-grid strong,
+body.dark-mode .customer-portal-page .customer-info-card h3,
+body.dark-mode .customer-portal-page .customer-note-card h3,
+body.dark-mode .customer-portal-page .customer-stage-box strong,
+body.dark-mode .customer-portal-page .customer-activity-item strong,
+body.dark-mode .customer-portal-page .customer-data-table td {
+  color: var(--customer-text);
+}
+body.dark-mode .customer-portal-page .customer-hero-meta,
+body.dark-mode .customer-portal-page .customer-summary-card small,
+body.dark-mode .customer-portal-page .customer-info-grid span,
+body.dark-mode .customer-portal-page .customer-note-card label,
+body.dark-mode .customer-portal-page .customer-note-card p,
+body.dark-mode .customer-portal-page .customer-stage-box small,
+body.dark-mode .customer-portal-page .customer-profit-grid span,
+body.dark-mode .customer-portal-page .customer-analyze-grid span,
+body.dark-mode .customer-portal-page .customer-activity-item small,
+body.dark-mode .customer-portal-page .customer-activity-item p,
+body.dark-mode .customer-portal-page .customer-data-table th {
+  color: var(--customer-muted);
+}
+body.dark-mode .customer-portal-page .customer-tabs { border-color: var(--customer-border); }
+body.dark-mode .customer-portal-page .customer-tabs button { color: var(--customer-muted); }
+body.dark-mode .customer-portal-page .customer-tabs button.active {
+  color: var(--customer-accent); border-bottom-color: var(--customer-accent);
+}
+body.dark-mode .customer-portal-page .customer-data-table td,
+body.dark-mode .customer-portal-page .customer-data-table th { border-bottom-color: var(--customer-border); }
+body.dark-mode .customer-portal-page .customer-stage-menu button { color: var(--customer-text); }
+body.dark-mode .customer-portal-page .customer-stage-menu button:hover,
+body.dark-mode .customer-portal-page .customer-stage-menu button.active {
+  color: #e0e7ff; background: #303865;
+}
+body.dark-mode .customer-portal-page .customer-avatar {
+  background: #2b3562; color: #c7d2fe;
+}
+body.dark-mode .customer-portal-page .customer-profit-grid .profit-total {
+  background: #252f52; border-color: #4e5d8a;
+}
+body.dark-mode .customer-portal-page .customer-profit-grid .profit-total span,
+body.dark-mode .customer-portal-page .customer-profit-grid .profit-total small { color: #c7d2fe; }
+body.dark-mode .customer-portal-page .customer-progress { background: #334155; }
+body.dark-mode .customer-portal-page .customer-record-core { background: #28364e; color: #bac8de; }

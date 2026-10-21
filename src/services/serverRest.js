@@ -47,7 +47,7 @@ async function request(path, options = {}) {
 
 export async function fetchRemoteCollection(collection, onProgress) {
   // Page progressively, while retaining compatibility with servers not yet upgraded.
-  const size = 250;
+  const size = 500;
   let offset = 0;
   const all = [];
   for (;;) {
@@ -62,15 +62,19 @@ export async function fetchRemoteCollection(collection, onProgress) {
       throw new Error(`Invalid server response for ${collection}.`);
     }
     all.push(...result.items);
-    onProgress?.(all.slice(), Boolean(result.hasMore));
+    // Publishing every batch copies the entire growing dataset and rerenders
+    // every subscriber. Publish the first batch for a responsive preview;
+    // publish the complete result only once after the final batch.
+    if (offset === 0 || !result.hasMore) {
+      onProgress?.(all.slice(), Boolean(result.hasMore));
+    }
     if (!result.hasMore) return all;
     const nextOffset = Number(result.nextOffset);
     if (!Number.isSafeInteger(nextOffset) || nextOffset <= offset) {
       throw new Error(`Invalid pagination cursor for ${collection}.`);
     }
     offset = nextOffset;
-    // Yield so React can paint the records that arrived before the next page.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The first page is already available to React while the next request runs.
   }
 }
 

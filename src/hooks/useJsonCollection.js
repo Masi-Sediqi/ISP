@@ -20,7 +20,7 @@ const sharedCollectionRequests = new Map();
 // Short lived in-memory snapshots avoid duplicate round-trips when navigating
 // between screens. Mutations invalidate the snapshot immediately.
 const collectionSnapshots = new Map();
-const SNAPSHOT_TTL_MS = 45000;
+const SNAPSHOT_TTL_MS = 120000;
 // Keep recently viewed collections in memory across route transitions.
 // Writes and server events update or invalidate this cache immediately.
 const canUseRemote = () => serverConfigured && navigator.onLine;
