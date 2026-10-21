@@ -1,0 +1,45 @@
+/* Reception-specific visual repair and shared mobile layout. Loaded last. */
+body.dark-mode .reception-page .reception-type-badge,
+body.dark-mode .reception-page .reception-type-badge.consultant {background:#25264d!important;color:#c7d2fe!important;border:1px solid #444b85!important}
+body.dark-mode .reception-page .reception-type-badge.travel {background:#073747!important;color:#a5f3fc!important;border-color:#136376!important}
+body.dark-mode .reception-page .reception-type-badge.technology {background:#103c36!important;color:#a7f3d0!important;border-color:#1b6454!important}
+body.dark-mode .reception-page .reception-assigned-employee {background:#1b2945!important;color:#bed4ff!important;border:1px solid #344b77!important}
+body.dark-mode .reception-page .reception-assigned-employee span {color:inherit!important}
+body.dark-mode .reception-page .reception-customer-name > span {background:#233351!important;color:#b6caff!important}
+body.dark-mode .reception-page .reception-customer-name strong {color:#f1f5ff!important}
+body.dark-mode .reception-page .reception-search {background:#0e192b!important;border-color:#344762!important;color:#a9bfde!important}
+body.dark-mode .reception-page .reception-search input {background:transparent!important;border:0!important;outline:0!important;box-shadow:none!important;color:#f8fafc!important;min-width:0}
+body.dark-mode .reception-page .reception-search input:focus {border:0!important;outline:0!important;box-shadow:none!important}
+body.dark-mode .reception-page .reception-records {background:#101a2d!important;border-color:#34435d!important}
+body.dark-mode .reception-page .reception-records-header {background:#1b293e!important;border-color:#34435d!important}
+body.dark-mode .reception-page .reception-table-wrap table :is(th,td) {border-color:#34435d!important}
+body.dark-mode .reception-page .reception-table-wrap th {background:#0d1a30!important;color:#c0d2ef!important}
+body.dark-mode .reception-page .reception-table-wrap td {color:#e9f0fc!important}
+body.dark-mode .reception-page .reception-table-wrap tbody tr:hover {background:#192a43!important}
+/* Do not show a highlighted hover on unrelated navigation entries. */
+body .retail-isp-app .sidebar .menu a:not(.active):hover {background:rgba(255,255,255,.07)!important;color:#fff!important}
+/* Shared layout: scroll within tables, not the viewport. */
+@media(max-width:950px){
+ body .retail-isp-app .main,body .retail-isp-app .page-content {min-width:0;max-width:100%;}
+ body .retail-isp-app .page-content {overflow-x:hidden;overscroll-behavior-x:none}
+ body .retail-isp-app :is(.reception-table-wrap,.table-wrap,.table-responsive,.project-bills-table-wrap,.employee-table-wrap,.consultant-table-wrap){max-width:100%;min-width:0;overflow-x:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none}
+ body .retail-isp-app :is(.reception-table-wrap,.table-wrap,.table-responsive,.project-bills-table-wrap,.employee-table-wrap,.consultant-table-wrap)::-webkit-scrollbar{display:none}
+ .reception-page{max-width:100%;padding:18px 14px 26px!important}
+ .reception-page .reception-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+ .reception-page .reception-stats>div{min-width:0;min-height:100px;padding:13px!important}
+ .reception-page .reception-records{max-width:100%;min-width:0}
+ .reception-page .reception-records-header{flex-wrap:wrap}
+ .reception-page .reception-table-wrap table{width:max-content;min-width:900px}
+ .reception-page :is(.reception-modal,.reception-assign-modal,.reception-detail-modal,.reception-view-modal){box-sizing:border-box;max-width:calc(100vw - 20px)!important;max-height:calc(100dvh - 20px)!important;overflow:auto!important}
+}
+@media(max-width:620px){
+ .reception-page .reception-heading{flex-direction:column!important;align-items:stretch!important;gap:12px!important}
+ .reception-page .reception-heading>button{width:100%!important;min-height:44px}
+ .reception-page .reception-records-header{flex-direction:column!important;align-items:stretch!important;gap:12px!important}
+ .reception-page .reception-search{width:100%!important;max-width:none!important}
+ .reception-page .reception-stats strong{font-size:20px!important}
+ .reception-page .reception-stats small{font-size:10px!important}
+ .reception-page :is(.reception-form-grid,.reception-type-selector){grid-template-columns:1fr!important}
+ .reception-page :is(input,select,textarea){max-width:100%;min-width:0}
+}
+@media(max-width:350px){.reception-page .reception-stats{grid-template-columns:1fr!important}}
