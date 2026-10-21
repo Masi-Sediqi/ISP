@@ -1,0 +1,53 @@
+/* Keep numeric amounts and currency symbols in their intended order in RTL languages. */
+.dashboard-stats-expanded .dashboard-stat-button .dashboard-stat-value {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  margin-block: 6px 3px;
+  font-size: clamp(17px, 1.6vw, 24px);
+  font-weight: 800;
+  line-height: 1.35;
+  color: #101827;
+  text-align: start;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.dashboard-stats-expanded .dashboard-stat-button .dashboard-stat-value > bdi {
+  unicode-bidi: isolate;
+  direction: ltr;
+  display: inline-block;
+  max-width: 100%;
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: normal;
+}
+.dashboard-stats-expanded .dashboard-stat-button .dashboard-wallet-balance-value {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  direction: ltr;
+  align-items: baseline;
+}
+.dashboard-stats-expanded .dashboard-stat-button .dashboard-wallet-balance-value > span {
+  direction: ltr;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+  font-size: 0.75em;
+}
+body.dark-mode .dashboard-stats-expanded .dashboard-stat-button .dashboard-stat-value {
+  color: #f8fafc !important;
+}
+body:not(.dark-mode) .dashboard-stats-expanded .dashboard-stat-button .dashboard-stat-value {
+  color: #101827 !important;
+}
+body.lang-rtl .dashboard-stats-expanded .dashboard-stat-button .dashboard-stat-value {
+  text-align: right;
+}
+body.lang-rtl .dashboard-stats-expanded .dashboard-stat-button .dashboard-stat-value > bdi {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+@media (max-width: 600px) {
+  .dashboard-stats-expanded .dashboard-stat-button .dashboard-stat-value {
+    font-size: 19px;
+  }
+}

@@ -26,6 +26,7 @@ import {
   serializeDashboardFilter,
 } from "../utils/dashboardFilters";
 import "../App.css";
+import "./DashboardNumbers.css";
 
 const money = (value) => Number(value || 0).toLocaleString("en-US");
 const lower = (value) => String(value || "").trim().toLowerCase();
@@ -407,7 +408,7 @@ function Dashboard() {
             }}
           >
             <span>{label}</span>
-            <h2>{value}</h2>
+            <h2 className="dashboard-stat-value"><bdi dir="ltr">{value}</bdi></h2>
             <p>{description}</p>
           </button>
         ))}

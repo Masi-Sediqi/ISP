@@ -20,7 +20,9 @@ const sharedCollectionRequests = new Map();
 // Short lived in-memory snapshots avoid duplicate round-trips when navigating
 // between screens. Mutations invalidate the snapshot immediately.
 const collectionSnapshots = new Map();
-const SNAPSHOT_TTL_MS = 5000;
+const SNAPSHOT_TTL_MS = 45000;
+// Keep recently viewed collections in memory across route transitions.
+// Writes and server events update or invalidate this cache immediately.
 const canUseRemote = () => serverConfigured && navigator.onLine;
 
 async function fetchCollectionShared(name) {
@@ -220,12 +222,14 @@ export function useJsonCollection(name, options = {}) {
   const disabled = DISABLED_COLLECTIONS.has(name) || options.enabled === false;
   const background = options.background === true;
   const silentLoadErrors = options.silentLoadErrors === true;
-  const [items, setItemsState] = useState([]);
-  const [loaded, setLoaded] = useState(false);
+  // Synchronously hydrate on remount, so visiting a previous section is instant.
+  const initialSnapshot = !disabled ? collectionSnapshots.get(name) : null;
+  const [items, setItemsState] = useState(() => initialSnapshot?.items || []);
+  const [loaded, setLoaded] = useState(() => Boolean(initialSnapshot));
   const [loadError, setLoadError] = useState(null);
-  const itemsRef = useRef([]);
+  const itemsRef = useRef(initialSnapshot?.items || []);
   const loadingRef = useRef(false);
-  const loadedRef = useRef(false);
+  const loadedRef = useRef(Boolean(initialSnapshot));
 
   const applyItems = useCallback((nextItems) => {
     const safe = Array.isArray(nextItems) ? nextItems : [];
