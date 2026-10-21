@@ -23,7 +23,7 @@ export function calculateChanges(previousItems = [], nextItems = []) {
 
   next.forEach((item, identity) => {
     const oldItem = previous.get(identity);
-    if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(item)) upserts.push(item);
+    if (!oldItem || (oldItem !== item && JSON.stringify(oldItem) !== JSON.stringify(item))) upserts.push(item);
   });
   previous.forEach((_, identity) => {
     if (!next.has(identity)) deletes.push(identity);

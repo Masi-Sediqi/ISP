@@ -1214,14 +1214,18 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     resetForm();
   };
 
-  const departmentCards = departmentTypes.map((department) => ({
-    ...department,
-    count: serverCustomers.filter(
-      (item) =>
-        item.specializedCustomer &&
-        item.customerType === department.key
-    ).length,
-  }));
+  const departmentCards = useMemo(
+    () =>
+      departmentTypes.map((department) => ({
+        ...department,
+        count: serverCustomers.filter(
+          (item) =>
+            item.specializedCustomer &&
+            item.customerType === department.key
+        ).length,
+      })),
+    [serverCustomers]
+  );
 
   const formatPrice = (customer) => {
     const price = Number(
@@ -1315,6 +1319,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
         })}
       </div>
 
+      {!showForm && (
       <section className="consultant-list-card">
         <div className="consultant-list-header">
           <div>
@@ -1649,6 +1654,7 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
           </table>
         </div>
       </section>
+      )}
 
       {showForm && (
         <div

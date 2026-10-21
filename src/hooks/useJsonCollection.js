@@ -138,7 +138,7 @@ function detectCollectionChange(previousItems, nextItems) {
   nextByKey.forEach((item, key) => {
     const previous = previousByKey.get(key);
     if (!previous) createdIds.push(key);
-    else if (JSON.stringify(previous) !== JSON.stringify(item)) updatedIds.push(key);
+    else if (previous !== item && JSON.stringify(previous) !== JSON.stringify(item)) updatedIds.push(key);
   });
 
   previousByKey.forEach((_, key) => {
