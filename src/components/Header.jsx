@@ -1448,19 +1448,38 @@ useEffect(() => {
         `${activity.adminNotificationAt || ""}:${activity.actorId || ""}:${activity.collection || ""}`
     );
 
-  const newActivities =
-    employeeActivityNotifications.filter(
-      (activity) =>
-        !seenSet.has(activityKey(activity))
+  // On first load, historical server activity is NOT a new live notification.
+  // It remains available in the notification center below.  This prevents
+  // progressive collection loading from flooding the screen with old events.
+  if (localStorage.getItem(storageKey) === null) {
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify(employeeActivityNotifications.map(activityKey).slice(-5000))
     );
+    return;
+  }
+
+  const newActivities = employeeActivityNotifications.filter(
+    (activity) => !seenSet.has(activityKey(activity))
+  );
 
   if (!newActivities.length) return;
 
+  // Persist the complete new batch before showing popups so rerenders cannot
+  // replay it. Treat older unrecognized rows as history, not live activity.
+  const freshCutoff = Date.now() - 90_000;
+  newActivities.forEach((activity) => seenSet.add(activityKey(activity)));
+  localStorage.setItem(storageKey, JSON.stringify([...seenSet].slice(-5000)));
+
   newActivities.forEach((activity) => {
-    seenSet.add(activityKey(activity));
+    const happenedAt = Date.parse(
+      activity.adminNotificationAt || activity.createdAt || ""
+    );
+    if (!Number.isFinite(happenedAt) || happenedAt < freshCutoff) return;
+
     notify(activityText(activity), "info", {
       system: true,
-      title: tx("Employee Action", "\u0639\u0645\u0644\u06a9\u0631\u062f \u06a9\u0627\u0631\u0645\u0646\u062f", "\u062f \u06a9\u0627\u0631\u06a9\u0648\u0648\u0646\u06a9\u064a \u0639\u0645\u0644"),
+      title: tx("Employee Action", "عملکرد کارمند", "د کارکوونکي عمل"),
       path: collectionPath(
         activity.collection,
         activity.primaryRecordId ||
@@ -1470,11 +1489,6 @@ useEffect(() => {
       ),
     });
   });
-
-  localStorage.setItem(
-    storageKey,
-    JSON.stringify([...seenSet].slice(-600))
-  );
 }, [
   currentUser,
   employeeActivityNotifications,
