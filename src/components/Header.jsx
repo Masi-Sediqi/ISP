@@ -86,6 +86,8 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState(null);
   const alertsEnabled = openMenu === "alerts";
+  const [expandedNotifications, setExpandedNotifications] = useState(false);
+  const extendedAlertsEnabled = alertsEnabled && expandedNotifications;
   const [cashWalletOpen, setCashWalletOpen] = useState(false);
 
   const [
@@ -225,7 +227,9 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
     );
   };
 
-  const alertCollection = { enabled: alertsEnabled, background: true, silentLoadErrors: true };
+  // Nothing related to notifications is fetched until the bell is opened.
+  const alertCollection = { enabled: extendedAlertsEnabled, background: true, silentLoadErrors: true };
+  const coreAlertCollection = { enabled: alertsEnabled, background: true, silentLoadErrors: true };
   const [assets] = useJsonCollection("assets", alertCollection);
   const [towerAssets] = useJsonCollection("towerAssets", alertCollection);
   const [securityDeposits] = useJsonCollection("securityDeposits", alertCollection);
@@ -252,7 +256,7 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
     ,
     loadCustomers,
     customersLoaded,
-  ] = useJsonCollection("customers", alertCollection);
+  ] = useJsonCollection("customers", coreAlertCollection);
   const [
     employeeReports,
     ,
@@ -264,7 +268,7 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
     ,
     loadEmployeeActivities,
     activitiesLoaded,
-  ] = useJsonCollection("employeeActivities", alertCollection);
+  ] = useJsonCollection("employeeActivities", coreAlertCollection);
   const today = todayDateValue();
 
 const currentUserIds = [
@@ -1511,9 +1515,7 @@ useEffect(() => {
       ? adminCustomerCreateEvents
       : [];
 
-  // Build the notification catalog only when the bell is opened.
-  // Avoid mapping thousands of historic events during normal page navigation.
-  const notificationGroups = alertsEnabled ? [
+  const notificationGroups = [
     {
       key: "admin-customer-created",
       title: "Call Center Registrations",
@@ -1705,11 +1707,12 @@ useEffect(() => {
         description: `${item.customerName || item.customerId || "Customer"} package ended on ${item.endDate}`,
       })),
     },
-  ].filter((group) => group.count > 0) : [];
+  ].filter((group) => group.count > 0);
 
+  // Cap expensive UI item creation. Group totals still show the actual counts.
   const notificationItems = notificationGroups.flatMap(
     (group) =>
-      group.items.map((item, index) => ({
+      group.items.slice(0, 30).map((item, index) => ({
         ...item,
         key: [
           group.key,
@@ -1747,8 +1750,7 @@ useEffect(() => {
       })
       .filter((group) => group.count > 0);
 
-  const alertCount =
-    visibleNotificationItems.length;
+  const alertCount = alertsEnabled ? visibleNotificationItems.length : 0;
 
   function dismissNotification(notificationKey) {
     setDismissedNotificationKeys((current) => {
@@ -2348,7 +2350,7 @@ useEffect(() => {
         <div className="header-menu">
           <button
             className="icon-btn"
-            onClick={() => setOpenMenu(openMenu === "alerts" ? null : "alerts")}
+            onClick={() => { setExpandedNotifications(false); setOpenMenu(openMenu === "alerts" ? null : "alerts"); }}
             aria-label="Alerts"
           >
             <Bell size={21} strokeWidth={1.9} />
@@ -2392,6 +2394,14 @@ useEffect(() => {
   </div>
 </div>
 
+              {!expandedNotifications && (
+                <div className="notification-on-demand">
+                  <p>Recent customer and employee activity only. Other alert categories load on request.</p>
+                  <button type="button" onClick={() => setExpandedNotifications(true)}>
+                    Load other notifications
+                  </button>
+                </div>
+              )}
               {visibleNotificationGroups.length > 0 ? (
                 <>
                   <div className="notification-group-list">
