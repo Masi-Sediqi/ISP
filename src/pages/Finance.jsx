@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Bar,
   CartesianGrid,
@@ -80,6 +81,9 @@ function normalizeCategory(category) {
 }
 
 function Finance() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [suppliers] = useJsonCollection("suppliers");
   const [transactions, setTransactions] =
     useJsonCollection("transactions");
 
@@ -767,6 +771,29 @@ function Finance() {
     setShowModal(true);
   };
 
+  // Supplier payments are owned by the supplier ledger. Open the original
+  // edit/delete workflow so the supplier account, financial log and cash wallet
+  // remain consistent. Never mutate the derived Finance row directly.
+  const openSupplierPaymentAction = (transaction, action) => {
+    const ref = String(transaction.referenceId || "");
+    const payment = supplierPayments.find((item) => String(item.id) === ref);
+    if (!payment) {
+      notify(tx("The original supplier payment is not loaded or no longer exists. Open Suppliers to check it.", "پرداخت اصلی تأمین‌کننده فعلاً در دسترس نیست. از بخش تأمین‌کنندگان آن را بررسی کنید.", "د عرضه کوونکي اصلي تادیه اوس نشته؛ په عرضه کوونکو کې یې وګورئ."), "error");
+      return;
+    }
+    const index = suppliers.findIndex((item) =>
+      (payment.supplierRecordId && String(item.id) === String(payment.supplierRecordId)) ||
+      (payment.supplierName && item.supplierName === payment.supplierName)
+    );
+    if (index < 0) {
+      notify(tx("Supplier not found. Check Suppliers before modifying this payment.", "تأمین‌کننده یافت نشد. قبل از تغییر پرداخت بخش تأمین‌کنندگان را بررسی کنید.", "عرضه کوونکی ونه موندل شو."), "error");
+      return;
+    }
+    navigate(`/suppliers/${index}`, {
+      state: { financeSupplierPaymentAction: { action, paymentId: String(payment.id) } },
+    });
+  };
+
   const openEditModal = (transaction) => {
     if (transaction.source !== "manual") {
       notify(
@@ -810,6 +837,27 @@ function Finance() {
     setFormErrors({});
     setShowModal(true);
   };
+
+  // From dashboard details, open the owning record editor or safe delete dialog.
+  // System-generated records are only changed in their source module.
+  useEffect(() => {
+    const request = location.state?.dashboardFinanceAction;
+    if (!request?.id || !["edit", "delete"].includes(request.action)) return;
+    const row = transactions.find((item) => String(item.id) === String(request.id));
+    if (!row) return; // Wait for the transaction collection to finish loading.
+    navigate(location.pathname, { replace: true, state: null });
+    if (row.source === "manual") {
+      if (request.action === "edit") openEditModal(row);
+      else setDeleteTransaction(row); // Existing confirmation dialog, not immediate deletion.
+      return;
+    }
+    if (row.source === "supplier-payment" && row.referenceId) {
+      openSupplierPaymentAction(row, request.action);
+      return;
+    }
+    notify("This system record must be changed in its original module.", "error");
+  // Deliberately react when the requested record arrives from the server.
+  }, [location.state, location.pathname, navigate, transactions, supplierPayments, suppliers]);
 
   const closeModal = () => {
     setShowModal(false);
@@ -1650,9 +1698,20 @@ function Finance() {
                                 </div>
                               )}
                           </div>
+                        ) : transaction.source === "supplier-payment" && transaction.referenceId ? (
+                          <div className="finance-actions finance-linked-actions">
+                            <button type="button" className="finance-linked-edit"
+                              title={tx("Edit in supplier account", "ویرایش در حساب تأمین‌کننده", "د عرضه کوونکي حساب کې سمول")}
+                              onClick={() => openSupplierPaymentAction(transaction, "edit")}
+                            ><Pencil size={15}/><span>{tx("Edit", "ویرایش", "سمول")}</span></button>
+                            <button type="button" className="finance-linked-delete"
+                              title={tx("Delete via supplier account", "حذف از حساب تأمین‌کننده", "د عرضه کوونکي حساب کې حذف")}
+                              onClick={() => openSupplierPaymentAction(transaction, "delete")}
+                            ><Trash2 size={15}/><span>{tx("Delete", "حذف", "حذف")}</span></button>
+                          </div>
                         ) : (
-                          <span className="finance-system-record">
-                            {tx("System record", "رکورد سیستمی", "سیسټمي ریکارډ")}
+                          <span className="finance-system-record" title={tx("Edit this item at its source module", "از بخش اصلی این ریکارد ویرایش کنید", "دا په اړوند برخه کې سم کړئ")}>
+                            {tx("System record", "ریکارد سیستمی", "سیسټمي ریکارډ")}
                           </span>
                         )}
                       </td>

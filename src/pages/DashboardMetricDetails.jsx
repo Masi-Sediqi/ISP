@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink, Search } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Pencil, Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useJsonCollection } from '../hooks/useJsonCollection';
@@ -121,6 +121,9 @@ export default function DashboardMetricDetails() {
         status: item.category || item.source || '-',
         date: rowDate(item),
         path: '/finance',
+        financeId: item.id,
+        source: item.source || '',
+        referenceId: item.referenceId || '',
       }));
     if (metric === 'net-profit') return transactions
       .filter((item) => ['income', 'expense'].includes(lower(item.type)))
@@ -133,6 +136,9 @@ export default function DashboardMetricDetails() {
         status: lower(item.type) === 'income' ? 'Income' : 'Expense',
         date: rowDate(item),
         path: '/finance',
+        financeId: item.id,
+        source: item.source || '',
+        referenceId: item.referenceId || '',
       }));
     if (metric === 'progressing-customers') return customers
       .filter((customer) => {
@@ -160,6 +166,13 @@ export default function DashboardMetricDetails() {
     }));
     return [];
   }, [customers, employees, metric, projectSales, supplierPayments, supplierPurchases, suppliers, transactions]);
+
+  const goToFinanceAction = (row, action) => {
+    if (!row.financeId) return;
+    navigate('/finance', {
+      state: { dashboardFinanceAction: { id: String(row.financeId), action } },
+    });
+  };
 
   const normalizedQuery = lower(query);
   const visibleRows = rows.filter((row) => !normalizedQuery || lower(`${row.primary} ${row.secondary} ${row.status} ${row.amount} ${row.currency} ${row.date}`).includes(normalizedQuery));
@@ -203,7 +216,15 @@ export default function DashboardMetricDetails() {
                   <td>{typeof row.amount === 'number' ? formatCurrencyAmount(row.amount, row.currency || 'AFN') : '-'}</td>
                   <td><span className="dashboard-detail-status">{row.status || '-'}</span></td>
                   <td>{String(row.date || '-').replace('T', ' ').slice(0, 19)}</td>
-                  <td><button type="button" onClick={() => navigate(row.path)} title="Open record"><ExternalLink size={15} /></button></td>
+                  <td>
+                    <div className="dashboard-detail-actions">
+                      <button type="button" onClick={() => navigate(row.path)} title="Open record" aria-label="Open record"><ExternalLink size={15} /></button>
+                      {row.financeId && <>
+                        <button type="button" className="dashboard-detail-edit" onClick={() => goToFinanceAction(row, 'edit')} title="Edit original record" aria-label="Edit original record"><Pencil size={15} /></button>
+                        <button type="button" className="dashboard-detail-delete" onClick={() => goToFinanceAction(row, 'delete')} title="Delete original record with confirmation" aria-label="Delete original record with confirmation"><Trash2 size={15} /></button>
+                      </>}
+                    </div>
+                  </td>
                 </tr>
               ))}
               {!visibleRows.length && <tr><td colSpan="6" className="dashboard-detail-empty">No matching records for this filter.</td></tr>}
