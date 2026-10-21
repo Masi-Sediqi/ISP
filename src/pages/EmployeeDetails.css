@@ -1369,3 +1369,103 @@ body.dark-mode
 
 /* Payroll */
 .employee-profile-actions .employee-payroll-button{border-color:#c7d2fe;background:#eef2ff;color:#4338ca}.employee-profile-actions .employee-payroll-button:hover{border-color:#818cf8;background:#e0e7ff}.employee-payroll-modal{width:min(570px,100%)!important}.employee-payroll-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px}.employee-payroll-summary>div,.employee-payroll-amount-card{padding:12px 14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;display:grid;gap:4px}.employee-payroll-summary span,.employee-payroll-amount-card>span{color:#64748b;font-size:11px;font-weight:700}.employee-payroll-summary strong,.employee-payroll-amount-card strong{font-size:16px}.employee-payroll-amount-card{border-color:#c7d2fe;background:#f5f7ff}.employee-payroll-amount-card strong{color:#4338ca;font-size:20px}.employee-payroll-amount-card small{color:#b45309;font-size:10px;line-height:1.5}.employee-payroll-date-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.employee-profile-modal .employee-payroll-wallet-option{padding:12px 14px;border:1px solid #dbe3ee;border-radius:12px;display:flex;align-items:flex-start;gap:10px;background:#f8fafc;cursor:pointer}.employee-profile-modal .employee-payroll-wallet-option>input{width:18px!important;min-width:18px;min-height:18px!important;height:18px;margin:2px 0 0;padding:0}.employee-profile-modal .employee-payroll-wallet-option>span{display:grid;gap:3px;color:#172033}.employee-profile-modal .employee-payroll-wallet-option strong{font-size:12px}.employee-profile-modal .employee-payroll-wallet-option small{color:#64748b;font-size:10px;font-weight:500;line-height:1.45}.employee-profile-modal input:disabled{background:#f1f5f9;color:#64748b;cursor:not-allowed}body.dark-mode .employee-profile-actions .employee-payroll-button{border-color:#4338ca;background:#312e81;color:#eef2ff}body.dark-mode .employee-payroll-summary>div,body.dark-mode .employee-payroll-amount-card,body.dark-mode .employee-profile-modal .employee-payroll-wallet-option{border-color:#334155;background:#111827}body.dark-mode .employee-payroll-amount-card strong{color:#a5b4fc}body.dark-mode .employee-profile-modal .employee-payroll-wallet-option>span{color:#f8fafc}body.dark-mode .employee-profile-modal input:disabled{background:#1e293b;color:#94a3b8}@media(max-width:640px){.employee-payroll-summary,.employee-payroll-date-grid{grid-template-columns:1fr}}
+
+/* === Root dark-mode fixes for employee profile top actions and tabs === */
+body.dark-mode .employee-profile-actions > button {
+  border-color: #33485f !important;
+  background: linear-gradient(180deg, #152238 0%, #101a2b 100%) !important;
+  color: #edf4ff !important;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.22);
+}
+
+body.dark-mode .employee-profile-actions > button:hover {
+  border-color: #476687 !important;
+  background: linear-gradient(180deg, #1b2d47 0%, #16253c 100%) !important;
+  color: #ffffff !important;
+}
+
+body.dark-mode .employee-profile-actions > button:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+body.dark-mode .employee-profile-actions > button:disabled {
+  border-color: #41556f !important;
+  background: linear-gradient(180deg, #243246 0%, #1b2638 100%) !important;
+  color: #8da0b8 !important;
+  box-shadow: none;
+  opacity: 0.74;
+  cursor: not-allowed;
+}
+
+body.dark-mode .employee-profile-actions > button :is(svg, path, span) {
+  color: currentColor !important;
+  stroke: currentColor;
+}
+
+body.dark-mode .employee-profile-actions > button:not(.primary):not(.employee-assessment-button):not(.employee-payroll-button) {
+  border-color: #31455c !important;
+  background: linear-gradient(180deg, #172438 0%, #101a2b 100%) !important;
+  color: #edf4ff !important;
+}
+
+body.dark-mode .employee-profile-actions > button:not(.primary):not(.employee-assessment-button):not(.employee-payroll-button):hover {
+  border-color: #4b6b8f !important;
+  background: linear-gradient(180deg, #1d314c 0%, #15253b 100%) !important;
+}
+
+body.dark-mode .employee-profile-actions .primary {
+  border-color: #fbbf24 !important;
+  background: linear-gradient(180deg, #2d2413 0%, #1f1b12 100%) !important;
+  color: #fff7db !important;
+}
+
+body.dark-mode .employee-profile-actions .primary:hover {
+  border-color: #fcd34d !important;
+  background: linear-gradient(180deg, #3a2d17 0%, #292014 100%) !important;
+}
+
+body.dark-mode .employee-profile-actions .employee-assessment-button {
+  border-color: #294f95 !important;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.28) 0%, rgba(29, 78, 216, 0.18) 100%) !important;
+  color: #dbeafe !important;
+}
+
+body.dark-mode .employee-profile-actions .employee-assessment-button:hover {
+  border-color: #60a5fa !important;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.4) 0%, rgba(29, 78, 216, 0.24) 100%) !important;
+  color: #eff6ff !important;
+}
+
+body.dark-mode .employee-profile-actions .employee-payroll-button {
+  border-color: #5b4bd8 !important;
+  background: linear-gradient(180deg, rgba(79, 70, 229, 0.36) 0%, rgba(67, 56, 202, 0.24) 100%) !important;
+  color: #eef2ff !important;
+}
+
+body.dark-mode .employee-profile-actions .employee-payroll-button:hover {
+  border-color: #a5b4fc !important;
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.45) 0%, rgba(79, 70, 229, 0.28) 100%) !important;
+}
+
+body.dark-mode .employee-work-tabs {
+  border-color: #334155 !important;
+  background: linear-gradient(180deg, #182335 0%, #131d2d 100%) !important;
+}
+
+body.dark-mode .employee-work-tabs button {
+  border: 1px solid transparent;
+  color: #cbd5e1 !important;
+}
+
+body.dark-mode .employee-work-tabs button.active {
+  border-color: #425b7a !important;
+  background: linear-gradient(180deg, #223147 0%, #1a2638 100%) !important;
+  color: #f8fafc !important;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+}
+
+body.dark-mode .employee-work-tabs button.active strong {
+  background: #334155 !important;
+  color: #f8fafc !important;
+}
