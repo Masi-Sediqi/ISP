@@ -58,27 +58,87 @@ function RoutePageFallback() {
   return <PageLoader />;
 }
 
-// Do not cover an already mounted page while independent data requests finish.
-// Pages display their own loading/empty/error states.
+// Track the requests started by the destination page. The overlay only covers
+// the content area, never the navigation, and disappears when its data settles.
 function GlobalDataLoader() {
-  const [pending, setPending] = useState(0);
+  const location = useLocation();
+  const route = `${location.pathname}${location.search}`;
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const pendingRef = useRef(new Set());
+  const startedAtRef = useRef(0);
+  const routeRef = useRef(route);
+  const settledRef = useRef(false);
+
   useEffect(() => {
-    const tokens = new Set();
-    const onLoading = (event) => {
-      const token = event.detail?.token;
-      if (!token) return;
-      if (event.detail.phase === "start") tokens.add(token);
-      if (event.detail.phase === "end") tokens.delete(token);
-      setPending(tokens.size);
+    routeRef.current = route;
+    startedAtRef.current = Date.now();
+    pendingRef.current = new Set();
+    settledRef.current = false;
+    setLoading(true);
+    setFailed(false);
+
+    let finishTimer;
+    let safetyTimer;
+    let disposed = false;
+    const finishIfIdle = () => {
+      window.clearTimeout(finishTimer);
+      if (pendingRef.current.size > 0) return;
+      // Allow lazy route components to mount and initiate their data requests.
+      const grace = settledRef.current ? 160 : 420;
+      finishTimer = window.setTimeout(() => {
+        if (!disposed && pendingRef.current.size === 0) {
+          settledRef.current = true;
+          setLoading(false);
+        }
+      }, grace);
     };
-    window.addEventListener("isp-data-loading", onLoading);
-    return () => window.removeEventListener("isp-data-loading", onLoading);
-  }, []);
-  return pending > 0 ? (
-    <div className="isp-collection-loading-wrap">
-      <SmartPageLoader compact label="Updating records..." />
+
+    const onDataLoading = (event) => {
+      const { token, phase } = event?.detail || {};
+      if (!token || disposed) return;
+      if (phase === "start") {
+        pendingRef.current.add(token);
+        window.clearTimeout(finishTimer);
+        setLoading(true);
+      } else if (phase === "end") {
+        pendingRef.current.delete(token);
+        finishIfIdle();
+      }
+    };
+
+    window.addEventListener("isp-data-loading", onDataLoading);
+    finishIfIdle();
+    // A hung connection must not trap the user under a permanent loader.
+    safetyTimer = window.setTimeout(() => {
+      if (!disposed && pendingRef.current.size > 0) {
+        setFailed(true);
+        setLoading(false);
+      }
+    }, 35000);
+
+    return () => {
+      disposed = true;
+      window.removeEventListener("isp-data-loading", onDataLoading);
+      window.clearTimeout(finishTimer);
+      window.clearTimeout(safetyTimer);
+    };
+  }, [route]);
+
+  if (failed) return (
+    <div className="isp-route-load-error" role="alert">
+      <strong>Loading is taking longer than expected.</strong>
+      <span>Check your connection or try this page again.</span>
+      <button type="button" onClick={() => window.location.reload()}>Try again</button>
+      <button type="button" onClick={() => setFailed(false)}>Show page</button>
     </div>
-  ) : null;
+  );
+  if (!loading) return null;
+  return (
+    <div className="isp-route-loading-overlay" aria-busy="true">
+      <SmartPageLoader label="Loading your page and records..." />
+    </div>
+  );
 }
 
 class PageErrorBoundary extends Component {

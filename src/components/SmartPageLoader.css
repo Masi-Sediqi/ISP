@@ -8,3 +8,18 @@ body.dark-mode .smart-page-loader{--smart-skeleton-base:#19273e;--smart-skeleton
 @keyframes smart-loader-flow{to{background-position:200% 0}}@keyframes smart-skeleton{to{background-position-x:-250%}}@keyframes smart-pulse{0%,70%,100%{opacity:.3;transform:scale(.75)}35%{opacity:1;transform:scale(1.1)}}
 @media(max-width:650px){.smart-page-loader__grid{grid-template-columns:repeat(2,minmax(0,1fr))}.smart-page-loader__grid span:last-child{display:none}.smart-page-loader{padding:17px}}
 @media(prefers-reduced-motion:reduce){.smart-page-loader *{animation:none!important}}
+
+/* Route loading overlays only the main content, preserving sidebar navigation. */
+.retail-isp-app .page-content,.page-content{position:relative}
+.isp-route-loading-overlay{position:absolute;inset:0;z-index:85;padding:clamp(14px,2vw,26px);background:var(--isp-canvas,#f3f5f9);pointer-events:auto;overflow:hidden;animation:isp-route-arrive .22s ease-out both}
+.isp-route-loading-overlay .smart-page-loader{width:100%;min-height:210px;border-radius:16px}
+.isp-route-loading-overlay .smart-page-loader__skeleton{gap:20px}
+.isp-route-loading-overlay .smart-page-loader__grid span{height:96px}
+body.dark-mode .isp-route-loading-overlay{background:#071120!important}
+.isp-route-load-error{position:absolute;inset:0;z-index:86;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;background:var(--isp-canvas,#f3f5f9);color:var(--isp-ink,#132033)}
+.isp-route-load-error span{color:var(--isp-muted,#64748b)}
+.isp-route-load-error button{padding:10px 18px;border:1px solid var(--isp-border,#cbd5e1);border-radius:9px;background:var(--isp-panel,#fff);color:var(--isp-ink,#132033);cursor:pointer}
+body.dark-mode .isp-route-load-error{background:#071120;color:#f8fafc}
+body.dark-mode .isp-route-load-error button{background:#132238;border-color:#334155;color:#f8fafc}
+@keyframes isp-route-arrive{from{opacity:.75;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.isp-route-loading-overlay{animation:none}}
