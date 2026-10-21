@@ -5148,3 +5148,50 @@ body.dark-mode :is(.employee-modal-backdrop,.consultant-modal-backdrop,.receptio
 @media print {
   body.dark-mode :is(.project-print-receipt,.project-contract-page){background:#fff!important;color:#111!important}
 }
+
+/* Header dropdown dark palette, consistent across currency, language, themes and profile. */
+body.dark-mode .topbar .top-actions :is(.header-picker-dropdown,.currency-picker-dropdown,.language-picker-dropdown,.theme-picker-dropdown,.notification-dropdown,.profile-dropdown,.dropdown) {
+  background: #101827 !important;
+  border: 1px solid #34435a !important;
+  color: #eaf1fb !important;
+  box-shadow: 0 20px 48px rgba(0,0,0,.42) !important;
+  color-scheme: dark;
+}
+body.dark-mode .topbar .top-actions .header-picker-title,
+body.dark-mode .topbar .top-actions .notification-dropdown-header {border-bottom-color:#34435a !important;background:transparent !important;}
+body.dark-mode .topbar .top-actions :is(.header-picker-title strong,.notification-dropdown-title strong,.language-picker-option>span strong,.header-picker-option strong,.header-picker-dropdown>strong,.dropdown>strong) {color:#eef5ff !important;}
+body.dark-mode .topbar .top-actions :is(.header-picker-title span,.header-picker-option small,.language-picker-option>span small,.notification-dropdown-title>span,.dropdown p) {color:#9bacbf !important;}
+body.dark-mode .topbar .top-actions .header-picker-dropdown .header-picker-option,
+body.dark-mode .topbar .top-actions .header-picker-dropdown .currency-code-option,
+body.dark-mode .topbar .top-actions .header-picker-dropdown .language-picker-option {
+ background:transparent !important;color:#d8e5f5 !important;border-color:transparent !important;
+}
+body.dark-mode .topbar .top-actions .header-picker-dropdown .header-picker-option:hover,
+body.dark-mode .topbar .top-actions .header-picker-dropdown .language-picker-option:hover {
+ background:#24334c !important;color:#fff !important;border-color:#405372 !important;
+}
+body.dark-mode .topbar .top-actions .header-picker-dropdown .header-picker-option.active,
+body.dark-mode .topbar .top-actions .header-picker-dropdown .language-picker-option.active {
+ background:#263e63 !important;color:#fff !important;border:1px solid #5074a6 !important;
+}
+body.dark-mode .topbar .top-actions .header-picker-dropdown .header-picker-option.active strong,
+body.dark-mode .topbar .top-actions .header-picker-dropdown .header-picker-option.active svg {color:#fbbf24 !important;}
+body.dark-mode .topbar .top-actions .language-picker-option > b {background:#22334b !important;color:#eaf2ff !important;}
+body.dark-mode .topbar .top-actions .theme-picker-dropdown .theme-picker-option {background:#18263d !important;border-color:#34435a !important;color:#eef5ff !important;}
+body.dark-mode .topbar .top-actions .theme-picker-dropdown .theme-picker-option:hover {background:#233650 !important;border-color:#fbbf24 !important;}
+body.dark-mode .topbar .top-actions .theme-picker-dropdown .theme-picker-option.active {background:#273854 !important;border-color:#fbbf24 !important;}
+body.dark-mode .topbar .top-actions .theme-picker-dropdown .theme-picker-option > span {color:#f4f8ff !important;}
+body.dark-mode .topbar .top-actions .currency-picker-dropdown input,
+body.dark-mode .topbar .top-actions .currency-picker-dropdown input[type=number],
+body.dark-mode .topbar .top-actions .header-picker-dropdown select {background:#0b1525 !important;border:1px solid #455876 !important;color:#f8fafc !important;box-shadow:none !important;outline-offset:2px;}
+body.dark-mode .topbar .top-actions .currency-picker-dropdown input:focus {border-color:#fbbf24 !important;outline:1px solid #fbbf24;}
+body.dark-mode .topbar .top-actions .currency-picker-dropdown :is(button, input) {color-scheme:dark;}
+body.dark-mode .topbar .top-actions .currency-picker-dropdown button[title="Reverse exchange direction"] {border-color:#455876 !important;background:#1a2b44 !important;color:#eef5ff !important;}
+body.dark-mode .topbar .top-actions .notification-dropdown :is(button,.notification-item) {color:#e5efff !important;}
+body.dark-mode .topbar .top-actions .profile-dropdown :is(.profile-account-link,.dropdown-action) {background:#1b2b43 !important;border-color:#34435a !important;color:#eef5ff !important;}
+body.dark-mode .topbar .top-actions .profile-dropdown :is(.profile-account-link,.dropdown-action):hover {background:#263e5b !important;}
+body.dark-mode .topbar .top-actions .profile-dropdown .dropdown-logout {background:#48272e !important;color:#fecaca !important;border:1px solid #8d434a !important;}
+body.dark-mode .topbar .top-actions .header-control-btn,
+body.dark-mode .topbar .top-actions .icon-btn {background:#142239 !important;border-color:#34435a !important;color:#f1f5fa !important;}
+body.dark-mode .topbar .top-actions .header-control-btn:hover,
+body.dark-mode .topbar .top-actions .icon-btn:hover {background:#243750 !important;}
