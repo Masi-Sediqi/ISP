@@ -3645,7 +3645,8 @@ const mediaCount =
       title={tx("Assign this customer", "ارجاع این مشتری", "دا پېرودونکی سپارل")}
       aria-label={tx("Assign customer", "ارجاع مشتری", "پېرودونکی سپارل")}
     >
-      <ArrowRight size={17} />
+      <ArrowRight size={15} aria-hidden="true" />
+      <span>{tx("Assign", "ارجاع", "سپارل")}</span>
     </button>
   )}
 </td>

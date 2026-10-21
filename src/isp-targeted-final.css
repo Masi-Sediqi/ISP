@@ -52,3 +52,190 @@ body.dark-mode .retail-isp-app :is(.project-search,.project-sale-search,.custome
   background:transparent!important;background-image:none!important;
 }
 @media(max-width:720px){body .retail-isp-app .recycle-bin-toolbar > label{width:100%!important;}}
+
+/* Reception: accessible dark/light palettes for inline controls and table content.
+   Kept in the final theme stylesheet to take precedence over legacy page CSS. */
+body.dark-mode .retail-isp-app .reception-page {
+  --reception-surface: #101a2d;
+  --reception-surface-raised: #1c2940;
+  --reception-outline: #364862;
+  --reception-text: #edf4ff;
+  --reception-muted: #a8b9d3;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-records,
+body.dark-mode .retail-isp-app .reception-page .reception-records-header,
+body.dark-mode .retail-isp-app .reception-page .reception-stats > button,
+body.dark-mode .retail-isp-app .reception-page .reception-stats > div {
+  background: var(--reception-surface-raised) !important;
+  border-color: var(--reception-outline) !important;
+  color: var(--reception-text) !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-stats > button.active {
+  background: linear-gradient(145deg, #222d48, #2d285c) !important;
+  border-color: #818cf8 !important;
+}
+body.dark-mode .retail-isp-app .reception-page :is(.reception-records-header h2, .reception-customer-name strong, .reception-stats strong, .reception-table-wrap td) {
+  color: var(--reception-text) !important;
+}
+body.dark-mode .retail-isp-app .reception-page :is(.reception-records-header p, .reception-heading p, .reception-stats small, .reception-stats span, .reception-table-wrap th) {
+  color: var(--reception-muted) !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-table-wrap :is(th, td) {
+  background: transparent !important;
+  border-bottom-color: var(--reception-outline) !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-table-wrap tbody tr:hover {
+  background: #22314a !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-search {
+  background: var(--reception-surface) !important;
+  border: 1px solid var(--reception-outline) !important;
+  color: var(--reception-muted) !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-search input {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--reception-text) !important;
+  min-width: 0;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-search input::placeholder {
+  color: var(--reception-muted) !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-type-badge {
+  background: #293850 !important;
+  border: 1px solid #485d7a !important;
+  color: #e5ecfa !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-type-badge.consultant {
+  background: #292957 !important;
+  border-color: #625eb4 !important;
+  color: #dad7ff !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-type-badge.travel {
+  background: #123d51 !important;
+  border-color: #236986 !important;
+  color: #9be8f8 !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-type-badge.technology {
+  background: #164b43 !important;
+  border-color: #2b7668 !important;
+  color: #a5f3d9 !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-assigned-employee,
+body.dark-mode .retail-isp-app .reception-page .reception-assign-arrow {
+  background: #233754 !important;
+  border: 1px solid #405b80 !important;
+  color: #c9e0ff !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-assigned-employee :is(span, svg) {
+  color: inherit !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-row-actions button {
+  background: var(--reception-surface) !important;
+  border-color: var(--reception-outline) !important;
+  color: #d3e3fb !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-row-actions button:hover {
+  background: #293e5f !important;
+  border-color: #6a83aa !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-customer-name > span {
+  background: #2c365b !important;
+  color: #c4b5fd !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-status-badge.pending,
+body.dark-mode .retail-isp-app .reception-page .reception-status-badge.assigned {
+  background: #54350e !important;
+  border: 1px solid #89601e !important;
+  color: #ffe7a1 !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-status-badge.accepted {
+  background: #124937 !important;
+  border: 1px solid #30765a !important;
+  color: #a5f3c8 !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-status-badge.rejected {
+  background: #58272c !important;
+  border: 1px solid #8a3b42 !important;
+  color: #fecaca !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-status-badge.none {
+  background: #293850 !important;
+  color: #d2dfef !important;
+  border-color: #465b76 !important;
+}
+body.dark-mode .retail-isp-app .reception-page :is(.reception-modal, .reception-modal-header, .reception-modal-actions, .reception-assign-modal, .reception-view-modal, .reception-delete-modal) {
+  background: var(--reception-surface-raised) !important;
+  border-color: var(--reception-outline) !important;
+  color: var(--reception-text) !important;
+}
+body.dark-mode .retail-isp-app .reception-page :is(.reception-form-grid, .reception-assign-grid, .reception-view-grid) :is(input, select, textarea) {
+  background: var(--reception-surface) !important;
+  border-color: var(--reception-outline) !important;
+  color: var(--reception-text) !important;
+  color-scheme: dark;
+}
+body.dark-mode .retail-isp-app .reception-page :is(.reception-form-grid, .reception-assign-grid) :is(input, textarea)::placeholder {
+  color: var(--reception-muted) !important;
+}
+body.dark-mode .retail-isp-app .reception-page :is(.reception-assign-actions, .reception-view-actions, .reception-delete-actions) button:not(.primary):not(.danger) {
+  background: var(--reception-surface) !important;
+  border-color: var(--reception-outline) !important;
+  color: var(--reception-text) !important;
+}
+/* Light mode: keep controls light, with legible text and consistent borders. */
+body:not(.dark-mode) .retail-isp-app .reception-page .reception-assigned-employee {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border-color: #bfdbfe !important;
+}
+body:not(.dark-mode) .retail-isp-app .reception-page .reception-search input {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Reception: unassigned employee action should never inherit white button styles. */
+body .retail-isp-app .reception-page .reception-table-wrap button.reception-assign-arrow {
+  display: inline-flex !important;
+  width: auto !important;
+  min-width: 78px !important;
+  min-height: 30px !important;
+  height: auto !important;
+  padding: 6px 10px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  border-radius: 9px !important;
+  border: 1px solid #c7d2fe !important;
+  background: #eef2ff !important;
+  color: #4338ca !important;
+  box-shadow: none !important;
+  font-family: inherit !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+  opacity: 1 !important;
+  cursor: pointer !important;
+}
+body .retail-isp-app .reception-page .reception-table-wrap button.reception-assign-arrow :is(svg,span) {
+  color: inherit !important;
+  opacity: 1 !important;
+  flex-shrink: 0;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-table-wrap button.reception-assign-arrow {
+  background: #203456 !important;
+  border-color: #48668d !important;
+  color: #c8dcff !important;
+}
+body.dark-mode .retail-isp-app .reception-page .reception-table-wrap button.reception-assign-arrow:hover,
+body .retail-isp-app .reception-page .reception-table-wrap button.reception-assign-arrow:hover {
+  background: #4f46e5 !important;
+  border-color: #7974f9 !important;
+  color: #fff !important;
+}
+body .retail-isp-app .reception-page .reception-table-wrap button.reception-assign-arrow:focus-visible {
+  outline: 2px solid #fbbf24 !important;
+  outline-offset: 2px !important;
+}
