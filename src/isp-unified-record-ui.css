@@ -1,0 +1,74 @@
+/* Afghan Power ISP: cross-module record/detail contrast & responsive fixes.
+   Import last. Narrow, theme-scoped rules avoid altering printed receipts. */
+:root { --isp-focus-ring: rgba(251,191,36,.2); }
+body.dark-mode .retail-isp-app {
+  --isp-detail-surface:#101b2d;
+  --isp-detail-raised:#192840;
+  --isp-detail-input:#0c172a;
+  --isp-detail-border:#334661;
+  --isp-detail-text:#eef4ff;
+  --isp-detail-muted:#a8bad3;
+}
+/* Form inputs and controls across detail forms: native file/radio/checkbox controls exempt. */
+body.dark-mode .retail-isp-app :is(.page-content,[role="dialog"],dialog) :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),select,textarea) {
+  color:var(--isp-detail-text)!important;
+  background-color:var(--isp-detail-input)!important;
+  border-color:var(--isp-detail-border)!important;
+  color-scheme:dark;
+}
+body.dark-mode .retail-isp-app :is(.page-content,[role="dialog"],dialog) :is(input,textarea)::placeholder {color:#91a6c4!important;opacity:1}
+body.dark-mode .retail-isp-app :is(.page-content,[role="dialog"],dialog) :is(input,select,textarea):focus-visible {outline:2px solid #eab308!important;outline-offset:1px}
+/* Search wrapper supplies its own outline; nested input must remain unboxed. */
+body.dark-mode .retail-isp-app :is(.reception-search,.project-sale-search,.customer-search-input-wrap,.header-search,.search-input-wrap,.global-search,.visa-package-search,.technology-package-search,.media-package-search) input:not([type=checkbox]):not([type=radio]) {
+ background:transparent!important;border:0!important;box-shadow:none!important;outline:0!important;min-width:0;
+}
+/* Common profile information surfaces and editable-looking read-only fields. */
+body.dark-mode .retail-isp-app :is(.customer-info-card,.employee-profile-card,.dashboard-detail-card,.customer-profile-card,.employee-details-card,.record-details-card,.record-detail-card,.profile-info-card,.profile-detail-card,.asset-detail-card,.consultant-detail-card,.reception-detail-card) {
+  background:var(--isp-detail-surface)!important;border-color:var(--isp-detail-border)!important;color:var(--isp-detail-text)!important;
+}
+/* Neutral identity/avatar tiles should never look like empty white inputs. */
+body.dark-mode .retail-isp-app :is(.reception-customer-name>span,.reception-assigned-employee,.consultant-name-avatar,.employee-attendance-avatar,.employee-performance-avatar,.customer-avatar,.account-avatar,.advanced-avatar,.developer-avatar,.my-account-avatar,.my-account-modal-avatar) {
+ background:#213452!important;color:#d5e4ff!important;border-color:#405779!important;
+}
+body.dark-mode .retail-isp-app :is(.reception-assigned-employee,.consultant-assigned) :is(span,strong,small) {color:#d5e4ff!important}
+body.dark-mode .retail-isp-app :is(.reception-type-badge,.consultant-stage-badge,.customer-device-badge,.asset-badge,.asset-location-badge,.asset-movement-badge,.driver-badge,.finance-badge,.package-badge,.cash-wallet-type-pill,.device-transfer-pill,.employee-type-chip,.employee-department-chip) {
+ background:#213452!important;color:#d5e4ff!important;border-color:#405779!important;
+}
+/* Use consistent meaningful colors on semantic reception types. */
+body.dark-mode .retail-isp-app .reception-type-badge.consultant{background:#25264d!important;color:#d5d1ff!important;border-color:#55518c!important}
+body.dark-mode .retail-isp-app .reception-type-badge.travel{background:#123a47!important;color:#9eeaf6!important;border-color:#256776!important}
+body.dark-mode .retail-isp-app .reception-type-badge.technology{background:#14392e!important;color:#9eeccc!important;border-color:#2c6850!important}
+/* Modal backdrops stay blurred, modal surfaces are opaque for text contrast. */
+body.dark-mode .retail-isp-app :is(.reception-modal-backdrop,.project-sale-modal-backdrop,.project-receipt-backdrop,.office-asset-modal-backdrop,.finance-modal-backdrop,.employee-modal-backdrop,.consultant-modal-backdrop) {
+ background:rgba(3,9,22,.72)!important;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)
+}
+body.dark-mode .retail-isp-app :is(.reception-modal,.reception-detail-modal,.reception-assign-modal,.customer-modal,.customer-stage-dialog,.employee-modal,.employee-profile-modal,.asset-modal,.asset-detail-modal,.office-asset-modal,.finance-modal,.my-account-modal,.project-sale-customer-modal,.consultant-modal,.consultant-detail-modal) {
+ background:var(--isp-detail-surface)!important;border-color:var(--isp-detail-border)!important;color:var(--isp-detail-text)!important;
+}
+/* Fix legacy light Cancel/Close buttons only; don't override primary and dangerous actions. */
+body.dark-mode .retail-isp-app :is(.reception-modal-actions,.finance-modal-actions,.employee-modal-actions,.consultant-modal-actions,.office-asset-modal-actions,.project-sale-actions) button:not([type=submit]):not(.danger):not(.primary),
+body.dark-mode .retail-isp-app :is(.finance-modal,.reception-modal,.employee-modal,.consultant-modal,.office-asset-modal) :is(.cancel-btn,.close-btn,.btn-cancel,.modal-close) {
+ background:#22334d!important;color:#e9f2ff!important;border:1px solid #405675!important;
+}
+body.dark-mode .retail-isp-app :is(.finance-modal,.reception-modal,.employee-modal,.consultant-modal,.office-asset-modal) button:disabled {
+ background:#25334b!important;color:#97a9c1!important;border-color:#34465e!important;opacity:.75;
+}
+/* Tables do not receive bright floating chips when dark mode is selected. */
+body.dark-mode .retail-isp-app :is(.reception-table-wrap,.consultant-table-wrap,.employee-table-wrap,.finance-table-wrap,.asset-table-wrap,.office-assets-table-wrap) :is(thead,th){background:#101d32!important;color:#bbcee7!important;border-color:#334661!important}
+body.dark-mode .retail-isp-app :is(.reception-table-wrap,.consultant-table-wrap,.employee-table-wrap,.finance-table-wrap,.asset-table-wrap,.office-assets-table-wrap) td {border-color:#334661!important;color:#eaf1fd!important}
+body.dark-mode .retail-isp-app :is(.reception-table-wrap,.consultant-table-wrap,.employee-table-wrap,.finance-table-wrap,.asset-table-wrap,.office-assets-table-wrap) tbody tr:hover {background:#172940!important}
+/* Hide scrollbars but preserve scrolling, mouse wheel and keyboard scrolling. */
+.retail-isp-app :is(.sidebar,.page-content,.table-wrap,.table-responsive,.reception-table-wrap,.consultant-table-wrap,.employee-table-wrap,.finance-table-wrap,.asset-table-wrap,[class*="table-wrap"]) {scrollbar-width:none;-ms-overflow-style:none}
+.retail-isp-app :is(.sidebar,.page-content,.table-wrap,.table-responsive,.reception-table-wrap,.consultant-table-wrap,.employee-table-wrap,.finance-table-wrap,.asset-table-wrap,[class*="table-wrap"])::-webkit-scrollbar {display:none;width:0;height:0}
+@media (max-width:900px){
+ .retail-isp-app .page-content{min-width:0;max-width:100%;overflow-x:hidden!important}
+ .retail-isp-app :is(.reception-table-wrap,.consultant-table-wrap,.employee-table-wrap,.finance-table-wrap,[class*="table-wrap"]){max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+ .retail-isp-app :is(.reception-modal,.reception-detail-modal,.customer-modal,.employee-modal,.finance-modal,.asset-modal,.office-asset-modal,.consultant-modal,.consultant-detail-modal){max-width:calc(100vw - 20px)!important;max-height:calc(100dvh - 20px)!important;overflow-y:auto!important}
+}
+@media (max-width:640px){
+ .retail-isp-app .page-content{padding-inline:10px!important}
+ .retail-isp-app :is(.reception-form-grid,.employee-form-grid,.finance-form-grid,.customer-form-grid,.project-form-grid,.asset-form-grid,[class*="detail-grid"]){grid-template-columns:minmax(0,1fr)!important}
+ .retail-isp-app :is(.reception-page,.employee-page,.finance-page,.consultant-page,.customer-details-page){max-width:100%;min-width:0}
+ .retail-isp-app :is(.reception-heading,.reception-records-header){flex-wrap:wrap;gap:10px}
+}
+@media print {body.dark-mode .project-contract-page,body.dark-mode .project-print-receipt,body.dark-mode .project-receipt-modal {background:#fff!important;color:#111!important}}

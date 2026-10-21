@@ -12,6 +12,7 @@ import "./isp-global-ui-fix.css";
 import "./isp-search-border-fix.css";
 import "./isp-targeted-final.css";
 import "./isp-reception-mobile-polish.css";
+import "./isp-unified-record-ui.css";
 ReactDOM.createRoot(document.getElementById("root")).render(
   <StrictMode><AppErrorBoundary><HashRouter><App /></HashRouter></AppErrorBoundary></StrictMode>
 );
