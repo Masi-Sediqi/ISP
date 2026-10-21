@@ -47,6 +47,6 @@ export async function saveCollectionChanges(collection, previousItems, nextItems
   return true;
 }
 
-export async function fetchServerCollection(collection) {
-  return fetchRemoteCollection(collection);
+export async function fetchServerCollection(collection, onProgress) {
+  return fetchRemoteCollection(collection, onProgress);
 }
