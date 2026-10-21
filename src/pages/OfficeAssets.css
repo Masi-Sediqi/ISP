@@ -1067,3 +1067,56 @@ body.dark-mode
     align-items: stretch;
   }
 }
+
+/* Office Asset modal: consistent light/dark surfaces and a softly blurred backdrop. */
+.office-asset-modal-backdrop {
+  background: rgba(5, 12, 24, .56);
+  -webkit-backdrop-filter: blur(9px);
+  backdrop-filter: blur(9px);
+}
+body.dark-mode .office-asset-modal-backdrop {
+  background: rgba(2, 8, 20, .66) !important;
+  -webkit-backdrop-filter: blur(9px) saturate(.82) !important;
+  backdrop-filter: blur(9px) saturate(.82) !important;
+}
+body.dark-mode .office-asset-modal,
+body.dark-mode .office-asset-modal-header,
+body.dark-mode .office-asset-modal-actions {
+  background: #101a2c !important;
+  color: #edf3ff !important;
+  border-color: #30405b !important;
+}
+body.dark-mode .office-asset-modal-header > button,
+body.dark-mode .office-asset-modal-actions button:not([type="submit"]) {
+  background: #1c2b42 !important;
+  color: #e7efff !important;
+  border: 1px solid #3b4d68 !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+body.dark-mode .office-asset-modal-header > button:hover,
+body.dark-mode .office-asset-modal-actions button:not([type="submit"]):hover {
+  background: #2a3d59 !important;
+  border-color: #5a7196 !important;
+}
+body.dark-mode .office-asset-modal-actions button[type="submit"] {
+  background: #fbbf24 !important;
+  color: #101827 !important;
+  border-color: #fbbf24 !important;
+}
+body.dark-mode .office-asset-modal-actions button:focus-visible,
+body.dark-mode .office-asset-modal-header > button:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .office-asset-modal-backdrop,
+  body.dark-mode .office-asset-modal-backdrop {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: rgba(2, 8, 20, .87) !important;
+  }
+}
+@media print {
+  .office-asset-modal { background: white !important; color: #111 !important; }
+}

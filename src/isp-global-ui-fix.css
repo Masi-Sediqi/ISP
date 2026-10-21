@@ -1,0 +1,79 @@
+/* Universal fix for legacy search fields and theme mismatches, imported LAST. */
+:root { color-scheme: light; }
+body.dark-mode { color-scheme: dark; }
+/* Make any scrollable region scroll normally while never drawing a scrollbar. */
+html, body, #root, #root *, .app, .sidebar, .page-content {
+ scrollbar-width: none !important;
+ -ms-overflow-style: none !important;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
+#root *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+/* Input wrappers from all ISP modules: one outline per field, no inset white rectangle. */
+.retail-isp-app :is(
+ .visa-package-search, .technology-package-search, .media-package-search,
+ .project-sale-search, .customer-search-input-wrap, .search-input-wrap,
+ .project-bills-toolbar label, .header-search, .global-search,
+ .consultant-country-search
+) { min-width: 0; border: 1px solid var(--isp-border,#334155) !important;
+ background: var(--isp-panel,#fff) !important; border-radius: 10px !important;
+ color: var(--isp-ink,#111827) !important; box-shadow:none !important; }
+.retail-isp-app :is(
+ .visa-package-search, .technology-package-search, .media-package-search,
+ .project-sale-search, .customer-search-input-wrap, .search-input-wrap,
+ .project-bills-toolbar label, .header-search, .global-search,
+ .consultant-country-search
+) input:not([type=checkbox]):not([type=radio]) {
+ background: transparent !important; background-image:none !important;
+ border: 0 !important; border-radius:0 !important; box-shadow:none !important;
+ outline: none !important; width:100% !important; min-width:0 !important;
+ color: inherit !important; padding-inline:0 !important;
+}
+.retail-isp-app :is(
+ .visa-package-search, .technology-package-search, .media-package-search,
+ .project-sale-search, .customer-search-input-wrap, .search-input-wrap,
+ .project-bills-toolbar label, .header-search, .global-search,
+ .consultant-country-search
+):focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgb(251 191 36 / 13%) !important;}
+/* Browser autofill in dark mode should never draw a white or pale inset box. */
+body.dark-mode .retail-isp-app input:-webkit-autofill,
+body.dark-mode .retail-isp-app input:-webkit-autofill:hover,
+body.dark-mode .retail-isp-app input:-webkit-autofill:focus {
+ -webkit-text-fill-color: #f8fafc !important;
+ -webkit-box-shadow: 0 0 0 1000px #101a2d inset !important;
+ transition: background-color 5000s ease-in-out 0s;
+}
+body.dark-mode .retail-isp-app :is(
+ .visa-package-search, .technology-package-search, .media-package-search,
+ .project-sale-search, .customer-search-input-wrap, .search-input-wrap,
+ .project-bills-toolbar label, .header-search, .global-search,
+ .consultant-country-search
+) {background: #101a2d !important;color:#f8fafc !important;border-color:#334762 !important;}
+body.dark-mode .retail-isp-app :is(
+ .visa-package-search, .technology-package-search, .media-package-search,
+ .project-sale-search, .customer-search-input-wrap, .search-input-wrap,
+ .project-bills-toolbar label, .header-search, .global-search,
+ .consultant-country-search
+) input {background:transparent !important;-webkit-box-shadow:none !important;}
+/* Control consistency beyond the explicit known search wrappers. */
+body.dark-mode .retail-isp-app .page-content :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) {
+ color:#edf4ff !important; border-color:#334762 !important; color-scheme:dark;
+}
+body.dark-mode .retail-isp-app .page-content input[type=file]::file-selector-button {
+ background:#21324a !important;color:#fff !important;border:1px solid #415673 !important;border-radius:8px;padding:7px 11px;
+}
+body.dark-mode .retail-isp-app .page-content :is(
+ .visa-package-table-card, .technology-package-table-card, .media-package-table-card,
+ .package-table-card, .package-hub-card, .package-section-card, .package-summary-card,
+ .packages-page .package-card, .project-sale-panel, .project-search-card,
+ .table-card, .stat, .card, .settings-card, .settings-data-card
+ ) {background:#101a2d !important;border-color:#293951 !important;color:#f8fafc !important;}
+body.dark-mode .retail-isp-app .page-content :is(
+ .visa-package-table-card, .technology-package-table-card, .media-package-table-card,
+ .package-table-card, .package-hub-card, .package-section-card
+ ) :is(h2,h3,strong) {color:#f8fafc !important;}
+/* The numeric summary pills were appearing white in dark mode. */
+body.dark-mode .retail-isp-app .packages-page :is(.package-count,.package-card-count,.package-summary-count,.package-hub-count,.package-tab-count,.package-total,.count-badge) {
+ background:#202e48 !important;color:#f8fafc !important;border:1px solid #3c506f !important;
+}
+/* Keep printable paper white. */
+@media print { body .project-contract-page,body .project-print-receipt {background:#fff!important;color:#111!important;} }

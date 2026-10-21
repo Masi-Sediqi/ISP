@@ -1,0 +1,578 @@
+/* Final global search-field reset. The field wrapper owns the only visible border. */
+body .retail-isp-app .project-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .project-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .project-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .project-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .project-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .project-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .project-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .project-sale-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .project-sale-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .project-sale-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .project-sale-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .project-sale-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .project-sale-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .project-sale-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .visa-package-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .visa-package-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .visa-package-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .visa-package-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .visa-package-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .visa-package-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .visa-package-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .technology-package-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .technology-package-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .technology-package-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .technology-package-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .technology-package-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .technology-package-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .technology-package-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .media-package-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .media-package-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .media-package-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .media-package-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .media-package-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .media-package-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .media-package-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .customer-search-input-wrap:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .customer-search-input-wrap > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .customer-search-input-wrap > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .customer-search-input-wrap:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .customer-search-input-wrap > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .customer-search-input-wrap > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .customer-search-input-wrap:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .search-input-wrap:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .search-input-wrap > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .search-input-wrap > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .search-input-wrap:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .search-input-wrap > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .search-input-wrap > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .search-input-wrap:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .reports-search-box:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .reports-search-box > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .reports-search-box > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .reports-search-box:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .reports-search-box > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .reports-search-box > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .reports-search-box:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .employee-attendance-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .employee-attendance-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .employee-attendance-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .employee-attendance-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .employee-attendance-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .employee-attendance-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .employee-attendance-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .cash-wallet-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .cash-wallet-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .cash-wallet-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .cash-wallet-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .cash-wallet-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .cash-wallet-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .cash-wallet-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .staff-payable-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .staff-payable-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .staff-payable-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .staff-payable-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .staff-payable-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .staff-payable-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .staff-payable-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .office-assets-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .office-assets-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .office-assets-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .office-assets-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .office-assets-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .office-assets-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .office-assets-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .tower-transfer-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .tower-transfer-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .tower-transfer-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .tower-transfer-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .tower-transfer-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .tower-transfer-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .tower-transfer-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .customer-issue-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .customer-issue-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .customer-issue-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .customer-issue-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .customer-issue-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .customer-issue-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .customer-issue-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .reception-package-search-box:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .reception-package-search-box > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .reception-package-search-box > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .reception-package-search-box:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .reception-package-search-box > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .reception-package-search-box > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .reception-package-search-box:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .reception-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .reception-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .reception-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .reception-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .reception-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .reception-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .reception-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .license-header-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .license-header-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .license-header-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .license-header-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .license-header-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .license-header-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .license-header-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .consultant-country-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .consultant-country-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .consultant-country-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .consultant-country-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .consultant-country-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .consultant-country-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .consultant-country-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .header-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .header-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .header-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .header-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .header-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .header-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .header-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .global-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .global-search > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .global-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .global-search:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .global-search > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .global-search > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .global-search:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+body .retail-isp-app .project-bills-toolbar label:has(input:not([type="checkbox"]):not([type="radio"])) {
+  display:flex; align-items:center; gap:8px; min-width:0;
+  background:var(--isp-panel,#fff) !important;
+  border:1px solid var(--isp-border,#dce3ed) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+  background-image:none !important;
+}
+body .retail-isp-app .project-bills-toolbar label > input:not([type="checkbox"]):not([type="radio"]),
+body .retail-isp-app .project-bills-toolbar label > label > input:not([type="checkbox"]):not([type="radio"]) {
+  display:block; flex:1 1 auto; min-width:0; width:100%; height:auto;
+  padding:0 !important; margin:0 !important;
+  border:0 !important; border-radius:0 !important; outline:0 !important;
+  box-shadow:none !important; background:transparent !important;
+  background-image:none !important; color:inherit !important;
+  -webkit-appearance:none; appearance:none;
+}
+body.dark-mode .retail-isp-app .project-bills-toolbar label:has(input:not([type="checkbox"]):not([type="radio"])) {
+  background:#101a2d !important; border-color:#344762 !important; color:#f8fafc !important;
+}
+body.dark-mode .retail-isp-app .project-bills-toolbar label > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app .project-bills-toolbar label > label > input:not([type="checkbox"]):not([type="radio"]) {
+  background:transparent !important; color:#f8fafc !important;
+  border:0 !important; box-shadow:none !important;
+}
+body .retail-isp-app .project-bills-toolbar label:focus-within {border-color:#fbbf24 !important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;}
+
+/* Remove browser-native inset borders and autofill blocks from search controls. */
+body .retail-isp-app input[type="search"]::-webkit-search-decoration,
+body .retail-isp-app input[type="search"]::-webkit-search-cancel-button,
+body .retail-isp-app input[type="search"]::-webkit-search-results-button,
+body .retail-isp-app input[type="search"]::-webkit-search-results-decoration { -webkit-appearance:none; }
+body.dark-mode .retail-isp-app .page-content input:-webkit-autofill { -webkit-text-fill-color:#f8fafc !important; }
+/* Scroll with mouse/touch/keyboard; conceal the track in all scroll regions. */
+html,body,#root,#root * {scrollbar-width:none !important;-ms-overflow-style:none !important;}
+html::-webkit-scrollbar,body::-webkit-scrollbar,#root::-webkit-scrollbar,#root *::-webkit-scrollbar {display:none!important;width:0!important;height:0!important;}
+@media print { body .project-print-receipt,body .project-contract-page {background:white!important;color:#111!important;} }

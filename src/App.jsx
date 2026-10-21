@@ -35,7 +35,9 @@ import {
   Users,
   CircleUserRound,
   UserRoundCog,
-  WalletCards,
+  CircleDollarSign,
+  Menu,
+  X,
 } from "lucide-react";
 import Header from "./components/Header";
 import GlobalTableEnhancer from "./components/GlobalTableEnhancer";
@@ -47,114 +49,22 @@ import { notify, requestSystemNotificationPermission } from "./utils/notify";
 
 
 
-function PageLoader({ progress: controlledProgress }) {
-  const [estimatedProgress, setEstimatedProgress] = useState(0);
-
-  useEffect(() => {
-    if (controlledProgress !== undefined) return undefined;
-    const timer = window.setInterval(() => {
-      setEstimatedProgress((current) => Math.min(94, current + Math.max(1, Math.ceil((94 - current) * 0.08))));
-    }, 180);
-    return () => window.clearInterval(timer);
-  }, [controlledProgress]);
-
-  const progress = controlledProgress ?? estimatedProgress;
-
+function PageLoader() {
   return (
-    <div className="page-loader-overlay" role="status" aria-label="Loading page">
-      <div className="page-progress">
-        <div className="page-progress-heading">
-          <span>Loading</span>
-          <strong>{progress}%</strong>
-        </div>
-        <div className="page-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label="Page loading progress">
-          <div className="page-progress-fill" style={{ width: `${progress}%` }} />
-        </div>
-      </div>
+    <div className="isp-fast-loader" role="status" aria-label="Loading page">
+      <span className="isp-fast-loader-spinner" aria-hidden="true" />
     </div>
   );
 }
 
 function RoutePageFallback() {
-  useEffect(() => {
-    const token = `page:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
-    window.dispatchEvent(new CustomEvent("isp-data-loading", { detail: { phase: "start", token } }));
-    return () => window.dispatchEvent(new CustomEvent("isp-data-loading", { detail: { phase: "end", token } }));
-  }, []);
-
   return <PageLoader />;
 }
 
+// Do not cover an already mounted page while independent data requests finish.
+// Pages display their own loading/empty/error states.
 function GlobalDataLoader() {
-  const location = useLocation();
-  const routeKey = `${location.pathname}${location.search}${location.hash}`;
-  const [activeRouteKey, setActiveRouteKey] = useState(routeKey);
-  const routeChanged = activeRouteKey !== routeKey;
-  const [routeLoading, setRouteLoading] = useState(true);
-  const [pendingLoads, setPendingLoads] = useState(0);
-  const [progress, setProgress] = useState(0);
-  const [showLoader, setShowLoader] = useState(true);
-  const completedLoadsRef = useRef(0);
-  const startedLoadsRef = useRef(0);
-  const loadingTokensRef = useRef(new Set());
-
-  useEffect(() => {
-    setActiveRouteKey(routeKey);
-    setRouteLoading(true);
-    setShowLoader(true);
-    setProgress(0);
-    completedLoadsRef.current = 0;
-    startedLoadsRef.current = 0;
-    loadingTokensRef.current.clear();
-    setPendingLoads(0);
-    const timer = window.setTimeout(() => setRouteLoading(false), 320);
-    return () => window.clearTimeout(timer);
-  }, [routeKey]);
-
-  useEffect(() => {
-    const handleDataLoading = (event) => {
-      const phase = event?.detail?.phase;
-      const token = String(event?.detail?.token || "");
-      if (!token) return;
-
-      if (phase === "start" && !loadingTokensRef.current.has(token)) {
-        loadingTokensRef.current.add(token);
-        startedLoadsRef.current += 1;
-      }
-      if (phase === "end" && loadingTokensRef.current.delete(token)) {
-        completedLoadsRef.current += 1;
-        const completedShare = completedLoadsRef.current / (startedLoadsRef.current + 1);
-        setProgress((current) => Math.max(current, Math.min(94, Math.round(completedShare * 100))));
-      }
-      setPendingLoads(loadingTokensRef.current.size);
-    };
-
-    window.addEventListener("isp-data-loading", handleDataLoading);
-    return () => window.removeEventListener("isp-data-loading", handleDataLoading);
-  }, []);
-
-  const busy = routeChanged || routeLoading || pendingLoads > 0;
-
-  useEffect(() => {
-    if (!busy) {
-      setProgress(100);
-      const timer = window.setTimeout(() => setShowLoader(false), 220);
-      return () => window.clearTimeout(timer);
-    }
-
-    const timer = window.setInterval(() => {
-      setProgress((current) => Math.min(94, current + Math.max(1, Math.ceil((94 - current) * 0.06))));
-    }, 180);
-    return () => window.clearInterval(timer);
-  }, [busy]);
-
-  if (!showLoader && !busy) return null;
-
-  return (
-    <div className="global-data-loader">
-      <PageLoader progress={routeChanged ? 0 : progress} />
-    </div>
-  );
+  return null;
 }
 
 class PageErrorBoundary extends Component {
@@ -351,6 +261,14 @@ function App() {
   const [employees, , loadEmployees, employeesLoaded, employeesLoadError] = useJsonCollection("employees");
   const [customers, , , customersLoaded] = useJsonCollection("customers", { enabled: false });
   
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!sidebarOpen) return undefined;
+    const closeOnEscape = (event) => { if (event.key === "Escape") setSidebarOpen(false); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [sidebarOpen]);
   const [sidebarInfoOpen, setSidebarInfoOpen] = useState(false);
   const sidebarInfoRef = useRef(null);
 
@@ -1155,7 +1073,7 @@ const myAssignedCustomers = customers
     },
     { to: "/suppliers", label: sidebarText.suppliers, moduleKey: "suppliers", icon: Building2 },
     { to: "/office-assets", label: sidebarText.assets, moduleKey: "dashboard", icon: Armchair, },
-    { to: "/finance", label: sidebarText.finances, moduleKey: "finance", icon: WalletCards },
+    { to: "/finance", label: sidebarText.finances, moduleKey: "finance", icon: CircleDollarSign },
     { to: "/reports", label: sidebarText.reports, moduleKey: "reports", icon: FileBarChart },
     { to: "/settings", label: sidebarText.settings, moduleKey: "settings", icon: SettingsIcon },
     { to: "/agent", label: sidebarText.aiAgent, moduleKey: "agent", icon: Bot },
@@ -1242,8 +1160,11 @@ const myAssignedCustomers = customers
     );
   } else {
     appContent = (
-      <div className="app" dir={interfaceLanguage === "en" ? "ltr" : "rtl"}>
-        <aside className="sidebar">
+      <div className="app retail-isp-app" dir={interfaceLanguage === "en" ? "ltr" : "rtl"}>
+        {sidebarOpen && <button type="button" className="isp-sidebar-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
+        <button type="button" className="isp-mobile-menu" aria-label="Open navigation" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen(true)}><Menu size={21} /></button>
+        <aside className={`sidebar retail-isp-sidebar ${sidebarOpen ? "isp-sidebar-open" : ""}`}>
+          <button type="button" className="isp-sidebar-close" aria-label="Close navigation" onClick={() => setSidebarOpen(false)}><X size={19}/></button>
           <div className="brand">
             <div className="brand-logo">
               <img src={brandLogo} alt="Afghan Power" />

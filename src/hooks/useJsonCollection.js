@@ -17,6 +17,10 @@ const ACTIVITY_IGNORED_COLLECTIONS = new Set([
   "recycleBin",
 ]);
 const sharedCollectionRequests = new Map();
+// Short lived in-memory snapshots avoid duplicate round-trips when navigating
+// between screens. Mutations invalidate the snapshot immediately.
+const collectionSnapshots = new Map();
+const SNAPSHOT_TTL_MS = 5000;
 const canUseRemote = () => serverConfigured && navigator.onLine;
 
 async function fetchCollectionShared(name) {
@@ -24,9 +28,19 @@ async function fetchCollectionShared(name) {
     return sharedCollectionRequests.get(name);
   }
 
-  const request = fetchServerCollection(name).finally(() => {
-    sharedCollectionRequests.delete(name);
-  });
+  const snapshot = collectionSnapshots.get(name);
+  if (snapshot && Date.now() - snapshot.timestamp < SNAPSHOT_TTL_MS) {
+    return snapshot.items;
+  }
+
+  const request = fetchServerCollection(name)
+    .then((items) => {
+      collectionSnapshots.set(name, { items, timestamp: Date.now() });
+      return items;
+    })
+    .finally(() => {
+      sharedCollectionRequests.delete(name);
+    });
 
   sharedCollectionRequests.set(name, request);
   return request;
@@ -282,8 +296,13 @@ export function useJsonCollection(name, options = {}) {
     if (disabled) return undefined;
 
     const handleRemoteChange = (event) => {
-      if (Array.isArray(event?.detail)) applyItems(event.detail);
-      else load();
+      if (Array.isArray(event?.detail)) {
+        collectionSnapshots.set(name, { items: event.detail, timestamp: Date.now() });
+        applyItems(event.detail);
+      } else {
+        collectionSnapshots.delete(name);
+        load();
+      }
     };
     window.addEventListener(`isp-server:${name}`, handleRemoteChange);
     return () => {
@@ -312,6 +331,7 @@ export function useJsonCollection(name, options = {}) {
       try {
         await archiveRemovedRecordsToServer(name, previousItems, nextItems);
         await saveCollectionChanges(name, previousItems, nextItems);
+        collectionSnapshots.set(name, { items: nextItems, timestamp: Date.now() });
         applyItems(nextItems);
         window.dispatchEvent(
           new CustomEvent(`isp-server:${name}`, { detail: nextItems })

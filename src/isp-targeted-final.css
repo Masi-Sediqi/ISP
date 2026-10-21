@@ -1,0 +1,54 @@
+/* Targeted corrections grounded in RecycleBin.jsx, RecycleBin.css and Header.jsx. */
+/* Search control: border lives on wrapping label, never on its input. */
+body .retail-isp-app .recycle-bin-toolbar > label,
+body.dark-mode .retail-isp-app .recycle-bin-toolbar > label {
+  display:flex!important;align-items:center!important;gap:9px!important;
+  min-height:39px!important;padding:0 10px!important;
+  border:1px solid #344762!important;border-radius:9px!important;
+  background:#0c1628!important;color:#c7d6ee!important;
+  box-shadow:none!important;
+}
+body .retail-isp-app .recycle-bin-toolbar > label > input,
+body .retail-isp-app .recycle-bin-toolbar > label > input[type="search"],
+body.dark-mode .retail-isp-app .recycle-bin-toolbar > label > input,
+body.dark-mode .retail-isp-app .recycle-bin-toolbar > label > input[type="search"] {
+  flex:1 1 0!important;min-width:0!important;width:100%!important;
+  height:36px!important;min-height:36px!important;margin:0!important;
+  padding:0!important;border:0!important;border-width:0!important;
+  border-radius:0!important;outline:none!important;
+  background:transparent!important;background-color:transparent!important;
+  background-image:none!important;box-shadow:none!important;
+  color:#f8fafc!important;appearance:none!important;-webkit-appearance:none!important;
+}
+body .retail-isp-app .recycle-bin-toolbar > label > input:focus,
+body.dark-mode .retail-isp-app .recycle-bin-toolbar > label > input:focus {
+  outline:0!important;border:0!important;box-shadow:none!important;
+  background:transparent!important;
+}
+body .retail-isp-app .recycle-bin-toolbar > label:focus-within {
+  border-color:#fbbf24!important;box-shadow:0 0 0 2px rgba(251,191,36,.14)!important;
+}
+/* The white record-count pill and My Account link are hardcoded light in source CSS. */
+body.dark-mode .retail-isp-app .recycle-bin-heading > strong {
+  background:#17253d!important;border:1px solid #344762!important;
+  color:#d8e6fa!important;
+}
+body.dark-mode .retail-isp-app .profile-dropdown .profile-account-link,
+body.dark-mode .retail-isp-app .header-menu .profile-account-link {
+  background:#192a43!important;border:1px solid #344762!important;
+  color:#e7f0fd!important;
+}
+body.dark-mode .retail-isp-app .profile-dropdown .profile-account-link :is(svg,span,b),
+body.dark-mode .retail-isp-app .header-menu .profile-account-link :is(svg,span,b) {
+  color:#e7f0fd!important;
+}
+body.dark-mode .retail-isp-app .profile-dropdown .profile-account-link:hover {
+  background:#273d5b!important;border-color:#577293!important;
+}
+/* Shared search wrappers from the actual ISP modules: input must not own a second border. */
+body .retail-isp-app :is(.project-search,.project-sale-search,.customer-search-input-wrap,.project-bills-toolbar label,.recycle-bin-toolbar label) > input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .retail-isp-app :is(.project-search,.project-sale-search,.customer-search-input-wrap,.project-bills-toolbar label,.recycle-bin-toolbar label) > input:not([type="checkbox"]):not([type="radio"]) {
+  border:0!important;outline:0!important;box-shadow:none!important;
+  background:transparent!important;background-image:none!important;
+}
+@media(max-width:720px){body .retail-isp-app .recycle-bin-toolbar > label{width:100%!important;}}

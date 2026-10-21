@@ -791,3 +791,22 @@ body.dark-mode .finance-delete-modal p {
 }
 .finance-exchange-warning{margin:0 0 14px;padding:12px 14px;border:1px solid #f59e0b;border-radius:12px;background:#fffbeb;color:#92400e;font-size:12px;font-weight:700;}
 body.dark-mode .finance-exchange-warning{background:#451a03;border-color:#92400e;color:#fde68a;}
+
+
+/* Dark finance modal buttons must be legible against the dark sheet. */
+body.dark-mode .finance-modal .finance-cancel-btn,
+body.dark-mode .finance-modal .finance-modal-header > button {
+  background: #1d2a40 !important;
+  color: #eef4ff !important;
+  border: 1px solid #344762 !important;
+}
+body.dark-mode .finance-modal .finance-cancel-btn:hover,
+body.dark-mode .finance-modal .finance-modal-header > button:hover {
+  background: #30425e !important;
+}
+body.dark-mode .finance-modal .finance-save-btn {
+  color: #101827 !important;
+  background: #fbbf24 !important;
+  border: 1px solid #fbbf24 !important;
+}
+body.dark-mode .finance-modal :is(button,button svg) { opacity: 1; }

@@ -1,0 +1,20 @@
+/* ISP dark mode: loaded after existing CSS */
+body.dark-mode .settings-page :is(.settings-tabs,.settings-card,.settings-data-card,.settings-network-card,.settings-auto-backup,.settings-preview-copy>div,.settings-network-summary>div,.settings-notification-control,.settings-hidden-notifications,.settings-exchange-preview>div){background:#101a2d!important;border-color:#293951!important;color:#f8fafc!important}
+body.dark-mode .settings-page :is(.settings-file-control,.settings-share-address,.settings-form input,.settings-form textarea,.settings-network-grid input,.settings-backup-grid input,.settings-backup-grid select,.settings-exchange-grid input){background:#0b1526!important;border-color:#344762!important;color:#eef4ff!important}
+body.dark-mode .settings-page input[type=file]{background:#0b1526!important;color:#eef4ff!important;color-scheme:dark;min-width:0;max-width:100%}
+body.dark-mode .settings-page .settings-file-control{overflow:hidden;min-width:0;border-style:dashed!important}
+body.dark-mode .settings-page .settings-file-control input[type=file]{width:100%;min-width:0;background:transparent!important;border:0!important;padding:4px!important}
+body.dark-mode .settings-page input[type=file]::file-selector-button{background:#1d2e48!important;color:#f8fafc!important;border:1px solid #415673!important;border-radius:8px;padding:7px 11px;margin-inline-end:10px;cursor:pointer}
+body.dark-mode .settings-page input[type=file]::file-selector-button:hover{background:#304667!important}
+body.dark-mode .settings-page .settings-tabs button{color:#c5d4ea!important}
+body.dark-mode .settings-page .settings-tabs button.active{background:#fbbf24!important;color:#111827!important}
+body.dark-mode .settings-page .settings-save{background:#fbbf24!important;color:#111827!important}
+body.dark-mode .settings-page .settings-clear-zone{background:#281825!important;border-color:#823443!important}
+body.dark-mode .settings-page .settings-clear-zone :is(span,strong){color:#fca5a5!important}
+body.dark-mode .settings-page :is(.settings-section-title,.settings-auto-backup-head,.settings-backup-footer){border-color:#293951!important}
+body.dark-mode .settings-page :is(.settings-header p,.settings-section-title p,.settings-preview-copy span,.settings-network-summary span){color:#a5b7d2!important}
+body.dark-mode .settings-page :is(.settings-card,.settings-data-card,.settings-network-card) :is(h2,h3,h4,strong,label){color:#f8fafc}
+body.dark-mode .settings-page .settings-preview{background:linear-gradient(135deg,#18306d,#2357da)!important;color:#fff!important}
+body.dark-mode .settings-page .settings-preview p{color:#dbeafe!important}
+body.dark-mode .retail-isp-app .page-content{background:#071120!important}
+@media print{.project-print-receipt,.project-contract-page{background:#fff!important;color:#111!important}}

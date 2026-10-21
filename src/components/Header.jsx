@@ -160,7 +160,7 @@ function HeaderActions({ currentUser, onLogout, compact = false }) {
     }
   );
   const [selectedTheme, setSelectedTheme] = useState(
-    () => localStorage.getItem("isp-theme") || "light"
+    () => localStorage.getItem("isp-theme") || "dark"
   );
   const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem("isp-language") || "en");
 

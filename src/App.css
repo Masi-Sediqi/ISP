@@ -4988,3 +4988,163 @@ body.dark-mode .has-error .customer-search-input-wrap {
 .dashboard-wallet-balance-value > span {
   white-space: nowrap;
 }
+
+
+/* === Smart Office dark-mode polish overrides === */
+body.dark-mode .page-content,
+body.dark-mode .main {
+  background: #08111f !important;
+}
+
+body.dark-mode .page-content :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  background: #0c1628 !important;
+  color: #f8fafc !important;
+  border: 1px solid #31415f !important;
+  box-shadow: none !important;
+}
+
+body.dark-mode .page-content :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea)::placeholder {
+  color: #8ca0bf !important;
+}
+
+body.dark-mode .page-content :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.12) !important;
+  outline: none !important;
+}
+
+body.dark-mode .page-content option {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+body.dark-mode .page-content :is(dialog, [role="dialog"], .modal, [class*="modal"], [class*="dialog"]) {
+  background: #111b2d !important;
+  color: #f8fafc !important;
+  border-color: #31415f !important;
+}
+
+body.dark-mode .page-content :is(.card, .table-card, .stat, .dashboard-trend-card, .dashboard-stat-button, .project-sale-panel, .project-sale-item, .project-bills-toolbar, .project-bills-table-wrap, .project-sale-calculation, .project-sale-customer-summary, .customer-search-dropdown, .project-sale-customer-modal, .project-receipt-modal, .project-delete-dialog, .employee-modal, .consultant-modal, .consultant-detail-modal, .consultant-delete-modal, .reception-modal, .reception-detail-modal, .reception-assign-modal, .finance-modal, .settings-card, .settings-data-card) {
+  background: #0e1829 !important;
+  border-color: #223555 !important;
+  color: #f8fafc !important;
+}
+
+body.dark-mode .page-content :is(.project-sale-item-head, .project-receipt-toolbar, .project-sale-modal-header, .dashboard-date-menu-title, .table-pagination, .card-title, .table-card .card-title) {
+  background: #101b2e !important;
+  border-color: #223555 !important;
+}
+
+body.dark-mode .page-content :is(.project-sale-search, .project-bills-toolbar label, .customer-search-input-wrap, .header-search, .dashboard-custom-dates, .project-sale-select-row select, .project-sale-payment-options button, .sale-only-btn) {
+  background: #0c1628 !important;
+  border-color: #31415f !important;
+  color: #e5edf8 !important;
+}
+
+body.dark-mode .page-content :is(.project-search-card, .project-sale-customer-summary, .project-sale-three-inputs label, .project-sale-side-field, .project-sale-calculation > div, .project-bills-table th, .project-bills-table td) {
+  border-color: #223555 !important;
+}
+
+body.dark-mode .page-content :is(.project-search-card:hover, .project-search-card.selected, .customer-search-dropdown button:hover, tbody tr:hover) {
+  background: #132238 !important;
+}
+
+body.dark-mode .page-content :is(h1, h2, h3, strong, th, td, label, button) {
+  color: #f8fafc;
+}
+
+body.dark-mode .page-content :is(p, small, span, .muted, .project-sale-side-field > span, .project-sale-three-inputs label > span, .project-sale-calculation span, .project-bills-toolbar > strong, .project-bills-table th, .form-error-text + small) {
+  color: #96a8c5 !important;
+}
+
+body.dark-mode .page-content .project-sale-payment-options button.active,
+body.dark-mode .page-content .sale-print-btn,
+body.dark-mode .page-content .project-sale-actions button[type="submit"],
+body.dark-mode .page-content .project-sale-select-row > button,
+body.dark-mode .page-content .project-sale-calculation .grand-total {
+  background: #fbbf24 !important;
+  border-color: #fbbf24 !important;
+  color: #111827 !important;
+}
+
+body.dark-mode .page-content .project-sale-payment-options button.active *,
+body.dark-mode .page-content .sale-print-btn *,
+body.dark-mode .page-content .project-sale-actions button[type="submit"] *,
+body.dark-mode .page-content .project-sale-select-row > button * {
+  color: #111827 !important;
+}
+
+body.dark-mode .page-content .project-sale-calculation .grand-total span {
+  color: rgba(17, 24, 39, 0.72) !important;
+}
+
+body.dark-mode .page-content .project-sale-qty-control button,
+body.dark-mode .page-content .project-bill-actions button,
+body.dark-mode .page-content .project-sale-item-head button,
+body.dark-mode .page-content .project-receipt-toolbar button,
+body.dark-mode .page-content .project-sale-modal-header button,
+body.dark-mode .page-content .table-pagination button {
+  background: #0c1628 !important;
+  border-color: #31415f !important;
+  color: #dbe7fb !important;
+}
+
+body.dark-mode .page-content .project-bills-table th,
+body.dark-mode .page-content thead th {
+  background: #0f1b30 !important;
+  color: #b8cae6 !important;
+}
+
+body.dark-mode .page-content .project-bills-table td,
+body.dark-mode .page-content tbody td {
+  background: transparent !important;
+  color: #f8fafc !important;
+}
+
+body.dark-mode .page-content .project-receipt-backdrop,
+body.dark-mode .page-content .project-sale-modal-backdrop {
+  background: rgba(2, 10, 24, 0.76) !important;
+}
+
+
+/* ISP UI core control fixes: dark action buttons and consistent icons */
+body.dark-mode :is(.finance-modal,.employee-modal,.consultant-modal,.reception-modal,.office-assets-modal,[role="dialog"],dialog) :is(button[class*="cancel"],button[class*="close"],button[aria-label="Close"],button[aria-label="Close modal"],button[title="Close"]),
+body.dark-mode :is(button.finance-cancel-btn,button.project-sale-cancel-btn,button[class$="-cancel-btn"],button[class$="-close-btn"]) {
+  background: #1d2a40 !important;
+  border: 1px solid #344762 !important;
+  color: #eaf1fb !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+}
+body.dark-mode :is(button.finance-cancel-btn,button.project-sale-cancel-btn,button[class$="-cancel-btn"],button[class$="-close-btn"]):hover {
+  background: #30425e !important;
+  border-color: #526d91 !important;
+}
+body.dark-mode :is(.finance-modal,.employee-modal,.consultant-modal,.reception-modal,[role="dialog"],dialog) :is(button[class*="cancel"],button[class*="close"],button[aria-label="Close"],button[title="Close"]) :is(span,svg,path) {
+  color: inherit !important;
+  stroke: currentColor;
+}
+.retail-isp-app .sidebar .menu > a > svg {
+  display: block !important;
+  width: 17px !important;
+  height: 17px !important;
+  min-width: 17px;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+  overflow: visible;
+  flex-shrink: 0;
+}
+body.dark-mode .retail-isp-app .sidebar .menu > a.active > svg {
+  stroke: #171717 !important;
+  color: #171717 !important;
+}
+body.dark-mode .finance-modal-backdrop,
+body.dark-mode :is(.employee-modal-backdrop,.consultant-modal-backdrop,.reception-modal-backdrop,.office-asset-modal-backdrop) {
+  background: rgba(1,8,20,.64) !important;
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+}
+@media print {
+  body.dark-mode :is(.project-print-receipt,.project-contract-page){background:#fff!important;color:#111!important}
+}

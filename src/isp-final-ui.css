@@ -1,0 +1,137 @@
+/* Afghan Power ISP: final cross-page field, scrolling and dark surface overrides.
+   Imported last to win over legacy styles without touching app business logic. */
+
+/* Scroll wheel, touch and keyboard scrolling continue; only scrollbar tracks disappear. */
+html, body, #root, .app, .retail-isp-app, .sidebar, .sidebar .menu,
+.main, .page-content, .table-wrap, .table-responsive, .table-card,
+[class*="-table-wrap"], [class*="-list"], [class*="-dropdown"],
+[class*="-modal"], [class*="-content"], [class*="-results"],
+[class*="-scroll"], [role="dialog"] {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar, #root::-webkit-scrollbar,
+.app::-webkit-scrollbar, .retail-isp-app::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar, .sidebar *::-webkit-scrollbar,
+.main::-webkit-scrollbar, .main *::-webkit-scrollbar,
+[role="dialog"]::-webkit-scrollbar, [role="dialog"] *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+/* Avoid reserved empty tracks across browsers. */
+.sidebar, .sidebar .menu, .page-content, [class*="-table-wrap"] {
+  scrollbar-gutter: auto !important;
+}
+
+/* A single neat outline for inputs embedded inside search and select wrappers. */
+.retail-isp-app :is(
+  .project-sale-search, .customer-search-input-wrap,
+  .project-bills-toolbar label, .header-search,
+  .global-search, .search-input-wrap
+) {
+  border: 1px solid var(--isp-border, #31415f) !important;
+  border-radius: 10px !important;
+  overflow: visible;
+  min-width: 0;
+}
+.retail-isp-app :is(
+  .project-sale-search, .customer-search-input-wrap,
+  .project-bills-toolbar label, .header-search,
+  .global-search, .search-input-wrap
+) > input:not([type="checkbox"]):not([type="radio"]),
+.retail-isp-app .project-sale-search input,
+.retail-isp-app .customer-search-input-wrap input,
+.retail-isp-app .header-search input,
+.retail-isp-app .project-bills-toolbar label input {
+  min-width: 0 !important;
+  width: 100% !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding-inline: 0 !important;
+}
+.retail-isp-app :is(
+  .project-sale-search, .customer-search-input-wrap,
+  .project-bills-toolbar label, .header-search,
+  .global-search, .search-input-wrap
+):focus-within {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, .13) !important;
+}
+.retail-isp-app :is(
+  .project-sale-search, .customer-search-input-wrap,
+  .project-bills-toolbar label, .header-search,
+  .global-search, .search-input-wrap
+):focus-within > input {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Dark mode covers common legacy surfaces without recolouring receipts or print content. */
+body.dark-mode .retail-isp-app {
+  --isp-canvas: #071120;
+  --isp-panel: #101a2d;
+  --isp-ink: #f8fafc;
+  --isp-muted: #9fb0ca;
+  --isp-border: #2b3b56;
+}
+body.dark-mode .retail-isp-app .page-content { background: var(--isp-canvas) !important; }
+body.dark-mode .retail-isp-app .page-content :is(
+  .project-sale-panel, .project-sale-item, .project-bills-toolbar,
+  .project-bills-table-wrap, .project-sale-calculation,
+  .project-search-card, .project-sale-customer-summary,
+  .settings-card, .settings-data-card, .settings-tabs,
+  .settings-panel, .card, .table-card, .stat,
+  .dashboard-stat-button, .dashboard-trend-card,
+  .customer-search-dropdown, .customer-search-dropdown button
+) {
+  background: #101a2d !important;
+  border-color: #2b3b56 !important;
+  color: #f8fafc !important;
+}
+body.dark-mode .retail-isp-app .page-content :is(
+  .project-sale-search, .customer-search-input-wrap,
+  .project-bills-toolbar label, .project-sale-select-row select,
+  .project-sale-side-field input, .project-sale-side-field select,
+  .project-sale-side-field textarea, .project-sale-three-inputs input,
+  .settings-file-control, .settings-form input, .settings-form select,
+  .settings-form textarea
+) {
+  background: #0c1628 !important;
+  border-color: #344763 !important;
+  color: #f8fafc !important;
+}
+body.dark-mode .retail-isp-app .project-sale-search input,
+body.dark-mode .retail-isp-app .customer-search-input-wrap input {
+  background: transparent !important;
+  border: 0 !important;
+}
+body.dark-mode .retail-isp-app .page-content input[type="file"] {
+  color-scheme: dark;
+  color: #e2e8f0 !important;
+  background: #0c1628 !important;
+}
+body.dark-mode .retail-isp-app .page-content input[type="file"]::file-selector-button {
+  color: #f8fafc !important;
+  background: #1d304c !important;
+  border: 1px solid #415673 !important;
+  border-radius: 7px;
+  padding: 6px 10px;
+  margin-inline-end: 10px;
+}
+body.dark-mode .retail-isp-app .page-content :is(input, textarea)::placeholder { color: #8fa4c4 !important; }
+body.dark-mode .retail-isp-app .page-content select option { background: #101a2d; color: #f8fafc; }
+body.dark-mode .retail-isp-app .page-content :is(.project-sale-item-head, .project-receipt-toolbar) {
+  background: #142038 !important;
+  border-color: #2b3b56 !important;
+}
+/* Preserve document paper for printing and previews. */
+@media print {
+  .project-contract-page, .project-print-receipt, .project-receipt-modal {
+    background: #fff !important;
+    color: #111 !important;
+  }
+}

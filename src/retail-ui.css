@@ -1,0 +1,88 @@
+/* ISP application, Smart Office-inspired design system. No retail routes or business modules are imported. */
+:root{--isp-accent:#f59e0b;--isp-canvas:#f3f5f9;--isp-panel:#fff;--isp-ink:#101827;--isp-muted:#64748b;--isp-border:#e4e8f0;--isp-shadow:0 4px 19px rgba(15,23,42,.045)}
+html,body,#root{min-height:100%;-webkit-font-smoothing:antialiased}body{font-family:Vazirmatn,Inter,system-ui,sans-serif}
+body .retail-isp-app{gap:0;padding:0;background:var(--isp-canvas);color:var(--isp-ink);height:100dvh;overflow:hidden}
+body .retail-isp-app .sidebar{flex:0 0 260px;width:260px;min-width:260px;max-height:100dvh;height:100dvh;padding:0 12px 14px;background:#101216!important;color:#f1f5f9!important;border:0;border-radius:0;box-shadow:none;z-index:1101}
+body .retail-isp-app .brand{margin:0 0 13px;padding:20px 7px 18px;background:transparent!important;border-bottom:1px solid rgba(255,255,255,.12);min-height:87px}
+body .retail-isp-app .brand h2{color:#fff!important;font-size:15px;font-weight:800}
+body .retail-isp-app .brand p{color:#94a3b8!important;font-size:11px}
+body .retail-isp-app .brand-logo{background:#26272b;border-radius:11px;overflow:hidden}
+body .retail-isp-app .menu{gap:3px;padding:0 0 16px}
+body .retail-isp-app .menu a{color:#d5d9e1!important;background:transparent!important;min-height:41px;height:auto;font-size:12.5px;font-weight:550;border-radius:10px;transition:background .16s ease,color .16s ease,transform .16s ease}
+body .retail-isp-app .menu a:hover{background:rgba(255,255,255,.09)!important;color:#fff!important;transform:none}
+body .retail-isp-app .menu a.active{background:#fbbf24!important;color:#171717!important;font-weight:800}
+body .retail-isp-app .menu a.active svg{color:#171717!important}
+body .retail-isp-app .sidebar-version-area{margin-top:auto;border-top:1px solid rgba(255,255,255,.12);background:transparent}
+body .retail-isp-app .sidebar-version-label{color:#a1a1aa}
+body .retail-isp-app .main{flex:1;min-width:0;height:100dvh;border:0;border-radius:0;background:var(--isp-canvas);box-shadow:none}
+body .retail-isp-app .topbar{min-height:75px;padding:13px 23px;background:var(--isp-panel);border-bottom:1px solid var(--isp-border);gap:12px}
+body .retail-isp-app .topbar h1{color:var(--isp-ink);font-size:18px;font-weight:800}
+body .retail-isp-app .topbar p{color:var(--isp-muted)}
+body .retail-isp-app .page-content{background:var(--isp-canvas);padding-bottom:22px;scrollbar-width:none;overflow-y:auto;-webkit-overflow-scrolling:touch}
+body .retail-isp-app .page-content::-webkit-scrollbar,body .retail-isp-app .sidebar::-webkit-scrollbar{display:none}
+body .retail-isp-app :is(.stat,.card,.table-card,.dashboard-trend-card,.dashboard-stat-button){border:1px solid var(--isp-border);border-radius:15px;background:var(--isp-panel);box-shadow:var(--isp-shadow)}
+body .retail-isp-app .stats{gap:13px}
+body .retail-isp-app .stat:hover,body .retail-isp-app .dashboard-stat-button:hover{box-shadow:0 11px 30px rgba(15,23,42,.085);transform:translateY(-2px)}
+body .retail-isp-app :is(button,a){transition:background .16s ease,border-color .16s ease,transform .16s ease}
+body .retail-isp-app button:not(:disabled):active{transform:scale(.985)}
+body .retail-isp-app :is(button,a,input,select,textarea):focus-visible{outline:2px solid #f59e0b;outline-offset:2px}
+body .retail-isp-app :is(input:not([type=checkbox]):not([type=radio]),select,textarea){max-width:100%;font-family:inherit}
+body .retail-isp-app :is(table){border-spacing:0;border-collapse:separate}
+body .retail-isp-app thead th{background:#f8fafc;color:#475569;font-weight:800;position:sticky;top:0;z-index:1}
+body .retail-isp-app tbody tr:hover{background:#fef9eb}
+.isp-sidebar-scrim,.isp-mobile-menu,.isp-sidebar-close{display:none}
+body.dark-mode{--isp-panel:#0b1629;--isp-canvas:#071120;--isp-ink:#f8fafc;--isp-muted:#96a8c5;--isp-border:#223555;--isp-shadow:0 10px 30px rgba(0,0,0,.26)}
+body.dark-mode .retail-isp-app .topbar,body.dark-mode .retail-isp-app :is(.stat,.card,.table-card,.dashboard-trend-card,.dashboard-stat-button){background:var(--isp-panel);border-color:var(--isp-border)}
+body.dark-mode .retail-isp-app thead th{background:#1f2937;color:#e2e8f0}
+body.dark-mode .retail-isp-app tbody tr:hover{background:#252b36}
+body.theme-ocean{--isp-canvas:#eaf7fb;--isp-border:#cceaf2}body.theme-warm{--isp-canvas:#fbf4e8;--isp-border:#eadfcd}
+@media(max-width:950px){
+ body .retail-isp-app .sidebar{position:fixed;inset-block:0;left:0;transform:translateX(-102%);transition:transform .25s ease;box-shadow:0 20px 55px rgba(0,0,0,.25);overflow-y:auto}
+ body .retail-isp-app[dir=rtl] .sidebar{left:auto;right:0;transform:translateX(102%)}
+ body .retail-isp-app .sidebar.isp-sidebar-open,body .retail-isp-app[dir=rtl] .sidebar.isp-sidebar-open{transform:translateX(0)}
+ .isp-sidebar-scrim{display:block;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1099;border:0}
+ .isp-mobile-menu{display:grid;place-items:center;position:fixed;top:19px;left:14px;z-index:1080;width:37px;height:37px;border:1px solid var(--isp-border);background:var(--isp-panel);color:var(--isp-ink);border-radius:10px}
+ .retail-isp-app[dir=rtl] .isp-mobile-menu{left:auto;right:14px}
+ .isp-sidebar-close{display:grid;place-items:center;position:absolute;top:10px;right:7px;z-index:2;width:28px;height:28px;border-radius:7px;background:rgba(255,255,255,.1);color:white;border:0}
+ .retail-isp-app[dir=rtl] .isp-sidebar-close{right:auto;left:7px}
+ body .retail-isp-app .topbar{padding-inline:60px 12px;min-height:70px}
+ body .retail-isp-app[dir=rtl] .topbar{padding-inline:12px 60px}
+}
+@media(max-width:560px){body .retail-isp-app .topbar{gap:6px;min-height:62px}body .retail-isp-app .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}body .retail-isp-app :is(.stat,.dashboard-stat-button){min-width:0;padding:12px}body .retail-isp-app .page-content{overflow-x:hidden}body .retail-isp-app :is(.table-card,.table-responsive,.table-wrap){max-width:100%;overflow-x:auto}}
+@media(prefers-reduced-motion:reduce){body .retail-isp-app *,body .retail-isp-app *::before,body .retail-isp-app *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+
+body.dark-mode .retail-isp-app .topbar{background:linear-gradient(180deg,#09172d 0%,#0a1425 100%);border-bottom-color:#223555}
+body.dark-mode .retail-isp-app .header-search,body.dark-mode .retail-isp-app .global-search{background:#0c1628!important;border-color:#31415f!important}
+body.dark-mode .retail-isp-app .menu a{color:#dce6f7!important}
+body.dark-mode .retail-isp-app .menu a.active{background:#fbbf24!important;color:#111827!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+body.dark-mode .retail-isp-app .menu a.active svg{color:#111827!important}
+body.dark-mode .retail-isp-app :is(.stat,.card,.table-card,.dashboard-trend-card,.dashboard-stat-button){background:linear-gradient(180deg,#0c1730 0%,#0b1528 100%)!important;border-color:#223555!important}
+body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button::after{opacity:1;box-shadow:0 0 22px currentColor}
+body.dark-mode .retail-isp-app .table-card .card-title a{background:#fbbf24;color:#111827}
+body.dark-mode .retail-isp-app tbody tr:hover{background:#132238}
+body.dark-mode .retail-isp-app .sidebar-version-area{border-top-color:rgba(255,255,255,.1)}
+
+/* ISP v2: compact Smart Office dashboard and lightweight route loader */
+.isp-fast-loader{min-height:180px;display:flex;align-items:center;justify-content:center;background:transparent;color:#94a3b8}
+.isp-fast-loader-spinner{width:20px;height:20px;display:block;border:2px solid rgba(148,163,184,.25);border-top-color:#fbbf24;border-radius:50%;animation:isp-spinner .7s linear infinite}
+@keyframes isp-spinner{to{transform:rotate(360deg)}}
+.system-boot-screen .isp-fast-loader{min-height:100dvh}
+body .retail-isp-app .stats.dashboard-stats-expanded{padding:18px 20px 12px;gap:10px;border:0}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button{min-height:98px;padding:16px 18px;border-radius:12px;text-align:start;box-shadow:0 4px 18px rgba(0,0,0,.1);display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:5px}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button::after{display:none}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:3px;background:var(--isp-stat-color,#64748b);border-radius:12px 0 0 12px}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:nth-child(5n + 1){--isp-stat-color:#a855f7}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:nth-child(5n + 2){--isp-stat-color:#06b6d4}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:nth-child(5n + 3){--isp-stat-color:#22c55e}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:nth-child(5n + 4){--isp-stat-color:#f59e0b}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:nth-child(5n + 5){--isp-stat-color:#3b82f6}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button>span{font-size:11px;color:#a6b7d1!important}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button h2{font-size:22px;line-height:1.25;margin:0;color:#fff!important}
+body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button p{font-size:10px;line-height:1.45;color:#9fb0c9!important}
+body .retail-isp-app .dashboard-trends-section{border-top:0!important;padding-top:14px}
+body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button{background:#0e1729!important;border-color:#263858!important}
+body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:hover{border-color:var(--isp-stat-color)!important;transform:translateY(-2px)}
+@media(max-width:700px){body .retail-isp-app .dashboard-stats-expanded{grid-template-columns:repeat(2,minmax(0,1fr))!important;padding:12px!important}body .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button{min-height:100px;padding:12px!important}}
+@media(max-width:390px){body .retail-isp-app .dashboard-stats-expanded{grid-template-columns:1fr!important}}
+@media(prefers-reduced-motion:reduce){.isp-fast-loader-spinner{animation:none}}

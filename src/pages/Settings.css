@@ -428,3 +428,18 @@ body.dark-mode .settings-exchange-grid label { color:#e5e7eb; }
 body.dark-mode .settings-exchange-grid input, body.dark-mode .settings-exchange-preview > div { background:#0f172a; border-color:#334155; color:#f8fafc; }
 body.dark-mode .settings-exchange-preview strong { color:#f8fafc; }
 @media (max-width:800px){ .settings-exchange-grid,.settings-exchange-preview{grid-template-columns:1fr;} }
+
+
+/* Correct contrast for import control and disabled buttons in dark mode */
+body.dark-mode .settings-data-card {background:#0e192d!important;border-color:#2a3b55!important;color:#f8fafc!important;}
+body.dark-mode .settings-data-actions button {background:#1b2d47!important;color:#f8fafc!important;border:1px solid #405471!important;}
+body.dark-mode .settings-data-actions label {background:#193550!important;color:#eaf2ff!important;border:1px solid #42627f!important;}
+body.dark-mode .settings-data-actions :is(label,button):disabled,
+body.dark-mode .settings-data-actions label.disabled {background:#182338!important;border-color:#35435a!important;color:#b7c4d9!important;opacity:1!important;cursor:not-allowed;}
+body.dark-mode .settings-data-actions :is(label,button) svg {color:inherit!important;stroke:currentColor!important;}
+body.dark-mode .settings-data-actions label.disabled :is(span,svg) {color:#b7c4d9!important;}
+body.dark-mode .settings-backup-grid :is(input,select),
+body.dark-mode .settings-backup-status-grid > div {background:#0c1629!important;color:#ecf3ff!important;border-color:#354760!important;}
+body.dark-mode .settings-backup-status-grid strong {color:#ecf3ff!important;}
+body.dark-mode .settings-auto-backup {background:#0e192d!important;border-color:#2a3b55!important;}
+body.dark-mode .settings-backup-toggle {color:#d6e3f5!important;}
