@@ -93,3 +93,8 @@ body.dark-mode .retail-isp-app .dashboard-stats-expanded .dashboard-stat-button:
 @keyframes isp-collection-spin{to{transform:rotate(360deg)}}
 body:not(.dark-mode) .isp-collection-loading{background:#fff;border-color:#d8dee8;color:#172033}
 @media(max-width:640px){.isp-collection-loading{bottom:14px;right:12px}}
+
+/* Keep collection activity unobtrusive rather than covering the screen. */
+.isp-collection-loading-wrap{position:fixed;bottom:20px;right:20px;z-index:1300;min-width:180px;max-width:min(320px,calc(100vw - 32px));pointer-events:none}
+.isp-collection-loading-wrap .smart-page-loader{box-shadow:0 16px 42px rgba(0,0,0,.16)}
+@media(max-width:640px){.isp-collection-loading-wrap{bottom:12px;right:12px}}

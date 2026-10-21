@@ -89,3 +89,18 @@ body.dark-mode .customer-portal-page .customer-profit-grid .profit-total span,
 body.dark-mode .customer-portal-page .customer-profit-grid .profit-total small { color: #c7d2fe; }
 body.dark-mode .customer-portal-page .customer-progress { background: #334155; }
 body.dark-mode .customer-portal-page .customer-record-core { background: #28364e; color: #bac8de; }
+
+/* Customer 360: consistent dark surfaces across every tab and stat tile. */
+body.dark-mode .customer-portal-page :is(.customer-portal-hero,.customer-summary-card,.customer-info-card,.customer-note-card,.customer-data-table,.customer-activity-item,.customer-profit-grid > div,.customer-analyze-grid > div,.customer-portal-empty,.customer-portal-not-found){background:#111c2f!important;border-color:#30425d!important;color:#f1f5ff!important}
+body.dark-mode .customer-portal-page :is(.customer-info-grid > div,.customer-note-card p,.customer-stage-box,.customer-stage-menu,.customer-data-table th,.customer-summary-card > span){background:#1a2941!important;color:#e2eaff!important;border-color:#344967!important}
+body.dark-mode .customer-portal-page :is(.customer-hero-copy h1,.customer-hero-copy h1 *,.customer-info-grid strong,.customer-info-card h3,.customer-note-card h3,.customer-summary-card strong,.customer-profit-grid strong,.customer-analyze-grid strong,.customer-activity-item strong,.customer-stage-box strong){color:#f1f5ff!important}
+body.dark-mode .customer-portal-page :is(.customer-hero-meta,.customer-info-grid span,.customer-note-card label,.customer-summary-card small,.customer-activity-item small,.customer-stage-box small){color:#adbfda!important}
+body.dark-mode .customer-portal-page .customer-note-card p{color:#c5d2e6!important}
+body.dark-mode .customer-portal-page .customer-tabs button.active{color:#fbbf24!important;border-bottom-color:#fbbf24!important}
+body.dark-mode .customer-portal-page .customer-data-table td{background:transparent!important;color:#f1f5ff!important;border-color:#30425d!important}
+body.dark-mode .customer-portal-page .customer-data-table th{color:#bbcae2!important}
+body.dark-mode .customer-portal-page .customer-stage-box>button{background:#fbbf24!important;color:#111827!important}
+body.dark-mode .customer-portal-page .customer-profit-grid .profit-total{background:#202f4b!important}
+body.dark-mode .customer-portal-page .customer-status-box{background:#0b1424!important;border:1px solid #33445e}
+body.dark-mode .customer-portal-page .customer-stage-menu button{background:transparent!important;color:#edf3ff!important}
+body.dark-mode .customer-portal-page .customer-stage-menu button:hover,body.dark-mode .customer-portal-page .customer-stage-menu button.active{background:#334361!important}

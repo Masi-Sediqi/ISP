@@ -40,6 +40,7 @@ import {
   X,
 } from "lucide-react";
 import Header from "./components/Header";
+import SmartPageLoader from "./components/SmartPageLoader";
 import GlobalTableEnhancer from "./components/GlobalTableEnhancer";
 import ToastHost from "./components/ToastHost";
 import brandLogo from "./assets/logo.PNG";
@@ -50,11 +51,7 @@ import { notify, requestSystemNotificationPermission } from "./utils/notify";
 
 
 function PageLoader() {
-  return (
-    <div className="isp-fast-loader" role="status" aria-label="Loading page">
-      <span className="isp-fast-loader-spinner" aria-hidden="true" />
-    </div>
-  );
+  return <SmartPageLoader label="Preparing your workspace..." />;
 }
 
 function RoutePageFallback() {
@@ -78,9 +75,8 @@ function GlobalDataLoader() {
     return () => window.removeEventListener("isp-data-loading", onLoading);
   }, []);
   return pending > 0 ? (
-    <div className="isp-collection-loading" role="status" aria-live="polite">
-      <span className="isp-collection-loading-spinner" />
-      <span>Loading records...</span>
+    <div className="isp-collection-loading-wrap">
+      <SmartPageLoader compact label="Updating records..." />
     </div>
   ) : null;
 }

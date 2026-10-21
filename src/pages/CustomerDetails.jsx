@@ -1,3 +1,4 @@
+import SmartPageLoader from "../components/SmartPageLoader";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -411,7 +412,7 @@ export default function CustomerDetails({ currentUser }) {
   };
 
   if (!customersLoaded) {
-    return <div className="customer-portal-loading">Loading customer information...</div>;
+    return <div className="customer-portal-page"><SmartPageLoader label="Loading customer information..." /></div>;
   }
 
   if (!customer) {
