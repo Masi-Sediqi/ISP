@@ -1,3 +1,4 @@
+import { isNonCashStaffBalanceAdjustment } from "../utils/nonCashAdjustments";
 import { useEffect, useRef, useState } from "react";
 import { CalendarDays, Check, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -231,7 +232,7 @@ function Dashboard() {
 
   const activeRange = getDashboardDateRange(dateFilter, customDates);
   const filteredCustomers = filterDashboardRecords(customers, activeRange);
-  const filteredTransactions = filterDashboardRecords(transactions, activeRange);
+  const filteredTransactions = filterDashboardRecords(transactions.filter((item) => !isNonCashStaffBalanceAdjustment(item)), activeRange);
   const filteredCashWalletTransactions = filterDashboardRecords(cashWalletTransactions, activeRange);
   const filteredEmployees = filterDashboardRecords(employees, activeRange);
   const filteredEmployeePayrolls = filterDashboardRecords(employeePayrolls, activeRange);
