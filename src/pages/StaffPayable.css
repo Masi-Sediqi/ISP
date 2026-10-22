@@ -378,3 +378,24 @@ body.dark-mode .staff-payable-back:hover {
     flex-direction: column;
   }
 }
+
+/* Staff payable non-cash adjustment */
+.staff-payable-adjust { display:inline-flex;align-items:center;gap:5px;padding:7px 9px;margin-inline-end:6px;border:1px solid #a5b4fc;border-radius:8px;background:#eef2ff;color:#3730a3;font-weight:700;cursor:pointer; }
+.staff-payable-adjust:disabled{opacity:.55;cursor:not-allowed}
+.staff-writeoff-backdrop { position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:14px;background:rgba(2,6,23,.72);backdrop-filter:blur(8px) }
+.staff-writeoff-dialog{width:min(530px,100%);max-height:calc(100dvh - 28px);overflow:auto;display:grid;gap:18px;padding:22px;border:1px solid #d4dce7;border-radius:15px;background:#fff;color:#172033;box-shadow:0 25px 80px #0005}
+.staff-writeoff-dialog header,.staff-writeoff-dialog footer{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.staff-writeoff-dialog h2{margin:0 0 6px;font-size:19px}.staff-writeoff-dialog p{margin:0;color:#64748b;line-height:1.6}
+.staff-writeoff-dialog header button{flex:none;border:1px solid #cbd5e1;border-radius:8px;background:#f1f5f9;color:#172033;padding:8px;cursor:pointer}
+.staff-writeoff-amounts{display:grid;gap:8px}.staff-writeoff-amounts>div{display:flex;justify-content:space-between;padding:12px;border:1px solid #cbd5e1;border-radius:8px}
+.staff-writeoff-warning{padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:9px;color:#9a3412!important}
+.staff-writeoff-dialog label{display:grid;gap:8px;font-weight:700}.staff-writeoff-dialog textarea{width:100%;padding:12px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#172033;font:inherit}
+.staff-writeoff-dialog footer{justify-content:flex-end;flex-wrap:wrap}.staff-writeoff-dialog footer button{padding:11px;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer}.staff-writeoff-confirm{background:#fbbf24;color:#111827;font-weight:800}
+body.dark-mode .staff-payable-adjust{background:#243554;color:#e0e7ff;border-color:#536a9b}
+body.dark-mode .staff-writeoff-dialog{background:#101b2e;color:#f8fafc;border-color:#334155}
+body.dark-mode .staff-writeoff-dialog header button,body.dark-mode .staff-writeoff-dialog footer button:not(.staff-writeoff-confirm){background:#23334b;color:#f8fafc;border-color:#475569}
+body.dark-mode .staff-writeoff-amounts>div{border-color:#334155}
+body.dark-mode .staff-writeoff-dialog textarea{background:#0b1525;color:#f8fafc;border-color:#415573}
+body.dark-mode .staff-writeoff-warning{background:#38251b;border-color:#92400e;color:#ffdfad!important}
+body.dark-mode .staff-writeoff-dialog .staff-writeoff-confirm{background:#fbbf24!important;color:#111827!important}
+@media(max-width:580px){.staff-writeoff-dialog{padding:15px}.staff-writeoff-dialog footer button{flex:1}}

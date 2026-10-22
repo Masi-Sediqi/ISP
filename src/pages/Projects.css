@@ -1180,3 +1180,27 @@ body.dark-mode .customer-modal-actions button:not(.primary) {
     width: 100%;
   }
 }
+
+
+/* Scoped correction: Register Project in dark mode */
+body.dark-mode .project-modal-backdrop { background:rgba(2,6,23,.74); backdrop-filter:blur(9px); }
+body.dark-mode .project-modal, body.dark-mode .project-modal-header { background:#111b2c!important; border-color:#33445e!important; color:#f8fafc!important; }
+body.dark-mode .project-modal-header>button,
+body.dark-mode .project-modal-actions>button[type="button"],
+body.dark-mode .project-inline-customer-title button { background:#1b2b42!important; border:1px solid #415471!important; color:#edf4ff!important; opacity:1!important; }
+body.dark-mode .project-modal-header>button:hover,
+body.dark-mode .project-modal-actions>button[type="button"]:hover,
+body.dark-mode .project-inline-customer-title button:hover { background:#293d59!important; border-color:#647da3!important; }
+body.dark-mode .project-customer-control>button { background:#fbbf24!important; border:1px solid #fbbf24!important; color:#111827!important; opacity:1!important; }
+body.dark-mode .project-customer-control>button:hover { background:#fcd34d!important; }
+body.dark-mode .project-modal-actions>button[type="submit"],
+body.dark-mode .project-inline-customer-save { background:#fbbf24!important; border:1px solid #fbbf24!important; color:#111827!important; }
+body.dark-mode .project-modal-actions>button[type="submit"]:hover { background:#fcd34d!important; }
+body.dark-mode .project-modal :is(button,input,select,textarea):focus-visible { outline:2px solid #fbbf24; outline-offset:2px; }
+body.dark-mode .project-modal :is(.project-form-grid label>span,.project-customer-field>span) { color:#c7d5e9!important; }
+body.dark-mode .project-modal :is(input,select,textarea) { color-scheme:dark; }
+body.dark-mode .project-modal :is(input,select,textarea)::placeholder { color:#91a4c2!important; }
+body.dark-mode .project-modal-actions { border-color:#33445e!important; background:#111b2c!important; }
+body.dark-mode .project-modal-actions button:disabled,
+body.dark-mode .project-customer-control>button:disabled { opacity:.55!important; cursor:not-allowed; }
+@media(max-width:640px) { .project-modal-backdrop{padding:10px} .project-modal{max-height:calc(100dvh - 20px)} .project-form-grid{grid-template-columns:minmax(0,1fr);padding:14px} .project-mode-selector{grid-template-columns:minmax(0,1fr)} .project-modal-header,.project-modal-actions{padding:14px} }

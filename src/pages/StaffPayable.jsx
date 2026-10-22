@@ -1,8 +1,10 @@
-import { ArrowLeft, Banknote, ExternalLink, Search, Users } from "lucide-react";
+import { ArrowLeft, Banknote, ExternalLink, Search, Users, Scale, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useJsonCollection } from "../hooks/useJsonCollection";
 import { calculateStaffPayablesByCurrency } from "../utils/staffPayable";
+import { createRecordId } from "../utils/ids";
+import { notify } from "../utils/notify";
 import { formatCurrencyTotals } from "../utils/currencyDisplay";
 import "./StaffPayable.css";
 
@@ -23,9 +25,63 @@ const dateText = (value) => {
 export default function StaffPayable() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [rawEmployees] = useJsonCollection("employees");
-  const [rawPayrolls] = useJsonCollection("employeePayrolls");
-  const [rawAdjustments] = useJsonCollection("employeeAdjustments");
+  const [rawEmployees, , , employeesLoaded] = useJsonCollection("employees");
+  const [rawPayrolls, , , payrollsLoaded] = useJsonCollection("employeePayrolls");
+  const [rawAdjustments, setAdjustments, , adjustmentsLoaded] = useJsonCollection("employeeAdjustments");
+  const [writeOffTarget, setWriteOffTarget] = useState(null);
+  const [writeOffReasons, setWriteOffReasons] = useState("");
+  const [writeOffSaving, setWriteOffSaving] = useState(false);
+
+  const writeOffBalances = writeOffTarget
+    ? Object.entries(writeOffTarget.balances).filter(([, value]) => Number(value) > 0.005)
+    : [];
+  const closeWriteOff = () => { if (!writeOffSaving) { setWriteOffTarget(null); setWriteOffReasons(""); } };
+  const confirmWriteOff = async (event) => {
+    event.preventDefault();
+    if (writeOffSaving || !writeOffTarget) return;
+    if (writeOffReasons.trim().length < 8) {
+      notify("Please provide a clear reason (at least 8 characters).", "error");
+      return;
+    }
+    if (!adjustmentsLoaded || !payrollsLoaded || !employeesLoaded) {
+      notify("Employee ledger is still loading. Please try again.", "error");
+      return;
+    }
+    const employeeId = writeOffTarget.employeeId;
+    const latest = calculateStaffPayablesByCurrency({
+      employees: safeList(rawEmployees), payrolls: safeList(rawPayrolls), adjustments: safeList(rawAdjustments)
+    }).items.find((entry) => entry.employeeId === employeeId);
+    if (!latest) {
+      notify("This balance has changed. Refresh and review again.", "error");
+      closeWriteOff();
+      return;
+    }
+    const amounts = Object.entries(latest.balances).filter(([, value]) => Number(value) > 0.005);
+    if (!amounts.length || amounts.some(([currency, value]) =>
+      Math.abs(Number(value) - Number(writeOffTarget.balances[currency])) > 0.005
+    )) {
+      notify("The balance changed. Please review before saving.", "error");
+      closeWriteOff();
+      return;
+    }
+    const now = new Date().toISOString();
+    const changes = amounts.map(([currency, amount]) => ({
+      id: createRecordId(), employeeId, employeeName: latest.employeeName,
+      type: "balance_writeoff", source: "staff-payable-balance-adjustment",
+      currency, amount: Math.round(Number(amount) * 100) / 100,
+      reason: writeOffReasons.trim(), createdAt: now, updatedAt: now,
+      nonCash: true, subtractFromCashWallet: false,
+    }));
+    setWriteOffSaving(true);
+    try {
+      const ok = await setAdjustments([...safeList(rawAdjustments), ...changes]);
+      if (!ok) { notify("The balance adjustment was not saved.", "error"); return; }
+      notify("Balance adjusted without a salary payment or wallet movement.", "success");
+      setWriteOffTarget(null); setWriteOffReasons("");
+    } catch (error) {
+      notify(error?.message || "Unable to save the adjustment.", "error");
+    } finally { setWriteOffSaving(false); }
+  };
 
   const result = useMemo(() => calculateStaffPayablesByCurrency({
     employees: safeList(rawEmployees),
@@ -127,6 +183,11 @@ export default function StaffPayable() {
                   <td><strong className="staff-payable-balance">{formatCurrencyTotals(item.balances)}</strong></td>
                   <td>{dateText(item.lastActivityAt)}</td>
                   <td>
+                    <button type="button" className="staff-payable-adjust" disabled={!adjustmentsLoaded || !payrollsLoaded || !employeesLoaded}
+                      onClick={() => { setWriteOffTarget(item); setWriteOffReasons(""); }}
+                      title="Non-cash balance adjustment. Does not record salary payment">
+                      <Scale size={15} /> Adjust
+                    </button>
                     <button
                       type="button"
                       className="staff-payable-open"
@@ -147,6 +208,28 @@ export default function StaffPayable() {
           </table>
         </div>
       </section>
+      {writeOffTarget && (
+        <div className="staff-writeoff-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeWriteOff(); }}>
+          <form className="staff-writeoff-dialog" onSubmit={confirmWriteOff} role="dialog" aria-modal="true" aria-labelledby="staff-writeoff-title">
+            <header><div><h2 id="staff-writeoff-title">Adjust balance without payment</h2>
+              <p>Record a non-cash write-off for {writeOffTarget.employeeName}. No payment or cash wallet transaction is created.</p></div>
+              <button type="button" onClick={closeWriteOff} disabled={writeOffSaving} aria-label="Close"><X size={18}/></button></header>
+            <div className="staff-writeoff-amounts">
+              {writeOffBalances.map(([currency, amount]) => (
+                <div key={currency}><span>{currency}</span><strong>{Number(amount).toLocaleString("en-US", {minimumFractionDigits:2,maximumFractionDigits:2})}</strong></div>
+              ))}
+            </div>
+            <p className="staff-writeoff-warning">This changes the payable balance only. It does not cancel the original payroll and does not count as salary paid. If the payroll was entered in error, correct the original payroll instead.</p>
+            <label>Reason for adjustment (required)
+              <textarea required minLength={8} rows={3} value={writeOffReasons}
+                onChange={(event) => setWriteOffReasons(event.target.value)} placeholder="Explain why the outstanding balance is being waived..." />
+            </label>
+            <footer><button type="button" onClick={closeWriteOff} disabled={writeOffSaving}>Cancel</button>
+              <button className="staff-writeoff-confirm" type="submit" disabled={writeOffSaving || !adjustmentsLoaded || !payrollsLoaded || !employeesLoaded}>
+                {writeOffSaving ? "Saving..." : "Confirm non-cash adjustment"}</button></footer>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

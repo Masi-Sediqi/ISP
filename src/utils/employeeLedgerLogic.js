@@ -28,6 +28,10 @@ export function calculateEmployeeLedgerSummary({ payrolls = [], adjustments = []
     .filter((item) => item.type === 'credit')
     .reduce((sum, item) => sum + numberValue(item.amount), 0);
 
+  const totalWriteOff = adjustments
+    .filter((item) => item.type === 'balance_writeoff')
+    .reduce((sum, item) => sum + numberValue(item.amount), 0);
+
   const totalDebitOnly = adjustments
     .filter((item) => item.type === 'debit')
     .reduce((sum, item) => sum + numberValue(item.amount), 0);
@@ -54,13 +58,14 @@ export function calculateEmployeeLedgerSummary({ payrolls = [], adjustments = []
     totalReceivedFromEmployee +
     totalBonus +
     totalPayrollDue;
-  const totalDebit = totalDebitOnly + totalPenalty + totalPayments;
+  const totalDebit = totalDebitOnly + totalPenalty + totalPayments + totalWriteOff;
 
   return {
     totalBonus,
     totalPenalty,
     totalCreditOnly,
     totalDebitOnly,
+    totalWriteOff,
     totalReceivedFromEmployee,
     totalPayrollDue,
     totalPayments,
