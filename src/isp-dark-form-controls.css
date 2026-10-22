@@ -1,0 +1,90 @@
+/* Unified dark form action controls for ISP. Keep this import after legacy CSS. */
+body.dark-mode {
+  --isp-control-bg: #1b2a40;
+  --isp-control-hover: #293d58;
+  --isp-control-border: #405673;
+  --isp-control-fg: #eaf2ff;
+}
+/* Non-primary footer buttons in form dialogs: Cancel and Back. */
+body.dark-mode :is(
+  .visa-package-modal,
+  .visa-package-details-modal,
+  .visa-package-delete-modal,
+  .project-modal,
+  .employee-profile-modal form,
+  .finance-modal,
+  .office-assets-modal,
+  .consultant-modal,
+  .reception-modal,
+  .project-sale-customer-modal,
+  .project-delete-dialog,
+  .employee-modal
+) :is(footer, .modal-actions, [class$="-modal-actions"], [class$="-actions"]) > button:not(.primary):not(.danger):not(.delete):not([type="submit"]),
+body.dark-mode :is(.visa-package-modal, .project-modal, .employee-profile-modal, .finance-modal) button[class*="cancel"] {
+  background: var(--isp-control-bg) !important;
+  border: 1px solid var(--isp-control-border) !important;
+  color: var(--isp-control-fg) !important;
+  opacity: 1;
+  -webkit-text-fill-color: currentColor;
+}
+body.dark-mode :is(
+  .visa-package-modal,
+  .visa-package-details-modal,
+  .visa-package-delete-modal,
+  .project-modal,
+  .employee-profile-modal form,
+  .finance-modal,
+  .office-assets-modal,
+  .consultant-modal,
+  .reception-modal,
+  .project-sale-customer-modal,
+  .project-delete-dialog,
+  .employee-modal
+) :is(footer, .modal-actions, [class$="-modal-actions"], [class$="-actions"]) > button:not(.primary):not(.danger):not(.delete):not([type="submit"]):hover:not(:disabled) {
+  background: var(--isp-control-hover) !important;
+  border-color: #6581a6 !important;
+}
+/* Source-level Visa Package modal explicitly sets white action buttons. */
+body.dark-mode .visa-package-modal > footer > button:not(.primary),
+body.dark-mode .visa-package-delete-modal > footer > button:not(.delete),
+body.dark-mode .visa-package-details-modal > footer > button:not(.primary) {
+  background: #1b2a40 !important;
+  border: 1px solid #405673 !important;
+  color: #eaf2ff !important;
+  -webkit-text-fill-color: #eaf2ff;
+}
+body.dark-mode .visa-package-modal > footer > button:not(.primary):hover:not(:disabled) {
+  background: #293d58 !important;
+}
+body.dark-mode .visa-package-modal > footer > button.primary {
+  background: #fbbf24 !important;
+  border-color: #fbbf24 !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827;
+}
+body.dark-mode .visa-package-modal > footer > button.primary:hover:not(:disabled) {
+  background: #fcd34d !important;
+}
+/* Close controls are often plain icon buttons with light legacy backgrounds. */
+body.dark-mode :is(.visa-package-modal,.project-modal,.employee-profile-modal,.finance-modal,.office-assets-modal,.reception-modal)
+  :is(button[aria-label="Close"],button[aria-label="Close modal"],button[title="Close"],button[class*="modal-close"]) {
+  background: #1b2a40 !important;
+  color: #eaf2ff !important;
+  border-color: #405673 !important;
+}
+body.dark-mode :is(.visa-package-modal,.project-modal,.employee-profile-modal,.finance-modal,.office-assets-modal,.reception-modal)
+  :is(button[aria-label="Close"],button[aria-label="Close modal"],button[title="Close"],button[class*="modal-close"]):hover:not(:disabled) {
+  background: #293d58 !important;
+}
+/* Disabled actions remain legible rather than becoming white boxes. */
+body.dark-mode :is(.visa-package-modal,.project-modal,.employee-profile-modal,.finance-modal,.office-assets-modal,.reception-modal) button:disabled {
+  opacity: .56;
+  cursor: not-allowed;
+}
+body.dark-mode :is(.visa-package-modal,.project-modal,.employee-profile-modal,.finance-modal,.office-assets-modal,.reception-modal) button:focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.dark-mode .visa-package-modal button { transition: none !important; }
+}
