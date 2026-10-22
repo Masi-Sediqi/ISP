@@ -84,3 +84,11 @@ body.dark-mode .project-sale-calculation .grand-total{background:#fbbf24!importa
 body.dark-mode .project-sale-calculation .grand-total span{color:rgba(17,24,39,.72)!important}
 body.dark-mode .project-sale-empty,
 body.dark-mode .project-sale-cart-empty{color:#96a8c5!important}
+
+/* Agreed multi-currency project sale controls */
+.project-sale-currency-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:15px;margin:0 0 14px;border:1px solid #b9c8e5;border-radius:12px;background:linear-gradient(110deg,#f2f6ff,#fff)}
+.project-sale-currency-description{display:grid;gap:4px;flex:1 1 220px}.project-sale-currency-description strong{font-size:13px;color:#13223a}.project-sale-currency-description small,.project-sale-exchange-info{font-size:11px;color:#586b86}
+.project-sale-currency-buttons{display:flex;gap:5px;padding:4px;border-radius:10px;background:#e4eafb}.project-sale-currency-buttons button{border:0;border-radius:8px;padding:9px 14px;font-weight:800;background:transparent;color:#344660;cursor:pointer}.project-sale-currency-buttons button.active{color:#171c29;background:#fbbf24;box-shadow:0 2px 7px #0002}
+.project-sale-exchange-info{flex-basis:100%}.project-sale-exchange-error{flex-basis:100%;margin:0;color:#dc2626;font-size:12px}.project-sale-original-price{margin:10px 13px 0;font-size:11px;color:#64748b;font-weight:700}
+body.dark-mode .project-sale-currency-bar{background:linear-gradient(120deg,#16233d,#101b2f)!important;border-color:#344969!important}body.dark-mode .project-sale-currency-description strong{color:#f8fafc!important}body.dark-mode .project-sale-currency-description small,body.dark-mode .project-sale-exchange-info,body.dark-mode .project-sale-original-price{color:#afc1df!important}body.dark-mode .project-sale-currency-buttons{background:#0a1428}body.dark-mode .project-sale-currency-buttons button{color:#cfdef5}body.dark-mode .project-sale-currency-buttons button.active{background:#fbbf24!important;color:#111827!important}body.dark-mode .project-sale-exchange-error{color:#fca5a5!important}
+@media(max-width:620px){.project-sale-currency-bar{align-items:stretch}.project-sale-currency-buttons{width:100%}.project-sale-currency-buttons button{flex:1}}

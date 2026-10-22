@@ -27,6 +27,7 @@ import {
 import { notify } from "../utils/notify";
 import { clearFieldError, hasFormErrors, validateRequiredFields } from "../utils/formValidation";
 import { formatCurrencyAmount } from "../utils/currencyDisplay";
+import { normalizeExchangeRates, normalizeCurrency } from "../utils/exchangeRates";
 import "./ProjectSales.css";
 
 function money(value, currency = "AFN") {
@@ -77,6 +78,7 @@ function normalize(value) {
 function ProjectSales() {
   const navigate = useNavigate();
   const [projects] = useJsonCollection("projects");
+  const [settings] = useJsonCollection("settings");
   const [technologyPackages] = useJsonCollection("technologyPackages");
   const [customers, setCustomers] = useJsonCollection("customers");
   const [employees] = useJsonCollection("employees");
@@ -95,6 +97,39 @@ function ProjectSales() {
   const [paymentMode, setPaymentMode] = useState("paid");
   const [loanPaidAmount, setLoanPaidAmount] = useState("");
   const [editingSaleId, setEditingSaleId] = useState("");
+  const [saleCurrency, setSaleCurrency] = useState("");
+  const [rateError, setRateError] = useState("");
+  const rates = normalizeExchangeRates(settings[0]?.exchangeRates);
+  const afnRate = (code) => code === "USD" ? rates.usdToAfn : code === "EUR" ? rates.eurToAfn : 1;
+  const convertAmount = (amount, from, to) => {
+    const source = normalizeCurrency(from);
+    const target = normalizeCurrency(to);
+    if (source === target) return Number(amount || 0);
+    const sourceRate = afnRate(source);
+    const targetRate = afnRate(target);
+    if (!(sourceRate > 0) || !(targetRate > 0)) return null;
+    return Math.round((Number(amount || 0) * sourceRate / targetRate) * 100) / 100;
+  };
+  const currency = saleCurrency || normalizeCurrency(items[0]?.currency || "AFN");
+  function switchSaleCurrency(next) {
+    if (next === currency) return;
+    const nextItems = items.map((item) => ({
+      ...item,
+      convertedPrice: convertAmount(item.price, item.currency || currency, next),
+      convertedDiscount: convertAmount(item.discount, item.currency || currency, next),
+    }));
+    const unavailable = nextItems.some((item) => item.convertedPrice === null || item.convertedDiscount === null);
+    if (unavailable) {
+      setRateError("Exchange rate is missing. Set USD/EUR rates in Settings before converting.");
+      return;
+    }
+    setItems(nextItems.map(({convertedPrice, convertedDiscount, ...item}) => ({
+      ...item, price: convertedPrice, discount: convertedDiscount, currency: next,
+    })));
+    setLoanPaidAmount((amount) => amount === "" ? "" : String(convertAmount(amount, currency, next) ?? amount));
+    setSaleCurrency(next);
+    setRateError("");
+  }
 
   const filteredProjects = useMemo(() => {
     const search = query.trim().toLowerCase();
@@ -128,7 +163,6 @@ function ProjectSales() {
     return { subtotal, discount, total, quantity };
   }, [items]);
 
-  const currency = items[0]?.currency || "AFN";
   const selectedCustomer = customers.find(
     (item) => String(item.id || item.customerId || "") === String(customer.customerId || "")
   );
@@ -159,6 +193,7 @@ function ProjectSales() {
     const editable = saleToEditableForm(sale);
     setEditingSaleId(sale.id);
     setItems(editable.items);
+    setSaleCurrency(normalizeCurrency(sale.currency || "AFN"));
     setCustomer(editable.customer);
     setPaymentMode(editable.paymentMode);
     setLoanPaidAmount(editable.loanPaidAmount);
@@ -215,7 +250,16 @@ function ProjectSales() {
       return;
     }
 
-    setItems((current) => [...current, buildSaleItem(project)]);
+    const original = buildSaleItem(project);
+    const desired = saleCurrency || normalizeCurrency(original.currency);
+    const converted = convertAmount(original.price, original.currency, desired);
+    if (converted === null) {
+      setRateError("Exchange rate is missing. Set currency rates in Settings.");
+      return;
+    }
+    setItems((current) => [...current, { ...original, price: converted, currency: desired }]);
+    setSaleCurrency(desired);
+    setRateError("");
   }
 
   function updateItem(projectId, field, value) {
@@ -239,21 +283,33 @@ function ProjectSales() {
   }
 
   function updateSaleType(projectId, saleType) {
-    setItems((current) =>
-      current.map((item) =>
-        String(item.projectId) === String(projectId) ? applySaleType(item, saleType) : item
-      )
-    );
+    setItems((current) => current.map((item) => {
+      if (String(item.projectId) !== String(projectId)) return item;
+      const updated = applySaleType(item, saleType);
+      if (saleType !== "lifetime") return { ...updated, currency };
+      const converted = convertAmount(updated.price, updated.currency, currency);
+      if (converted === null) {
+        setRateError("Set exchange rates in Settings to use this project currency.");
+        return item;
+      }
+      return { ...updated, price: converted, currency };
+    }));
   }
 
   function updateLicensePackage(projectId, packageId) {
     const pkg = technologyPackages.find((item) => String(item.id) === String(packageId));
     if (!pkg) return;
-    setItems((current) =>
-      current.map((item) =>
-        String(item.projectId) === String(projectId) ? applyLicensePackage(item, pkg) : item
-      )
-    );
+    const converted = convertAmount(pkg.sellingPrice, pkg.currency || "AFN", currency);
+    if (converted === null) {
+      setRateError("Missing exchange rate for this license package. Update Settings.");
+      return;
+    }
+    setRateError("");
+    setItems((current) => current.map((item) =>
+      String(item.projectId) === String(projectId)
+        ? { ...applyLicensePackage(item, pkg), price: converted, currency }
+        : item
+    ));
   }
 
   function removeItem(projectId) {
@@ -345,6 +401,9 @@ function ProjectSales() {
       ]
     );
 
+    if (items.some((item) => normalizeCurrency(item.currency) !== currency)) {
+      errors.items = "All items must use the selected sale currency.";
+    }
     if (items.some((item) => item.saleType === "license" && !item.licensePackageId)) {
       errors.items = "Select a license package for every project sold as a license.";
     }
@@ -386,6 +445,8 @@ function ProjectSales() {
       total: totals.total,
       quantity: totals.quantity,
       currency,
+      exchangeRateSnapshot: { ...rates },
+      saleCurrency: currency,
       saleType: items.length === 1 ? items[0].saleType || "lifetime" : "mixed",
       licensePackageId: items.length === 1 ? items[0].licensePackageId || "" : "",
       licensePackageName: items.length === 1 ? items[0].licensePackageName || "" : "",
@@ -538,6 +599,7 @@ function ProjectSales() {
     }
 
     setItems([]);
+    setSaleCurrency("");
     setCustomer(emptyCustomer);
     setFormErrors({});
     setQuery("");
@@ -621,6 +683,20 @@ function ProjectSales() {
               <small>Price, discount, quantity</small>
             </div>
 
+            <div className="project-sale-currency-bar">
+              <div className="project-sale-currency-description">
+                <strong>Sale currency</strong>
+                <small>Project's original price stays unchanged. Set the agreed sale price below.</small>
+              </div>
+              <div className="project-sale-currency-buttons" role="group" aria-label="Sale currency">
+                {["AFN", "USD", "EUR"].map((code) => (
+                  <button key={code} type="button" className={currency === code ? "active" : ""}
+                    onClick={() => switchSaleCurrency(code)}>{code}</button>
+                ))}
+              </div>
+              <small className="project-sale-exchange-info">1 USD = {rates.usdToAfn || "Not set"} AFN · 1 EUR = {rates.eurToAfn || "Not set"} AFN</small>
+              {rateError && <p className="project-sale-exchange-error" role="alert">{rateError}</p>}
+            </div>
             {items.length ? (
               <div className="project-sale-items">
                 {items.map((item) => (
@@ -675,9 +751,10 @@ function ProjectSales() {
                       )}
                     </div>
 
+                    <div className="project-sale-original-price">Original: {money(item.basePrice ?? item.price, item.baseCurrency || item.currency)} · Sale in {currency}</div>
                     <div className="project-sale-three-inputs">
                       <label>
-                        <span>Price</span>
+                        <span>Agreed sale price ({currency})</span>
                         <input
                           type="number"
                           min="0"
@@ -686,7 +763,7 @@ function ProjectSales() {
                         />
                       </label>
                       <label>
-                        <span>Discount</span>
+                        <span>Discount ({currency})</span>
                         <input
                           type="number"
                           min="0"
