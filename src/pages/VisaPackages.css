@@ -1505,3 +1505,35 @@ body.dark-mode .visa-category-delete-confirm {
   color: #fecaca;
   background: rgba(127,29,29,.2);
 }
+
+
+/* Visa package action controls: native dark surfaces, no white button patches. */
+body.dark-mode .visa-package-actions button {
+  background: #15273e !important;
+  border: 1px solid #3b5270 !important;
+  color: #bfdbfe !important;
+  opacity: 1 !important;
+}
+body.dark-mode .visa-package-actions button:hover {
+  background: #243d5b !important;
+  border-color: #60a5fa !important;
+  color: #eff6ff !important;
+}
+body.dark-mode .visa-package-actions button.delete {
+  background: #34202c !important;
+  border-color: #874053 !important;
+  color: #fecdd3 !important;
+}
+body.dark-mode .visa-package-actions button.delete:hover {
+  background: #512734 !important;
+  border-color: #f87171 !important;
+  color: #fff1f2 !important;
+}
+body.dark-mode .visa-package-actions button:disabled {
+  opacity: .5 !important;
+  cursor: not-allowed;
+}
+body.dark-mode .visa-package-actions button svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}

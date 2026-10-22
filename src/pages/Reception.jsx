@@ -111,7 +111,7 @@ const consultantMajors = [
 const technologyPurposes = [
   "Website",
   "Application",
-  "Software",
+  "Database",
   "Other",
 ];
 
@@ -1248,6 +1248,7 @@ export default function Reception({ currentUser }) {
       Website: tx("Website", "وب‌سایت", "وېب‌سایټ"),
       Application: tx("Application", "اپلیکیشن", "اپلېکېشن"),
       Software: tx("Software", "نرم‌افزار", "سافټویر"),
+      Database: tx("Database", "دیتابیس", "ډیټابېس"),
       Other: tx("Other", "دیگر", "نور"),
       None: tx("None", "هیچ", "هیڅ"),
       Pending: tx("Pending", "در انتظار", "په تمه"),
@@ -3645,8 +3646,7 @@ const mediaCount =
       title={tx("Assign this customer", "ارجاع این مشتری", "دا پېرودونکی سپارل")}
       aria-label={tx("Assign customer", "ارجاع مشتری", "پېرودونکی سپارل")}
     >
-      <ArrowRight size={15} aria-hidden="true" />
-      <span>{tx("Assign", "ارجاع", "سپارل")}</span>
+      <ArrowRight size={17} />
     </button>
   )}
 </td>
