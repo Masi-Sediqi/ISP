@@ -83,7 +83,7 @@ function normalizeCategory(category) {
 function Finance() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [suppliers] = useJsonCollection("suppliers");
+  const [suppliers, , , suppliersLoaded] = useJsonCollection("suppliers");
   const [transactions, setTransactions] =
     useJsonCollection("transactions");
 
@@ -110,8 +110,10 @@ function Finance() {
   const [employeePayments] =
     useJsonCollection("employeePayments");
 
-  const [supplierPayments] =
+  const [supplierPayments, setSupplierPayments, , supplierPaymentsLoaded] =
     useJsonCollection("supplierPayments");
+  const [cashWalletTransactions, setCashWalletTransactions, , walletLoaded] =
+    useJsonCollection("cashWalletTransactions");
 
   const [assetMovements] =
     useJsonCollection("assetMovements");
@@ -122,6 +124,8 @@ function Finance() {
 
   const [deleteTransaction, setDeleteTransaction] =
     useState(null);
+  const [orphanPaymentDelete, setOrphanPaymentDelete] = useState(null);
+  const [orphanDeleting, setOrphanDeleting] = useState(false);
 
   const [openActionId, setOpenActionId] =
     useState("");
@@ -775,23 +779,64 @@ function Finance() {
   // edit/delete workflow so the supplier account, financial log and cash wallet
   // remain consistent. Never mutate the derived Finance row directly.
   const openSupplierPaymentAction = (transaction, action) => {
+    if (!suppliersLoaded || !supplierPaymentsLoaded || !walletLoaded) {
+      notify(tx("Payment records are still loading. Please try again after loading finishes.", "ریکاردهای پرداخت هنوز بارگذاری می‌شوند. پس از تکمیل دوباره امتحان کنید.", "د تادیې ریکارډونه لا پورته کېږي."), "error");
+      return;
+    }
     const ref = String(transaction.referenceId || "");
     const payment = supplierPayments.find((item) => String(item.id) === ref);
-    if (!payment) {
-      notify(tx("The original supplier payment is not loaded or no longer exists. Open Suppliers to check it.", "پرداخت اصلی تأمین‌کننده فعلاً در دسترس نیست. از بخش تأمین‌کنندگان آن را بررسی کنید.", "د عرضه کوونکي اصلي تادیه اوس نشته؛ په عرضه کوونکو کې یې وګورئ."), "error");
-      return;
-    }
-    const index = suppliers.findIndex((item) =>
+    const index = payment ? suppliers.findIndex((item) =>
       (payment.supplierRecordId && String(item.id) === String(payment.supplierRecordId)) ||
       (payment.supplierName && item.supplierName === payment.supplierName)
-    );
-    if (index < 0) {
-      notify(tx("Supplier not found. Check Suppliers before modifying this payment.", "تأمین‌کننده یافت نشد. قبل از تغییر پرداخت بخش تأمین‌کنندگان را بررسی کنید.", "عرضه کوونکی ونه موندل شو."), "error");
+    ) : -1;
+    if (index >= 0) {
+      navigate(`/suppliers/${index}`, {
+        state: { financeSupplierPaymentAction: { action, paymentId: String(payment.id) } },
+      });
       return;
     }
-    navigate(`/suppliers/${index}`, {
-      state: { financeSupplierPaymentAction: { action, paymentId: String(payment.id) } },
-    });
+    if (action !== "delete") {
+      notify(tx("The supplier account is missing. Restore or reconnect the supplier before editing this payment.", "حساب تأمین‌کننده موجود نیست. برای ویرایش ابتدا حساب را بازیابی یا دوباره وصل کنید.", "لومړی د عرضه کوونکي حساب بیا وصل کړئ."), "error");
+      return;
+    }
+    // Orphan recovery is an explicit destructive operation, never an automatic fallback.
+    setOrphanPaymentDelete({ transaction, payment });
+  };
+
+  const confirmDeleteOrphanPayment = async () => {
+    if (!orphanPaymentDelete || orphanDeleting || !suppliersLoaded || !supplierPaymentsLoaded || !walletLoaded) return;
+    const { transaction, payment } = orphanPaymentDelete;
+    const paymentId = String(payment?.id || transaction.referenceId || "");
+    if (!paymentId || transaction.source !== "supplier-payment") return;
+    const linkedTransactions = transactions.filter(item => item.source === "supplier-payment" && String(item.referenceId) === paymentId);
+    const linkedWallet = cashWalletTransactions.filter(item =>
+      String(item.referenceId || "") === paymentId && item.source === "supplier-payment" ||
+      Boolean(payment?.walletTransactionId) && String(item.id) === String(payment.walletTransactionId)
+    );
+    if (!linkedTransactions.length || linkedTransactions.some(item => String(item.id) !== String(transaction.id))) {
+      notify("Conflicting linked finance records found. No records were changed. Please reconcile this payment manually.", "error");
+      return;
+    }
+    const oldPayments = supplierPayments.slice();
+    const oldTransactions = transactions.slice();
+    const oldWallet = cashWalletTransactions.slice();
+    setOrphanDeleting(true);
+    try {
+      // Keep authoritative payment intact until its linked financial and wallet entries are cleared.
+      if (linkedWallet.length && !await setCashWalletTransactions(oldWallet.filter(item => !linkedWallet.some(link => String(link.id) === String(item.id))))) throw Error("wallet");
+      if (!await setTransactions(oldTransactions.filter(item => !linkedTransactions.some(link => String(link.id) === String(item.id))))) throw Error("transactions");
+      if (payment && !await setSupplierPayments(oldPayments.filter(item => String(item.id) !== paymentId))) throw Error("payment");
+      setOrphanPaymentDelete(null);
+      notify(tx("Orphan supplier payment removed from the ledger, finance, and wallet.", "پرداخت بدون حساب تأمین‌کننده از حساب‌ها، مالی و کیف پول حذف شد.", "د بې حسابه عرضه کوونکي تادیه حذف شوه."));
+    } catch (error) {
+      // Best-effort rollback: without an API transaction, a server backup remains essential.
+      await setSupplierPayments(oldPayments);
+      await setTransactions(oldTransactions);
+      await setCashWalletTransactions(oldWallet);
+      notify("Deletion failed. A restore was attempted. Check the financial and wallet balances before retrying.", "error");
+    } finally {
+      setOrphanDeleting(false);
+    }
   };
 
   const openEditModal = (transaction) => {
@@ -2050,6 +2095,21 @@ function Finance() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {orphanPaymentDelete && (
+        <div className="finance-modal-backdrop" onClick={() => !orphanDeleting && setOrphanPaymentDelete(null)}>
+          <div className="finance-delete-modal" role="dialog" aria-modal="true" onClick={event => event.stopPropagation()}>
+            <div className="finance-delete-icon"><Trash2 size={22} /></div>
+            <h3>{tx("Delete unlinked supplier payment?", "حذف پرداخت بدون تأمین‌کننده؟", "بې عرضه کوونکي تادیه حذف کړئ؟")}</h3>
+            <p>{tx("The supplier account is missing. This will delete the original payment (if present), its linked financial record and linked wallet movement. Check the amount and make a database backup before confirming.", "حساب تأمین‌کننده موجود نیست. این کار پرداخت اصلی (در صورت موجودبودن)، سند مالی و حرکت مرتبط کیف پول را حذف می‌کند. پیش از تأیید مبلغ را بررسی و از دیتابیس بکاپ بگیرید.", "د تادیې حساب نه موندل کېږي. لومړی بیک اپ واخلئ.")}</p>
+            <p><strong>{orphanPaymentDelete.transaction.title} · {formatCurrencyAmount(orphanPaymentDelete.transaction.amount, orphanPaymentDelete.transaction.currency || "AFN")}</strong></p>
+            <div className="finance-delete-actions">
+              <button type="button" className="finance-cancel-btn" disabled={orphanDeleting} onClick={() => setOrphanPaymentDelete(null)}>{tx("Cancel", "لغو", "لغوه")}</button>
+              <button type="button" className="finance-delete-btn" disabled={orphanDeleting} onClick={confirmDeleteOrphanPayment}>{orphanDeleting ? tx("Deleting...", "در حال حذف...", "د حذفولو په حال کې...") : tx("Confirm delete", "تأیید حذف", "حذف تایید کړئ")}</button>
+            </div>
           </div>
         </div>
       )}
