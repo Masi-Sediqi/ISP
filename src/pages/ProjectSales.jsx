@@ -156,7 +156,9 @@ function ProjectSales() {
       (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
       0
     );
-    const discount = items.reduce((sum, item) => sum + Number(item.discount || 0), 0);
+    const discount = items.reduce((sum, item) => sum + Math.min(
+      Number(item.discount || 0), Number(item.price || 0) * Number(item.quantity || 0)
+    ), 0);
     const total = items.reduce((sum, item) => sum + lineTotal(item), 0);
     const quantity = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
 
@@ -271,6 +273,13 @@ function ProjectSales() {
           field === "quantity"
             ? Math.max(1, Number(value || 1))
             : Math.max(0, Number(value || 0));
+        if (field === "discount") {
+          return { ...item, discount: Math.min(nextValue, Number(item.price || 0) * Number(item.quantity || 1)) };
+        }
+        if (field === "price" || field === "quantity") {
+          const nextItem = { ...item, [field]: nextValue };
+          return { ...nextItem, discount: Math.min(Number(item.discount || 0), Number(nextItem.price || 0) * Number(nextItem.quantity || 1)) };
+        }
         return { ...item, [field]: nextValue };
       })
     );
@@ -719,13 +728,14 @@ function ProjectSales() {
                     <div className="project-sale-license-row">
                       <label>
                         <span>Sale Type</span>
-                        <select
-                          value={item.saleType || "lifetime"}
-                          onChange={(event) => updateSaleType(item.projectId, event.target.value)}
-                        >
-                          <option value="lifetime">Lifetime / Permanent</option>
-                          <option value="license">License</option>
-                        </select>
+                        <div className="project-sale-type-options" role="group" aria-label={`Sale type for ${item.projectName}`}>
+                          <button type="button" className={(item.saleType || "lifetime") === "lifetime" ? "active" : ""}
+                            aria-pressed={(item.saleType || "lifetime") === "lifetime"}
+                            onClick={() => updateSaleType(item.projectId, "lifetime")}>Lifetime / Permanent</button>
+                          <button type="button" className={item.saleType === "license" ? "active" : ""}
+                            aria-pressed={item.saleType === "license"}
+                            onClick={() => updateSaleType(item.projectId, "license")}>License</button>
+                        </div>
                       </label>
 
                       {item.saleType === "license" && (

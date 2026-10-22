@@ -92,3 +92,28 @@ body.dark-mode .project-sale-cart-empty{color:#96a8c5!important}
 .project-sale-exchange-info{flex-basis:100%}.project-sale-exchange-error{flex-basis:100%;margin:0;color:#dc2626;font-size:12px}.project-sale-original-price{margin:10px 13px 0;font-size:11px;color:#64748b;font-weight:700}
 body.dark-mode .project-sale-currency-bar{background:linear-gradient(120deg,#16233d,#101b2f)!important;border-color:#344969!important}body.dark-mode .project-sale-currency-description strong{color:#f8fafc!important}body.dark-mode .project-sale-currency-description small,body.dark-mode .project-sale-exchange-info,body.dark-mode .project-sale-original-price{color:#afc1df!important}body.dark-mode .project-sale-currency-buttons{background:#0a1428}body.dark-mode .project-sale-currency-buttons button{color:#cfdef5}body.dark-mode .project-sale-currency-buttons button.active{background:#fbbf24!important;color:#111827!important}body.dark-mode .project-sale-exchange-error{color:#fca5a5!important}
 @media(max-width:620px){.project-sale-currency-bar{align-items:stretch}.project-sale-currency-buttons{width:100%}.project-sale-currency-buttons button{flex:1}}
+
+
+/* Refined sale type and agreed-price section */
+.project-sale-license-row{padding:14px 14px 8px;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:start}
+.project-sale-license-row>label{min-width:0;display:grid;gap:8px;color:#334155;font-size:12px;font-weight:750}
+.project-sale-license-row>label>span{color:#53657d;font-size:11px;font-weight:800;letter-spacing:.015em}
+.project-sale-type-options{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(90px,1fr);gap:5px;padding:5px;background:#edf2fa;border:1px solid #dae2ee;border-radius:11px;min-width:0}
+.project-sale-type-options button{min-height:37px;min-width:0;padding:7px 10px;border-radius:8px;border:1px solid transparent;background:transparent;color:#4b5d73;font:inherit;font-size:11px;font-weight:800;cursor:pointer;white-space:normal;line-height:1.25;transition:background .15s,color .15s,border-color .15s}
+.project-sale-type-options button.active{background:#fff;color:#18243b;border-color:#c8d6e9;box-shadow:0 2px 8px #18243b16}
+.project-sale-type-options button:hover:not(.active){background:#dfe8f5;color:#1e3a5f}
+.project-sale-license-row select{width:100%;min-width:0;min-height:46px;padding:0 12px;background:#fff;border:1px solid #cbd5e1;border-radius:9px;color:#16243a;font:inherit;font-size:12px}
+.project-sale-original-price{padding:8px 12px;margin:8px 14px 2px!important;background:#eff6ff;border:1px solid #dbeafe;border-radius:9px;color:#1e40af!important;line-height:1.5}
+.project-sale-three-inputs{gap:12px!important}.project-sale-three-inputs label>span{font-size:11px!important;font-weight:750!important}
+.project-sale-three-inputs input{min-height:43px!important;font-size:13px!important;font-weight:650}
+.project-sale-line-total{font-size:12px!important;align-items:center}.project-sale-line-total strong{font-size:14px}
+body.dark-mode .project-sale-license-row>label,body.dark-mode .project-sale-license-row>label>span{color:#b8c9e1!important}
+body.dark-mode .project-sale-type-options{background:#091529!important;border-color:#334964!important}
+body.dark-mode .project-sale-type-options button{color:#b8c9e1!important;background:transparent!important}
+body.dark-mode .project-sale-type-options button.active{background:#243955!important;border-color:#6485aa!important;color:#fff!important;box-shadow:0 2px 8px #0004}
+body.dark-mode .project-sale-type-options button:not(.active):hover{background:#172a45!important;color:#fff!important}
+body.dark-mode .project-sale-license-row select{background:#0c1628!important;border-color:#354967!important;color:#f8fafc!important;color-scheme:dark}
+body.dark-mode .project-sale-original-price{background:#15243c!important;border-color:#324c70!important;color:#c7defc!important}
+body.dark-mode .project-sale-three-inputs input{background:#0c1628!important;border-color:#354967!important;color:#fff!important}
+body.dark-mode .project-sale-line-total strong{color:#f8fafc!important}
+@media(max-width:620px){.project-sale-license-row{grid-template-columns:minmax(0,1fr);padding:12px}.project-sale-type-options{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.project-sale-original-price{margin-inline:12px!important}}
