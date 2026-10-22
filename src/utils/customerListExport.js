@@ -28,16 +28,20 @@ function reportDocument(doc, title, headers, rows, rtl) {
   doc.body.append(table);
 }
 
-export async function exportCustomerList({ table, title, format, rtl }) {
+export async function exportCustomerList({ table, title, format, rtl, onProgress = () => {} }) {
+  onProgress({ stage: "collecting", done: 0, total: 0 });
   const { headers, rows } = readCustomerTable(table);
+  if (!headers.length) throw new Error("No customer table was found for export.");
   const filename = `customers-${new Date().toISOString().slice(0, 10)}`;
   if (format === 'excel') {
+    onProgress({ stage: "library", done: 0, total: 1 });
     const XLSX = await import('xlsx');
     const workbook = XLSX.utils.book_new();
     const sheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     sheet['!cols'] = headers.map(() => ({ wch: 24 }));
     XLSX.utils.book_append_sheet(workbook, sheet, 'Customers');
     XLSX.writeFile(workbook, `${filename}.xlsx`);
+    onProgress({ stage: "done", done: 1, total: 1 });
     return;
   }
   const frame = document.createElement('iframe');
@@ -47,7 +51,8 @@ export async function exportCustomerList({ table, title, format, rtl }) {
   try {
     const doc = frame.contentDocument;
     reportDocument(doc, title, headers, rows, rtl);
-    await doc.fonts.ready;
+    // Limit font wait: a missing web font must not stall exports indefinitely.
+    await Promise.race([doc.fonts?.ready || Promise.resolve(), new Promise(resolve => setTimeout(resolve, 1200))]);
     if (format === 'print') {
       frame.contentWindow.addEventListener('afterprint', () => frame.remove(), { once: true });
       frame.contentWindow.focus();
@@ -56,39 +61,46 @@ export async function exportCustomerList({ table, title, format, rtl }) {
       window.setTimeout(() => frame.remove(), 60000);
       return;
     }
+    onProgress({ stage: 'library', done: 0, total: 1 });
     const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    // Render bounded groups of rows to avoid browser canvas limits on large lists.
+    // Separate a full list into predictable, bounded pages. Avoid the quadratic
+    // layout loop and giant off-screen canvases on 1,000+ customer exports.
     const body = doc.querySelector('tbody');
-    const allRows = Array.from(body.rows);
+    const originalRows = Array.from(body.rows);
+    const pageSize = 24;
+    const totalPages = Math.max(1, Math.ceil(originalRows.length / pageSize));
     frame.style.height = '1px';
-    let page = 0;
-    while (allRows.length || page === 0) {
-      body.replaceChildren();
-      // Fit whole rows within the printable A4 height before capturing each page.
-      while (allRows.length) {
-        const next = allRows.shift();
-        body.append(next);
-        if (doc.body.scrollHeight > 190 * 1120 / 277 && body.rows.length > 1) {
-          next.remove();
-          allRows.unshift(next);
-          break;
-        }
-      }
-      const canvas = await html2canvas(doc.body, { scale: 1.5, backgroundColor: '#ffffff', windowWidth: 1120 });
-      const height = canvas.height * 277 / canvas.width;
-      // Tall notes can extend a group across multiple A4 pages without cropping.
+    let pdfPages = 0;
+    for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+      body.replaceChildren(...originalRows.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize));
+      onProgress({ stage: 'rendering', done: pageIndex, total: totalPages });
+      // Yield so React can paint the updated progress, and the browser can stay responsive.
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const canvas = await html2canvas(doc.body, {
+        scale: 1.15, backgroundColor: '#ffffff', windowWidth: 1120,
+        logging: false, useCORS: false,
+      });
       const pagePixels = Math.floor(190 * canvas.width / 277);
       for (let top = 0; top < canvas.height; top += pagePixels) {
         const slice = document.createElement('canvas');
         slice.width = canvas.width;
         slice.height = Math.min(pagePixels, canvas.height - top);
-        slice.getContext('2d').drawImage(canvas, 0, top, canvas.width, slice.height, 0, 0, slice.width, slice.height);
-        if (page++) pdf.addPage();
-        pdf.addImage(slice.toDataURL('image/png'), 'PNG', 10, 10, 277, Math.min(height, slice.height * 277 / slice.width));
+        slice.getContext('2d').drawImage(canvas, 0, top, canvas.width, slice.height, 0, 0, canvas.width, slice.height);
+        if (pdfPages++) pdf.addPage();
+        pdf.addImage(slice.toDataURL('image/jpeg', 0.8), 'JPEG', 10, 10, 277,
+          slice.height * 277 / slice.width, undefined, 'FAST');
+        slice.width = 0;
+        slice.height = 0;
       }
+      canvas.width = 0;
+      canvas.height = 0;
+      onProgress({ stage: 'rendering', done: pageIndex + 1, total: totalPages });
     }
+    onProgress({ stage: 'saving', done: totalPages, total: totalPages });
+    await new Promise(resolve => setTimeout(resolve, 0));
     pdf.save(`${filename}.pdf`);
+    onProgress({ stage: "done", done: totalPages, total: totalPages });
   } finally {
     if (format !== 'print') frame.remove();
   }

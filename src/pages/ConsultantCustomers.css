@@ -958,5 +958,13 @@ body.dark-mode .consultant-duplicate-warning-meta {
 body.dark-mode .consultant-export-select{background:#1e293b;border-color:#475569;color:#f8fafc}
 @media(max-width:720px){.consultant-heading-actions{width:100%;gap:10px}.consultant-export-select{min-width:0;flex:1}}
 
-/* Avoid repainting the full customer table while the modal is being edited. */
-.consultant-modal-backdrop{backdrop-filter:none}
+/* Customer export: responsive, non-blocking progress UI */
+.consultant-export-progress{display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-width:340px;padding:8px 12px;border:1px solid #b7d0ee;border-radius:10px;background:#eff6ff;color:#1e40af;font-size:12px;font-weight:600}
+.consultant-export-progress progress{width:100%;height:5px;accent-color:#f59e0b}
+.consultant-export-spinner{width:15px;height:15px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:ispCustomerExportSpin .75s linear infinite;flex:none}
+.consultant-export-error{max-width:350px;color:#b91c1c;font-size:12px;font-weight:600;overflow-wrap:anywhere}
+body.dark-mode .consultant-export-progress{background:#14243b;border-color:#385371;color:#dbeafe}
+body.dark-mode .consultant-export-error{color:#fca5a5}
+@keyframes ispCustomerExportSpin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.consultant-export-spinner{animation-duration:2s}}
+@media(max-width:760px){.consultant-export-progress{max-width:100%;width:100%}}

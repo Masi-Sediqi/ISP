@@ -660,6 +660,8 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
   const navigate = useNavigate();
   const [activeMode, setActiveMode] = useState(mode);
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(null);
+  const [exportError, setExportError] = useState("");
   const customerTableRef = useRef(null);
   const isTravel = activeMode === "travel";
   const isTechnology = activeMode === "technology";
@@ -1214,18 +1216,14 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     resetForm();
   };
 
-  const departmentCards = useMemo(
-    () =>
-      departmentTypes.map((department) => ({
-        ...department,
-        count: serverCustomers.filter(
-          (item) =>
-            item.specializedCustomer &&
-            item.customerType === department.key
-        ).length,
-      })),
-    [serverCustomers]
-  );
+  const departmentCards = departmentTypes.map((department) => ({
+    ...department,
+    count: serverCustomers.filter(
+      (item) =>
+        item.specializedCustomer &&
+        item.customerType === department.key
+    ).length,
+  }));
 
   const formatPrice = (customer) => {
     const price = Number(
@@ -1247,14 +1245,21 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     const format = event.target.value;
     event.target.value = "";
     if (!format || exporting) return;
+    setExportError("");
+    setExportProgress({ stage: "collecting", done: 0, total: 0 });
     setExporting(true);
     try {
-      await exportCustomerList({ table: customerTableRef.current, title: typeLabelPlural, format, rtl: interfaceLanguage !== "en" });
+      await exportCustomerList({
+        table: customerTableRef.current, title: typeLabelPlural, format,
+        rtl: interfaceLanguage !== "en", onProgress: setExportProgress,
+      });
     } catch (error) {
       console.error("Customer export failed", error);
+      setExportError(error?.message || tx("Export failed. Try again.", "خروجی انجام نشد. دوباره کوشش کنید.", "صادرول ناکام شول."));
       notify(tx("Could not export customers. Please try again.", "خروجی مشتریان انجام نشد. دوباره کوشش کنید.", "د پېرودونکو صادرول ناکام شول. بیا هڅه وکړئ."), "error");
     } finally {
       setExporting(false);
+      setExportProgress(null);
     }
   };
 
@@ -1281,6 +1286,16 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
             <option value="pdf">PDF (A4)</option>
             <option value="print">{tx("Print A4", "چاپ A4", "A4 چاپ")}</option>
           </select>
+          {exporting && <div className="consultant-export-progress" role="status" aria-live="polite">
+            <span className="consultant-export-spinner" aria-hidden="true" />
+            <span>{exportProgress?.stage === "rendering"
+              ? tx(`Preparing PDF ${exportProgress.done}/${exportProgress.total} pages`, `آماده‌سازی PDF، صفحه ${exportProgress.done} از ${exportProgress.total}`, `PDF چمتو کېږي: ${exportProgress.done}/${exportProgress.total}`)
+              : exportProgress?.stage === "saving"
+                ? tx("Saving your PDF...", "ذخیره PDF...", "PDF خوندي کېږي...")
+                : tx("Preparing export...", "آماده‌سازی فایل...", "فایل چمتو کېږي...")}</span>
+            {exportProgress?.total > 0 && <progress max={exportProgress.total} value={exportProgress.done || 0} />}
+          </div>}
+          {exportError && !exporting && <span className="consultant-export-error" role="alert">{exportError}</span>}
         <button
           type="button"
           onClick={openCreate}
@@ -1319,7 +1334,6 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
         })}
       </div>
 
-      {!showForm && (
       <section className="consultant-list-card">
         <div className="consultant-list-header">
           <div>
@@ -1654,7 +1668,6 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
           </table>
         </div>
       </section>
-      )}
 
       {showForm && (
         <div
