@@ -1,0 +1,7 @@
+/* Global rendering optimization for large record tables. Keeps forms fully interactive. */
+@supports (content-visibility: auto) {
+  .page-content :is(.consultant-table-wrap, .employee-table-wrap, .supplier-table-wrap, .reception-table-wrap, .table-responsive, .table-card) tbody > tr {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 46px;
+  }
+}

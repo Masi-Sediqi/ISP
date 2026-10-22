@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useNavigate,
 } from "react-router-dom";
@@ -166,28 +166,25 @@ function Suppliers({ currentUser }) {
   const canEditSupplier = hasPermission(currentUser, "suppliers", "edit");
   const canDeleteSupplier = hasPermission(currentUser, "suppliers", "delete");
 
-  const filteredSuppliers = suppliers
-    .map((supplier, originalIndex) => ({ ...supplier, originalIndex }))
-    .filter((supplier) =>
-      (supplier.supplierName || "").toLowerCase().includes(search.toLowerCase()) ||
-      (supplier.companyName || "").toLowerCase().includes(search.toLowerCase()) ||
-      (supplier.contactPerson || "").toLowerCase().includes(search.toLowerCase()) ||
-      (supplier.phone || "").toLowerCase().includes(search.toLowerCase()) ||
-      (supplier.email || "").toLowerCase().includes(search.toLowerCase()) ||
-      (supplier.supplierTypes || []).join(" ").toLowerCase().includes(search.toLowerCase()) ||
-      (supplier.status || "").toLowerCase().includes(search.toLowerCase())
-    );
+  // Keep list filtering and dashboard totals out of the form typing path.
+  const filteredSuppliers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return suppliers
+      .map((supplier, originalIndex) => ({ ...supplier, originalIndex }))
+      .filter((supplier) => !query || [
+        supplier.supplierName, supplier.companyName, supplier.contactPerson,
+        supplier.phone, supplier.email, (supplier.supplierTypes || []).join(" "), supplier.status,
+      ].some((value) => String(value || "").toLowerCase().includes(query)));
+  }, [suppliers, search]);
 
   const supplierPagination = useTablePagination(filteredSuppliers, search);
 
-  const totalSuppliers = suppliers.length;
-  const activeSuppliers = suppliers.filter((supplier) => supplier.status === "Active").length;
-  const inactiveSuppliers = suppliers.filter((supplier) => supplier.status === "Inactive").length;
-  const totalOpeningBalance = suppliers.reduce(
-    (sum, supplier) => sum + Number(supplier.openingBalance || 0),
-    0
-  );
-
+  const { totalSuppliers, activeSuppliers, inactiveSuppliers, totalOpeningBalance } = useMemo(() => ({
+    totalSuppliers: suppliers.length,
+    activeSuppliers: suppliers.filter((supplier) => supplier.status === "Active").length,
+    inactiveSuppliers: suppliers.filter((supplier) => supplier.status === "Inactive").length,
+    totalOpeningBalance: suppliers.reduce((sum, supplier) => sum + Number(supplier.openingBalance || 0), 0),
+  }), [suppliers]);
   const money = (value) => Number(value || 0).toLocaleString("en-US");
 
   const handleChange = (event) => {

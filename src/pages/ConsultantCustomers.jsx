@@ -660,8 +660,6 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
   const navigate = useNavigate();
   const [activeMode, setActiveMode] = useState(mode);
   const [exporting, setExporting] = useState(false);
-  const [exportProgress, setExportProgress] = useState(null);
-  const [exportError, setExportError] = useState("");
   const customerTableRef = useRef(null);
   const isTravel = activeMode === "travel";
   const isTechnology = activeMode === "technology";
@@ -1216,14 +1214,19 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     resetForm();
   };
 
-  const departmentCards = departmentTypes.map((department) => ({
-    ...department,
-    count: serverCustomers.filter(
-      (item) =>
-        item.specializedCustomer &&
-        item.customerType === department.key
-    ).length,
-  }));
+  // Update category totals only when collection contents change, not on each keystroke.
+  const departmentCards = useMemo(() => {
+    const counts = Object.create(null);
+    for (const item of serverCustomers) {
+      if (!item.specializedCustomer) continue;
+      const key = item.customerType;
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return departmentTypes.map((department) => ({
+      ...department,
+      count: counts[department.key] || 0,
+    }));
+  }, [serverCustomers]);
 
   const formatPrice = (customer) => {
     const price = Number(
@@ -1245,67 +1248,21 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
     const format = event.target.value;
     event.target.value = "";
     if (!format || exporting) return;
-    setExportError("");
-    setExportProgress({ stage: "collecting", done: 0, total: 0 });
     setExporting(true);
     try {
-      await exportCustomerList({
-        table: customerTableRef.current, title: typeLabelPlural, format,
-        rtl: interfaceLanguage !== "en", onProgress: setExportProgress,
-      });
+      await exportCustomerList({ table: customerTableRef.current, title: typeLabelPlural, format, rtl: interfaceLanguage !== "en" });
     } catch (error) {
       console.error("Customer export failed", error);
-      setExportError(error?.message || tx("Export failed. Try again.", "خروجی انجام نشد. دوباره کوشش کنید.", "صادرول ناکام شول."));
       notify(tx("Could not export customers. Please try again.", "خروجی مشتریان انجام نشد. دوباره کوشش کنید.", "د پېرودونکو صادرول ناکام شول. بیا هڅه وکړئ."), "error");
     } finally {
       setExporting(false);
-      setExportProgress(null);
     }
   };
 
-  return (
-    <div className={`consultant-page ${interfaceLanguage !== "en" ? "consultant-page-rtl" : ""}`}>
-      <div className="consultant-heading">
-        <div>
-          <span>{tx("Customer Services", "خدمات مشتریان", "د پېرودونکو خدمتونه")}</span>
-          <h1>{typeLabelPlural}</h1>
-          <p>
-            {tx(
-              "Register and manage customer information from one workspace.",
-              "معلومات مشتریان را از یک بخش ثبت و مدیریت کنید.",
-              "د پېرودونکو معلومات له یوه ځایه ثبت او مدیریت کړئ."
-            )}
-          </p>
-        </div>
-
-        <div className="consultant-heading-actions">
-          <select className="consultant-export-select" defaultValue="" onChange={handleExport} disabled={exporting || !filtered.length}
-            aria-label={tx("Export customer list", "خروجی لیست مشتریان", "د پېرودونکو لېست صادرول")}>
-            <option value="" disabled>{exporting ? tx("Preparing…", "در حال آماده‌سازی…", "چمتو کېږي…") : tx("Export / Print", "خروجی / چاپ", "صادرول / چاپ")}</option>
-            <option value="excel">Excel (.xlsx)</option>
-            <option value="pdf">PDF (A4)</option>
-            <option value="print">{tx("Print A4", "چاپ A4", "A4 چاپ")}</option>
-          </select>
-          {exporting && <div className="consultant-export-progress" role="status" aria-live="polite">
-            <span className="consultant-export-spinner" aria-hidden="true" />
-            <span>{exportProgress?.stage === "rendering"
-              ? tx(`Preparing PDF ${exportProgress.done}/${exportProgress.total} pages`, `آماده‌سازی PDF، صفحه ${exportProgress.done} از ${exportProgress.total}`, `PDF چمتو کېږي: ${exportProgress.done}/${exportProgress.total}`)
-              : exportProgress?.stage === "saving"
-                ? tx("Saving your PDF...", "ذخیره PDF...", "PDF خوندي کېږي...")
-                : tx("Preparing export...", "آماده‌سازی فایل...", "فایل چمتو کېږي...")}</span>
-            {exportProgress?.total > 0 && <progress max={exportProgress.total} value={exportProgress.done || 0} />}
-          </div>}
-          {exportError && !exporting && <span className="consultant-export-error" role="alert">{exportError}</span>}
-        <button
-          type="button"
-          onClick={openCreate}
-        >
-          <Plus size={17} />
-          {tx("Add", "افزودن", "زیاتول")} {typeLabel}
-        </button>
-        </div>
-      </div>
-
+  // Keep the large customer table mounted and stable when typing in the registration
+  // form. The table updates when its data, filters, language or export state changes.
+  const customerListContent = useMemo(() => (
+    <>
       <div className="consultant-department-cards" aria-label="Customer departments">
         {departmentCards.map((department) => {
           const Icon = department.icon;
@@ -1668,6 +1625,46 @@ function ConsultantCustomers({ mode = "consultant", currentUser }) {
           </table>
         </div>
       </section>
+    </>
+  ), [
+    activeMode, departmentCards, filtered, search, interfaceLanguage,
+    exporting, typeLabel, typeLabelPlural,
+  ]);
+
+  return (
+    <div className={`consultant-page ${interfaceLanguage !== "en" ? "consultant-page-rtl" : ""}`}>
+      <div className="consultant-heading">
+        <div>
+          <span>{tx("Customer Services", "خدمات مشتریان", "د پېرودونکو خدمتونه")}</span>
+          <h1>{typeLabelPlural}</h1>
+          <p>
+            {tx(
+              "Register and manage customer information from one workspace.",
+              "معلومات مشتریان را از یک بخش ثبت و مدیریت کنید.",
+              "د پېرودونکو معلومات له یوه ځایه ثبت او مدیریت کړئ."
+            )}
+          </p>
+        </div>
+
+        <div className="consultant-heading-actions">
+          <select className="consultant-export-select" defaultValue="" onChange={handleExport} disabled={exporting || !filtered.length}
+            aria-label={tx("Export customer list", "خروجی لیست مشتریان", "د پېرودونکو لېست صادرول")}>
+            <option value="" disabled>{exporting ? tx("Preparing…", "در حال آماده‌سازی…", "چمتو کېږي…") : tx("Export / Print", "خروجی / چاپ", "صادرول / چاپ")}</option>
+            <option value="excel">Excel (.xlsx)</option>
+            <option value="pdf">PDF (A4)</option>
+            <option value="print">{tx("Print A4", "چاپ A4", "A4 چاپ")}</option>
+          </select>
+        <button
+          type="button"
+          onClick={openCreate}
+        >
+          <Plus size={17} />
+          {tx("Add", "افزودن", "زیاتول")} {typeLabel}
+        </button>
+        </div>
+      </div>
+
+      {customerListContent}
 
       {showForm && (
         <div

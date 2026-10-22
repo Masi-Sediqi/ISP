@@ -106,12 +106,11 @@ function Projects() {
     });
   }, [projects, search, statusFilter]);
 
-  const activeCount = projects.filter((project) =>
-    (project.projectMode || "new") === "new" &&
-    ["Planning", "In Progress", "Review"].includes(project.status)
-  ).length;
-  const deliveredCount = projects.filter((project) => project.status === "Delivered" || project.projectMode === "existing").length;
-  const urgentCount = projects.filter((project) => ["High", "Urgent"].includes(project.priority)).length;
+  const { activeCount, deliveredCount, urgentCount } = useMemo(() => ({
+    activeCount: projects.filter((project) => (project.projectMode || "new") === "new" && ["Planning", "In Progress", "Review"].includes(project.status)).length,
+    deliveredCount: projects.filter((project) => project.status === "Delivered" || project.projectMode === "existing").length,
+    urgentCount: projects.filter((project) => ["High", "Urgent"].includes(project.priority)).length,
+  }), [projects]);
 
   const isExistingProduct = form.projectMode === "existing";
 
