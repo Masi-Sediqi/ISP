@@ -1504,3 +1504,36 @@ body.dark-mode
     flex: 1;
   }
 }
+/* Dark-mode source fix: supplier header actions, including disabled states */
+body.dark-mode .supplier-details-page .supplier-header-actions :is(.supplier-secondary-btn,.supplier-purchase-btn) {
+  border: 1px solid #415574;
+  background: #192940;
+  color: #edf4ff;
+  box-shadow: none;
+}
+body.dark-mode .supplier-details-page .supplier-header-actions :is(.supplier-secondary-btn,.supplier-purchase-btn):not(:disabled):hover {
+  background: #29425d;
+  border-color: #6383a8;
+  color: #fff;
+}
+body.dark-mode .supplier-details-page .supplier-header-actions :is(.supplier-secondary-btn,.supplier-purchase-btn):disabled {
+  background: #162337;
+  color: #879ab5;
+  border: 1px solid #30415b;
+  opacity: 0.62;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+body.dark-mode .supplier-details-page .supplier-header-actions :is(.supplier-secondary-btn,.supplier-purchase-btn) :is(svg,span) {
+  color: inherit;
+}
+body.dark-mode .supplier-details-page .supplier-header-actions :is(button,a):focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
+}
+@media (max-width: 700px) {
+  .supplier-details-header { align-items: stretch; flex-direction: column; }
+  .supplier-header-actions { width: 100%; gap: 8px; }
+  .supplier-header-actions button { min-width: 0; flex: 1 1 auto; }
+}
