@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 import pg from "pg";
 import path from "node:path";
 import fs from "node:fs";
@@ -134,6 +135,9 @@ async function applyChanges(client, collection, body = {}) {
 const app = express();
 app.disable("x-powered-by");
 app.use(cors());
+// Collection responses can contain thousands of JSON records. Compress them
+// before they leave the VPS so the browser spends less time downloading data.
+app.use(compression({ threshold: "1kb" }));
 app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
@@ -157,17 +161,27 @@ app.get("/api/collections/:collection", async (req, res, next) => {
         !Number.isSafeInteger(offset) || offset < 0) {
       return res.status(400).json({ error: "Invalid pagination parameters." });
     }
-    const result = await pool.query(
+    const dataQuery = pool.query(
       `SELECT record_data FROM app_records
        WHERE collection_name = $1 AND deleted_at IS NULL
        ORDER BY updated_at ASC, record_id ASC
        LIMIT $2 OFFSET $3`,
       [collection, limit + 1, offset]
     );
+    const countQuery = offset === 0
+      ? pool.query(
+          `SELECT COUNT(*)::int AS total
+           FROM app_records
+           WHERE collection_name = $1 AND deleted_at IS NULL`,
+          [collection]
+        )
+      : Promise.resolve(null);
+    const [result, countResult] = await Promise.all([dataQuery, countQuery]);
     res.json({
       items: result.rows.slice(0, limit).map((row) => row.record_data),
       hasMore: result.rows.length > limit,
       nextOffset: offset + Math.min(limit, result.rows.length),
+      ...(countResult ? { total: countResult.rows[0]?.total || 0 } : {}),
     });
   } catch (error) { next(error); }
 });
