@@ -145,6 +145,7 @@ export default function CustomerDetails({ currentUser }) {
   const [visits, setVisits] = useJsonCollection("customerVisits");
   const [projects, setProjects] = useJsonCollection("projects");
   const [sales, setSales] = useJsonCollection("projectSales");
+  const [customContracts, setCustomContracts] = useJsonCollection('customerContracts');
   const [transactions, setTransactions] = useJsonCollection("transactions");
   const [customerPayments, setCustomerPayments] = useJsonCollection("customerPayments");
   const [stageHistory, setStageHistory] = useJsonCollection("customerStageHistory");
@@ -171,6 +172,7 @@ export default function CustomerDetails({ currentUser }) {
   );
 
   const saleIds = useMemo(() => new Set(linkedSales.map((sale) => String(sale.id || ""))), [linkedSales]);
+  const linkedCustomContracts = useMemo(() => customContracts.filter(record => customerMatches(record, customer)), [customContracts, customer]);
 
   const linkedTransactions = useMemo(
     () => transactions.filter((record) => {
@@ -460,7 +462,7 @@ export default function CustomerDetails({ currentUser }) {
   const customerName = nameOf(customer) || "Unnamed Customer";
   const summaryCards = [
     ["Visits", linkedVisits.length + 1, CalendarDays],
-    ["Contracts", linkedSales.length, FileText],
+    ["Contracts", linkedSales.length + linkedCustomContracts.length, FileText],
     ["Total Sales", money(totalSales, currency), ReceiptText],
     ["Paid", money(displayedPaid, currency), WalletCards],
     ["Remaining", money(displayedRemaining, currency), BadgeDollarSign],
@@ -565,7 +567,7 @@ export default function CustomerDetails({ currentUser }) {
 
         {activeTab === "contracts" && (
           <>
-            <CustomerContracts sales={linkedSales} customer={customer} setSales={setSales} />
+            <CustomerContracts sales={linkedSales} customer={customer} setSales={setSales} contracts={linkedCustomContracts} setContracts={setCustomContracts} />
             {linkedProjects.length > 0 && <div className="customer-data-table"><h3>Linked Projects</h3><table><thead><tr><th>Project</th><th>Status</th><th>Start</th><th>Due</th><th>Price</th><th>Action</th></tr></thead><tbody>{linkedProjects.map(project => <tr key={project.id}><td>{project.projectName || project.name}</td><td>{project.status || '—'}</td><td>{project.startDate || '—'}</td><td>{project.dueDate || '—'}</td><td>{money(numberOf(project.price, project.totalAmount), project.unit || project.currency || 'AFN')}</td><td><button type="button" className="customer-record-delete" title="Delete project" onClick={() => requestDeleteRecord('projects', project, 'contract / project')}><Trash2 size={15} /></button></td></tr>)}</tbody></table></div>}
           </>
         )}

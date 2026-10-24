@@ -1,4 +1,5 @@
-import { PDFDocument, rgb } from 'pdf-lib';
+import { createPdfTextWriter } from './pdfTextBox.js';
+import { PDFDocument } from 'pdf-lib';
 import { contractItems, contractNumber, contractPlanLabel, contractProjectCode, validateContract } from './customerContract.js';
 import { salePaymentSummary } from './projectSalesLogic.js';
 
@@ -12,36 +13,7 @@ export async function generateContractPdf(templateBytes, sale, details, canvasFa
   const payment = salePaymentSummary(sale);
   const ltr = value => `\u2066${value}\u2069`;
   const amount = value => ltr(`${Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })} ${sale.currency || 'AFN'}`);
-  async function box(page, x, top, width, height, lines, fontSize = 11, clear = true) {
-    const crop = page.getCropBox();
-    if (clear) page.drawRectangle({ x, y: crop.y + crop.height - top - height, width, height, color: rgb(1, 1, 1) });
-    const canvas = canvasFactory();
-    const scale = 3;
-    canvas.width = Math.ceil(width * scale); canvas.height = Math.ceil(height * scale);
-    const ctx = canvas.getContext('2d');
-    ctx.scale(scale, scale); ctx.direction = 'rtl'; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillStyle = '#111827';
-    let rendered;
-    for (let size = fontSize; size >= 7; size -= 0.5) {
-      ctx.font = `${size}px Tahoma, Arial, sans-serif`;
-      rendered = [];
-      for (const text of lines) {
-        let line = '';
-        for (const word of String(text).split(/\s+/)) {
-          const next = line ? `${line} ${word}` : word;
-          if (ctx.measureText(next).width > width - 8 && line) { rendered.push(line); line = word; }
-          else line = next;
-        }
-        rendered.push(line);
-      }
-      if (rendered.length * size * 1.5 <= height - 4 && rendered.every(line => ctx.measureText(line).width <= width - 8)) {
-        rendered.forEach((line, index) => ctx.fillText(line, width - 4, 2 + index * size * 1.5));
-        const image = await pdf.embedPng(canvas.toDataURL('image/png'));
-        page.drawImage(image, { x, y: crop.y + crop.height - top - height, width, height });
-        return;
-      }
-    }
-    throw new Error('Contract text is too long for the template. Shorten the field and try again.');
-  }
+  const box = createPdfTextWriter(pdf, canvasFactory);
   const seller = ['طرف اول - شرکت فروشنده', 'نام شرکت: شرکت توسعه تکنالوژی افغان پاور', 'نماینده: محمد صمیم میاخیل', 'وظیفه: رئیس شرکت', 'آدرس: شهرنو بین چهارراهی حاجی یعقوب و انصاری، مارکیت برگ طلایی، منزل پنجم، دفتر 73', 'شماره تماس: 0783828054'];
   const buyer = ['طرف دوم - خریدار', `نام / شرکت: ${details.buyerName}`, `تذکره / جواز: ${details.buyerIdNumber}`, `نماینده: ${details.representative}`, `آدرس: ${details.address}`, `تماس: ${details.phone}`];
   for (const page of [pages[0], pages[3]]) {
