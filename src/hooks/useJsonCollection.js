@@ -20,16 +20,6 @@ const sharedCollectionRequests = new Map();
 // Short lived in-memory snapshots avoid duplicate round-trips when navigating
 // between screens. Mutations invalidate the snapshot immediately.
 const collectionSnapshots = new Map();
-const collectionChannel = typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('isp-collection-sync') : null;
-if (collectionChannel) {
-  collectionChannel.onmessage = event => {
-    const name = event.data?.collection;
-    if (typeof name !== 'string') return;
-    collectionSnapshots.delete(name);
-    window.dispatchEvent(new CustomEvent(`isp-server:${name}`));
-  };
-}
-if (import.meta.hot) import.meta.hot.dispose(() => collectionChannel?.close());
 const SNAPSHOT_TTL_MS = 45000;
 // Keep recently viewed collections in memory across route transitions.
 // Writes and server events update or invalidate this cache immediately.
@@ -236,13 +226,12 @@ export function useJsonCollection(name, options = {}) {
   const disabled = DISABLED_COLLECTIONS.has(name) || options.enabled === false;
   const background = options.background === true;
   const silentLoadErrors = options.silentLoadErrors === true;
-  const refreshInterval = Number(options.refreshInterval || 0);
   // Synchronously hydrate on remount, so visiting a previous section is instant.
   const initialSnapshot = !disabled ? collectionSnapshots.get(name) : null;
   const [items, setItemsState] = useState(() => initialSnapshot?.items || []);
   const [loaded, setLoaded] = useState(() => Boolean(initialSnapshot));
   const [loadError, setLoadError] = useState(null);
-  const [, setProgressiveLoading] = useState(false);
+  const [progressiveLoading, setProgressiveLoading] = useState(false);
   const itemsRef = useRef(initialSnapshot?.items || []);
   const loadingRef = useRef(false);
   const loadedRef = useRef(Boolean(initialSnapshot));
@@ -336,25 +325,6 @@ export function useJsonCollection(name, options = {}) {
   }, [load]);
 
   useEffect(() => {
-    if (disabled || refreshInterval <= 0) return undefined;
-    const refresh = () => {
-      if (document.visibilityState === 'hidden' || !navigator.onLine || loadingRef.current) return;
-      collectionSnapshots.delete(name);
-      load();
-    };
-    const timer = window.setInterval(refresh, refreshInterval);
-    window.addEventListener('focus', refresh);
-    window.addEventListener('online', refresh);
-    document.addEventListener('visibilitychange', refresh);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener('focus', refresh);
-      window.removeEventListener('online', refresh);
-      document.removeEventListener('visibilitychange', refresh);
-    };
-  }, [disabled, load, name, refreshInterval]);
-
-  useEffect(() => {
     if (disabled) return undefined;
 
     const handleRemoteChange = (event) => {
@@ -402,7 +372,6 @@ export function useJsonCollection(name, options = {}) {
         window.dispatchEvent(
           new CustomEvent(`isp-server:${name}`, { detail: nextItems })
         );
-        collectionChannel?.postMessage({ collection: name });
         recordEmployeeActivity(name, previousItems, nextItems);
         setLoadError(null);
         return true;

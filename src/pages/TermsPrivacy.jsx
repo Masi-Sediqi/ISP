@@ -1,5 +1,5 @@
 import { useState } from "react";
-const legalLogo = `${import.meta.env.BASE_URL}brand-logo.png`;
+import legalLogo from "../assets/logo.PNG";
 import "./TermsPrivacy.css";
 
 const termsItems = [

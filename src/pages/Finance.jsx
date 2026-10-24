@@ -31,6 +31,7 @@ import {
 } from "../utils/afghanDate";
 
 import "./Finance.css";
+import { isNonCashStaffBalanceAdjustment } from "../utils/nonCashAdjustments";
 
 const emptyFinanceForm = {
   date: todayDateValue(),
@@ -509,7 +510,7 @@ function Finance() {
         .filter(
           (adjustment) => {
             const adjustmentType = String(adjustment.type || "").toLowerCase();
-            if (adjustmentType === "salary") return false;
+            if (adjustmentType === "salary" || isNonCashStaffBalanceAdjustment(adjustment)) return false;
 
             return !transactions.some(
               (transaction) =>
@@ -584,7 +585,7 @@ function Finance() {
         });
 
     return [
-      ...transactions,
+      ...transactions.filter((item) => !isNonCashStaffBalanceAdjustment(item)),
       ...legacyEmployeeAdjustments,
       ...legacyTravelPayments,
       ...legacyCustomerPayments,

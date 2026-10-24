@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-const helpCenterLogo = `${import.meta.env.BASE_URL}brand-logo.png`;
+import helpCenterLogo from "../assets/logo.PNG";
 import {
   Bot,
   Boxes,

@@ -43,7 +43,7 @@ import Header from "./components/Header";
 import SmartPageLoader from "./components/SmartPageLoader";
 import GlobalTableEnhancer from "./components/GlobalTableEnhancer";
 import ToastHost from "./components/ToastHost";
-const brandLogo = `${import.meta.env.BASE_URL}brand-logo.png`;
+import brandLogo from "./assets/logo.PNG";
 import { useJsonCollection } from "./hooks/useJsonCollection";
 import { canViewModule } from "./utils/permissions";
 import { notify, requestSystemNotificationPermission } from "./utils/notify";

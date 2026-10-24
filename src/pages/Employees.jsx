@@ -192,13 +192,15 @@ function Employees() {
     );
   }, [employees, search]);
 
-  const activeEmployees = employees.filter((employee) => employee.status === "Active").length;
   const [nowTime] = useState(() => Date.now());
-  const contractsEnding = employees.filter((employee) => {
-    if (!employee.endDate) return false;
-    const remaining = new Date(employee.endDate).getTime() - nowTime;
-    return remaining >= 0 && remaining <= 30 * 24 * 60 * 60 * 1000;
-  }).length;
+  const { activeEmployees, contractsEnding } = useMemo(() => ({
+    activeEmployees: employees.filter((employee) => employee.status === "Active").length,
+    contractsEnding: employees.filter((employee) => {
+      if (!employee.endDate) return false;
+      const remaining = new Date(employee.endDate).getTime() - nowTime;
+      return remaining >= 0 && remaining <= 30 * 24 * 60 * 60 * 1000;
+    }).length,
+  }), [employees, nowTime]);
 
   const updateField = (event) => {
     const { name, value } = event.target;

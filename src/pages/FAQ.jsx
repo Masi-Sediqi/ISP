@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-const faqLogo = `${import.meta.env.BASE_URL}brand-logo.png`;
+import faqLogo from "../assets/logo.PNG";
 import "./FAQ.css";
 
 const faqItems = [

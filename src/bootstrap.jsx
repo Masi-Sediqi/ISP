@@ -1,3 +1,5 @@
+const BOOT_RETRY_KEY = "afghan-power-boot-retry";
+
 function showBootError(error) {
   const root = document.getElementById("root");
   if (!root) return;
@@ -15,21 +17,28 @@ function showBootError(error) {
     </div>`;
 
   document.getElementById("boot-retry-button")?.addEventListener("click", () => {
+    sessionStorage.removeItem(BOOT_RETRY_KEY);
     window.location.reload();
   });
 }
 
 async function startApplication() {
-  const timeout = window.setTimeout(() => {
-    showBootError(new Error("Application loading timed out. Check the development server and retry."));
-  }, 30000);
   try {
     await import("./main.jsx");
+    sessionStorage.removeItem(BOOT_RETRY_KEY);
   } catch (firstError) {
     console.error("[Afghan Power boot error]", firstError);
+
+    const alreadyRetried = sessionStorage.getItem(BOOT_RETRY_KEY) === "1";
+    if (!alreadyRetried) {
+      sessionStorage.setItem(BOOT_RETRY_KEY, "1");
+      const url = new URL(window.location.href);
+      url.searchParams.set("boot", String(Date.now()));
+      window.location.replace(url.toString());
+      return;
+    }
+
     showBootError(firstError);
-  } finally {
-    window.clearTimeout(timeout);
   }
 }
 

@@ -35,14 +35,17 @@ async function validateExistingBackend() {
   const baseUrl = `http://127.0.0.1:${API_PORT}`;
 
   try {
-    const health = await fetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(3000) }).then((response) =>
+    const health = await fetch(`${baseUrl}/api/health`).then((response) =>
       response.ok ? response.json() : null
     );
+    const travels = await fetch(`${baseUrl}/api/travels`);
+    const assets = await fetch(`${baseUrl}/api/assets`);
 
     return Boolean(
       health &&
         health.ok === true &&
-        health.database === "postgresql"
+        travels.ok &&
+        assets.ok
     );
   } catch {
     return false;
@@ -63,24 +66,7 @@ async function main() {
   };
 
   if (apiPortIsFree) {
-    const backend = run("node", ["transport-backend/server.js"], env);
-    children.push(backend);
-    let backendFailed = false;
-    backend.once("exit", () => { backendFailed = true; });
-    backend.once("error", () => { backendFailed = true; });
-    const deadline = Date.now() + 20000;
-    let ready = false;
-    while (!backendFailed && Date.now() < deadline) {
-      if (await validateExistingBackend()) {
-        ready = true;
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300));
-    }
-    if (!ready) {
-      backend.kill();
-      throw new Error("The PostgreSQL API could not start. Check the database error above and the settings in .env.");
-    }
+    children.push(run("node", ["transport-backend/server.js"], env));
   } else {
     const backendIsReady = await validateExistingBackend();
 

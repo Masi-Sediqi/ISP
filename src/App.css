@@ -5195,3 +5195,16 @@ body.dark-mode .topbar .top-actions .header-control-btn,
 body.dark-mode .topbar .top-actions .icon-btn {background:#142239 !important;border-color:#34435a !important;color:#f1f5fa !important;}
 body.dark-mode .topbar .top-actions .header-control-btn:hover,
 body.dark-mode .topbar .top-actions .icon-btn:hover {background:#243750 !important;}
+
+/* Shared accessible dark controls: neutral buttons only, excludes colored primary and danger actions. */
+body.dark-mode .page-content :is(button,a)[disabled]:not(.primary):not(.danger):not([class*="delete"]):not([class*="confirm"]),
+body.dark-mode .page-content button:disabled:not(.primary):not(.danger):not([class*="delete"]):not([class*="confirm"]) {
+  border-color: #30445f;
+  background: #17263c;
+  color: #90a4c0;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+body.dark-mode .page-content :is(button,a)[disabled]:not(.primary):not(.danger) :is(svg,span) {
+  color: inherit;
+}
