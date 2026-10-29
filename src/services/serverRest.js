@@ -80,13 +80,22 @@ export async function fetchRemoteCollection(collection, onProgress) {
     for (let pageOffset = nextOffset; pageOffset < total; pageOffset += size) {
       pageOffsets.push(pageOffset);
     }
-    const remainingPages = await Promise.all(pageOffsets.map(fetchPage));
-    remainingPages.forEach((result) => {
-      if (!result || !Array.isArray(result.items)) {
-        throw new Error(`Invalid pagination response for ${collection}.`);
+    // Bound fan-out so several collections cannot trigger an unlimited
+    // number of simultaneous requests. Preserve original page ordering.
+    const remainingPages = new Array(pageOffsets.length);
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < pageOffsets.length) {
+        const index = cursor++;
+        const result = await fetchPage(pageOffsets[index]);
+        if (!result || !Array.isArray(result.items)) {
+          throw new Error(`Invalid pagination response for ${collection}.`);
+        }
+        remainingPages[index] = result.items;
       }
-      all.push(...result.items);
-    });
+    };
+    await Promise.all(Array.from({ length: Math.min(3, pageOffsets.length) }, () => worker()));
+    remainingPages.forEach((items) => all.push(...items));
     onProgress?.(all.slice(), false);
     return all;
   }

@@ -79,8 +79,10 @@ function GlobalDataLoader() {
     setFailed(false);
 
     let finishTimer;
+    let previewTimer;
     let safetyTimer;
     let disposed = false;
+    let previewReady = false;
     const finishIfIdle = () => {
       window.clearTimeout(finishTimer);
       if (pendingRef.current.size > 0) return;
@@ -100,7 +102,9 @@ function GlobalDataLoader() {
       if (phase === "start") {
         pendingRef.current.add(token);
         window.clearTimeout(finishTimer);
-        setLoading(true);
+        // Continue fetching in the background after the initial preview.
+        // Do not re-cover an already visible page for a late request.
+        if (!previewReady) setLoading(true);
       } else if (phase === "end") {
         pendingRef.current.delete(token);
         finishIfIdle();
@@ -109,7 +113,14 @@ function GlobalDataLoader() {
 
     window.addEventListener("isp-data-loading", onDataLoading);
     finishIfIdle();
-    // A hung connection must not trap the user under a permanent loader.
+    // Do not block navigation while unrelated collections finish downloading.
+    // Collection hooks still guard writes until their full data has arrived.
+    previewTimer = window.setTimeout(() => {
+      if (disposed) return;
+      previewReady = true;
+      setLoading(false);
+    }, 1800);
+    // If a request hangs, show the existing retry UI rather than silently failing.
     safetyTimer = window.setTimeout(() => {
       if (!disposed && pendingRef.current.size > 0) {
         setFailed(true);
@@ -121,6 +132,7 @@ function GlobalDataLoader() {
       disposed = true;
       window.removeEventListener("isp-data-loading", onDataLoading);
       window.clearTimeout(finishTimer);
+      window.clearTimeout(previewTimer);
       window.clearTimeout(safetyTimer);
     };
   }, [route]);
