@@ -45,14 +45,34 @@ async function request(path, options = {}) {
   }
 }
 
+// Cap collection download fan-out across the entire app, not only within
+// one collection. This prevents pages with many mounted hooks from flooding
+// the browser/network with simultaneous large JSON responses.
+const MAX_ACTIVE_COLLECTION_READS = 6;
+let activeCollectionReads = 0;
+const pendingCollectionReads = [];
+
+async function withCollectionReadSlot(task) {
+  if (activeCollectionReads >= MAX_ACTIVE_COLLECTION_READS) {
+    await new Promise((resolve) => pendingCollectionReads.push(resolve));
+  }
+  activeCollectionReads += 1;
+  try {
+    return await task();
+  } finally {
+    activeCollectionReads -= 1;
+    pendingCollectionReads.shift()?.();
+  }
+}
+
 export async function fetchRemoteCollection(collection, onProgress) {
   // Page progressively, while retaining compatibility with servers not yet upgraded.
   const size = 500;
   let offset = 0;
   const all = [];
-  const fetchPage = (pageOffset) => request(
+  const fetchPage = (pageOffset) => withCollectionReadSlot(() => request(
     `collections/${encodeURIComponent(collection)}?limit=${size}&offset=${pageOffset}`
-  );
+  ));
 
   const firstResult = await fetchPage(offset);
   if (Array.isArray(firstResult)) { // Older backend: one full response.

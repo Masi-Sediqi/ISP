@@ -122,7 +122,7 @@ function GlobalDataLoader() {
     }, 1800);
     // If a request hangs, show the existing retry UI rather than silently failing.
     safetyTimer = window.setTimeout(() => {
-      if (!disposed && pendingRef.current.size > 0) {
+      if (!disposed && !previewReady && pendingRef.current.size > 0) {
         setFailed(true);
         setLoading(false);
       }

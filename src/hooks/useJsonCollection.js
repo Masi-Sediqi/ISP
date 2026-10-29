@@ -239,8 +239,12 @@ export function useJsonCollection(name, options = {}) {
 
   const applyItems = useCallback((nextItems) => {
     const safe = Array.isArray(nextItems) ? nextItems : [];
-    itemsRef.current = safe;
-    setItemsState(safe);
+    // Multiple hooks can receive the same shared snapshot or progress event.
+    // Avoid an unnecessary React state update if the array is unchanged.
+    if (itemsRef.current !== safe) {
+      itemsRef.current = safe;
+      setItemsState(safe);
+    }
     return safe;
   }, []);
 
